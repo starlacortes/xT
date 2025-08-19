@@ -26,7 +26,7 @@ final class xTUITestsLaunchTests: XCTestCase {
         // such as logging into a test account or navigating somewhere in the app
 
         let attachment = XCTAttachment(screenshot: app.screenshot())
-        attachment.name = "Launch Screen"
+        attachment.name = "xTLaunchScreen"
         attachment.lifetime = .keepAlways
         add(attachment)
     }

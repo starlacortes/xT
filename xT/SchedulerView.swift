@@ -90,6 +90,16 @@ struct SchedulerView: View {
             // Calculate next dose date when view appears
             nextDoseDate = medicationManager.calculateNextDoseDate(from: lastDoseDate)
         }
+        NavigationLink(destination: HomeView()) {
+            Text("Let's Go")
+                .font(.headline)
+                .padding()
+                .frame(maxWidth: .infinity)
+                .background(Color.blue)
+                .foregroundColor(.white)
+                .cornerRadius(10)
+                .padding(.horizontal, 40)
+        }
     }
 }
 

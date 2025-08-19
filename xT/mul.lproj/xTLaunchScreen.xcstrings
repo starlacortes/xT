@@ -1,0 +1,18 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "01J-lp-oVM.title" : {
+      "comment" : "Class = \"UIViewController\"; title = \"xTLaunchScreen\"; ObjectID = \"01J-lp-oVM\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "xTLaunchScreen"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.1"
+}
