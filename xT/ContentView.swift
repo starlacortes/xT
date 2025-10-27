@@ -39,20 +39,17 @@ struct ContentView: View {
                 }
                 .padding()
                 .pickerStyle(SegmentedPickerStyle())
-                .onChange(of: selectedTypeIndex) { oldValue, newValue in
-                    if let newIndex = newValue {
-                        if let type = MedicationManager.MedicationType(rawValue: newIndex) {
-                            // Auto-select the first available administration method when medication type changes
-                            if let firstMethod = medicationManager.availableMethods(for: type).first {
-                                selectedMethodIndex = firstMethod.rawValue
-                            }
-                        }
+                .onChange(of: selectedTypeIndex) { newValue in
+                    guard let newIndex = newValue,
+                          let type = MedicationManager.MedicationType(rawValue: newIndex) else { return }
+                    if let firstMethod = medicationManager.availableMethods(for: type).first {
+                        selectedMethodIndex = firstMethod.rawValue
                     }
                 }
                 
                 // Only show administration method picker if a medication type is selected
-                if selectedTypeIndex != nil, 
-                   let medicationType = MedicationManager.MedicationType(rawValue: selectedTypeIndex!) {
+                if let typeIndex = selectedTypeIndex,
+                   let medicationType = MedicationManager.MedicationType(rawValue: typeIndex) {
 
                     Text("Choose your administration method:")
                     
@@ -68,10 +65,9 @@ struct ContentView: View {
                     .frame(width: 360)
                     // Initialize method selection if it's nil but methods are available
                     .onAppear {
-                        if selectedMethodIndex == nil {
-                            if let firstMethod = medicationManager.availableMethods(for: medicationType).first {
-                                selectedMethodIndex = firstMethod.rawValue
-                            }
+                        if selectedMethodIndex == nil,
+                           let firstMethod = medicationManager.availableMethods(for: medicationType).first {
+                            selectedMethodIndex = firstMethod.rawValue
                         }
                     }
                 }
