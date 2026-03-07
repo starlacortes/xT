@@ -26,6 +26,8 @@ struct xTApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environment(\.medicationManager, MedicationManager.shared)
+                .environment(\.profileManager, ProfileManager.shared)
         }
         .modelContainer(sharedModelContainer)
     }

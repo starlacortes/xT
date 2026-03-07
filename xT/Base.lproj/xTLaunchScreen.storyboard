@@ -22,7 +22,7 @@
                                 <nil key="highlightedColor"/>
                             </label>
                             <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" fixedFrame="YES" image="xTlogoLetters.png" translatesAutoresizingMaskIntoConstraints="NO" id="AUw-0G-314">
-                                <rect key="frame" x="119" y="367" width="175" height="118"/>
+                                <rect key="frame" x="129" y="367" width="175" height="118"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                             </imageView>
                         </subviews>
