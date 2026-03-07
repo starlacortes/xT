@@ -13,7 +13,7 @@ struct SchedulerView: View {
     @Query private var items: [Item]
     
     // Use the MedicationManager from the environment
-    @StateObject private var medicationManager = MedicationManager.shared
+    @Environment(\.medicationManager) private var medicationManager
     
     // For future dose calculations (example)
     @State private var lastDoseDate = Date()
@@ -57,6 +57,14 @@ struct SchedulerView: View {
                         nextDoseDate = medicationManager.calculateNextDoseDate(from: newValue)
                     }
                 
+                Button("Record Dose") {
+                    medicationManager.recordDose(on: lastDoseDate)
+                    // Refresh dates
+                    lastDoseDate = medicationManager.lastDoseDate ?? Date()
+                    nextDoseDate = medicationManager.nextDoseDate
+                }
+                .padding(.top, 10)
+                
                 if let nextDate = nextDoseDate {
                     Text("Next dose date:")
                         .font(.headline)
@@ -70,16 +78,13 @@ struct SchedulerView: View {
             
             // Debug information (can be removed in production)
             VStack {
-                Text("Matrix coordinates: \(medicationManager.currentCoordinates.row), \(medicationManager.currentCoordinates.column)")
+                Text("Selected medication: \(medicationManager.selectedMedication ?? "None")")
                     .font(.caption)
                     .foregroundColor(.gray)
                 
-                if let type = medicationManager.selectedMedicationType,
-                   let method = medicationManager.selectedAdministrationMethod {
-                    Text("Selected: \(type.displayName) (\(method.displayName))")
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                }
+                Text("Selected method: \(medicationManager.selectedAdministrationMethod ?? "None")")
+                    .font(.caption)
+                    .foregroundColor(.gray)
             }
             .padding(.top, 40)
             
@@ -87,8 +92,9 @@ struct SchedulerView: View {
         }
         .padding()
         .onAppear {
-            // Calculate next dose date when view appears
-            nextDoseDate = medicationManager.calculateNextDoseDate(from: lastDoseDate)
+            // Initialize dates from medication manager
+            lastDoseDate = medicationManager.lastDoseDate ?? Date()
+            nextDoseDate = medicationManager.nextDoseDate
         }
         NavigationLink(destination: HomeView()) {
             Text("Let's Go")
@@ -100,6 +106,9 @@ struct SchedulerView: View {
                 .cornerRadius(10)
                 .padding(.horizontal, 40)
         }
+        .simultaneousGesture(TapGesture().onEnded {
+            medicationManager.recordDose(on: lastDoseDate)
+        })
     }
 }
 

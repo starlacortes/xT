@@ -2,118 +2,43 @@
 //  ContentView.swift
 //  xT
 //
-//  Created by Starla Cortes on 5/16/25
-//  Pushed to Git 5/16/25
 
 import SwiftUI
 import SwiftData
 
 struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
-    
-    // Use the MedicationManager from the environment
-    @StateObject private var medicationManager = MedicationManager.shared
-    
-    // Local state for UI
-    @State private var selectedTypeIndex: Int? = nil
-    @State private var selectedMethodIndex: Int? = nil
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
+    @Environment(\.medicationManager) private var medicationManager
+    @State private var navigationPath = NavigationPath()
 
     var body: some View {
-        NavigationSplitView {
-            VStack {
-//                Image("logo")
-                Text("Welcome to xT")
-                    .font(.title)
-                    .padding(.top, 100)
-                Text("Let's get started.")
-                    .padding(.top, 20)
-                Text("Choose your medication:")
-                    .padding(.top, 167)
-            
-                // Medication Type Picker (Row selection)
-                Picker("Medication Type", selection: $selectedTypeIndex) {
-                    ForEach(MedicationManager.MedicationType.allCases, id: \.rawValue) { type in
-                        Text(type.displayName).tag(type.rawValue as Int?)
-                    }
-                }
-                .padding()
-                .pickerStyle(SegmentedPickerStyle())
-                .onChange(of: selectedTypeIndex) { newValue in
-                    guard let newIndex = newValue,
-                          let type = MedicationManager.MedicationType(rawValue: newIndex) else { return }
-                    if let firstMethod = medicationManager.availableMethods(for: type).first {
-                        selectedMethodIndex = firstMethod.rawValue
-                    }
-                }
-                
-                // Only show administration method picker if a medication type is selected
-                if let typeIndex = selectedTypeIndex,
-                   let medicationType = MedicationManager.MedicationType(rawValue: typeIndex) {
-
-                    Text("Choose your administration method:")
-                    
-                    // Administration Method Picker (Column selection)
-                    Picker("Administration Method", selection: $selectedMethodIndex) {
-                        // Only show available methods for the selected medication
-                        ForEach(medicationManager.availableMethods(for: medicationType), id: \.rawValue) { method in
-                            Text(method.displayName).tag(method.rawValue as Int?)
-                        }
-                    }
-                    .pickerStyle(.wheel)
-                    .frame(height: 93)
-                    .frame(width: 360)
-                    // Initialize method selection if it's nil but methods are available
-                    .onAppear {
-                        if selectedMethodIndex == nil,
-                           let firstMethod = medicationManager.availableMethods(for: medicationType).first {
-                            selectedMethodIndex = firstMethod.rawValue
-                        }
-                    }
-                }
-                
-                // Show Next button if medication type is selected (method will be auto-selected)
-                if let typeIndex = selectedTypeIndex,
-                   let type = MedicationManager.MedicationType(rawValue: typeIndex) {
-                    
-                    let methodToUse = selectedMethodIndex ?? medicationManager.availableMethods(for: type).first?.rawValue
-                    
-                    if let methodIndex = methodToUse,
-                       let method = MedicationManager.AdministrationMethod(rawValue: methodIndex) {
-                        
-                        NavigationLink(destination: DosageView()) {
-                            Text("Next")
-                                .font(.headline)
-                                .padding()
-                                .frame(maxWidth: .infinity)
-                                .background(Color.blue)
-                                .foregroundColor(.white)
-                                .cornerRadius(10)
-                                .padding(.horizontal, 40)
-                        }
-                        .simultaneousGesture(TapGesture().onEnded {
-                            // Ensure selectedMethodIndex is set before updating the manager
-                            if selectedMethodIndex == nil {
-                                selectedMethodIndex = methodIndex
-                            }
-                            // Update the MedicationManager with the selected values
-                            medicationManager.updateSelection(type: type, method: method)
-                        })
-                        .padding(.vertical, 40.0)
-                    }
-                }
-                
-                Spacer()
+        NavigationStack(path: $navigationPath) {
+            if hasCompletedOnboarding {
+                HomeView()
+            } else {
+                onboardingWithCompletion
             }
-            .padding(.horizontal)
-            
-        } detail: {
-            Text("Select an item")
+        }
+        .onAppear {
+            // Optional: auto-skip if dose dates exist
+            if !hasCompletedOnboarding {
+                let dates = medicationManager.loadDoseDatesLegacy()
+                if dates.last != nil || dates.next != nil {
+                    hasCompletedOnboarding = true
+                }
+            }
         }
     }
-}
 
-#Preview {
-    ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
+    private var onboardingWithCompletion: some View {
+        OnboardingView(onboardingComplete: {
+            // Clear navigation stack and show home view
+            navigationPath.removeLast(navigationPath.count)
+            hasCompletedOnboarding = true
+        })
+        .onDisappear {
+            // Mark onboarding as completed when user leaves the screen
+            hasCompletedOnboarding = true
+        }
+    }
 }

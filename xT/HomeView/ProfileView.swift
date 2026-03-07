@@ -26,13 +26,13 @@ struct ProfileView: View {
                 HStack {
                     Text("Type")
                     Spacer()
-                    Text(medicationManager.selectedMedicationType?.displayName ?? "Not selected")
+                    Text(medicationManager.selectedMedication ?? "Not selected")
                         .foregroundStyle(.secondary)
                 }
                 HStack {
                     Text("Method")
                     Spacer()
-                    Text(medicationManager.selectedAdministrationMethod?.displayName ?? "Not selected")
+                    Text(medicationManager.selectedAdministrationMethod ?? "Not selected")
                         .foregroundStyle(.secondary)
                 }
             }

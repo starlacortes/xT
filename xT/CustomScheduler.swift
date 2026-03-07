@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct CustomScheduler: View {
-    @StateObject private var medicationManager = MedicationManager.shared // Shared instance
+    @Environment(\.medicationManager) private var medicationManager
 
     // For future dose calculations (example)
     @State private var lastDoseDate = Date()
@@ -75,16 +75,13 @@ struct CustomScheduler: View {
 
             // Debug information (can be removed in production)
             VStack {
-                Text("Matrix coordinates: \(medicationManager.currentCoordinates.row), \(medicationManager.currentCoordinates.column)")
+                Text("Selected medication: \(medicationManager.selectedMedication ?? "None")")
                     .font(.caption)
                     .foregroundColor(.gray)
 
-                if let type = medicationManager.selectedMedicationType,
-                   let method = medicationManager.selectedAdministrationMethod {
-                    Text("Selected: \(type.displayName) (\(method.displayName))")
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                }
+                Text("Selected method: \(medicationManager.selectedAdministrationMethod ?? "None")")
+                    .font(.caption)
+                    .foregroundColor(.gray)
             }
             .padding(.top, 40)
 
