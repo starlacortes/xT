@@ -36,7 +36,7 @@ struct JournalView: View {
             }
             .navigationTitle("Journal")
             .navigationBarTitleDisplayMode(.inline)
-            .background(Color(UIColor.systemBackground))
+            .background(Color.clear)
             .sheet(isPresented: $showingComposer) {
                 JournalComposerView()
                     .environment(\.journalManager, journalManager)
@@ -73,7 +73,7 @@ struct JournalNavigationBar: View {
                         .font(.system(size: 20, weight: .semibold))
                         .foregroundColor(.white)
                         .frame(width: 44, height: 44)
-                        .background(JournalTheme.rose)
+                        .background(Theme.accentColor)
                         .clipShape(Circle())
                 }
             }
@@ -230,7 +230,7 @@ struct JournalEntryCard: View {
                                     .foregroundColor(palette.title)
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 2)
-                                    .background(palette.tag)
+                                    .background(palette.border)
                                     .cornerRadius(10)
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 10)

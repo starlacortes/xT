@@ -330,7 +330,7 @@ struct SettingsView: View {
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
-            .background(Color(UIColor.systemBackground))
+            .background(Color.clear)
             .alert("Are you sure?", isPresented: $showingResetAlert) {
                 Button("Cancel", role: .cancel) {
                     // User cancelled

@@ -15,13 +15,13 @@ struct JournalPalette {
     let border: Color    // card stroke
     let accent: Color    // icon, timestamp, tag text
     let title: Color     // headline + body text
-    let tag: Color       // symptom tag background
+    // tag: Color       // symptom tag background - removed as it always equals border
 }
 
 enum JournalTheme {
     // Primary rose accent used across composer controls
-    static let rose = Color(hex: "#D4537E")
-    static let lavender = Color(hex: "#534AB7")
+    static let rose = Theme.accentColor
+    static let lavender = Theme.secondaryAccentColor
 
     static func palette(for mood: Mood) -> JournalPalette {
         switch mood {
@@ -29,25 +29,22 @@ enum JournalTheme {
             return JournalPalette(
                 surface: Color(hex: "#FBEAF0"),
                 border:  Color(hex: "#F4C0D1"),
-                accent:  Color(hex: "#D4537E"),
-                title:   Color(hex: "#72243E"),
-                tag:     Color(hex: "#F4C0D1")
+                accent:  Theme.accentColor,
+                title:   Color(hex: "#72243E")
             )
         case .calm, .neutral:
             return JournalPalette(
                 surface: Color(hex: "#EEEDFE"),
                 border:  Color(hex: "#CECBF6"),
-                accent:  Color(hex: "#534AB7"),
-                title:   Color(hex: "#3C3489"),
-                tag:     Color(hex: "#CECBF6")
+                accent:  Theme.secondaryAccentColor,
+                title:   Color(hex: "#3C3489")
             )
         case .tired, .sad, .anxious:
             return JournalPalette(
                 surface: Color(hex: "#F1EFE8"),
                 border:  Color(hex: "#D3D1C7"),
                 accent:  Color(hex: "#5F5E5A"),
-                title:   Color(hex: "#444441"),
-                tag:     Color(hex: "#D3D1C7")
+                title:   Color(hex: "#444441")
             )
         }
     }

@@ -14,38 +14,43 @@ struct ContentView: View {
     @State private var showWelcomeTour = false
 
     var body: some View {
-        NavigationStack(path: $navigationPath) {
-            if hasCompletedOnboarding {
-                MainTabView()
-                    .sheet(isPresented: $showWelcomeTour) {
-                        WelcomeTourView()
-                    }
-                    .onAppear {
-                        // Show welcome tour only on first launch after onboarding
-                        if shouldShowWelcomeTour() {
-                            showWelcomeTour = true
-                            markWelcomeTourShown()
+        ZStack {
+            Theme.globalBackgroundGradient
+                .ignoresSafeArea()
+
+            NavigationStack(path: $navigationPath) {
+                if hasCompletedOnboarding {
+                    MainTabView()
+                        .sheet(isPresented: $showWelcomeTour) {
+                            WelcomeTourView()
                         }
-                    }
-            } else {
-                onboardingWithCompletion
+                        .onAppear {
+                            // Show welcome tour only on first launch after onboarding
+                            if shouldShowWelcomeTour() {
+                                showWelcomeTour = true
+                                markWelcomeTourShown()
+                            }
+                        }
+                } else {
+                    onboardingWithCompletion
+                }
             }
-        }
-        .onAppear {
-            // Debug: Print current onboarding status
-            print("Onboarding status: \(hasCompletedOnboarding)")
+            .onAppear {
+                // Debug: Print current onboarding status
+                print("Onboarding status: \(hasCompletedOnboarding)")
 
-            // Check if this is a fresh install by looking for any saved data
-            let defaults = UserDefaults.standard
-            let hasMedicationData = defaults.string(forKey: "selectedMedication") != nil
-            let _ = defaults.string(forKey: "profileName") != nil || defaults.data(forKey: "profileImageData") != nil
+                // Check if this is a fresh install by looking for any saved data
+                let defaults = UserDefaults.standard
+                let hasMedicationData = defaults.string(forKey: "selectedMedication") != nil
+                let _ = defaults.string(forKey: "profileName") != nil || defaults.data(forKey: "profileImageData") != nil
 
-            // Only skip onboarding if we have existing medication data
-            if !hasCompletedOnboarding && hasMedicationData {
-                hasCompletedOnboarding = true
-                print("Skipping onboarding - existing medication data found")
-            } else if !hasCompletedOnboarding {
-                print("Showing onboarding - no existing data")
+                // Only skip onboarding if we have existing medication data
+                if !hasCompletedOnboarding && hasMedicationData {
+                    hasCompletedOnboarding = true
+                    print("Skipping onboarding - existing medication data found")
+                } else if !hasCompletedOnboarding {
+                    print("Showing onboarding - no existing data")
+                }
             }
         }
     }

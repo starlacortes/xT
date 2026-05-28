@@ -146,6 +146,150 @@ class MedicationManager: ObservableObject {
 
         return nil
     }
+
+    /// Calculate months on HRT based on first dose date
+    var monthsOnHRT: Int {
+        guard let firstDoseDate = lastDoseDate else { return 0 }
+        let calendar = Calendar.current
+        let today = Date()
+
+        // Calculate months between first dose and today
+        let months = calendar.dateComponents([.month], from: firstDoseDate, to: today).month ?? 0
+        return max(0, months)
+    }
+
+    /// Get current hormone level with plain language explanation
+    func getCurrentHormoneLevel() -> (value: Double, unit: String, range: String, explanation: String)? {
+        guard let medication = selectedMedication,
+              let method = selectedAdministrationMethod else { return nil }
+
+        // Get the most recent estimated level
+        let recentLevels = estimatedRecentLevels(days: 1)
+        guard let latestLevel = recentLevels.last else { return nil }
+
+        let medicationEnum = MedicationType(rawValue: medication)
+        let unit = medicationEnum == .estrogen ? "pg/mL" : "ng/dL"
+
+        // Determine range and explanation
+        let range: String
+        let explanation: String
+
+        if medicationEnum == .estrogen {
+            if latestLevel.value < 50 {
+                range = "Very low"
+                explanation = "At this level, you may experience mood swings and limited physical changes."
+            } else if latestLevel.value < 100 {
+                range = "Low"
+                explanation = "You'll notice some emotional and physical changes, but they may be subtle."
+            } else if latestLevel.value < 200 {
+                range = "Optimal"
+                explanation = "At this level, you'll feel emotionally stable and notice ongoing skin and body changes."
+            } else if latestLevel.value < 500 {
+                range = "High"
+                explanation = "You'll experience significant emotional and physical changes, but may need to monitor for side effects."
+            } else {
+                range = "Very high"
+                explanation = "At this level, changes will be rapid, but you should consult your provider about potential adjustments."
+            }
+        } else { // Testosterone
+            if latestLevel.value < 50 {
+                range = "Suppressed"
+                explanation = "Your testosterone is effectively suppressed, which is typical for feminizing regimens."
+            } else if latestLevel.value < 200 {
+                range = "Low male"
+                explanation = "This is a low male range, you may notice some feminizing effects but testosterone is still present."
+            } else if latestLevel.value < 800 {
+                range = "Male range"
+                explanation = "This is a typical male range, you may not see significant feminizing effects at this level."
+            } else {
+                range = "High male"
+                explanation = "This is a high male range, you should consult your provider about potential adjustments."
+            }
+        }
+
+        return (latestLevel.value, unit, range, explanation)
+    }
+
+    /// Get changes unlocked based on months on HRT
+    func getChangesUnlocked() -> [String] {
+        let months = monthsOnHRT
+        var changes: [String] = []
+
+        if months >= 1 {
+            changes.append("Skin softening")
+        }
+        if months >= 2 {
+            changes.append("Breast growth")
+        }
+        if months >= 3 {
+            changes.append("Fat redistribution")
+        }
+        if months >= 6 {
+            changes.append("Hair thinning slows")
+        }
+        if months >= 9 {
+            changes.append("Muscle mass decreases")
+        }
+        if months >= 12 {
+            changes.append("Hair regrowth begins")
+        }
+
+        return changes
+    }
+
+    /// Get upcoming milestones
+    func getUpcomingMilestones() -> [(month: Int, description: String)] {
+        let months = monthsOnHRT
+        var milestones: [(Int, String)] = []
+
+        if months < 3 {
+            milestones.append((3, "Skin softening becomes noticeable"))
+        }
+        if months < 6 {
+            milestones.append((6, "Breast growth enters new phase"))
+        }
+        if months < 9 {
+            milestones.append((9, "Fat redistribution becomes more apparent"))
+        }
+        if months < 12 {
+            milestones.append((12, "Hair regrowth typically begins"))
+        }
+        if months < 18 {
+            milestones.append((18, "Body shape changes become more pronounced"))
+        }
+
+        return milestones
+    }
+
+    /// Get body system progress for each category
+    func getBodySystemProgress() -> [(name: String, icon: String, color: String, progress: Double, status: String)] {
+        let months = monthsOnHRT
+        let medication = selectedMedication ?? "Estrogen"
+
+        var systems: [(String, String, String, Double, String)] = []
+
+        // Mood & Mind (Purple)
+        let mindProgress = min(Double(months) / 6.0, 1.0)
+        let mindStatus = months < 3 ? "Starting" : months < 6 ? "Stabilising" : "Stable"
+        systems.append(("Mood & mind", "brain", "purple", mindProgress, mindStatus))
+
+        // Skin & Glow (Teal)
+        let skinProgress = min(Double(months) / 4.0, 1.0)
+        let skinStatus = months < 2 ? "Beginning" : months < 4 ? "Progressing" : "Well underway"
+        systems.append(("Skin & glow", "sparkles", "teal", skinProgress, skinStatus))
+
+        // Body Shape (Amber)
+        let bodyProgress = min(Double(months) / 12.0, 1.0)
+        let bodyStatus = months < 6 ? "Early changes" : months < 12 ? "Still in progress" : "Significant changes"
+        systems.append(("Body shape", "body-scan", "amber", bodyProgress, bodyStatus))
+
+        // Injection Cycle (Pink)
+        let cycleProgress = 1.0 // Always full for cycle tracking
+        let cycleStatus = "Day 3 of 7" // This would be dynamic in a real implementation
+        systems.append(("Your cycle", "heart-rate-monitor", "pink", cycleProgress, cycleStatus))
+
+        return systems
+    }
     
     /// Select a medication and administration method
     func updateSelection(type: MedicationType, method: AdministrationMethod) {

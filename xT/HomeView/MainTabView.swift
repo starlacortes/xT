@@ -22,9 +22,9 @@ struct MainTabView: View {
                 }
                 .tag(1)
 
-            EducationHubView()
+            BloomView()
                 .tabItem {
-                    Label("Learn", systemImage: "flask.fill")
+                    Label("Bloom", systemImage: "sparkles")
                 }
                 .tag(2)
 

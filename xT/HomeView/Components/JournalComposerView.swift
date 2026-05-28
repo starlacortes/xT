@@ -158,7 +158,7 @@ struct JournalComposerView: View {
                                 Spacer()
                             }
                             .padding(.vertical, 13)
-                            .background(JournalTheme.rose)
+                            .background(Theme.accentColor)
                             .cornerRadius(14)
                         }
                         .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -196,7 +196,7 @@ struct MoodChip: View {
             VStack(spacing: 4) {
                 Image(systemName: mood.icon)
                     .font(.system(size: 22))
-                    .foregroundColor(isSelected ? JournalTheme.rose : .secondary)
+                    .foregroundColor(isSelected ? Theme.accentColor : .secondary)
 
                 Text(mood.rawValue)
                     .font(.system(size: 10))

@@ -15,16 +15,26 @@ struct HomeView: View {
     @State private var showingGraphDetail = false
 
     var body: some View {
+        
+        
         NavigationStack {
+            
+            
             ScrollView {
+
                 HomeContentView()
             }
             .navigationTitle("Home")
             .navigationBarTitleDisplayMode(.inline)
-            .background(Color(.systemBackground))
+            .background(Color.clear)
         }
+        .background(LinearGradient(gradient: Gradient(colors: [Color(red: 0.93, green: 0.57, blue: 0.69), Color(red: 0.69, green: 0.66, blue: 0.92)]),
+                                   startPoint: .topLeading,
+                                   endPoint: .bottomTrailing))
     }
+    
 }
+
 
 // MARK: - Home Content View
 struct HomeContentView: View {
@@ -33,7 +43,9 @@ struct HomeContentView: View {
     @Environment(\.journalManager) private var journalManager
 
     var body: some View {
+        
         VStack(spacing: 0) {
+
             // Phone mockup container
             VStack(spacing: 0) {
                 StatusBarView()
@@ -43,7 +55,9 @@ struct HomeContentView: View {
                 MainContentView()
                     .padding(.top, 14)
             }
-            .background(Color(.secondarySystemBackground))
+            .background(LinearGradient(gradient: Gradient(colors: [Color(red: 0.93, green: 0.57, blue: 0.69), Color(red: 0.69, green: 0.66, blue: 0.92)]),
+                                       startPoint: .topLeading,
+                                       endPoint: .bottomTrailing))
             .cornerRadius(16)
             .padding(16)
         }
@@ -55,11 +69,7 @@ struct StatusBarView: View {
     var body: some View {
         HStack {
             Spacer()
-            Text("9:41")
-                .font(.system(size: 10))
-                .foregroundColor(.secondary)
         }
-        .frame(height: 14)
         .padding(.horizontal, 16)
     }
 }
@@ -78,7 +88,7 @@ struct HeaderView: View {
                     LinearGradient(gradient: Gradient(colors: [Color(red: 0.93, green: 0.57, blue: 0.69), Color(red: 0.69, green: 0.66, blue: 0.92)]),
                                    startPoint: .topLeading,
                                    endPoint: .bottomTrailing)
-                    .frame(width: 44, height: 44)
+                    .frame(width: 66, height: 66)
                     .clipShape(Circle())
 
                     Text(profileManager.profileDisplayName.prefix(1))
@@ -90,13 +100,13 @@ struct HeaderView: View {
                 // Profile info
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Hi \(profileManager.profileDisplayName) ✦")
-                        .font(.system(size: 18))
+                        .font(.system(size: 22))
                         .fontWeight(.medium)
                         .foregroundColor(.primary)
 
                     if medicationManager.isFullyConfigured {
                         Text(medicationManager.medicationDisplayInfo)
-                            .font(.system(size: 12))
+                            .font(.system(size: 16))
                             .foregroundColor(.secondary)
                     }
                 }
@@ -105,7 +115,7 @@ struct HeaderView: View {
 
                 // Notification bell
                 Image(systemName: "bell")
-                    .font(.system(size: 20))
+                    .font(.system(size: 22))
                     .foregroundColor(.secondary)
             }
 
@@ -115,16 +125,8 @@ struct HeaderView: View {
                 CurrentLevelCard(currentLevel: currentLevel)
             }
         }
-        .padding(16)
-        .background(
-            LinearGradient(gradient: Gradient(colors: [
-                Color(red: 0.98, green: 0.92, blue: 0.94),
-                Color(red: 0.93, green: 0.93, blue: 0.99),
-                Color(.systemBackground)
-            ]),
-                           startPoint: .top,
-                           endPoint: .bottom)
-        )
+        .padding(12)
+        .background(Color.clear)
     }
 }
 
@@ -139,7 +141,7 @@ struct CurrentLevelCard: View {
                 ZStack {
                     Circle()
                         .fill(Color(red: 0.98, green: 0.92, blue: 0.94))
-                        .frame(width: 32, height: 32)
+                        .frame(width: 36, height: 79)
 
                     Image(systemName: "chart.line.uptrend.xyaxis")
                         .font(.system(size: 18))
@@ -243,7 +245,7 @@ struct TrendCardView: View {
         VStack(spacing: 10) {
             HStack {
                 Text("7-day trend")
-                    .font(.system(size: 13))
+                    .font(.system(size: 16))
                     .fontWeight(.medium)
                     .foregroundColor(.primary)
 
@@ -258,10 +260,10 @@ struct TrendCardView: View {
 
             // Mini trend graph
             MiniTrendGraph()
-                .frame(height: 52)
+                .frame(height: 122)
         }
         .padding(14)
-        .background(Color(.systemBackground))
+        .background(Color.clear)
         .cornerRadius(16)
         .overlay(
             RoundedRectangle(cornerRadius: 16)
@@ -305,7 +307,7 @@ struct NextDoseCard: View {
             ZStack {
                 RoundedRectangle(cornerRadius: 9)
                     .fill(Color(red: 0.93, green: 0.93, blue: 0.99))
-                    .frame(width: 32, height: 32)
+                    .frame(width: 32, height: 40)
 
                 Image(systemName: "calendar")
                     .font(.system(size: 18))
@@ -313,7 +315,7 @@ struct NextDoseCard: View {
             }
         }
         .padding(14)
-        .background(Color(.systemBackground))
+        .background(Color.clear)
         .cornerRadius(16)
         .overlay(
             RoundedRectangle(cornerRadius: 16)
@@ -334,15 +336,9 @@ struct JournalCardView: View {
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Today's journal")
-                        .font(.system(size: 13))
+                        .font(.system(size: 16))
                         .fontWeight(.medium)
                         .foregroundColor(Color(red: 0.45, green: 0.14, blue: 0.24))
-
-                    Text(entry.previewText)
-                        .font(.system(size: 12))
-                        .foregroundColor(Color(red: 0.60, green: 0.21, blue: 0.33))
-                        .lineLimit(1)
-
                     HStack(spacing: 4) {
                         Text(entry.date, style: .time)
                             .font(.system(size: 11))
@@ -364,6 +360,11 @@ struct JournalCardView: View {
                             Text("\(entry.symptoms.count) symptom\(entry.symptoms.count == 1 ? "" : "s")")
                                 .font(.system(size: 11))
                                 .foregroundColor(Color(.tertiaryLabel))
+                    Text(entry.previewText)
+                        .font(.system(size: 12))
+                        .foregroundColor(Color(red: 0.60, green: 0.21, blue: 0.33))
+                        .lineLimit(1)
+
                         }
                     }
                 }
@@ -375,7 +376,7 @@ struct JournalCardView: View {
                     .foregroundColor(Color(red: 0.60, green: 0.21, blue: 0.33))
             }
             .padding(14)
-            .background(Color(red: 0.98, green: 0.92, blue: 0.94))
+            .background(Color.clear)
             .cornerRadius(16)
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
@@ -453,7 +454,7 @@ struct MiniTrendGraph: View {
 
                     Circle()
                         .fill(Color(red: 0.83, green: 0.32, blue: 0.49))
-                        .frame(width: 8, height: 8)
+                        .frame(width: 10, height: 10)
                         .position(x: x, y: y)
                 }
             }

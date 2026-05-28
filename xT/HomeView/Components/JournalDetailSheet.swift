@@ -92,7 +92,7 @@ struct JournalDetailSheet: View {
                                     .foregroundColor(palette.title)
                                     .padding(.horizontal, 11)
                                     .padding(.vertical, 6)
-                                    .background(palette.tag)
+                                    .background(palette.border)
                                     .cornerRadius(20)
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 20)
@@ -112,7 +112,7 @@ struct JournalDetailSheet: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
-                        .foregroundColor(JournalTheme.rose)
+                        .foregroundColor(Theme.accentColor)
                 }
             }
         }
