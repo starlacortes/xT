@@ -14,16 +14,13 @@ import SwiftUI
 class AuthenticationManager: ObservableObject {
     static let shared = AuthenticationManager()
 
-    // Authentication state
     @Published var isAuthenticated = false
     @Published var showAuthentication = false
     @Published var lastActivityTime: Date = Date()
 
-    // App lock settings
     @Published var requireAuthentication = true
-    @Published var autoLockTimeout: TimeInterval = 300 // 5 minutes
+    @Published var autoLockTimeout: TimeInterval = 300
 
-    // Activity monitoring timer
     private var activityTimer: Timer?
 
     init() {
@@ -31,9 +28,8 @@ class AuthenticationManager: ObservableObject {
         startActivityMonitoring()
     }
 
-    // MARK: - Authentication Methods
+    // MARK: - Authentication
 
-    /// Authenticate user with biometrics
     func authenticate(reason: String = "Access your health data", completion: @escaping (Bool) -> Void) {
         let context = LAContext()
         var error: NSError?
@@ -42,82 +38,66 @@ class AuthenticationManager: ObservableObject {
             context.evaluatePolicy(
                 .deviceOwnerAuthenticationWithBiometrics,
                 localizedReason: reason
-            ) { success, authenticationError in
+            ) { success, _ in
                 DispatchQueue.main.async {
                     if success {
                         self.isAuthenticated = true
                         self.lastActivityTime = Date()
-                        completion(true)
-                    } else {
-                        completion(false)
                     }
+                    completion(success)
                 }
             }
         } else {
-            // Fallback to device passcode if biometrics not available
             context.evaluatePolicy(
                 .deviceOwnerAuthentication,
                 localizedReason: reason
-            ) { success, authenticationError in
+            ) { success, _ in
                 DispatchQueue.main.async {
                     if success {
                         self.isAuthenticated = true
                         self.lastActivityTime = Date()
-                        completion(true)
-                    } else {
-                        completion(false)
                     }
+                    completion(success)
                 }
             }
         }
     }
 
-    /// Check if authentication is required
     func checkAuthenticationRequired() -> Bool {
-        if !requireAuthentication {
-            return false
-        }
-
-        // Check if we need to re-authenticate due to inactivity
-        let timeSinceLastActivity = Date().timeIntervalSince(lastActivityTime)
-        return timeSinceLastActivity > autoLockTimeout
+        guard requireAuthentication else { return false }
+        return Date().timeIntervalSince(lastActivityTime) > autoLockTimeout
     }
 
-    /// Record user activity
     func recordActivity() {
-        if isAuthenticated {
-            lastActivityTime = Date()
-        }
+        if isAuthenticated { lastActivityTime = Date() }
     }
 
-    // MARK: - Activity Monitoring
+    // MARK: - Activity monitoring
 
     private func startActivityMonitoring() {
         activityTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
-            self?.checkActivityTimeout()
-        }
-    }
-
-    @MainActor private func checkActivityTimeout() {
-        if requireAuthentication && isAuthenticated {
-            let timeSinceLastActivity = Date().timeIntervalSince(lastActivityTime)
-            if timeSinceLastActivity > autoLockTimeout {
-                isAuthenticated = false
-                showAuthentication = true
+            Task { @MainActor in
+                self?.checkActivityTimeout()
             }
         }
     }
 
-    // MARK: - Settings Management
+    private func checkActivityTimeout() {
+        guard requireAuthentication, isAuthenticated else { return }
+        if Date().timeIntervalSince(lastActivityTime) > autoLockTimeout {
+            isAuthenticated = false
+            showAuthentication = true
+        }
+    }
+
+    // MARK: - Settings
 
     private func loadSettings() {
         let defaults = UserDefaults.standard
         requireAuthentication = defaults.bool(forKey: "requireAuthentication")
         autoLockTimeout = TimeInterval(defaults.integer(forKey: "autoLockTimeout"))
-
-        // Set defaults if not set
         if autoLockTimeout == 0 {
-            autoLockTimeout = 300 // 5 minutes
+            autoLockTimeout = 300
             defaults.set(300, forKey: "autoLockTimeout")
         }
     }
@@ -128,59 +108,44 @@ class AuthenticationManager: ObservableObject {
         defaults.set(Int(autoLockTimeout), forKey: "autoLockTimeout")
     }
 
-    // MARK: - Biometric Availability
+    // MARK: - Biometrics
 
     func biometricType() -> BiometricType {
         let context = LAContext()
         var error: NSError?
-
-        if context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) {
-            if #available(iOS 11.0, *) {
-                switch context.biometryType {
-                case .none:
-                    return .none
-                case .touchID:
-                    return .touchID
-                case .faceID:
-                    return .faceID
-                case .opticID:
-                    return .opticID
-                @unknown default:
-                    return .none
-                }
-            } else {
-                return .touchID // Assume Touch ID for older versions
-            }
+        guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) else {
+            return .none
         }
-
-        return .none
+        switch context.biometryType {
+        case .touchID:  return .touchID
+        case .faceID:   return .faceID
+        case .opticID:  return .opticID
+        default:        return .none
+        }
     }
 
-    func canUseBiometrics() -> Bool {
-        return biometricType() != .none
-    }
+    func canUseBiometrics() -> Bool { biometricType() != .none }
 }
 
+// MARK: - BiometricType
+
 enum BiometricType {
-    case none
-    case touchID
-    case faceID
-    case opticID
+    case none, touchID, faceID, opticID
 
     var description: String {
         switch self {
-        case .none: return "None"
+        case .none:    return "None"
         case .touchID: return "Touch ID"
-        case .faceID: return "Face ID"
+        case .faceID:  return "Face ID"
         case .opticID: return "Optic ID"
         }
     }
 
     var iconName: String {
         switch self {
-        case .none: return "lock"
+        case .none:    return "lock"
         case .touchID: return "touchid"
-        case .faceID: return "faceid"
+        case .faceID:  return "faceid"
         case .opticID: return "opticid"
         }
     }
@@ -222,7 +187,7 @@ struct AuthenticationView: View {
                 .font(.system(size: 50))
                 .padding()
 
-            Text("Authenticate to Continue")
+            Text("Authenticate to continue")
                 .font(.title2)
                 .bold()
 
@@ -239,9 +204,7 @@ struct AuthenticationView: View {
                     .padding()
             }
 
-            Button(action: {
-                authenticate()
-            }) {
+            Button(action: authenticate) {
                 Text("Authenticate with \(authManager.biometricType().description)")
                     .font(.headline)
                     .padding()
@@ -253,33 +216,24 @@ struct AuthenticationView: View {
             .padding(.horizontal)
 
             if showFallback {
-                Button(action: {
+                Button {
                     authManager.authenticate(reason: "Enter your passcode") { success in
-                        if success {
-                            dismiss()
-                        } else {
-                            errorMessage = "Authentication failed"
-                        }
+                        if success { dismiss() } else { errorMessage = "Authentication failed" }
                     }
-                }) {
-                    Text("Use Passcode Instead")
+                } label: {
+                    Text("Use passcode instead")
                         .font(.subheadline)
                         .foregroundColor(.blue)
                 }
             }
 
-            Button(action: {
-                dismiss()
-            }) {
-                Text("Cancel")
-                    .foregroundColor(.gray)
+            Button { dismiss() } label: {
+                Text("Cancel").foregroundColor(.gray)
             }
             .padding(.top)
         }
         .padding()
-        .onAppear {
-            authenticate()
-        }
+        .onAppear { authenticate() }
     }
 
     private func authenticate() {
@@ -294,10 +248,15 @@ struct AuthenticationView: View {
     }
 }
 
-// MARK: - Environment Extension
+// MARK: - Environment Key
 
+// nonisolated so the default value can be created outside the main actor
 struct AuthenticationManagerKey: EnvironmentKey {
-    static let defaultValue = AuthenticationManager.shared
+    nonisolated static let defaultValue: AuthenticationManager = {
+        // Accessing a @MainActor type from a nonisolated context is safe here
+        // because this is only used as a SwiftUI environment default fallback
+        MainActor.assumeIsolated { AuthenticationManager.shared }
+    }()
 }
 
 extension EnvironmentValues {
