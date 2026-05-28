@@ -2,6 +2,9 @@
 //  OnboardingView.swift
 //  xT
 //
+//  Created by Cline on 4/6/2026.
+//  Onboarding flow with profile and medication setup
+//
 
 import SwiftUI
 import SwiftData
@@ -28,12 +31,25 @@ struct OnboardingView: View {
     @State private var showCamera: Bool = false
 
     var body: some View {
-        if onboardingStep == 0 {
-            // Profile setup step
-            profileSetupView
-        } else {
-            // Medication setup step
-            medicationSetupView
+        VStack {
+            // Progress indicator
+            HStack {
+                ForEach(0..<2) { step in
+                    Circle()
+                        .frame(width: 8, height: 8)
+                        .foregroundColor(onboardingStep == step ? Theme.accentColor : Theme.tertiaryTextColor.opacity(0.3))
+                        .scaleEffect(onboardingStep == step ? 1.2 : 1.0)
+                }
+            }
+            .padding(.top, 16)
+
+            if onboardingStep == 0 {
+                // Profile setup step
+                profileSetupView
+            } else {
+                // Medication setup step
+                medicationSetupView
+            }
         }
     }
 
@@ -59,7 +75,7 @@ struct OnboardingView: View {
                     .clipShape(Circle())
                     .overlay(
                         Circle()
-                            .stroke(Color.blue, lineWidth: 3)
+                            .stroke(Theme.accentColor, lineWidth: 3)
                     )
                     .padding(.top, 40)
             }
@@ -87,8 +103,8 @@ struct OnboardingView: View {
                             .font(.caption)
                     }
                     .frame(width: 80, height: 80)
-                    .background(Color.blue.opacity(0.1))
-                    .cornerRadius(10)
+                    .background(Theme.accentColor.opacity(0.1))
+                    .cornerRadius(Theme.smallCornerRadius)
                 }
 
                 Button(action: {
@@ -101,8 +117,8 @@ struct OnboardingView: View {
                             .font(.caption)
                     }
                     .frame(width: 80, height: 80)
-                    .background(Color.blue.opacity(0.1))
-                    .cornerRadius(10)
+                    .background(Theme.accentColor.opacity(0.1))
+                    .cornerRadius(Theme.smallCornerRadius)
                 }
             }
             .padding(.top, 20)
@@ -117,9 +133,9 @@ struct OnboardingView: View {
                         .font(.headline)
                         .padding()
                         .frame(maxWidth: .infinity)
-                        .background(Color.gray.opacity(0.2))
-                        .foregroundColor(.blue)
-                        .cornerRadius(10)
+                        .background(Theme.tertiaryTextColor.opacity(0.2))
+                        .foregroundColor(Theme.accentColor)
+                        .cornerRadius(Theme.smallCornerRadius)
                 }
 
                 Button(action: {
@@ -130,12 +146,7 @@ struct OnboardingView: View {
                     onboardingStep = 1
                 }) {
                     Text("Continue")
-                        .font(.headline)
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(Color.blue)
-                        .foregroundColor(.white)
-                        .cornerRadius(10)
+                        .asAccentButton()
                 }
             }
             .padding(.horizontal, 40)
@@ -202,11 +213,12 @@ struct OnboardingView: View {
                     selectedMethodIndex = MedicationManager.AdministrationMethod.allCases.firstIndex(of: firstMethod)
                 }
 
-                // Update selection in MedicationManager
-                if let methodIndex = selectedMethodIndex,
-                   methodIndex < MedicationManager.AdministrationMethod.allCases.count {
-                    let method = MedicationManager.AdministrationMethod.allCases[methodIndex]
-                    medicationManager.updateSelection(type: type, method: method)
+                // Update selection in MedicationManager using simplified method
+                if let methodIndex = selectedMethodIndex {
+                    medicationManager.configureMedication(
+                        typeIndex: raw,
+                        methodIndex: methodIndex
+                    )
                 }
             }
 
@@ -235,35 +247,27 @@ struct OnboardingView: View {
                     }
                 }
                 .onChange(of: selectedMethodIndex) { _, newValue in
-                    guard let raw = newValue,
-                          raw < MedicationManager.AdministrationMethod.allCases.count else { return }
-
-                    if let method = MedicationManager.AdministrationMethod.allCases[safe: raw],
-                       let type = MedicationManager.MedicationType.allCases[safe: typeIdx] {
-                        medicationManager.updateSelection(type: type, method: method)
-                    }
+                    guard let methodIndex = newValue else { return }
+                    medicationManager.configureMedication(
+                        typeIndex: typeIdx,
+                        methodIndex: methodIndex
+                    )
                 }
             }
 
             // Next button
             if let typeIdx = selectedTypeIndex,
-               typeIdx < MedicationManager.MedicationType.allCases.count,
-               let type = MedicationManager.MedicationType.allCases[safe: typeIdx],
-               let methodIdx = selectedMethodIndex,
-               methodIdx < MedicationManager.AdministrationMethod.allCases.count,
-               let method = MedicationManager.AdministrationMethod.allCases[safe: methodIdx] {
+               let methodIdx = selectedMethodIndex {
 
                 Button(action: {
-                    medicationManager.updateSelection(type: type, method: method)
+                    medicationManager.configureMedication(
+                        typeIndex: typeIdx,
+                        methodIndex: methodIdx
+                    )
                     onboardingComplete?()
                 }) {
                     Text("Finish")
-                        .font(.headline)
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(Color.blue)
-                        .foregroundColor(.white)
-                        .cornerRadius(10)
+                        .asAccentButton()
                         .padding(.horizontal, 40)
                 }
                 .padding(.vertical, 40)
@@ -287,4 +291,3 @@ struct OnboardingView: View {
         }
     }
 }
-

@@ -11,11 +11,22 @@ struct ContentView: View {
     @Environment(\.medicationManager) private var medicationManager
     @Environment(\.profileManager) private var profileManager
     @State private var navigationPath = NavigationPath()
+    @State private var showWelcomeTour = false
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
             if hasCompletedOnboarding {
-                HomeView()
+                MainTabView()
+                    .sheet(isPresented: $showWelcomeTour) {
+                        WelcomeTourView()
+                    }
+                    .onAppear {
+                        // Show welcome tour only on first launch after onboarding
+                        if shouldShowWelcomeTour() {
+                            showWelcomeTour = true
+                            markWelcomeTourShown()
+                        }
+                    }
             } else {
                 onboardingWithCompletion
             }
@@ -27,7 +38,7 @@ struct ContentView: View {
             // Check if this is a fresh install by looking for any saved data
             let defaults = UserDefaults.standard
             let hasMedicationData = defaults.string(forKey: "selectedMedication") != nil
-            let hasProfileData = defaults.string(forKey: "profileName") != nil || defaults.data(forKey: "profileImageData") != nil
+            let _ = defaults.string(forKey: "profileName") != nil || defaults.data(forKey: "profileImageData") != nil
 
             // Only skip onboarding if we have existing medication data
             if !hasCompletedOnboarding && hasMedicationData {
@@ -53,5 +64,13 @@ struct ContentView: View {
                 print("Onboarding marked as completed on disappear")
             }
         }
+    }
+
+    private func shouldShowWelcomeTour() -> Bool {
+        return !UserDefaults.standard.bool(forKey: "hasShownWelcomeTour")
+    }
+
+    private func markWelcomeTourShown() {
+        UserDefaults.standard.set(true, forKey: "hasShownWelcomeTour")
     }
 }

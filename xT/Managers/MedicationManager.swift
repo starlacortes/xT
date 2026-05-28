@@ -8,6 +8,7 @@
 
 import SwiftUI
 import SwiftData
+import CryptoKit
 
 /// Simplified MedicationManager with streamlined architecture
 @MainActor
@@ -22,6 +23,7 @@ class MedicationManager: ObservableObject {
     init() {
         loadSelection()
         loadDoseDates()
+        migrateToEncryptedStorage()
     }
     
     // Simplified medication types
@@ -73,14 +75,14 @@ class MedicationManager: ObservableObject {
     var medicationName: String {
         selectedMedication ?? "None Selected"
     }
-    
+
     /// Get dosage information for display
     var dosageInfo: String {
         guard let medication = selectedMedication,
               let method = selectedAdministrationMethod else {
             return "No dosage info"
         }
-        
+
         switch (medication, method) {
         case ("Estrogen", "Injectable"): return "0.5ml weekly"
         case ("Estrogen", "Cream"): return "2.5g daily"
@@ -90,6 +92,42 @@ class MedicationManager: ObservableObject {
         case ("Testosterone", "Oral"): return "20mg daily"
         default: return "Unknown dosage"
         }
+    }
+
+    /// Get complete medication display information
+    var medicationDisplayInfo: String {
+        if let medication = selectedMedication, let method = selectedAdministrationMethod {
+            return "\(medication) via \(method)"
+        } else if let medication = selectedMedication {
+            return "\(medication) (method not selected)"
+        } else if let method = selectedAdministrationMethod {
+            return "\(method) (medication not selected)"
+        } else {
+            return "No medication selected"
+        }
+    }
+
+    /// Get schedule summary for display
+    var scheduleSummary: String {
+        guard let last = lastDoseDate, let next = nextDoseDate else {
+            return "No schedule set"
+        }
+
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateStyle = .medium
+        dateFormatter.timeStyle = .none
+
+        return "Last: \(dateFormatter.string(from: last)) | Next: \(dateFormatter.string(from: next))"
+    }
+
+    /// Check if medication is fully configured
+    var isFullyConfigured: Bool {
+        selectedMedication != nil && selectedAdministrationMethod != nil
+    }
+
+    /// Check if medication is partially configured
+    var isPartiallyConfigured: Bool {
+        (selectedMedication != nil) != (selectedAdministrationMethod != nil)
     }
     
     /// Select a medication and administration method
@@ -112,12 +150,41 @@ class MedicationManager: ObservableObject {
         persistSelection()
         persistDoseDates()
     }
+
+    /// Configure medication with type and method indices
+    /// - Parameters:
+    ///   - typeIndex: Index of the medication type in MedicationType.allCases
+    ///   - methodIndex: Index of the administration method in available methods
+    func configureMedication(typeIndex: Int, methodIndex: Int) {
+        let type = MedicationType.allCases[typeIndex]
+        let availableMethods = availableMethods(for: type)
+
+        // Ensure methodIndex is within bounds of available methods
+        let safeMethodIndex = min(methodIndex, availableMethods.count - 1)
+        let method = availableMethods[safeMethodIndex]
+
+        updateSelection(type: type, method: method)
+    }
+
+    /// Get current medication configuration as a summary
+    func getConfigurationSummary() -> String {
+        if isFullyConfigured {
+            return "✓ \(medicationDisplayInfo) - \(dosageInfo)"
+        } else if isPartiallyConfigured {
+            if selectedMedication != nil {
+                return "⚠ \(selectedMedication!) - needs administration method"
+            } else {
+                return "⚠ Needs medication selection"
+            }
+        } else {
+            return "✗ Not configured"
+        }
+    }
     
     /// Record a dose was taken
     func recordDose(on date: Date = Date()) {
         lastDoseDate = date
-        if let medication = selectedMedication,
-           let method = selectedAdministrationMethod {
+        if selectedMedication != nil, selectedAdministrationMethod != nil {
             nextDoseDate = calculateNextDoseDate(from: date)
         }
         persistDoseDates()
@@ -125,16 +192,16 @@ class MedicationManager: ObservableObject {
     
     /// Calculate the next dose date based on current regimen
     func calculateNextDoseDate(from lastDose: Date) -> Date {
-        guard let medication = selectedMedication,
+        guard let _ = selectedMedication,
               let method = selectedAdministrationMethod else { return Date() }
-        
+
         let frequencyDays: Int
         switch method {
         case "Injectable": frequencyDays = 7
         case "Cream", "Oral": frequencyDays = 1
         default: frequencyDays = 1
         }
-        
+
         return Calendar.current.date(byAdding: .day, value: frequencyDays, to: lastDose) ?? Date()
     }
     
@@ -203,36 +270,127 @@ class MedicationManager: ObservableObject {
 // MARK: - Private Methods
 internal extension MedicationManager {
     func loadSelection() {
-        // Load from UserDefaults or other storage
         let defaults = UserDefaults.standard
+        let securityManager = SecurityManager.shared
+
+        // Try encrypted data first
+        if let encryptedSelectionData = defaults.data(forKey: "encryptedMedicationSelection"),
+           let decryptedSelectionData = securityManager.decryptData(encryptedSelectionData),
+           let selectionString = String(data: decryptedSelectionData, encoding: .utf8) {
+            // Parse the selection string (format: "medication|method")
+            let components = selectionString.components(separatedBy: "|")
+            if components.count == 2 {
+                selectedMedication = components[0].isEmpty ? nil : components[0]
+                selectedAdministrationMethod = components[1].isEmpty ? nil : components[1]
+                return
+            }
+        }
+
+        // Fallback to unencrypted data (migration)
         selectedMedication = defaults.string(forKey: "selectedMedication")
         selectedAdministrationMethod = defaults.string(forKey: "selectedAdministrationMethod")
     }
-    
+
     func persistSelection() {
         let defaults = UserDefaults.standard
-        defaults.set(selectedMedication, forKey: "selectedMedication")
-        defaults.set(selectedAdministrationMethod, forKey: "selectedAdministrationMethod")
+        let securityManager = SecurityManager.shared
+
+        // Combine selection into single string for encryption
+        let medication = selectedMedication ?? ""
+        let method = selectedAdministrationMethod ?? ""
+        let selectionString = "\(medication)|\(method)"
+
+        if let selectionData = selectionString.data(using: .utf8),
+           let encryptedSelection = securityManager.encryptData(selectionData) {
+            defaults.set(encryptedSelection, forKey: "encryptedMedicationSelection")
+        }
+
+        // Clear old unencrypted data
+        defaults.removeObject(forKey: "selectedMedication")
+        defaults.removeObject(forKey: "selectedAdministrationMethod")
     }
     
     func loadDoseDates() {
         let defaults = UserDefaults.standard
+        let securityManager = SecurityManager.shared
+
+        // Try encrypted data first
+        if let encryptedDatesData = defaults.data(forKey: "encryptedDoseDates"),
+           let decryptedDatesData = securityManager.decryptData(encryptedDatesData) {
+            do {
+                let decoder = JSONDecoder()
+                let datesContainer = try decoder.decode(DoseDatesContainer.self, from: decryptedDatesData)
+                lastDoseDate = datesContainer.lastDoseDate
+                nextDoseDate = datesContainer.nextDoseDate
+                return
+            } catch {
+                print("Failed to decode dose dates: \(error)")
+            }
+        }
+
+        // Fallback to unencrypted data (migration)
         if let last = defaults.object(forKey: "lastDoseDate") as? Date,
            let next = defaults.object(forKey: "nextDoseDate") as? Date {
             lastDoseDate = last
             nextDoseDate = next
         }
     }
-    
+
     /// Load dose dates and return them as a tuple (for compatibility with older code)
     func loadDoseDatesLegacy() -> (last: Date?, next: Date?) {
         return (lastDoseDate, nextDoseDate)
     }
-    
+
     func persistDoseDates() {
         let defaults = UserDefaults.standard
-        defaults.set(lastDoseDate, forKey: "lastDoseDate")
-        defaults.set(nextDoseDate, forKey: "nextDoseDate")
+        let securityManager = SecurityManager.shared
+
+        let datesContainer = DoseDatesContainer(lastDoseDate: lastDoseDate, nextDoseDate: nextDoseDate)
+
+        do {
+            let encoder = JSONEncoder()
+            let datesData = try encoder.encode(datesContainer)
+
+            if let encryptedDates = securityManager.encryptData(datesData) {
+                defaults.set(encryptedDates, forKey: "encryptedDoseDates")
+            }
+        } catch {
+            print("Failed to encode dose dates: \(error)")
+        }
+
+        // Clear old unencrypted data
+        defaults.removeObject(forKey: "lastDoseDate")
+        defaults.removeObject(forKey: "nextDoseDate")
+    }
+
+    /// Migrate existing unencrypted data to encrypted storage
+    private func migrateToEncryptedStorage() {
+        let defaults = UserDefaults.standard
+        let securityManager = SecurityManager.shared
+
+        // Check if migration is needed
+        if defaults.object(forKey: "encryptedMedicationSelection") != nil ||
+           defaults.object(forKey: "encryptedDoseDates") != nil {
+            return // Already migrated
+        }
+
+        // Migrate medication selection
+        if defaults.string(forKey: "selectedMedication") != nil ||
+           defaults.string(forKey: "selectedAdministrationMethod") != nil {
+            persistSelection() // This will encrypt and clear old data
+        }
+
+        // Migrate dose dates
+        if defaults.object(forKey: "lastDoseDate") != nil ||
+           defaults.object(forKey: "nextDoseDate") != nil {
+            persistDoseDates() // This will encrypt and clear old data
+        }
+    }
+
+    // Container for dose dates serialization
+    private struct DoseDatesContainer: Codable {
+        let lastDoseDate: Date?
+        let nextDoseDate: Date?
     }
     
     func updateDoseDates(last: Date?, next: Date?) {

@@ -7,17 +7,20 @@
 
 import SwiftUI
 import PhotosUI
+import SwiftData
 
 struct SettingsView: View {
     @Environment(\.profileManager) private var profileManager
+    @Environment(\.medicationManager) private var medicationManager
     @State private var showingProfileSheet = false
+    @State private var showingResetAlert = false
 
     var body: some View {
         NavigationStack {
             List {
                 // Profile Section
                 Section {
-                    NavigationLink(destination: ProfileSettingsView()) {
+                    NavigationLink(destination: ProfileEditorView()) {
                         HStack {
                             Image(systemName: "person.fill")
                                 .foregroundColor(.blue)
@@ -28,7 +31,7 @@ struct SettingsView: View {
 
                             VStack(alignment: .leading) {
                                 Text("Profile")
-                                Text(profileManager.profileName.isEmpty ? "Set up your profile" : profileManager.profileName)
+                                Text(profileManager.profileSummary)
                                     .font(.caption)
                                     .foregroundColor(.gray)
                             }
@@ -38,6 +41,21 @@ struct SettingsView: View {
                     Text("Account")
                 }
 
+                // Medication Actions Section
+                Section {
+                    NavigationLink(destination: UnifiedScheduleView(isFromSettings: true)) {
+                        Text("Set Schedule")
+                    }
+
+                    Button(action: {
+                        medicationManager.recordDose(on: Date())
+                    }) {
+                        Text("Record Dose")
+                    }
+                } header: {
+                    Text("Medication Actions")
+                }
+
                 // Other settings can go here
                 Section {
                     Text("App Version: 1.0")
@@ -45,8 +63,62 @@ struct SettingsView: View {
                 } header: {
                     Text("About")
                 }
+
+                // Development Section
+                Section {
+                    Button(role: .destructive, action: {
+                        showingResetAlert = true
+                    }) {
+                        Text("Reset App Data")
+                            .frame(maxWidth: .infinity)
+                    }
+                } header: {
+                    Text("Development")
+                }
             }
             .navigationTitle("Settings")
+            .alert("Are you sure?", isPresented: $showingResetAlert) {
+                Button("Cancel", role: .cancel) {
+                    // User cancelled
+                }
+                Button("Reset", role: .destructive) {
+                    resetAppData()
+                }
+            } message: {
+                Text("xT will close and restart the onboarding process.")
+            }
+        }
+    }
+
+    private func resetAppData() {
+        // Clear all UserDefaults data
+        let defaults = UserDefaults.standard
+        let dictionary = defaults.dictionaryRepresentation()
+        dictionary.keys.forEach { key in
+            defaults.removeObject(forKey: key)
+        }
+
+        // Reset managers
+        profileManager.clearProfileImage()
+        profileManager.updateProfileName("")
+        medicationManager.clearSelection()
+
+        // Clear SwiftData
+        clearSwiftData()
+
+        // Restart the app by setting onboarding flag to false
+        UserDefaults.standard.set(false, forKey: "hasCompletedOnboarding")
+
+        // Close the app
+        exit(0)
+    }
+
+    private func clearSwiftData() {
+        do {
+            let container = try ModelContainer(for: Item.self)
+            try container.mainContext.delete(model: Item.self)
+        } catch {
+            print("Error clearing SwiftData: \(error)")
         }
     }
 }

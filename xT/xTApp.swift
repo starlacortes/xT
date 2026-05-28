@@ -8,6 +8,18 @@
 import SwiftUI
 import SwiftData
 
+// MARK: - Environment Extensions
+struct SecurityManagerKey: EnvironmentKey {
+    static let defaultValue = SecurityManager.shared
+}
+
+extension EnvironmentValues {
+    var securityManager: SecurityManager {
+        get { self[SecurityManagerKey.self] }
+        set { self[SecurityManagerKey.self] = newValue }
+    }
+}
+
 @main
 struct xTApp: App {
     var sharedModelContainer: ModelContainer = {
@@ -28,6 +40,9 @@ struct xTApp: App {
             ContentView()
                 .environment(\.medicationManager, MedicationManager.shared)
                 .environment(\.profileManager, ProfileManager.shared)
+                .environment(\.journalManager, JournalManager.shared)
+                .environment(\.authenticationManager, AuthenticationManager.shared)
+                .environment(\.securityManager, SecurityManager.shared)
         }
         .modelContainer(sharedModelContainer)
     }
