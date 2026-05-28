@@ -133,18 +133,16 @@ struct SettingsView: View {
                                             .font(.system(size: 14))
                                             .foregroundColor(.primary)
 
-                                        if let nextDate = medicationManager.nextDoseDate {
-                                            let formatter = DateFormatter()
-                                            formatter.dateStyle = .medium
-                                            formatter.timeStyle = .none
-                                            Text("Next: \(formatter.string(from: nextDate))")
-                                                .font(.system(size: 12))
-                                                .foregroundColor(.secondary)
-                                        } else {
-                                            Text("No schedule set")
-                                                .font(.system(size: 12))
-                                                .foregroundColor(.secondary)
-                                        }
+                                         if let nextDate = medicationManager.nextDoseDate {
+                                             let formattedDate = formatDate(nextDate)
+                                             Text("Next: \(formattedDate)")
+                                                 .font(.system(size: 12))
+                                                 .foregroundColor(.secondary)
+                                         } else {
+                                             Text("No schedule set")
+                                                 .font(.system(size: 12))
+                                                 .foregroundColor(.secondary)
+                                         }
                                     }
 
                                     Image(systemName: "chevron.right")
@@ -172,10 +170,8 @@ struct SettingsView: View {
                                             .foregroundColor(.primary)
 
                                         if let lastDate = medicationManager.lastDoseDate {
-                                            let formatter = DateFormatter()
-                                            formatter.dateStyle = .medium
-                                            formatter.timeStyle = .none
-                                            Text("Last: \(formatter.string(from: lastDate))")
+                                            let formattedDate = formatDate(lastDate)
+                                            Text("Last: \(formattedDate)")
                                                 .font(.system(size: 12))
                                                 .foregroundColor(.secondary)
                                         } else {
@@ -379,6 +375,13 @@ struct SettingsView: View {
             print("Error clearing SwiftData: \(error)")
         }
     }
+
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        return formatter.string(from: date)
+    }
 }
 
 // MARK: - Custom Components (similar to HomeView pattern)
@@ -395,7 +398,7 @@ struct SectionLabel: View {
             .font(.system(size: 11))
             .foregroundColor(.secondary)
             .textCase(.uppercase)
-            .letterSpacing(0.05)
+            .kerning(0.05)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 16)
             .padding(.vertical, 6)

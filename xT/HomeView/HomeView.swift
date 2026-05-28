@@ -3,50 +3,69 @@
 //  xT
 //
 //  Created by Starla Cortes on 8/5/25.
+//  Redesigned home view with modern mobile interface
 //
+
 import SwiftUI
 
 struct HomeView: View {
     @Environment(\.profileManager) private var profileManager
     @Environment(\.medicationManager) private var medicationManager
+    @Environment(\.journalManager) private var journalManager
+    @State private var showingGraphDetail = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 0) {
-                    // Unified header with profile and medication info
-                    DashboardHeaderView()
-
-                    // Main content with better spacing and hierarchy
-                    VStack(alignment: .leading, spacing: 20) {
-                        // Medication status section
-                        if medicationManager.selectedMedication == nil || medicationManager.selectedAdministrationMethod == nil {
-                            SetupMedicationSection()
-                        } else {
-                            MedicationInfoSection()                                                                                                                                                                                                                                                                                              
-                        }
-
-                        // Compact progress preview
-                        ProgressPreviewSection()
-
-                        // Journal Preview Section
-                        if medicationManager.selectedMedication != nil {
-                            JournalPreviewSection()
-                                .padding(.top, 8)
-                        }
-                    }
-                    .padding()
-                }
+                HomeContentView()
             }
             .navigationTitle("Home")
             .navigationBarTitleDisplayMode(.inline)
-            .background(Color(UIColor.systemBackground))
+            .background(Color(.systemBackground))
         }
     }
 }
 
-// Unified Dashboard Header
-struct DashboardHeaderView: View {
+// MARK: - Home Content View
+struct HomeContentView: View {
+    @Environment(\.profileManager) private var profileManager
+    @Environment(\.medicationManager) private var medicationManager
+    @Environment(\.journalManager) private var journalManager
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Phone mockup container
+            VStack(spacing: 0) {
+                StatusBarView()
+
+                HeaderView()
+
+                MainContentView()
+                    .padding(.top, 14)
+            }
+            .background(Color(.secondarySystemBackground))
+            .cornerRadius(16)
+            .padding(16)
+        }
+    }
+}
+
+// MARK: - Status Bar
+struct StatusBarView: View {
+    var body: some View {
+        HStack {
+            Spacer()
+            Text("9:41")
+                .font(.system(size: 10))
+                .foregroundColor(.secondary)
+        }
+        .frame(height: 14)
+        .padding(.horizontal, 16)
+    }
+}
+
+// MARK: - Header View
+struct HeaderView: View {
     @Environment(\.profileManager) private var profileManager
     @Environment(\.medicationManager) private var medicationManager
 
@@ -54,173 +73,321 @@ struct DashboardHeaderView: View {
         VStack(spacing: 12) {
             // Profile section
             HStack(spacing: 12) {
-                Image(uiImage: profileManager.getCurrentProfileImage())
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 60, height: 60)
+                // Avatar
+                ZStack {
+                    LinearGradient(gradient: Gradient(colors: [Color(red: 0.93, green: 0.57, blue: 0.69), Color(red: 0.69, green: 0.66, blue: 0.92)]),
+                                   startPoint: .topLeading,
+                                   endPoint: .bottomTrailing)
+                    .frame(width: 44, height: 44)
                     .clipShape(Circle())
-                    .overlay(
-                        Circle()
-                            .stroke(Color.purple, lineWidth: 2)
-                    )
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Hi \(profileManager.profileDisplayName)!")
-                        .font(.title2)
-                        .bold()
-                        .foregroundColor(.purple)
+                    Text(profileManager.profileDisplayName.prefix(1))
+                        .font(.system(size: 18))
+                        .fontWeight(.medium)
+                        .foregroundColor(.white)
+                }
+
+                // Profile info
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Hi \(profileManager.profileDisplayName) ✦")
+                        .font(.system(size: 18))
+                        .fontWeight(.medium)
+                        .foregroundColor(.primary)
 
                     if medicationManager.isFullyConfigured {
                         Text(medicationManager.medicationDisplayInfo)
-                            .font(.subheadline)
+                            .font(.system(size: 12))
                             .foregroundColor(.secondary)
                     }
                 }
 
                 Spacer()
 
-                // Quick access to settings
-                NavigationLink(destination: SettingsView()) {
-                    Image(systemName: "gearshape.fill")
-                        .font(.title2)
-                        .foregroundColor(.purple)
-                }
+                // Notification bell
+                Image(systemName: "bell")
+                    .font(.system(size: 20))
+                    .foregroundColor(.secondary)
             }
-            .padding(.horizontal)
-            .padding(.top, 16)
 
-            // Current hormone level indicator
+            // Current level card
             if medicationManager.isFullyConfigured,
                let currentLevel = medicationManager.estimatedRecentLevels().last?.value {
-                HormoneLevelIndicator(currentLevel: currentLevel)
-                    .padding(.horizontal)
+                CurrentLevelCard(currentLevel: currentLevel)
             }
         }
+        .padding(16)
         .background(
-            LinearGradient(gradient: Gradient(colors: [Color.purple.opacity(0.05), Color.clear]),
-                          startPoint: .top,
-                          endPoint: .bottom)
+            LinearGradient(gradient: Gradient(colors: [
+                Color(red: 0.98, green: 0.92, blue: 0.94),
+                Color(red: 0.93, green: 0.93, blue: 0.99),
+                Color(.systemBackground)
+            ]),
+                           startPoint: .top,
+                           endPoint: .bottom)
         )
-        .padding(.bottom, 12)
     }
 }
 
-// Hormone Level Indicator
-struct HormoneLevelIndicator: View {
-    @Environment(\.medicationManager) private var medicationManager
+// MARK: - Current Level Card
+struct CurrentLevelCard: View {
     let currentLevel: Double
 
-    private var hormoneRange: (name: String, color: Color, icon: String)? {
-        guard let medication = medicationManager.selectedMedication else { return nil }
-
-        if medication == "Estrogen" {
-            if currentLevel < 50 { return ("Very Low", .red, "exclamationmark.triangle.fill") }
-            else if currentLevel < 100 { return ("Low", .orange, "exclamationmark.circle.fill") }
-            else if currentLevel < 200 { return ("Optimal", .green, "checkmark.circle.fill") }
-            else if currentLevel < 500 { return ("High", .yellow, "arrow.up.circle.fill") }
-            else { return ("Very High", .red, "arrow.up.right.circle.fill") }
-        } else {
-            if currentLevel < 50 { return ("Suppressed", .green, "checkmark.circle.fill") }
-            else if currentLevel < 200 { return ("Low Male", .orange, "exclamationmark.circle.fill") }
-            else if currentLevel < 800 { return ("Male Range", .yellow, "arrow.up.circle.fill") }
-            else { return ("High Male", .red, "arrow.up.right.circle.fill") }
-        }
-    }
-
     var body: some View {
-        if let range = hormoneRange {
+        NavigationLink(destination: GraphView()) {
             HStack(spacing: 12) {
-                Image(systemName: range.icon)
-                    .font(.title3)
-                    .foregroundColor(range.color)
-                    .frame(width: 40, height: 40)
-                    .background(range.color.opacity(0.1))
-                    .cornerRadius(8)
+                // Icon badge
+                ZStack {
+                    Circle()
+                        .fill(Color(red: 0.98, green: 0.92, blue: 0.94))
+                        .frame(width: 32, height: 32)
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Current Level: \(range.name)")
-                        .font(.subheadline)
-                        .bold()
+                    Image(systemName: "chart.line.uptrend.xyaxis")
+                        .font(.system(size: 18))
+                        .foregroundColor(Color(red: 0.60, green: 0.21, blue: 0.33))
+                }
 
-                    Text("\(Int(currentLevel)) \(medicationManager.selectedMedication == "Estrogen" ? "pg/mL" : "ng/dL")")
-                        .font(.caption)
+                // Level info
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("current level")
+                        .font(.system(size: 12))
                         .foregroundColor(.secondary)
+
+                    HStack(spacing: 6) {
+                        Text("\(Int(currentLevel))")
+                            .font(.system(size: 22))
+                            .fontWeight(.medium)
+                            .foregroundColor(Color(red: 0.45, green: 0.14, blue: 0.24))
+
+                        Text("pg/mL")
+                            .font(.system(size: 12))
+                            .foregroundColor(Color(.tertiaryLabel))
+
+                        // Range indicator
+                        let rangeText = getHormoneRangeText(level: currentLevel)
+                        let rangeColor = getHormoneRangeColor(level: currentLevel)
+
+                        Text(rangeText)
+                            .font(.system(size: 11))
+                            .fontWeight(.medium)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 3)
+                            .background(rangeColor.opacity(0.2))
+                            .foregroundColor(rangeColor)
+                            .cornerRadius(20)
+                    }
                 }
 
                 Spacer()
 
-                NavigationLink(destination: GraphView()) {
-                    Text("View Graph")
-                        .font(.caption)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.purple.opacity(0.1))
-                        .foregroundColor(.purple)
-                        .cornerRadius(6)
-                }
+                // Chevron
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 16))
+                    .foregroundColor(Color(.tertiaryLabel))
             }
             .padding(12)
-            .background(Color(UIColor.secondarySystemBackground))
-            .cornerRadius(12)
+            .background(Color.white)
+            .cornerRadius(14)
             .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(range.color.opacity(0.2), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(Color(red: 0.96, green: 0.75, blue: 0.82), lineWidth: 0.5)
             )
         }
+        .buttonStyle(.plain)
+    }
+
+    private func getHormoneRangeText(level: Double) -> String {
+        if level < 50 { return "Very low" }
+        else if level < 100 { return "Low" }
+        else if level < 200 { return "Optimal" }
+        else if level < 500 { return "High" }
+        else { return "Very high" }
+    }
+
+    private func getHormoneRangeColor(level: Double) -> Color {
+        if level < 100 { return Color(red: 0.52, green: 0.31, blue: 0.07) }
+        else if level < 200 { return Color(red: 0.23, green: 0.43, blue: 0.07) }
+        else { return Color(red: 0.60, green: 0.21, blue: 0.33) }
     }
 }
 
-// Compact Progress Preview
-struct ProgressPreviewSection: View {
+// MARK: - Main Content View
+struct MainContentView: View {
     @Environment(\.medicationManager) private var medicationManager
+    @Environment(\.journalManager) private var journalManager
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Your Progress")
-                .font(.headline)
-                .foregroundColor(.purple)
-
+        VStack(spacing: 10) {
+            // 7-day trend card
             if medicationManager.isFullyConfigured {
-                // Simple 7-day trend line
-                ProgressTrendView()
-                    .frame(height: 120)
-                    .background(Color(UIColor.secondarySystemBackground))
-                    .cornerRadius(12)
+                TrendCardView()
+            }
 
-                // Next dose reminder
-                if let nextDose = medicationManager.nextDoseDate {
-                    HStack(spacing: 8) {
-                        Image(systemName: "calendar")
-                            .foregroundColor(.purple)
+            // Next dose card
+            if medicationManager.isFullyConfigured,
+               let nextDose = medicationManager.nextDoseDate {
+                NextDoseCard(nextDose: nextDose)
+            }
 
-                        Text("Next dose: \(nextDose, style: .date)")
-                            .font(.subheadline)
-
-                        Spacer()
-
-                        NavigationLink(destination: UnifiedScheduleView()) {
-                            Image(systemName: "chevron.right")
-                                .foregroundColor(.purple)
-                        }
-                    }
-                    .padding(10)
-                    .background(Color.purple.opacity(0.05))
-                    .cornerRadius(8)
-                }
-            } else {
-                Text("Set up your medication to track progress")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .padding()
-                    .background(Color(UIColor.secondarySystemBackground))
-                    .cornerRadius(12)
+            // Today's journal card
+            if let lastEntry = journalManager.lastEntry {
+                JournalCardView(entry: lastEntry)
             }
         }
+        .padding(.horizontal, 14)
     }
 }
 
-// Simple Trend View
-struct ProgressTrendView: View {
+// MARK: - Trend Card View
+struct TrendCardView: View {
+    var body: some View {
+        VStack(spacing: 10) {
+            HStack {
+                Text("7-day trend")
+                    .font(.system(size: 13))
+                    .fontWeight(.medium)
+                    .foregroundColor(.primary)
+
+                Spacer()
+
+                NavigationLink(destination: GraphView()) {
+                    Text("View all")
+                        .font(.system(size: 11))
+                        .foregroundColor(Color(.tertiaryLabel))
+                }
+            }
+
+            // Mini trend graph
+            MiniTrendGraph()
+                .frame(height: 52)
+        }
+        .padding(14)
+        .background(Color(.systemBackground))
+        .cornerRadius(16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color(.tertiarySystemFill), lineWidth: 0.5)
+        )
+    }
+}
+
+// MARK: - Next Dose Card
+struct NextDoseCard: View {
+    let nextDose: Date
+
+    var body: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("next dose")
+                    .font(.system(size: 11))
+                    .foregroundColor(Color(.tertiaryLabel))
+
+                Text(nextDose, style: .date)
+                    .font(.system(size: 15))
+                    .fontWeight(.medium)
+                    .foregroundColor(.primary)
+            }
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 2) {
+                Text("in")
+                    .font(.system(size: 11))
+                    .foregroundColor(Color(.tertiaryLabel))
+
+                let daysUntilNextDose = Calendar.current.dateComponents([.day], from: Date(), to: nextDose).day ?? 0
+                Text("\(daysUntilNextDose) day\(daysUntilNextDose == 1 ? "" : "s")")
+                    .font(.system(size: 15))
+                    .fontWeight(.medium)
+                    .foregroundColor(Color(red: 0.32, green: 0.29, blue: 0.71))
+            }
+
+            // Calendar icon
+            ZStack {
+                RoundedRectangle(cornerRadius: 9)
+                    .fill(Color(red: 0.93, green: 0.93, blue: 0.99))
+                    .frame(width: 32, height: 32)
+
+                Image(systemName: "calendar")
+                    .font(.system(size: 18))
+                    .foregroundColor(Color(red: 0.32, green: 0.29, blue: 0.71))
+            }
+        }
+        .padding(14)
+        .background(Color(.systemBackground))
+        .cornerRadius(16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color(.tertiarySystemFill), lineWidth: 0.5)
+        )
+    }
+}
+
+// MARK: - Journal Card View
+struct JournalCardView: View {
+    let entry: JournalEntry
+
+    var body: some View {
+        NavigationLink(destination: JournalView()) {
+            HStack(spacing: 10) {
+                Text("🌸")
+                    .font(.system(size: 22))
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Today's journal")
+                        .font(.system(size: 13))
+                        .fontWeight(.medium)
+                        .foregroundColor(Color(red: 0.45, green: 0.14, blue: 0.24))
+
+                    Text(entry.previewText)
+                        .font(.system(size: 12))
+                        .foregroundColor(Color(red: 0.60, green: 0.21, blue: 0.33))
+                        .lineLimit(1)
+
+                    HStack(spacing: 4) {
+                        Text(entry.date, style: .time)
+                            .font(.system(size: 11))
+                            .foregroundColor(Color(.tertiaryLabel))
+
+                        Text("•")
+                            .font(.system(size: 11))
+                            .foregroundColor(Color(.tertiaryLabel))
+
+                        Text(entry.mood.rawValue)
+                            .font(.system(size: 11))
+                            .foregroundColor(Color(.tertiaryLabel))
+
+                        if !entry.symptoms.isEmpty {
+                            Text("•")
+                                .font(.system(size: 11))
+                                .foregroundColor(Color(.tertiaryLabel))
+
+                            Text("\(entry.symptoms.count) symptom\(entry.symptoms.count == 1 ? "" : "s")")
+                                .font(.system(size: 11))
+                                .foregroundColor(Color(.tertiaryLabel))
+                        }
+                    }
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14))
+                    .foregroundColor(Color(red: 0.60, green: 0.21, blue: 0.33))
+            }
+            .padding(14)
+            .background(Color(red: 0.98, green: 0.92, blue: 0.94))
+            .cornerRadius(16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color(red: 0.96, green: 0.75, blue: 0.82), lineWidth: 0.5)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// Mini trend graph component
+struct MiniTrendGraph: View {
     @Environment(\.medicationManager) private var medicationManager
 
     var body: some View {
@@ -230,204 +397,66 @@ struct ProgressTrendView: View {
             let maxValue = points.map { $0.value }.max() ?? 1
             let valueRange = maxValue - minValue
 
-            Path { path in
-                for (index, point) in points.enumerated() {
-                    let x = CGFloat(index) * (geometry.size.width / CGFloat(points.count - 1))
+            ZStack(alignment: .bottomLeading) {
+                // Gradient fill
+                Path { path in
+                    for (index, point) in points.enumerated() {
+                        let x = CGFloat(index) * (geometry.size.width / CGFloat(points.count - 1))
+                        let y = valueRange > 0 ?
+                            geometry.size.height - CGFloat((point.value - minValue) / valueRange) * geometry.size.height :
+                            geometry.size.height / 2
+
+                        if index == 0 {
+                            path.move(to: CGPoint(x: x, y: y))
+                        } else {
+                            path.addLine(to: CGPoint(x: x, y: y))
+                        }
+                    }
+
+                    // Close the path for gradient fill
+                    path.addLine(to: CGPoint(x: geometry.size.width, y: geometry.size.height))
+                    path.addLine(to: CGPoint(x: 0, y: geometry.size.height))
+                    path.closeSubpath()
+                }
+                .fill(
+                    LinearGradient(gradient: Gradient(colors: [
+                        Color(red: 0.83, green: 0.32, blue: 0.49).opacity(0.18),
+                        Color(red: 0.83, green: 0.32, blue: 0.49).opacity(0)
+                    ]),
+                                   startPoint: .top,
+                                   endPoint: .bottom)
+                )
+
+                // Trend line
+                Path { path in
+                    for (index, point) in points.enumerated() {
+                        let x = CGFloat(index) * (geometry.size.width / CGFloat(points.count - 1))
+                        let y = valueRange > 0 ?
+                            geometry.size.height - CGFloat((point.value - minValue) / valueRange) * geometry.size.height :
+                            geometry.size.height / 2
+
+                        if index == 0 {
+                            path.move(to: CGPoint(x: x, y: y))
+                        } else {
+                            path.addLine(to: CGPoint(x: x, y: y))
+                        }
+                    }
+                }
+                .stroke(Color(red: 0.83, green: 0.32, blue: 0.49), style: StrokeStyle(lineWidth: 2, lineCap: .round))
+
+                // Current point marker
+                if let currentPoint = points.last {
+                    let x = geometry.size.width - 10
                     let y = valueRange > 0 ?
-                        geometry.size.height - CGFloat((point.value - minValue) / valueRange) * geometry.size.height :
+                        geometry.size.height - CGFloat((currentPoint.value - minValue) / valueRange) * geometry.size.height :
                         geometry.size.height / 2
 
-                    if index == 0 {
-                        path.move(to: CGPoint(x: x, y: y))
-                    } else {
-                        path.addLine(to: CGPoint(x: x, y: y))
-                    }
+                    Circle()
+                        .fill(Color(red: 0.83, green: 0.32, blue: 0.49))
+                        .frame(width: 8, height: 8)
+                        .position(x: x, y: y)
                 }
             }
-            .stroke(Color.purple, lineWidth: 2)
-
-            // Current level marker
-            if let currentPoint = points.last {
-                let x = geometry.size.width - 10
-                let y = valueRange > 0 ?
-                    geometry.size.height - CGFloat((currentPoint.value - minValue) / valueRange) * geometry.size.height :
-                    geometry.size.height / 2
-
-                Circle()
-                    .fill(Color.purple)
-                    .frame(width: 8, height: 8)
-                    .position(x: x, y: y)
-            }
-        }
-        .padding(.horizontal, 16)
-    }
-}
-
-struct SetupMedicationSection: View {
-    var body: some View {
-        VStack(alignment: .center, spacing: 16) {
-            Image(systemName: "pills.circle.fill")
-                .font(.system(size: 48))
-                .foregroundColor(.purple)
-                .padding(.bottom, 8)
-
-            Text("Set Up Your Medication")
-                .font(.headline)
-                .foregroundColor(.purple)
-
-            Text("Tap the button below to select your medication and administration method.")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
-
-            NavigationLink(destination: SettingsView()) {
-                Text("Set Up Medication")
-                    .font(.headline)
-                    .padding()
-                    .frame(maxWidth: .infinity)
-                    .background(Color.purple)
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
-            }
-            .padding(.top, 8)
-        }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.purple.opacity(0.05))
-                .stroke(Color.purple.opacity(0.2), lineWidth: 1)
-        )
-    }
-}
-
-struct MedicationInfoSection: View {
-    @Environment(\.medicationManager) private var medicationManager
-    @Environment(\.profileManager) private var profileManager
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Your Medication")
-                .font(.headline)
-                .foregroundColor(.purple)
-
-            HStack {
-                Image(systemName: "pills.fill")
-                    .foregroundColor(.purple)
-                Text(medicationManager.medicationName)
-                    .font(.subheadline)
-
-                Spacer()
-
-                Text(medicationManager.selectedAdministrationMethod ?? "")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
-            .padding(8)
-            .background(Color.purple.opacity(0.1))
-            .cornerRadius(8)
-
-            if let nextDose = medicationManager.nextDoseDate {
-                HStack {
-                    Image(systemName: "calendar")
-                        .foregroundColor(.purple)
-                    Text("Next dose: \(nextDose, style: .date)")
-                        .font(.subheadline)
-                }
-                .padding(8)
-                .background(Color.purple.opacity(0.05))
-                .cornerRadius(8)
-            }
-        }
-        .padding(.vertical, 8)
-    }
-}
-
-// Journal Preview Section
-struct JournalPreviewSection: View {
-    @Environment(\.journalManager) private var journalManager
-
-    var body: some View {
-        NavigationLink(destination: JournalView()) {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Text("Today's Journal")
-                        .font(.headline)
-                        .foregroundColor(.purple)
-
-                    Spacer()
-
-                    Image(systemName: "chevron.right")
-                        .foregroundColor(.purple)
-                }
-
-                if let lastEntry = journalManager.lastEntry {
-                    VStack(alignment: .leading, spacing: 8) {
-                        // Mood and symptoms summary
-                        HStack(spacing: 8) {
-                            Image(systemName: lastEntry.mood.icon)
-                                .foregroundColor(getRangeColor(for: lastEntry.mood.rawValue))
-                            Text(lastEntry.mood.rawValue)
-                                .font(.caption)
-                                .foregroundColor(getRangeColor(for: lastEntry.mood.rawValue))
-
-                            if !lastEntry.symptoms.isEmpty {
-                                Text("•")
-                                    .foregroundColor(.gray)
-                                HStack(spacing: 4) {
-                                    ForEach(Array(lastEntry.symptoms.prefix(2)), id: \.id) { symptom in
-                                        Image(systemName: symptom.icon)
-                                            .font(.caption)
-                                    }
-                                    if lastEntry.symptoms.count > 2 {
-                                        Text("+\(lastEntry.symptoms.count - 2)")
-                                            .font(.caption)
-                                    }
-                                }
-                            }
-                        }
-
-                        // Journal entry preview
-                        Text(lastEntry.previewText)
-                            .font(.body)
-                            .lineLimit(2)
-                            .foregroundColor(.secondary)
-
-                        // Entry date
-                        Text(lastEntry.date, style: .time)
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                    }
-                } else {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("No journal entries yet")
-                            .font(.body)
-                            .foregroundColor(.secondary)
-
-                        Text("Tap to add your first entry and track your wellness journey")
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                    }
-                }
-            }
-            .padding()
-            .background(Color(UIColor.secondarySystemBackground))
-            .cornerRadius(12)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.purple.opacity(0.2), lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func getRangeColor(for mood: String) -> Color {
-        switch mood {
-        case "Happy", "Excited": return .green
-        case "Neutral", "Calm": return .blue
-        case "Sad", "Anxious": return .orange
-        case "Angry", "Frustrated": return .red
-        default: return .purple
         }
     }
 }
@@ -435,5 +464,6 @@ struct JournalPreviewSection: View {
 #Preview {
     HomeView()
         .environment(\.profileManager, ProfileManager.shared)
+        .environment(\.medicationManager, MedicationManager.shared)
         .environment(\.journalManager, JournalManager.shared)
 }

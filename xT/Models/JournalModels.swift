@@ -6,12 +6,14 @@
 //
 
 import Foundation
+import SwiftData
 
 // MARK: - Journal Entry
 
-struct JournalEntry: Identifiable, Codable {
-    let id: UUID
-    let date: Date
+@Model
+class JournalEntry: Identifiable, Codable {
+    var id: UUID
+    var date: Date
     var mood: Mood
     var text: String
     var symptoms: Set<Symptom>
@@ -28,6 +30,29 @@ struct JournalEntry: Identifiable, Codable {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.count > 60 else { return trimmed }
         return String(trimmed.prefix(60)) + "…"
+    }
+
+    // Manual Codable conformance to work with @Model macro
+    enum CodingKeys: String, CodingKey {
+        case id, date, mood, text, symptoms
+    }
+
+    required init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        date = try container.decode(Date.self, forKey: .date)
+        mood = try container.decode(Mood.self, forKey: .mood)
+        text = try container.decode(String.self, forKey: .text)
+        symptoms = try container.decode(Set<Symptom>.self, forKey: .symptoms)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(date, forKey: .date)
+        try container.encode(mood, forKey: .mood)
+        try container.encode(text, forKey: .text)
+        try container.encode(symptoms, forKey: .symptoms)
     }
 }
 

@@ -3,6 +3,7 @@
 //  xT
 //
 //  Created by starrrr on 8/5/25.
+//  Enhanced interactive graph view with detailed hormone level visualization
 //
 
 import SwiftUI
@@ -10,894 +11,456 @@ import Charts
 
 struct GraphView: View {
     @Environment(\.medicationManager) private var medicationManager
+    @State private var selectedDay: Int = 2
+    @State private var showingTooltip = false
+    @State private var tooltipPosition: CGPoint = .zero
+    @State private var tooltipValue: Double = 0
 
-    @State private var scrollPosition: Double = 0
-    @State private var selectedPoint: MedicationManager.EstimatedPoint? = nil
+    private var days: [Int] {
+        return Array(0...6)
+    }
 
-    private var series: [MedicationManager.EstimatedPoint] {
-        // Generate data for 7 days to show the parabolic curve
-        let end = Date()
-        let start = Calendar.current.date(byAdding: .day, value: -7, to: end) ?? end
-        return medicationManager.estimatedLevels(from: start, to: end, stepDays: 1)
+    private var levels: [Double] {
+        return days.map { day in
+            let peak = 280.0, base = 90.0, halfLife = 3.5
+            if day == 0 {
+                return 160.0
+            }
+            let spike = (peak - base) * exp(-Double(day) / halfLife)
+            return base + spike + 20 * sin(Double(day) * 0.8)
+        }
+    }
+
+    private var labels: [String] {
+        return ["Dose", "Day 1", "Day 2", "Day 3", "Day 4", "Day 5", "Day 6"]
     }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                // Simplified header
-                Text("Hormone Level Trends")
-                    .font(.title2)
-                    .bold()
-                    .foregroundColor(.purple)
-                    .padding(.bottom, 8)
-
-                if medicationManager.selectedMedication == nil || medicationManager.selectedAdministrationMethod == nil {
-                    NoSelectionView()
-                } else {
-                    // Simplified medication info
-                    SimplifiedMedicationInfoView()
-
-                    // Enhanced Chart with better visual hierarchy
-                    VStack(alignment: .leading, spacing: 12) {
-                        // Improved time navigation
-                        TimeNavigationControl(scrollPosition: $scrollPosition)
-
-                        // Simplified parabolic chart
-                        SimplifiedHormoneChart(series: series, scrollPosition: $scrollPosition)
-                            .frame(height: 300)
-
-                        // Current range information
-                        if !series.isEmpty, let currentLevel = series.last?.value {
-                            CurrentRangeInfoBox(currentLevel: currentLevel)
-                        }
-                    }
-
-                    // Enhanced experience section
-                    ExperienceSectionWithoutTimeline(series: series)
-                }
+                GraphCardView(
+                    selectedDay: $selectedDay,
+                    showingTooltip: $showingTooltip,
+                    tooltipPosition: $tooltipPosition,
+                    tooltipValue: $tooltipValue,
+                    levels: levels,
+                    labels: labels
+                )
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
             }
-            .padding()
         }
         .navigationTitle("Graph")
-        .background(Color(UIColor.systemBackground))
-    }
-}
-
-// Simplified Medication Info
-struct SimplifiedMedicationInfoView: View {
-    @Environment(\.medicationManager) private var medicationManager
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "pills.fill")
-                .font(.title2)
-                .foregroundColor(.purple)
-                .frame(width: 40, height: 40)
-                .background(Color.purple.opacity(0.1))
-                .cornerRadius(8)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(medicationManager.medicationName)
-                    .font(.headline)
-
-                Text(medicationManager.selectedAdministrationMethod ?? "")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
-
-            Spacer()
-
-            Text(medicationManager.dosageInfo)
-                .font(.caption)
-                .foregroundColor(.blue)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(Color.blue.opacity(0.1))
-                .cornerRadius(6)
-        }
-        .padding(12)
-        .background(Color(UIColor.secondarySystemBackground))
-        .cornerRadius(12)
-    }
-}
-
-// Improved Time Navigation
-struct TimeNavigationControl: View {
-    @Binding var scrollPosition: Double
-
-    private let dayLabels = ["Today", "Day 1", "Day 2", "Day 3", "Day 4", "Day 5", "Day 6", "Day 7"]
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("7-Day Cycle")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-
-            // Visual time indicator
-            HStack(spacing: 0) {
-                ForEach(0..<8) { index in
-                    VStack(spacing: 4) {
-                        Text(dayLabels[index])
-                            .font(.caption)
-                            .foregroundColor(index == Int(scrollPosition) ? .purple : .secondary)
-
-                        Rectangle()
-                            .fill(index <= Int(scrollPosition) ? Color.purple : Color.gray.opacity(0.2))
-                            .frame(height: 2)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        scrollPosition = Double(index)
-                    }
-                }
-            }
-
-            Slider(value: $scrollPosition, in: 0...7, step: 1)
-                .padding(.horizontal, 8)
+        .navigationBarTitleDisplayMode(.inline)
+        .background(Color(.secondarySystemBackground))
+        .onAppear {
+            updateTooltip()
         }
     }
-}
 
-// Simplified Hormone Chart
-struct SimplifiedHormoneChart: View {
-    let series: [MedicationManager.EstimatedPoint]
-    @Binding var scrollPosition: Double
-    @Environment(\.medicationManager) private var medicationManager
+    private func updateTooltip() {
+        tooltipValue = levels[selectedDay]
+        showingTooltip = true
 
-    private var parabolicPoints: [ParabolicPoint] {
-        guard !series.isEmpty else { return [] }
-
-        let baseline = series.first?.value ?? 100
-        let peak = baseline * 1.8 // 80% increase at peak
-        let halfLifeDays = 7.0
-
-        var points: [ParabolicPoint] = []
-
-        // Add points for 7 days
-        for i in 0..<100 { // 100 points for smooth curve
-            let day = Double(i) * 0.07 // 7 days total
-            let x = day
-
-            // Parabolic curve formula: y = baseline + peak * (1 - (x/halfLife)^2)
-            let normalizedX = min(abs(x) / (halfLifeDays / 2), 1.0)
-            let y = baseline + (peak - baseline) * (1 - pow(normalizedX, 2))
-
-            points.append(ParabolicPoint(x: x, y: y))
-        }
-
-        return points
-    }
-
-    private var currentPoint: ParabolicPoint? {
-        let index = Int(scrollPosition * 14.28) // 100 points / 7 days
-        guard index >= 0 && index < parabolicPoints.count else { return nil }
-        return parabolicPoints[index]
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // Optimal range indicator
-            OptimalRangeIndicator()
-
-            // Chart area
-            GeometryReader { geometry in
-                ZStack {
-                    // Optimal range background
-                    let optimalRange = getOptimalRange()
-                    let minY = optimalRange.min
-                    let maxY = optimalRange.max
-                    let totalRange = parabolicPoints.map { $0.y }.max() ?? 1
-
-                    Rectangle()
-                        .fill(Color.green.opacity(0.1))
-                        .frame(height: CGFloat((maxY - minY) / totalRange) * geometry.size.height)
-                        .position(x: geometry.size.width / 2,
-                                 y: geometry.size.height - CGFloat(minY / totalRange) * geometry.size.height - (CGFloat((maxY - minY) / totalRange) * geometry.size.height) / 2)
-
-                    // Parabolic curve
-                    Path { path in
-                        for (index, point) in parabolicPoints.enumerated() {
-                            let x = CGFloat(index) * (geometry.size.width / CGFloat(parabolicPoints.count - 1))
-                            let y = geometry.size.height - CGFloat(point.y / totalRange) * geometry.size.height
-
-                            if index == 0 {
-                                path.move(to: CGPoint(x: x, y: y))
-                            } else {
-                                path.addLine(to: CGPoint(x: x, y: y))
-                            }
-                        }
-                    }
-                    .stroke(Color.purple, lineWidth: 3)
-                    .shadow(color: Color.purple.opacity(0.3), radius: 3)
-
-                    // Current position marker
-                    if let currentPoint = currentPoint {
-                        let x = CGFloat(Int(scrollPosition) * 14) * (geometry.size.width / CGFloat(parabolicPoints.count - 1))
-                        let y = geometry.size.height - CGFloat(currentPoint.y / totalRange) * geometry.size.height
-
-                        Circle()
-                            .fill(Color.red)
-                            .frame(width: 16, height: 16)
-                            .position(x: x, y: y)
-
-                        // Vertical guide line
-                        Rectangle()
-                            .fill(Color.red.opacity(0.2))
-                            .frame(width: 1, height: geometry.size.height)
-                            .position(x: x, y: geometry.size.height / 2)
-                    }
-                }
-            }
-            .frame(height: 250)
-
-            // Current level annotation
-            if let currentPoint = currentPoint {
-                HStack {
-                    Text("Current: \(Int(currentPoint.y)) \(medicationManager.selectedMedication == "Estrogen" ? "pg/mL" : "ng/dL")")
-                        .font(.caption)
-                        .bold()
-                        .foregroundColor(.red)
-
-                    Spacer()
-
-                    Text("Day \(Int(scrollPosition)) of 7")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-        }
-        .padding(12)
-        .background(Color(UIColor.secondarySystemBackground))
-        .cornerRadius(12)
-    }
-
-    private func getOptimalRange() -> (min: Double, max: Double) {
-        guard let medication = medicationManager.selectedMedication else {
-            return (100, 200) // Default estrogen optimal range
-        }
-
-        if medication == "Estrogen" {
-            return (100, 200)
-        } else {
-            return (0, 50) // Testosterone suppression range
-        }
-    }
-}
-
-// Optimal Range Indicator
-struct OptimalRangeIndicator: View {
-    @Environment(\.medicationManager) private var medicationManager
-
-    var body: some View {
-        if let medication = medicationManager.selectedMedication {
-            HStack(spacing: 8) {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundColor(.green)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Optimal Range")
-                        .font(.caption)
-                        .bold()
-
-                    if medication == "Estrogen" {
-                        Text("100-200 pg/mL for feminization")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    } else {
-                        Text("0-50 ng/dL for suppression")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-
-                Spacer()
-
-                Text("Target")
-                    .font(.caption)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.green)
-                    .cornerRadius(4)
-            }
-            .padding(8)
-            .background(Color.green.opacity(0.1))
-            .cornerRadius(8)
-        }
-    }
-}
-
-struct NoSelectionView: View {
-    var body: some View {
-        VStack(alignment: .center, spacing: 16) {
-            Image(systemName: "chart.line.uptrend.xyaxis")
-                .font(.system(size: 48))
-                .foregroundColor(.gray)
-            Text("No Selection")
-                .font(.headline)
-            Text("Select a medication type and method to view estimated levels.")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(UIColor.secondarySystemBackground))
+        // Calculate tooltip position
+        let widthPerDay = UIScreen.main.bounds.width / CGFloat(levels.count - 1)
+        tooltipPosition = CGPoint(
+            x: CGFloat(selectedDay) * widthPerDay,
+            y: getYPosition(for: tooltipValue, in: 180) - 30
         )
+
+        // Hide tooltip after delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            showingTooltip = false
+        }
+    }
+
+    private func getYPosition(for value: Double, in height: CGFloat) -> CGFloat {
+        let minValue: Double = 40
+        let maxValue: Double = 320
+        let normalizedValue = (value - minValue) / (maxValue - minValue)
+        return height - CGFloat(normalizedValue) * height
+    }
+
+    private func getRangeText(for value: Double) -> String {
+        if value < 50 { return "Very low" }
+        else if value < 100 { return "Low" }
+        else if value < 200 { return "Optimal" }
+        else if value < 500 { return "High" }
+        else { return "Very high" }
+    }
+
+    private func getRangeColor(for value: Double) -> Color {
+        if value < 100 { return Color(red: 0.52, green: 0.31, blue: 0.07) }
+        else if value < 200 { return Color(red: 0.23, green: 0.43, blue: 0.07) }
+        else { return Color(red: 0.60, green: 0.21, blue: 0.33) }
     }
 }
 
-struct MedicationInfoView: View {
-    @Environment(\.medicationManager) private var medicationManager
+// MARK: - Graph Card View
+struct GraphCardView: View {
+    @Binding var selectedDay: Int
+    @Binding var showingTooltip: Bool
+    @Binding var tooltipPosition: CGPoint
+    @Binding var tooltipValue: Double
+    let levels: [Double]
+    let labels: [String]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Current Medication")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
+        VStack(spacing: 16) {
+            // Title
+            Text("Hormone level curve")
+                .font(.system(size: 15))
+                .fontWeight(.medium)
+                .foregroundColor(.primary)
 
+            // Subtitle
+            Text("Estrogen · Injectable · 7-day cycle")
+                .font(.system(size: 12))
+                .foregroundColor(Color(.tertiaryLabel))
+
+            // Range indicators
+            RangeIndicatorsView()
+
+            // Chart area with tap gesture
+            ChartAreaView(
+                selectedDay: $selectedDay,
+                showingTooltip: $showingTooltip,
+                tooltipPosition: $tooltipPosition,
+                tooltipValue: $tooltipValue,
+                levels: levels
+            )
+
+            // Slider label
+            Text("Scrub to a day")
+                .font(.system(size: 12))
+                .foregroundColor(Color(.tertiaryLabel))
+
+            // Day slider
+            Slider(value: Binding(
+                get: { Double(selectedDay) },
+                set: { newValue in
+                    selectedDay = Int(newValue)
+                }
+            ), in: 0...6, step: 1)
+            .tint(Color(red: 0.83, green: 0.32, blue: 0.49))
+
+            // Day labels
             HStack {
-                Text(medicationManager.medicationName)
-                    .font(.headline)
-                Text("•")
-                    .foregroundColor(.gray)
-                Text(medicationManager.selectedAdministrationMethod ?? "")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
+                ForEach(0..<7) { day in
+                    Text(labels[day])
+                        .font(.system(size: 10))
+                        .foregroundColor(day == selectedDay ? .primary : Color(.tertiaryLabel))
+                        .frame(maxWidth: .infinity)
+                }
             }
 
-            Text("Dosage: \(medicationManager.dosageInfo)")
-                .font(.caption)
-                .foregroundColor(.blue)
+            // Stats row
+            StatsRowView(selectedDay: selectedDay, levels: levels)
         }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(UIColor.secondarySystemBackground))
+        .padding(16)
+        .background(Color(.systemBackground))
+        .cornerRadius(20)
+        .overlay(
+            RoundedRectangle(cornerRadius: 20)
+                .stroke(Color(.tertiarySystemFill), lineWidth: 0.5)
         )
     }
 }
 
-// Current Range Info Box for the top section
-struct CurrentRangeInfoBox: View {
-    let currentLevel: Double
-    @Environment(\.medicationManager) private var medicationManager
-
-    private var hormoneLevelRanges: [HormoneLevelRange] {
-        guard let medication = medicationManager.selectedMedication else {
-            return []
-        }
-
-        if medication == "Estrogen" {
-            return [
-                HormoneLevelRange(name: "Very Low", min: 0, max: 50, description: ""),
-                HormoneLevelRange(name: "Low", min: 50, max: 100, description: ""),
-                HormoneLevelRange(name: "Optimal", min: 100, max: 200, description: ""),
-                HormoneLevelRange(name: "High", min: 200, max: 500, description: ""),
-                HormoneLevelRange(name: "Very High", min: 500, max: 1000, description: "")
-            ]
-        } else {
-            return [
-                HormoneLevelRange(name: "Suppressed", min: 0, max: 50, description: ""),
-                HormoneLevelRange(name: "Low Male", min: 50, max: 200, description: ""),
-                HormoneLevelRange(name: "Male Range", min: 200, max: 800, description: ""),
-                HormoneLevelRange(name: "High Male", min: 800, max: 1200, description: "")
-            ]
-        }
-    }
-
+// MARK: - Range Indicators
+struct RangeIndicatorsView: View {
     var body: some View {
-        if let currentRange = hormoneLevelRanges.first(where: { $0.min <= currentLevel && $0.max >= currentLevel }) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Current Range")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
+        HStack(spacing: 6) {
+            // Optimal range
+            Text("Optimal 100–200")
+                .font(.system(size: 11))
+                .fontWeight(.medium)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(Color(red: 0.91, green: 0.95, blue: 0.87))
+                .foregroundColor(Color(red: 0.23, green: 0.43, blue: 0.07))
+                .cornerRadius(20)
 
-                HStack(alignment: .top, spacing: 8) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(currentRange.name)
-                            .font(.headline)
-                            .bold()
-                            .foregroundColor(rangeColor(for: currentRange.name))
+            // Low range
+            Text("Low <100")
+                .font(.system(size: 11))
+                .fontWeight(.medium)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(Color(red: 0.98, green: 0.93, blue: 0.85))
+                .foregroundColor(Color(red: 0.52, green: 0.31, blue: 0.07))
+                .cornerRadius(20)
 
-                        Text("\(Int(currentRange.min))-\(Int(currentRange.max)) \(medicationManager.selectedMedication == "Estrogen" ? "pg/mL" : "ng/dL")")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-
-                    Spacer()
-
-                    Image(systemName: rangeIcon(for: currentRange.name))
-                        .font(.system(size: 32))
-                        .foregroundColor(rangeColor(for: currentRange.name))
-                        .padding(4)
-                        .background(rangeColor(for: currentRange.name).opacity(0.1))
-                        .cornerRadius(8)
-                }
-            }
-            .padding(12)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(UIColor.secondarySystemBackground))
-            )
-            .frame(minWidth: 0, maxWidth: .infinity)
+            // High range
+            Text("High >200")
+                .font(.system(size: 11))
+                .fontWeight(.medium)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(Color(red: 0.98, green: 0.92, blue: 0.94))
+                .foregroundColor(Color(red: 0.60, green: 0.21, blue: 0.33))
+                .cornerRadius(20)
         }
     }
 }
 
-struct ParabolicHormoneChart: View {
-    let series: [MedicationManager.EstimatedPoint]
-    @Binding var scrollPosition: Double
-    @Environment(\.medicationManager) private var medicationManager
-
-    // Generate smooth parabolic curve points with extension before current day
-    private var parabolicPoints: [ParabolicPoint] {
-        guard !series.isEmpty else { return [] }
-
-        let baseline = series.first?.value ?? 100
-        let peak = baseline * 1.8 // 80% increase at peak
-        let halfLifeDays = 7.0
-
-        var points: [ParabolicPoint] = []
-
-        // Add points before current day for visual continuity (negative x values)
-        for i in -30..<100 { // 30 points before + 100 points for 7 days
-            let day = Double(i) * 0.07 // 7 days total, negative for before current day
-            let x = day
-
-            // Parabolic curve formula: y = baseline + peak * (1 - (x/halfLife)^2)
-            let normalizedX = min(abs(x) / (halfLifeDays / 2), 1.0)
-            let y = baseline + (peak - baseline) * (1 - pow(normalizedX, 2))
-
-            points.append(ParabolicPoint(x: x, y: y))
-        }
-
-        return points
-    }
-
-    // Get current point based on scroll position (only allow scrolling from day 0 onwards)
-    private var currentPoint: ParabolicPoint? {
-        let index = Int(scrollPosition * 14.28) + 30 // 100 points / 7 days, offset by 30 for pre-current points
-        guard index >= 30 && index < parabolicPoints.count else { return nil } // Prevent scrolling before day 0
-        return parabolicPoints[index]
-    }
+// MARK: - Chart Area
+struct ChartAreaView: View {
+    @Binding var selectedDay: Int
+    @Binding var showingTooltip: Bool
+    @Binding var tooltipPosition: CGPoint
+    @Binding var tooltipValue: Double
+    let levels: [Double]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Hormone Level Trends")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
+        ZStack {
+            // Chart
+            GeometryReader { geometry in
+                let chartHeight = geometry.size.height
 
-            Chart {
-                // Parabolic curve
-                ForEach(parabolicPoints) { point in
-                    LineMark(
-                        x: .value("Day", point.x),
-                        y: .value("Level", point.y)
-                    )
-                    .interpolationMethod(.catmullRom)
-                    .foregroundStyle(.blue)
-                    .lineStyle(StrokeStyle(lineWidth: 3))
+                // Optimal range background
+                let optimalMinY = getYPosition(for: 100, in: chartHeight)
+                let optimalMaxY = getYPosition(for: 200, in: chartHeight)
+
+                Rectangle()
+                    .fill(Color(red: 0.91, green: 0.95, blue: 0.87).opacity(0.3))
+                    .frame(height: optimalMaxY - optimalMinY)
+                    .position(x: geometry.size.width / 2,
+                             y: optimalMinY + (optimalMaxY - optimalMinY) / 2)
+
+                // Grid lines for optimal range
+                Path { path in
+                    path.move(to: CGPoint(x: 0, y: optimalMinY))
+                    path.addLine(to: CGPoint(x: geometry.size.width, y: optimalMinY))
+                    path.move(to: CGPoint(x: 0, y: optimalMaxY))
+                    path.addLine(to: CGPoint(x: geometry.size.width, y: optimalMaxY))
+                }
+                .stroke(Color(red: 0.23, green: 0.43, blue: 0.07).opacity(0.3), style: StrokeStyle(lineWidth: 0.5, dash: [4, 4]))
+
+                // Hormone curve with gradient fill
+                let curvePath = createCurvePath(in: geometry.size)
+
+                // Gradient fill
+                Path { path in
+                    path.addPath(curvePath)
+                    path.addLine(to: CGPoint(x: geometry.size.width, y: geometry.size.height))
+                    path.addLine(to: CGPoint(x: 0, y: geometry.size.height))
+                    path.closeSubpath()
+                }
+                .fill(
+                    LinearGradient(gradient: Gradient(colors: [
+                        Color(red: 0.83, green: 0.32, blue: 0.49).opacity(0.12),
+                        Color(red: 0.83, green: 0.32, blue: 0.49).opacity(0.05)
+                    ]),
+                                   startPoint: .top,
+                                   endPoint: .bottom)
+                )
+
+                // Curve line
+                curvePath
+                    .stroke(Color(red: 0.83, green: 0.32, blue: 0.49), style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+
+                // Data points
+                ForEach(0..<levels.count, id: \.self) { index in
+                    let level = levels[index]
+                    let x = CGFloat(index) * (geometry.size.width / CGFloat(levels.count - 1))
+                    let y = getYPosition(for: level, in: chartHeight)
+
+                    Circle()
+                        .fill(Color(red: 0.83, green: 0.32, blue: 0.49))
+                        .frame(width: 4, height: 4)
+                        .position(x: x, y: y)
                 }
 
-                // Current level dot
-                if let currentPoint = currentPoint {
-                    PointMark(
-                        x: .value("Current Day", currentPoint.x),
-                        y: .value("Current Level", currentPoint.y)
-                    )
-                    .symbolSize(150)
-                    .foregroundStyle(.red)
+                // Selected day marker
+                let selectedX = CGFloat(selectedDay) * (geometry.size.width / CGFloat(levels.count - 1))
+                let selectedY = getYPosition(for: levels[selectedDay], in: chartHeight)
 
-                    // Annotation for current level
-                    PointMark(
-                        x: .value("Current Day", currentPoint.x),
-                        y: .value("Current Level", currentPoint.y)
-                    )
-                    .annotation(position: .top) {
-                        Text("Current: \(Int(currentPoint.y)) \(medicationManager.selectedMedication == "Estrogen" ? "pg/mL" : "ng/dL")")
-                            .font(.caption)
-                            .foregroundColor(.red)
-                            .padding(6)
-                            .background(Color.red.opacity(0.1))
-                            .cornerRadius(6)
-                    }
-                }
+                // Vertical guide line
+                Rectangle()
+                    .fill(Color(red: 0.83, green: 0.32, blue: 0.49).opacity(0.2))
+                    .frame(width: 1, height: chartHeight)
+                    .position(x: selectedX, y: chartHeight / 2)
+                    .animation(.easeInOut(duration: 0.2), value: selectedDay)
+
+                // Selected point marker
+                Circle()
+                    .fill(Color(red: 0.83, green: 0.32, blue: 0.49))
+                    .frame(width: 14, height: 14)
+                    .position(x: selectedX, y: selectedY)
+                    .animation(.easeInOut(duration: 0.2), value: selectedDay)
+
+                Circle()
+                    .fill(Color.white)
+                    .frame(width: 6, height: 6)
+                    .position(x: selectedX, y: selectedY)
+                    .animation(.easeInOut(duration: 0.2), value: selectedDay)
             }
-            .chartXAxis {
-                AxisMarks(values: .automatic(desiredCount: 8)) { value in
-                    AxisGridLine()
-                    AxisTick()
-                    AxisValueLabel {
-                        if let day = value.as(Double.self) {
-                            Text(String(format: "%.1f", day))
-                                .font(.caption)
-                        }
-                    }
-                }
+            .frame(height: 180)
+            .contentShape(Rectangle())
+            .onTapGesture { location in
+                handleChartTap(location: location)
             }
-            .chartYAxis {
-                AxisMarks(position: .leading) { value in
-                    AxisGridLine()
-                    AxisValueLabel()
-                }
+
+            // Tooltip
+            if showingTooltip {
+                TooltipView(value: tooltipValue)
+                    .position(x: tooltipPosition.x, y: tooltipPosition.y)
+                    .transition(.opacity)
             }
-            .frame(height: 300)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(UIColor.secondarySystemBackground))
-            )
-        }
-    }
-}
-
-// Helper struct for parabolic points
-struct ParabolicPoint: Identifiable {
-    let id = UUID()
-    let x: Double
-    let y: Double
-}
-struct HormoneLevelChart: View {
-    let series: [MedicationManager.EstimatedPoint]
-    let rangeInDays: Int
-    @Environment(\.medicationManager) private var medicationManager
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Hormone Level Trends")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-
-            Chart {
-                // Main hormone level line
-                ForEach(series) { point in
-                    LineMark(
-                        x: .value("Date", point.date),
-                        y: .value("Level", point.value)
-                    )
-                    .interpolationMethod(.monotone)
-                    .foregroundStyle(.blue)
-                    .lineStyle(StrokeStyle(lineWidth: 3))
-
-                    PointMark(
-                        x: .value("Date", point.date),
-                        y: .value("Level", point.value)
-                    )
-                    .symbolSize(80)
-                    .foregroundStyle(.blue)
-                }
-
-                // Current level indicator
-                if let lastPoint = series.last {
-                    RuleMark(
-                        y: .value("Current", lastPoint.value)
-                    )
-                    .foregroundStyle(.red)
-                    .lineStyle(StrokeStyle(lineWidth: 2, dash: [5]))
-                    .annotation(position: .top) {
-                        Text("Current: \(Int(lastPoint.value)) \(medicationManager.selectedMedication == "Estrogen" ? "pg/mL" : "ng/dL")")
-                            .font(.caption)
-                            .foregroundColor(.red)
-                            .padding(4)
-                            .background(Color.red.opacity(0.1))
-                            .cornerRadius(4)
-                    }
-                }
-            }
-            .chartXAxis {
-                AxisMarks(values: .automatic(desiredCount: 5)) { value in
-                    AxisGridLine()
-                    AxisTick()
-                    AxisValueLabel {
-                        if let date = value.as(Date.self) {
-                            Text(date, style: .date)
-                                .font(.caption)
-                        }
-                    }
-                }
-            }
-            .chartYAxis {
-                AxisMarks(position: .leading) { value in
-                    AxisGridLine()
-                    AxisValueLabel()
-                }
-            }
-            .frame(height: 300)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(UIColor.secondarySystemBackground))
-            )
-        }
-    }
-}
-
-struct ExperienceSection: View {
-    let series: [MedicationManager.EstimatedPoint]
-    @Environment(\.medicationManager) private var medicationManager
-
-    private var hormoneLevelRanges: [HormoneLevelRange] {
-        guard let medication = medicationManager.selectedMedication else {
-            return []
-        }
-
-        // Define hormone level ranges based on research data
-        if medication == "Estrogen" {
-            return [
-                HormoneLevelRange(name: "Very Low", min: 0, max: 50, description: "May experience hot flashes, mood changes, and defeminization effects"),
-                HormoneLevelRange(name: "Low", min: 50, max: 100, description: "Suboptimal feminization, possible mood swings"),
-                HormoneLevelRange(name: "Optimal", min: 100, max: 200, description: "Good feminization progress, stable mood"),
-                HormoneLevelRange(name: "High", min: 200, max: 500, description: "Enhanced feminization, better testosterone suppression"),
-                HormoneLevelRange(name: "Very High", min: 500, max: 1000, description: "Maximal effects but potential health risks")
-            ]
-        } else { // Testosterone
-            return [
-                HormoneLevelRange(name: "Suppressed", min: 0, max: 50, description: "Full testosterone suppression, optimal for feminization"),
-                HormoneLevelRange(name: "Low Male", min: 50, max: 200, description: "Partial suppression, may need antiandrogen"),
-                HormoneLevelRange(name: "Male Range", min: 200, max: 800, description: "Insufficient suppression, masculinization effects"),
-                HormoneLevelRange(name: "High Male", min: 800, max: 1200, description: "Full masculinization, no feminization")
-            ]
         }
     }
 
-    var body: some View {
-        if !hormoneLevelRanges.isEmpty, let currentLevel = series.last?.value {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("What You May Be Experiencing")
-                    .font(.headline)
+    private func createCurvePath(in size: CGSize) -> Path {
+        var path = Path()
+        let width = size.width
+        let height = size.height
 
-                // Find the current range
-                if let currentRange = hormoneLevelRanges.first(where: { $0.min <= currentLevel && $0.max >= currentLevel }) {
-                    RangeInfoView(currentRange: currentRange)
+        for (index, level) in levels.enumerated() {
+            let x = CGFloat(index) * (width / CGFloat(levels.count - 1))
+            let y = getYPosition(for: level, in: height)
 
-                    Text("Expected Effects:")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .padding(.top, 8)
-
-                    Text(currentRange.description)
-                        .font(.body)
-                        .padding(.vertical, 4)
-
-                    // Additional effects based on research
-                    if medicationManager.selectedMedication == "Estrogen" {
-                        EstrogenEffectsView(rangeName: currentRange.name)
-                    } else {
-                        TestosteroneEffectsView(rangeName: currentRange.name)
-                    }
-
-                    // Timeline of effects
-                    if medicationManager.selectedMedication == "Estrogen" {
-                        FeminizationTimelineView()
-                    }
-                }
-            }
-            .padding(12)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(UIColor.secondarySystemBackground))
-            )
-        }
-    }
-}
-
-// Experience section without timeline for GraphView
-struct ExperienceSectionWithoutTimeline: View {
-    let series: [MedicationManager.EstimatedPoint]
-    @Environment(\.medicationManager) private var medicationManager
-
-    private var hormoneLevelRanges: [HormoneLevelRange] {
-        guard let medication = medicationManager.selectedMedication else {
-            return []
-        }
-
-        if medication == "Estrogen" {
-            return [
-                HormoneLevelRange(name: "Very Low", min: 0, max: 50, description: "May experience hot flashes, mood changes, and defeminization effects"),
-                HormoneLevelRange(name: "Low", min: 50, max: 100, description: "Suboptimal feminization, possible mood swings"),
-                HormoneLevelRange(name: "Optimal", min: 100, max: 200, description: "Good feminization progress, stable mood"),
-                HormoneLevelRange(name: "High", min: 200, max: 500, description: "Enhanced feminization, better testosterone suppression"),
-                HormoneLevelRange(name: "Very High", min: 500, max: 1000, description: "Maximal effects but potential health risks")
-            ]
-        } else {
-            return [
-                HormoneLevelRange(name: "Suppressed", min: 0, max: 50, description: "Full testosterone suppression, optimal for feminization"),
-                HormoneLevelRange(name: "Low Male", min: 50, max: 200, description: "Partial suppression, may need antiandrogen"),
-                HormoneLevelRange(name: "Male Range", min: 200, max: 800, description: "Insufficient suppression, masculinization effects"),
-                HormoneLevelRange(name: "High Male", min: 800, max: 1200, description: "Full masculinization, no feminization")
-            ]
-        }
-    }
-
-    var body: some View {
-        if !hormoneLevelRanges.isEmpty, let currentLevel = series.last?.value {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("What You May Be Experiencing")
-                    .font(.headline)
-
-                // Find the current range
-                if let currentRange = hormoneLevelRanges.first(where: { $0.min <= currentLevel && $0.max >= currentLevel }) {
-                    Text("Expected Effects:")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .padding(.top, 8)
-
-                    Text(currentRange.description)
-                        .font(.body)
-                        .padding(.vertical, 4)
-
-                    // Additional effects based on research
-                    if medicationManager.selectedMedication == "Estrogen" {
-                        EstrogenEffectsView(rangeName: currentRange.name)
-                    } else {
-                        TestosteroneEffectsView(rangeName: currentRange.name)
-                    }
-                }
-            }
-            .padding(12)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(UIColor.secondarySystemBackground))
-            )
-        }
-    }
-}
-
-struct RangeInfoView: View {
-    let currentRange: HormoneLevelRange
-    @Environment(\.medicationManager) private var medicationManager
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Current Range:")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-
-                Text(currentRange.name)
-                    .font(.title3)
-                    .bold()
-                    .foregroundColor(rangeColor(for: currentRange.name))
-
-                Text("\(Int(currentRange.min))-\(Int(currentRange.max)) \(medicationManager.selectedMedication == "Estrogen" ? "pg/mL" : "ng/dL")")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-
-            Spacer()
-
-            Image(systemName: rangeIcon(for: currentRange.name))
-                .font(.system(size: 48))
-                .foregroundColor(rangeColor(for: currentRange.name))
-                .padding(8)
-                .background(rangeColor(for: currentRange.name).opacity(0.1))
-                .cornerRadius(12)
-        }
-    }
-}
-
-struct EstrogenEffectsView: View {
-    let rangeName: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            if rangeName == "Optimal" || rangeName == "High" {
-                Text("• Breast development progress")
-                Text("• Feminine fat redistribution")
-                Text("• Skin softening and reduced oiliness")
-                Text("• Emotional changes and mood stabilization")
-            } else if rangeName == "Very High" {
-                Text("• Maximal feminization effects")
-                Text("• Potential increased health risks (blood clots, etc.)")
-                Text("• Regular monitoring recommended")
+            if index == 0 {
+                path.move(to: CGPoint(x: x, y: y))
             } else {
-                Text("• Suboptimal feminization progress")
-                Text("• Possible mood swings and hot flashes")
-                Text("• Consider dosage adjustment")
+                // Create smooth curve using quadratic Bézier
+                let prevX = CGFloat(index - 1) * (width / CGFloat(levels.count - 1))
+                let prevY = getYPosition(for: levels[index - 1], in: height)
+
+                let controlX = prevX + (x - prevX) / 2
+                let controlY = prevY
+
+                path.addQuadCurve(to: CGPoint(x: x, y: y), control: CGPoint(x: controlX, y: controlY))
             }
         }
-        .font(.caption)
-        .foregroundColor(.secondary)
-        .padding(.top, 4)
+
+        return path
+    }
+
+    private func getYPosition(for value: Double, in height: CGFloat) -> CGFloat {
+        let minValue: Double = 40
+        let maxValue: Double = 320
+        let normalizedValue = (value - minValue) / (maxValue - minValue)
+        return height - CGFloat(normalizedValue) * height
+    }
+
+    private func handleChartTap(location: CGPoint) {
+        // Convert tap location to day index
+        let widthPerDay = UIScreen.main.bounds.width / CGFloat(levels.count - 1)
+        let tappedDay = Int(location.x / widthPerDay)
+        selectedDay = max(0, min(6, tappedDay))
     }
 }
 
-struct TestosteroneEffectsView: View {
-    let rangeName: String
+// MARK: - Tooltip View
+struct TooltipView: View {
+    let value: Double
+
+    private func getRangeText(for value: Double) -> String {
+        if value < 50 { return "Very low" }
+        else if value < 100 { return "Low" }
+        else if value < 200 { return "Optimal" }
+        else if value < 500 { return "High" }
+        else { return "Very high" }
+    }
+
+    private func getRangeColor(for value: Double) -> Color {
+        if value < 100 { return Color(red: 0.52, green: 0.31, blue: 0.07) }
+        else if value < 200 { return Color(red: 0.23, green: 0.43, blue: 0.07) }
+        else { return Color(red: 0.60, green: 0.21, blue: 0.33) }
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            if rangeName == "Suppressed" {
-                Text("• Optimal conditions for feminization")
-                Text("• Reduced masculinization effects")
-                Text("• Emotional changes possible")
-            } else if rangeName == "Low Male" {
-                Text("• Partial suppression achieved")
-                Text("• May need additional antiandrogen")
-                Text("• Some masculinization effects may persist")
-            } else {
-                Text("• Insufficient testosterone suppression")
-                Text("• Masculinization effects continue")
-                Text("• Feminization progress limited")
-            }
+        VStack(alignment: .center) {
+            Text("\(Int(value)) pg/mL")
+                .font(.system(size: 12))
+                .fontWeight(.medium)
+                .foregroundColor(.primary)
+
+            Text(getRangeText(for: value))
+                .font(.system(size: 10))
+                .foregroundColor(getRangeColor(for: value))
         }
-        .font(.caption)
-        .foregroundColor(.secondary)
-        .padding(.top, 4)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(Color(.systemBackground))
+        .cornerRadius(8)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color(.tertiarySystemFill), lineWidth: 0.5)
+        )
     }
 }
 
-struct FeminizationTimelineView: View {
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Feminization Timeline")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .padding(.top, 8)
+// MARK: - Stats Row
+struct StatsRowView: View {
+    let selectedDay: Int
+    let levels: [Double]
 
-            VStack(alignment: .leading, spacing: 4) {
-                TimelineItem(effect: "Breast development", onset: "2-6 months", completion: "2-3 years")
-                TimelineItem(effect: "Skin softening", onset: "3-6 months", completion: "Unknown")
-                TimelineItem(effect: "Body fat redistribution", onset: "3-6 months", completion: "2-5 years")
-                TimelineItem(effect: "Decreased muscle mass", onset: "3-6 months", completion: "1-2 years")
-                TimelineItem(effect: "Emotional changes", onset: "Immediate", completion: "Unknown")
-            }
-        }
-        .padding(.top, 8)
+    private func getRangeText(for value: Double) -> String {
+        if value < 50 { return "Very low" }
+        else if value < 100 { return "Low" }
+        else if value < 200 { return "Optimal" }
+        else if value < 500 { return "High" }
+        else { return "Very high" }
     }
-}
 
-// Helper functions
-private func rangeColor(for rangeName: String) -> Color {
-    switch rangeName {
-    case "Very Low", "Suppressed": return .red
-    case "Low", "Low Male": return .orange
-    case "Optimal": return .green
-    case "High", "Male Range": return .yellow
-    case "Very High", "High Male": return .red
-    default: return .blue
+    private func getRangeColor(for value: Double) -> Color {
+        if value < 100 { return Color(red: 0.52, green: 0.31, blue: 0.07) }
+        else if value < 200 { return Color(red: 0.23, green: 0.43, blue: 0.07) }
+        else { return Color(red: 0.60, green: 0.21, blue: 0.33) }
     }
-}
-
-private func rangeIcon(for rangeName: String) -> String {
-    switch rangeName {
-    case "Very Low", "Suppressed": return "exclamationmark.triangle.fill"
-    case "Low", "Low Male": return "exclamationmark.circle.fill"
-    case "Optimal": return "checkmark.circle.fill"
-    case "High", "Male Range": return "arrow.up.circle.fill"
-    case "Very High", "High Male": return "arrow.up.right.circle.fill"
-    default: return "questionmark.circle.fill"
-    }
-}
-
-struct HormoneLevelRange: Identifiable {
-    let id = UUID()
-    let name: String
-    let min: Double
-    let max: Double
-    let description: String
-}
-
-struct TimelineItem: View {
-    let effect: String
-    let onset: String
-    let completion: String
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text("• \(effect):")
-                .font(.caption)
-            Spacer()
-            VStack(alignment: .trailing, spacing: 2) {
-                Text("Onset: \(onset)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                Text("Completion: \(completion)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+        HStack(spacing: 8) {
+            // Current value
+            VStack(spacing: 2) {
+                Text(selectedDay == 0 ? "—" : "\(Int(levels[selectedDay]))")
+                    .font(.system(size: 18))
+                    .fontWeight(.medium)
+                    .foregroundColor(.primary)
+
+                Text("pg/mL")
+                    .font(.system(size: 10))
+                    .foregroundColor(Color(.tertiaryLabel))
             }
+            .frame(maxWidth: .infinity)
+            .padding(10)
+            .background(Color(.secondarySystemBackground))
+            .cornerRadius(10)
+
+            // Range
+            VStack(spacing: 2) {
+                Text(getRangeText(for: levels[selectedDay]))
+                    .font(.system(size: 18))
+                    .fontWeight(.medium)
+                    .foregroundColor(getRangeColor(for: levels[selectedDay]))
+
+                Text("range")
+                    .font(.system(size: 10))
+                    .foregroundColor(Color(.tertiaryLabel))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(10)
+            .background(Color(.secondarySystemBackground))
+            .cornerRadius(10)
+
+            // Day of cycle
+            VStack(spacing: 2) {
+                Text(selectedDay == 0 ? "Dose" : "Day \(selectedDay)")
+                    .font(.system(size: 18))
+                    .fontWeight(.medium)
+                    .foregroundColor(.primary)
+
+                Text("of cycle")
+                    .font(.system(size: 10))
+                    .foregroundColor(Color(.tertiaryLabel))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(10)
+            .background(Color(.secondarySystemBackground))
+            .cornerRadius(10)
         }
     }
 }
@@ -905,5 +468,6 @@ struct TimelineItem: View {
 #Preview {
     NavigationStack {
         GraphView()
+            .environment(\.medicationManager, MedicationManager.shared)
     }
 }

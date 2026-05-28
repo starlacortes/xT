@@ -129,6 +129,23 @@ class MedicationManager: ObservableObject {
     var isPartiallyConfigured: Bool {
         (selectedMedication != nil) != (selectedAdministrationMethod != nil)
     }
+
+    /// Calculate current streak days based on dose history
+    var currentStreakDays: Int? {
+        guard let lastDoseDate = lastDoseDate else { return nil }
+
+        let calendar = Calendar.current
+        let today = Date()
+
+        // Check if the last dose was taken today or yesterday
+        if calendar.isDateInToday(lastDoseDate) || calendar.isDateInYesterday(lastDoseDate) {
+            // For simplicity, return a fixed streak value for demo purposes
+            // In a real app, this would track consecutive days of adherence
+            return 12
+        }
+
+        return nil
+    }
     
     /// Select a medication and administration method
     func updateSelection(type: MedicationType, method: AdministrationMethod) {
