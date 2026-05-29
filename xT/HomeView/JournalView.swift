@@ -17,31 +17,24 @@ struct JournalView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // Status bar
-                HStack {
-                    Spacer()
-                    Text("9:41")
-                        .font(.system(size: 10))
-                        .foregroundColor(Color(.tertiaryLabel))
-                }
-                .frame(height: 14)
-                .padding(.horizontal, 16)
-
                 // Navigation bar with streak and FAB
                 JournalNavigationBar(showingComposer: $showingComposer)
 
                 // Journal entries list
-                JournalEntryListView(entries: journalManager.entries)
+                JournalEntryListView(entries: journalManager.entries, selectedEntry: $selectedEntry)
                     .padding(.top, 8)
             }
             .navigationTitle("Journal")
             .navigationBarTitleDisplayMode(.inline)
-            .background(Color.clear)
+            .background(Theme.globalBackgroundGradient)
             .sheet(isPresented: $showingComposer) {
                 JournalComposerView()
                     .environment(\.journalManager, journalManager)
                     .environment(\.medicationManager, medicationManager)
                     .presentationDetents([.medium, .large])
+            }
+            .sheet(item: $selectedEntry) { entry in
+                JournalDetailSheet(entry: entry)
             }
         }
     }
@@ -75,6 +68,7 @@ struct JournalNavigationBar: View {
                         .frame(width: 44, height: 44)
                         .background(Theme.accentColor)
                         .clipShape(Circle())
+                        .shadow(color: Theme.accentColor.opacity(0.3), radius: 8, x: 0, y: 4)
                 }
             }
         }
@@ -91,19 +85,19 @@ struct StreakPill: View {
         HStack(spacing: 6) {
             Image(systemName: "flame.fill")
                 .font(.system(size: 14))
-                .foregroundColor(Color(hex: "#854F0B"))
+                .foregroundColor(Theme.bloomBodyColor)
 
             Text("\(days) days")
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundColor(Color(hex: "#854F0B"))
+                .foregroundColor(Theme.bloomBodyColor)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 5)
-        .background(Color(hex: "#FAEEDA"))
-        .cornerRadius(20)
+        .background(Theme.bloomBodyLightColor)
+        .cornerRadius(Theme.smallCornerRadius)
         .overlay(
-            RoundedRectangle(cornerRadius: 20)
-                .stroke(Color(hex: "#E5C89D"), lineWidth: 0.5)
+            RoundedRectangle(cornerRadius: Theme.smallCornerRadius)
+                .stroke(Theme.bloomBodyBorderColor, lineWidth: 0.5)
         )
     }
 }
@@ -111,6 +105,7 @@ struct StreakPill: View {
 // MARK: - Journal Entry List View
 struct JournalEntryListView: View {
     let entries: [JournalEntry]
+    @Binding var selectedEntry: JournalEntry?
 
     var body: some View {
         ScrollView {
@@ -123,6 +118,9 @@ struct JournalEntryListView: View {
                         JournalEntryCard(entry: entry)
                             .padding(.horizontal, 14)
                             .padding(.bottom, 10)
+                            .onTapGesture {
+                                selectedEntry = entry
+                            }
                     }
 
                     // Earlier section
@@ -134,6 +132,9 @@ struct JournalEntryListView: View {
                         LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
                             ForEach(entries.dropFirst(3)) { entry in
                                 JournalEntryCard(entry: entry, compact: true)
+                                    .onTapGesture {
+                                        selectedEntry = entry
+                                    }
                             }
                         }
                         .padding(.horizontal, 14)

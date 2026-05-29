@@ -130,6 +130,20 @@ class MedicationManager: ObservableObject {
         (selectedMedication != nil) != (selectedAdministrationMethod != nil)
     }
 
+    /// Check if a dose has been missed
+    var hasMissedDose: Bool {
+        guard let nextDoseDate = nextDoseDate else { return false }
+        return Date() > nextDoseDate
+    }
+
+    /// Get days since missed dose (if applicable)
+    var daysSinceMissedDose: Int? {
+        guard hasMissedDose, let nextDoseDate = nextDoseDate else { return nil }
+        let calendar = Calendar.current
+        let daysOverdue = calendar.dateComponents([.day], from: nextDoseDate, to: Date()).day ?? 0
+        return max(1, daysOverdue) // At least 1 day overdue
+    }
+
     /// Calculate current streak days based on dose history
     var currentStreakDays: Int? {
         guard let lastDoseDate = lastDoseDate else { return nil }

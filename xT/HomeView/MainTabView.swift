@@ -34,7 +34,7 @@ struct MainTabView: View {
                 }
                 .tag(3)
         }
-        .accentColor(.blue)
+        .accentColor(Theme.accentColor)
         .tabViewStyle(.automatic)
         // .tabBarMinimizeBehavior(.onScrollDown) - iOS 26+ API, disabled for compatibility
     }

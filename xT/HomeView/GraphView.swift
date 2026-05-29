@@ -52,7 +52,7 @@ struct GraphView: View {
         }
         .navigationTitle("Graph")
         .navigationBarTitleDisplayMode(.inline)
-        .background(Color(.secondarySystemBackground))
+        .background(Theme.globalBackgroundGradient)
         .onAppear {
             updateTooltip()
         }
@@ -143,7 +143,7 @@ struct GraphCardView: View {
                     selectedDay = Int(newValue)
                 }
             ), in: 0...6, step: 1)
-            .tint(Color(red: 0.83, green: 0.32, blue: 0.49))
+            .tint(Theme.accentColor)
 
             // Day labels
             HStack {
@@ -159,11 +159,11 @@ struct GraphCardView: View {
             StatsRowView(selectedDay: selectedDay, levels: levels)
         }
         .padding(16)
-        .background(Color(.systemBackground))
-        .cornerRadius(20)
+        .background(.ultraThinMaterial)
+        .cornerRadius(Theme.mediumCornerRadius)
         .overlay(
-            RoundedRectangle(cornerRadius: 20)
-                .stroke(Color(.tertiarySystemFill), lineWidth: 0.5)
+            RoundedRectangle(cornerRadius: Theme.mediumCornerRadius)
+                .stroke(Theme.borderColor, lineWidth: 0.5)
         )
     }
 }
@@ -178,9 +178,9 @@ struct RangeIndicatorsView: View {
                 .fontWeight(.medium)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 4)
-                .background(Color(red: 0.91, green: 0.95, blue: 0.87))
-                .foregroundColor(Color(red: 0.23, green: 0.43, blue: 0.07))
-                .cornerRadius(20)
+                .background(Theme.successColor.opacity(0.2))
+                .foregroundColor(Theme.successColor)
+                .cornerRadius(Theme.smallCornerRadius)
 
             // Low range
             Text("Low <100")
@@ -188,9 +188,9 @@ struct RangeIndicatorsView: View {
                 .fontWeight(.medium)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 4)
-                .background(Color(red: 0.98, green: 0.93, blue: 0.85))
-                .foregroundColor(Color(red: 0.52, green: 0.31, blue: 0.07))
-                .cornerRadius(20)
+                .background(Theme.bloomBodyLightColor)
+                .foregroundColor(Theme.bloomBodyColor)
+                .cornerRadius(Theme.smallCornerRadius)
 
             // High range
             Text("High >200")
@@ -198,9 +198,9 @@ struct RangeIndicatorsView: View {
                 .fontWeight(.medium)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 4)
-                .background(Color(red: 0.98, green: 0.92, blue: 0.94))
-                .foregroundColor(Color(red: 0.60, green: 0.21, blue: 0.33))
-                .cornerRadius(20)
+                .background(Theme.bloomCycleLightColor)
+                .foregroundColor(Theme.bloomCycleColor)
+                .cornerRadius(Theme.smallCornerRadius)
         }
     }
 }
@@ -224,7 +224,7 @@ struct ChartAreaView: View {
                 let optimalMaxY = getYPosition(for: 200, in: chartHeight)
 
                 Rectangle()
-                    .fill(Color(red: 0.91, green: 0.95, blue: 0.87).opacity(0.3))
+                    .fill(Theme.successColor.opacity(0.1))
                     .frame(height: optimalMaxY - optimalMinY)
                     .position(x: geometry.size.width / 2,
                              y: optimalMinY + (optimalMaxY - optimalMinY) / 2)
@@ -236,7 +236,7 @@ struct ChartAreaView: View {
                     path.move(to: CGPoint(x: 0, y: optimalMaxY))
                     path.addLine(to: CGPoint(x: geometry.size.width, y: optimalMaxY))
                 }
-                .stroke(Color(red: 0.23, green: 0.43, blue: 0.07).opacity(0.3), style: StrokeStyle(lineWidth: 0.5, dash: [4, 4]))
+                .stroke(Theme.successColor.opacity(0.3), style: StrokeStyle(lineWidth: 0.5, dash: [4, 4]))
 
                 // Hormone curve with gradient fill
                 let curvePath = createCurvePath(in: geometry.size)
@@ -250,8 +250,8 @@ struct ChartAreaView: View {
                 }
                 .fill(
                     LinearGradient(gradient: Gradient(colors: [
-                        Color(red: 0.83, green: 0.32, blue: 0.49).opacity(0.12),
-                        Color(red: 0.83, green: 0.32, blue: 0.49).opacity(0.05)
+                        Theme.accentColor.opacity(0.12),
+                        Theme.accentColor.opacity(0.05)
                     ]),
                                    startPoint: .top,
                                    endPoint: .bottom)
@@ -259,7 +259,7 @@ struct ChartAreaView: View {
 
                 // Curve line
                 curvePath
-                    .stroke(Color(red: 0.83, green: 0.32, blue: 0.49), style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                    .stroke(Theme.accentColor, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
 
                 // Data points
                 ForEach(0..<levels.count, id: \.self) { index in
@@ -268,7 +268,7 @@ struct ChartAreaView: View {
                     let y = getYPosition(for: level, in: chartHeight)
 
                     Circle()
-                        .fill(Color(red: 0.83, green: 0.32, blue: 0.49))
+                        .fill(Theme.accentColor)
                         .frame(width: 4, height: 4)
                         .position(x: x, y: y)
                 }
@@ -279,14 +279,14 @@ struct ChartAreaView: View {
 
                 // Vertical guide line
                 Rectangle()
-                    .fill(Color(red: 0.83, green: 0.32, blue: 0.49).opacity(0.2))
+                    .fill(Theme.accentColor.opacity(0.2))
                     .frame(width: 1, height: chartHeight)
                     .position(x: selectedX, y: chartHeight / 2)
                     .animation(.easeInOut(duration: 0.2), value: selectedDay)
 
                 // Selected point marker
                 Circle()
-                    .fill(Color(red: 0.83, green: 0.32, blue: 0.49))
+                    .fill(Theme.accentColor)
                     .frame(width: 14, height: 14)
                     .position(x: selectedX, y: selectedY)
                     .animation(.easeInOut(duration: 0.2), value: selectedDay)
@@ -366,9 +366,9 @@ struct TooltipView: View {
     }
 
     private func getRangeColor(for value: Double) -> Color {
-        if value < 100 { return Color(red: 0.52, green: 0.31, blue: 0.07) }
-        else if value < 200 { return Color(red: 0.23, green: 0.43, blue: 0.07) }
-        else { return Color(red: 0.60, green: 0.21, blue: 0.33) }
+        if value < 100 { return Theme.bloomBodyColor }
+        else if value < 200 { return Theme.successColor }
+        else { return Theme.bloomCycleColor }
     }
 
     var body: some View {
@@ -384,11 +384,11 @@ struct TooltipView: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .background(Color(.systemBackground))
-        .cornerRadius(8)
+        .background(.ultraThinMaterial)
+        .cornerRadius(Theme.smallCornerRadius)
         .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color(.tertiarySystemFill), lineWidth: 0.5)
+            RoundedRectangle(cornerRadius: Theme.smallCornerRadius)
+                .stroke(Theme.borderColor, lineWidth: 0.5)
         )
     }
 }
@@ -407,9 +407,9 @@ struct StatsRowView: View {
     }
 
     private func getRangeColor(for value: Double) -> Color {
-        if value < 100 { return Color(red: 0.52, green: 0.31, blue: 0.07) }
-        else if value < 200 { return Color(red: 0.23, green: 0.43, blue: 0.07) }
-        else { return Color(red: 0.60, green: 0.21, blue: 0.33) }
+        if value < 100 { return Theme.bloomBodyColor }
+        else if value < 200 { return Theme.successColor }
+        else { return Theme.bloomCycleColor }
     }
 
     var body: some View {

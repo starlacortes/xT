@@ -174,7 +174,7 @@ struct AuthenticationRequiredModifier: ViewModifier {
 }
 
 struct AuthenticationView: View {
-    @EnvironmentObject var authManager: AuthenticationManager
+    @Environment(\.authenticationManager) var authManager
     @Environment(\.dismiss) var dismiss
 
     var reason: String
@@ -182,57 +182,81 @@ struct AuthenticationView: View {
     @State private var errorMessage: String?
 
     var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: authManager.biometricType().iconName)
-                .font(.system(size: 50))
-                .padding()
-
-            Text("Authenticate to continue")
-                .font(.title2)
-                .bold()
-
-            Text(reason)
-                .font(.body)
-                .multilineTextAlignment(.center)
-                .foregroundColor(.secondary)
-                .padding(.horizontal)
-
-            if let error = errorMessage {
-                Text(error)
-                    .font(.caption)
-                    .foregroundColor(.red)
-                    .padding()
-            }
-
-            Button(action: authenticate) {
-                Text("Authenticate with \(authManager.biometricType().description)")
-                    .font(.headline)
-                    .padding()
-                    .frame(maxWidth: .infinity)
-                    .background(Color.blue)
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
-            }
-            .padding(.horizontal)
-
-            if showFallback {
-                Button {
-                    authManager.authenticate(reason: "Enter your passcode") { success in
-                        if success { dismiss() } else { errorMessage = "Authentication failed" }
-                    }
-                } label: {
-                    Text("Use passcode instead")
-                        .font(.subheadline)
-                        .foregroundColor(.blue)
+        ZStack {
+            Theme.globalBackgroundGradient
+                .ignoresSafeArea()
+            
+            VStack(spacing: 24) {
+                Spacer()
+                
+                ZStack {
+                    Circle()
+                        .fill(Color.white.opacity(0.2))
+                        .frame(width: 100, height: 100)
+                    
+                    Image(systemName: authManager.biometricType().iconName)
+                        .font(.system(size: 50))
+                        .foregroundColor(.white)
                 }
-            }
+                .padding(.bottom, 8)
 
-            Button { dismiss() } label: {
-                Text("Cancel").foregroundColor(.gray)
+                Text("Authenticate to continue")
+                    .font(.title2)
+                    .fontWeight(.medium)
+                    .foregroundColor(.white)
+
+                Text(reason)
+                    .font(.body)
+                    .multilineTextAlignment(.center)
+                    .foregroundColor(.white.opacity(0.85))
+                    .padding(.horizontal, 40)
+
+                if let error = errorMessage {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundColor(Theme.errorColor)
+                        .padding()
+                        .background(Color.white.opacity(0.2))
+                        .cornerRadius(10)
+                }
+
+                Button(action: authenticate) {
+                    Text("Authenticate with \(authManager.biometricType().description)")
+                        .font(.headline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(Theme.accentColor.opacity(0.8))
+                        .cornerRadius(16)
+                        .shadow(color: Theme.accentColor.opacity(0.3), radius: 12, x: 0, y: 4)
+                }
+                .padding(.horizontal, 40)
+                .padding(.top, 8)
+
+                if showFallback {
+                    Button {
+                        authManager.authenticate(reason: "Enter your passcode") { success in
+                            if success { dismiss() } else { errorMessage = "Authentication failed" }
+                        }
+                    } label: {
+                        Text("Use passcode instead")
+                            .font(.subheadline)
+                            .foregroundColor(.white.opacity(0.7))
+                    }
+                }
+
+                Spacer()
+                
+                Button { 
+                    // Can't dismiss if authentication is required
+                } label: {
+                    Text("") // Hidden
+                }
+                .opacity(0)
             }
-            .padding(.top)
+            .padding()
         }
-        .padding()
         .onAppear { authenticate() }
     }
 

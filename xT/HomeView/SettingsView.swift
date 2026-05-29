@@ -16,21 +16,15 @@ struct SettingsView: View {
     @State private var showingResetAlert = false
     @State private var doseRemindersEnabled = true
     @State private var journalRemindersEnabled = true
+    @State private var doseReminderTime = Date()
+    @State private var journalReminderTime = Date()
+    @State private var showingDoseTimePicker = false
+    @State private var showingJournalTimePicker = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 0) {
-                    // Header with time (similar to HomeView pattern)
-                    HStack {
-                        Spacer()
-                        Text("9:41")
-                            .font(.system(size: 10))
-                            .foregroundColor(Color(.systemGray))
-                            .padding(.top, 4)
-                            .padding(.trailing, 16)
-                    }
-
                     // Settings title
                     HStack {
                         Text("Settings")
@@ -45,14 +39,14 @@ struct SettingsView: View {
                     SectionCard {
                         NavigationLink(destination: ProfileEditorView()) {
                             SettingsRow {
-                                // Profile avatar (similar to HomeView profile section)
+                                // Profile avatar
                                 ZStack {
                                     Circle()
-                                        .fill(Color(hex: "FBEAF0"))
+                                        .fill(Theme.bloomCycleLightColor)
                                         .frame(width: 44, height: 44)
                                         .overlay(
                                             Circle()
-                                                .stroke(Color(hex: "ED93B1"), lineWidth: 2)
+                                                .stroke(Theme.bloomCycleBorderColor, lineWidth: 2)
                                         )
 
                                     if let profileImage = profileManager.profileImage {
@@ -64,7 +58,7 @@ struct SettingsView: View {
                                     } else {
                                         Text(profileManager.profileName.prefix(1).uppercased())
                                             .font(.system(size: 18, weight: .semibold))
-                                            .foregroundColor(Color(hex: "D4537E"))
+                                            .foregroundColor(Theme.accentColor)
                                     }
                                 }
 
@@ -95,10 +89,10 @@ struct SettingsView: View {
                             // Type & Method
                             NavigationLink(destination: UnifiedScheduleView(isFromSettings: true)) {
                                 SettingsRow {
-                                    RowIcon(backgroundColor: Color(hex: "FBEAF0")) {
+                                    RowIcon(backgroundColor: Theme.bloomCycleLightColor) {
                                         Image(systemName: "pills.fill")
                                             .font(.system(size: 17))
-                                            .foregroundColor(Color(hex: "D4537E"))
+                                            .foregroundColor(Theme.bloomCycleColor)
                                     }
 
                                     VStack(alignment: .leading, spacing: 2) {
@@ -122,10 +116,10 @@ struct SettingsView: View {
                             // Dose Schedule
                             NavigationLink(destination: UnifiedScheduleView(isFromSettings: true)) {
                                 SettingsRow {
-                                    RowIcon(backgroundColor: Color(hex: "EEEDFE")) {
+                                    RowIcon(backgroundColor: Theme.bloomMindLightColor) {
                                         Image(systemName: "calendar")
                                             .font(.system(size: 17))
-                                            .foregroundColor(Color(hex: "534AB7"))
+                                            .foregroundColor(Theme.bloomMindColor)
                                     }
 
                                     VStack(alignment: .leading, spacing: 2) {
@@ -158,10 +152,10 @@ struct SettingsView: View {
                                 medicationManager.recordDose(on: Date())
                             }) {
                                 SettingsRow {
-                                    RowIcon(backgroundColor: Color(hex: "E1F5EE")) {
+                                    RowIcon(backgroundColor: Theme.bloomSkinLightColor) {
                                         Image(systemName: "checkmark")
                                             .font(.system(size: 17))
-                                            .foregroundColor(Color(hex: "0F6E56"))
+                                            .foregroundColor(Theme.bloomSkinColor)
                                     }
 
                                     VStack(alignment: .leading, spacing: 2) {
@@ -195,54 +189,72 @@ struct SettingsView: View {
                     SectionCard {
                         VStack(spacing: 0) {
                             // Dose reminders
-                            SettingsRow {
-                                RowIcon(backgroundColor: Color(hex: "FAEEDA")) {
-                                    Image(systemName: "bell.fill")
-                                        .font(.system(size: 17))
-                                        .foregroundColor(Color(hex: "854F0B"))
+                            Button(action: {
+                                if doseRemindersEnabled {
+                                    showingDoseTimePicker = true
                                 }
+                            }) {
+                                SettingsRow {
+                                    RowIcon(backgroundColor: Theme.bloomBodyLightColor) {
+                                        Image(systemName: "bell.fill")
+                                            .font(.system(size: 17))
+                                            .foregroundColor(Theme.bloomBodyColor)
+                                    }
 
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Dose reminders")
-                                        .font(.system(size: 14))
-                                        .foregroundColor(.primary)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Dose reminders")
+                                            .font(.system(size: 14))
+                                            .foregroundColor(.primary)
 
-                                    Text("1 day before")
-                                        .font(.system(size: 12))
-                                        .foregroundColor(.secondary)
+                                        Text(doseRemindersEnabled ? "1 day before at \(formatTime(doseReminderTime))" : "Off")
+                                            .font(.system(size: 12))
+                                            .foregroundColor(.secondary)
+                                    }
+
+                                    Spacer()
+
+                                    Toggle("", isOn: $doseRemindersEnabled)
+                                        .labelsHidden()
+                                        .toggleStyle(SwitchToggleStyle(tint: Theme.accentColor))
+                                        .frame(width: 50)
                                 }
-
-                                Toggle("", isOn: $doseRemindersEnabled)
-                                    .labelsHidden()
-                                    .toggleStyle(SwitchToggleStyle(tint: Color(hex: "D4537E")))
-                                    .frame(width: 50)
                             }
+                            .buttonStyle(.plain)
 
                             RowDivider()
 
                             // Journal reminders
-                            SettingsRow {
-                                RowIcon(backgroundColor: Color(hex: "FBEAF0")) {
-                                    Image(systemName: "book.fill")
-                                        .font(.system(size: 17))
-                                        .foregroundColor(Color(hex: "993556"))
+                            Button(action: {
+                                if journalRemindersEnabled {
+                                    showingJournalTimePicker = true
                                 }
+                            }) {
+                                SettingsRow {
+                                    RowIcon(backgroundColor: Theme.bloomCycleLightColor) {
+                                        Image(systemName: "book.fill")
+                                            .font(.system(size: 17))
+                                            .foregroundColor(Theme.accentColor)
+                                    }
 
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Journal reminders")
-                                        .font(.system(size: 14))
-                                        .foregroundColor(.primary)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Journal reminders")
+                                            .font(.system(size: 14))
+                                            .foregroundColor(.primary)
 
-                                    Text("9:00 pm daily")
-                                        .font(.system(size: 12))
-                                        .foregroundColor(.secondary)
+                                        Text(journalRemindersEnabled ? "\(formatTime(journalReminderTime)) daily" : "Off")
+                                            .font(.system(size: 12))
+                                            .foregroundColor(.secondary)
+                                    }
+
+                                    Spacer()
+
+                                    Toggle("", isOn: $journalRemindersEnabled)
+                                        .labelsHidden()
+                                        .toggleStyle(SwitchToggleStyle(tint: Theme.accentColor))
+                                        .frame(width: 50)
                                 }
-
-                                Toggle("", isOn: $journalRemindersEnabled)
-                                    .labelsHidden()
-                                    .toggleStyle(SwitchToggleStyle(tint: Color(hex: "D4537E")))
-                                    .frame(width: 50)
                             }
+                            .buttonStyle(.plain)
                         }
                     }
 
@@ -250,12 +262,12 @@ struct SettingsView: View {
                     SectionLabel("Privacy & security")
 
                     SectionCard {
-                        NavigationLink(destination: Text("App Lock Settings")) {
+                        NavigationLink(destination: AppLockSettingsView()) {
                             SettingsRow {
-                                RowIcon(backgroundColor: Color(hex: "F1EFE8")) {
+                                RowIcon(backgroundColor: Color(.systemGray6)) {
                                     Image(systemName: "lock.fill")
                                         .font(.system(size: 17))
-                                        .foregroundColor(Color(hex: "5F5E5A"))
+                                        .foregroundColor(.secondary)
                                 }
 
                                 VStack(alignment: .leading, spacing: 2) {
@@ -282,10 +294,10 @@ struct SettingsView: View {
                         VStack(spacing: 0) {
                             // Version
                             SettingsRow {
-                                RowIcon(backgroundColor: Color(hex: "F1EFE8")) {
+                                RowIcon(backgroundColor: Color(.systemGray6)) {
                                     Image(systemName: "info.circle.fill")
                                         .font(.system(size: 17))
-                                        .foregroundColor(Color(hex: "888780"))
+                                        .foregroundColor(.secondary)
                                 }
 
                                 VStack(alignment: .leading, spacing: 2) {
@@ -306,16 +318,16 @@ struct SettingsView: View {
                                 showingResetAlert = true
                             }) {
                                 SettingsRow {
-                                    RowIcon(backgroundColor: Color(hex: "FCEBEB")) {
+                                    RowIcon(backgroundColor: Theme.errorColor.opacity(0.1)) {
                                         Image(systemName: "trash.fill")
                                             .font(.system(size: 17))
-                                            .foregroundColor(Color(hex: "A32D2D"))
+                                            .foregroundColor(Theme.errorColor)
                                     }
 
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text("Reset app data")
                                             .font(.system(size: 14))
-                                            .foregroundColor(Color(hex: "A32D2D"))
+                                            .foregroundColor(Theme.errorColor)
                                     }
                                 }
                             }
@@ -330,7 +342,58 @@ struct SettingsView: View {
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
-            .background(Color.clear)
+            .background(Theme.globalBackgroundGradient)
+            .sheet(isPresented: $showingDoseTimePicker) {
+                TimePickerSheet(
+                    title: "Dose Reminder Time",
+                    time: $doseReminderTime,
+                    isPresented: $showingDoseTimePicker
+                )
+            }
+            .sheet(isPresented: $showingJournalTimePicker) {
+                TimePickerSheet(
+                    title: "Journal Reminder Time",
+                    time: $journalReminderTime,
+                    isPresented: $showingJournalTimePicker
+                )
+            }
+            .onAppear {
+                // Load saved reminder times
+                if let doseTime = UserDefaults.standard.object(forKey: "doseReminderTime") as? Date {
+                    doseReminderTime = doseTime
+                } else {
+                    // Default to 9 AM
+                    var components = DateComponents()
+                    components.hour = 9
+                    components.minute = 0
+                    doseReminderTime = Calendar.current.date(from: components) ?? Date()
+                }
+                
+                if let journalTime = UserDefaults.standard.object(forKey: "journalReminderTime") as? Date {
+                    journalReminderTime = journalTime
+                } else {
+                    // Default to 9 PM
+                    var components = DateComponents()
+                    components.hour = 21
+                    components.minute = 0
+                    journalReminderTime = Calendar.current.date(from: components) ?? Date()
+                }
+                
+                doseRemindersEnabled = UserDefaults.standard.bool(forKey: "doseRemindersEnabled")
+                journalRemindersEnabled = UserDefaults.standard.bool(forKey: "journalRemindersEnabled")
+            }
+            .onChange(of: doseReminderTime) {
+                UserDefaults.standard.set(doseReminderTime, forKey: "doseReminderTime")
+            }
+            .onChange(of: journalReminderTime) {
+                UserDefaults.standard.set(journalReminderTime, forKey: "journalReminderTime")
+            }
+            .onChange(of: doseRemindersEnabled) {
+                UserDefaults.standard.set(doseRemindersEnabled, forKey: "doseRemindersEnabled")
+            }
+            .onChange(of: journalRemindersEnabled) {
+                UserDefaults.standard.set(journalRemindersEnabled, forKey: "journalRemindersEnabled")
+            }
             .alert("Are you sure?", isPresented: $showingResetAlert) {
                 Button("Cancel", role: .cancel) {
                     // User cancelled
@@ -381,6 +444,57 @@ struct SettingsView: View {
         formatter.dateStyle = .medium
         formatter.timeStyle = .none
         return formatter.string(from: date)
+    }
+    
+    private func formatTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .none
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
+}
+
+// MARK: - Time Picker Sheet
+struct TimePickerSheet: View {
+    let title: String
+    @Binding var time: Date
+    @Binding var isPresented: Bool
+    
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 20) {
+                Text("Select a time for your daily reminder")
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary)
+                    .padding(.top, 20)
+                
+                DatePicker(
+                    "Time",
+                    selection: $time,
+                    displayedComponents: .hourAndMinute
+                )
+                .datePickerStyle(.wheel)
+                .labelsHidden()
+                
+                Spacer()
+            }
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") {
+                        isPresented = false
+                    }
+                    .foregroundColor(Theme.accentColor)
+                }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        isPresented = false
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium])
     }
 }
 

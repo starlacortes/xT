@@ -10,8 +10,9 @@ struct ContentView: View {
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @Environment(\.medicationManager) private var medicationManager
     @Environment(\.profileManager) private var profileManager
+    @Environment(\.authenticationManager) private var authManager
     @State private var navigationPath = NavigationPath()
-    @State private var showWelcomeTour = false
+    @State private var showAuthSheet = false
 
     var body: some View {
         ZStack {
@@ -21,16 +22,6 @@ struct ContentView: View {
             NavigationStack(path: $navigationPath) {
                 if hasCompletedOnboarding {
                     MainTabView()
-                        .sheet(isPresented: $showWelcomeTour) {
-                            WelcomeTourView()
-                        }
-                        .onAppear {
-                            // Show welcome tour only on first launch after onboarding
-                            if shouldShowWelcomeTour() {
-                                showWelcomeTour = true
-                                markWelcomeTourShown()
-                            }
-                        }
                 } else {
                     onboardingWithCompletion
                 }
@@ -51,6 +42,15 @@ struct ContentView: View {
                 } else if !hasCompletedOnboarding {
                     print("Showing onboarding - no existing data")
                 }
+                
+                // Check if authentication is required
+                if hasCompletedOnboarding && authManager.checkAuthenticationRequired() {
+                    showAuthSheet = true
+                }
+            }
+            .sheet(isPresented: $showAuthSheet) {
+                AuthenticationView(reason: "Access your health data")
+                    .interactiveDismissDisabled()
             }
         }
     }
@@ -70,12 +70,11 @@ struct ContentView: View {
             }
         }
     }
+}
 
-    private func shouldShowWelcomeTour() -> Bool {
-        return !UserDefaults.standard.bool(forKey: "hasShownWelcomeTour")
-    }
-
-    private func markWelcomeTourShown() {
-        UserDefaults.standard.set(true, forKey: "hasShownWelcomeTour")
+// MARK: - Authentication View for ContentView
+extension AuthenticationView {
+    init(reason: String) {
+        self.reason = reason
     }
 }
