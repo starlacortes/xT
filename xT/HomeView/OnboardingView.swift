@@ -362,9 +362,12 @@ struct OnboardingView: View {
                     Button(action: {
                         if let typeIdx = selectedTypeIndex,
                            let methodIdx = selectedMethodIndex {
+                            let medicationType = MedicationManager.MedicationType.allCases[typeIdx]
+                            let medicationMethod = MedicationManager.AdministrationMethod.allCases[methodIdx]
                             medicationManager.configureMedication(
-                                typeIndex: typeIdx,
-                                methodIndex: methodIdx
+                                type: medicationType,
+                                method: medicationMethod,
+                                firstDoseDate: Date()
                             )
                             completeOnboarding()
                         }

@@ -16,23 +16,20 @@ struct GraphView: View {
     @State private var tooltipPosition: CGPoint = .zero
     @State private var tooltipValue: Double = 0
 
-    private var days: [Int] {
-        return Array(0...6)
-    }
-
     private var levels: [Double] {
-        return days.map { day in
-            let peak = 280.0, base = 90.0, halfLife = 3.5
-            if day == 0 {
-                return 160.0
-            }
-            let spike = (peak - base) * exp(-Double(day) / halfLife)
-            return base + spike + 20 * sin(Double(day) * 0.8)
-        }
+        return medicationManager.recentLevels.map { $0.value }
     }
 
     private var labels: [String] {
-        return ["Dose", "Day 1", "Day 2", "Day 3", "Day 4", "Day 5", "Day 6"]
+        let calendar = Calendar.current
+        return medicationManager.recentLevels.enumerated().map { index, point in
+            if index == 0 {
+                return "Dose"
+            } else {
+                let day = calendar.dateComponents([.day], from: point.date, to: Date()).day ?? index
+                return "Day \(day)"
+            }
+        }
     }
 
     var body: some View {
@@ -44,7 +41,9 @@ struct GraphView: View {
                     tooltipPosition: $tooltipPosition,
                     tooltipValue: $tooltipValue,
                     levels: levels,
-                    labels: labels
+                    labels: labels,
+                    medicationName: medicationManager.medicationName,
+                    administrationMethod: medicationManager.selectedAdministrationMethod
                 )
                 .padding(.horizontal, 16)
                 .padding(.top, 16)
@@ -105,6 +104,8 @@ struct GraphCardView: View {
     @Binding var tooltipValue: Double
     let levels: [Double]
     let labels: [String]
+    let medicationName: String
+    let administrationMethod: String?
 
     var body: some View {
         VStack(spacing: 16) {
@@ -115,7 +116,7 @@ struct GraphCardView: View {
                 .foregroundColor(.primary)
 
             // Subtitle
-            Text("Estrogen · Injectable · 7-day cycle")
+            Text("\(medicationName) · \(administrationMethod ?? "Unknown") · \(administrationMethod == "Injectable" ? "7-day" : "Daily") cycle")
                 .font(.system(size: 12))
                 .foregroundColor(Color(.tertiaryLabel))
 
@@ -142,12 +143,12 @@ struct GraphCardView: View {
                 set: { newValue in
                     selectedDay = Int(newValue)
                 }
-            ), in: 0...6, step: 1)
+            ), in: 0...Double(levels.count - 1), step: 1)
             .tint(Theme.accentColor)
 
             // Day labels
             HStack {
-                ForEach(0..<7) { day in
+                ForEach(0..<labels.count, id: \.self) { day in
                     Text(labels[day])
                         .font(.system(size: 10))
                         .foregroundColor(day == selectedDay ? .primary : Color(.tertiaryLabel))
@@ -349,7 +350,7 @@ struct ChartAreaView: View {
         // Convert tap location to day index
         let widthPerDay = UIScreen.main.bounds.width / CGFloat(levels.count - 1)
         let tappedDay = Int(location.x / widthPerDay)
-        selectedDay = max(0, min(6, tappedDay))
+        selectedDay = max(0, min(levels.count - 1, tappedDay))
     }
 }
 

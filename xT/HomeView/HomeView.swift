@@ -111,11 +111,11 @@ struct HeaderView: View {
                     .foregroundColor(.secondary)
             }
 
-            // Current level card
-            if medicationManager.isFullyConfigured,
-               let currentLevel = medicationManager.estimatedRecentLevels().last?.value {
-                CurrentLevelCard(currentLevel: currentLevel, showingGraphDetail: $showingGraphDetail)
-            }
+    // Current level card
+    if medicationManager.isFullyConfigured,
+       let currentLevel = medicationManager.currentHormoneLevel?.value {
+        CurrentLevelCard(currentLevel: currentLevel, showingGraphDetail: $showingGraphDetail)
+    }
         }
         .padding(12)
         .background(Color.clear)
@@ -354,10 +354,10 @@ struct HealthInsightCard: View {
     @Environment(\.medicationManager) private var medicationManager
     
     private var insightText: String {
-        guard let currentLevel = medicationManager.estimatedRecentLevels().last?.value else {
+        guard let currentLevel = medicationManager.currentHormoneLevel?.value else {
             return "Keep tracking your doses to see personalized insights"
         }
-        
+
         if currentLevel < 100 {
             return "Your levels appear low. Consider talking to your provider about adjusting your dose schedule."
         } else if currentLevel < 200 {
@@ -366,12 +366,12 @@ struct HealthInsightCard: View {
             return "Your levels are running high. Monitor for any symptoms and consult your provider if needed."
         }
     }
-    
+
     private var insightIcon: String {
-        guard let currentLevel = medicationManager.estimatedRecentLevels().last?.value else {
+        guard let currentLevel = medicationManager.currentHormoneLevel?.value else {
             return "lightbulb"
         }
-        
+
         if currentLevel < 100 {
             return "exclamationmark.triangle"
         } else if currentLevel < 200 {
@@ -380,12 +380,12 @@ struct HealthInsightCard: View {
             return "info.circle"
         }
     }
-    
+
     private var insightColor: Color {
-        guard let currentLevel = medicationManager.estimatedRecentLevels().last?.value else {
+        guard let currentLevel = medicationManager.currentHormoneLevel?.value else {
             return Theme.infoColor
         }
-        
+
         if currentLevel < 100 {
             return Theme.warningColor
         } else if currentLevel < 200 {
@@ -588,7 +588,7 @@ struct MiniTrendGraph: View {
 
     var body: some View {
         GeometryReader { geometry in
-            let points = medicationManager.estimatedRecentLevels(days: 7)
+            let points = medicationManager.recentLevels
             let minValue = points.map { $0.value }.min() ?? 0
             let maxValue = points.map { $0.value }.max() ?? 1
             let valueRange = maxValue - minValue
