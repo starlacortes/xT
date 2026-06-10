@@ -11,6 +11,7 @@ import Charts
 
 struct GraphView: View {
     @Environment(\.medicationManager) private var medicationManager
+    var isFullScreen: Bool = false
     @State private var selectedDay: Int = 2
     @State private var showingTooltip = false
     @State private var tooltipPosition: CGPoint = .zero
@@ -43,10 +44,11 @@ struct GraphView: View {
                     levels: levels,
                     labels: labels,
                     medicationName: medicationManager.medicationName,
-                    administrationMethod: medicationManager.selectedAdministrationMethod
+                    administrationMethod: medicationManager.selectedAdministrationMethod,
+                    isFullScreen: isFullScreen
                 )
-                .padding(.horizontal, 16)
-                .padding(.top, 16)
+                .padding(.horizontal, isFullScreen ? 0 : 16)
+                .padding(.top, isFullScreen ? 0 : 16)
             }
         }
         .navigationTitle("Graph")
@@ -106,6 +108,42 @@ struct GraphCardView: View {
     let labels: [String]
     let medicationName: String
     let administrationMethod: String?
+    var isFullScreen: Bool = false
+
+    var body: some View {
+        VStack(spacing: 16) {
+            GraphHeaderView(medicationName: medicationName, administrationMethod: administrationMethod)
+            RangeIndicatorsView()
+
+            ChartAreaView(
+                selectedDay: $selectedDay,
+                showingTooltip: $showingTooltip,
+                tooltipPosition: $tooltipPosition,
+                tooltipValue: $tooltipValue,
+                levels: levels
+            )
+
+            GraphSliderView(selectedDay: $selectedDay, labels: labels)
+            StatsRowView(selectedDay: selectedDay, levels: levels)
+        }
+        .padding(16)
+        .background(isFullScreen ? Color.clear : Color(UIColor.systemBackground).opacity(0.8))
+        .cornerRadius(isFullScreen ? 0 : Theme.mediumCornerRadius)
+        .overlay(
+            Group {
+                if !isFullScreen {
+                    RoundedRectangle(cornerRadius: Theme.mediumCornerRadius)
+                        .stroke(Theme.borderColor, lineWidth: 0.5)
+                }
+            }
+        )
+    }
+}
+
+// MARK: - Graph Header View
+struct GraphHeaderView: View {
+    let medicationName: String
+    let administrationMethod: String?
 
     var body: some View {
         VStack(spacing: 16) {
@@ -119,19 +157,17 @@ struct GraphCardView: View {
             Text("\(medicationName) · \(administrationMethod ?? "Unknown") · \(administrationMethod == "Injectable" ? "7-day" : "Daily") cycle")
                 .font(.system(size: 12))
                 .foregroundColor(Color(.tertiaryLabel))
+        }
+    }
+}
 
-            // Range indicators
-            RangeIndicatorsView()
+// MARK: - Graph Slider View
+struct GraphSliderView: View {
+    @Binding var selectedDay: Int
+    let labels: [String]
 
-            // Chart area with tap gesture
-            ChartAreaView(
-                selectedDay: $selectedDay,
-                showingTooltip: $showingTooltip,
-                tooltipPosition: $tooltipPosition,
-                tooltipValue: $tooltipValue,
-                levels: levels
-            )
-
+    var body: some View {
+        VStack(spacing: 8) {
             // Slider label
             Text("Scrub to a day")
                 .font(.system(size: 12))
@@ -143,7 +179,7 @@ struct GraphCardView: View {
                 set: { newValue in
                     selectedDay = Int(newValue)
                 }
-            ), in: 0...Double(levels.count - 1), step: 1)
+            ), in: 0...Double(labels.count - 1), step: 1)
             .tint(Theme.accentColor)
 
             // Day labels
@@ -155,17 +191,7 @@ struct GraphCardView: View {
                         .frame(maxWidth: .infinity)
                 }
             }
-
-            // Stats row
-            StatsRowView(selectedDay: selectedDay, levels: levels)
         }
-        .padding(16)
-        .background(.ultraThinMaterial)
-        .cornerRadius(Theme.mediumCornerRadius)
-        .overlay(
-            RoundedRectangle(cornerRadius: Theme.mediumCornerRadius)
-                .stroke(Theme.borderColor, lineWidth: 0.5)
-        )
     }
 }
 
