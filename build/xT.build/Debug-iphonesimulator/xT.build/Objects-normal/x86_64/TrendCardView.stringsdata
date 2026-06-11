@@ -1,0 +1,24 @@
+{
+  "source": "/Users/starlacortes/Documents/xT/xT/Elements/Home/Components/TrendCardView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "7-day trend",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 15
+        }
+      },
+      {
+        "comment": "",
+        "key": "View all",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 23
+        }
+      }
+    ]
+  },
+  "version": 1
+}

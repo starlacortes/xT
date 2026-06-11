@@ -1,0 +1,176 @@
+{
+  "source": "/Users/starlacortes/Documents/xT/xT/Elements/Profile/ProfileEditorView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Edit Profile",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 138
+        }
+      },
+      {
+        "comment": "",
+        "key": "Changes Saved",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 208
+        }
+      },
+      {
+        "comment": "",
+        "key": "Profile Preview",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 27
+        }
+      },
+      {
+        "comment": "",
+        "key": "Profile Information",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 56
+        }
+      },
+      {
+        "comment": "",
+        "key": "Profile Complete",
+        "location": {
+          "startingColumn": 62,
+          "startingLine": 47
+        }
+      },
+      {
+        "comment": "",
+        "key": "Profile Incomplete",
+        "location": {
+          "startingColumn": 83,
+          "startingLine": 47
+        }
+      },
+      {
+        "comment": "",
+        "key": "Your Name",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 58
+        }
+      },
+      {
+        "comment": "",
+        "key": "Library",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 72
+        }
+      },
+      {
+        "comment": "",
+        "key": "Camera",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 86
+        }
+      },
+      {
+        "comment": "",
+        "key": "Default",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 101
+        }
+      },
+      {
+        "comment": "",
+        "key": "Save Changes",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 119
+        }
+      },
+      {
+        "comment": "",
+        "key": "Reset Changes",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 131
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 142
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 147
+        }
+      },
+      {
+        "comment": "",
+        "key": "Change Profile Photo",
+        "location": {
+          "startingColumn": 33,
+          "startingLine": 156
+        }
+      },
+      {
+        "comment": "",
+        "key": "Choose a photo source",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 157
+        }
+      },
+      {
+        "comment": "",
+        "key": "Photo Library",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 159
+        }
+      },
+      {
+        "comment": "",
+        "key": "Take Photo",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 162
+        }
+      },
+      {
+        "comment": "",
+        "key": "Use Default",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 165
+        }
+      },
+      {
+        "comment": "",
+        "key": "OK",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 209
+        }
+      },
+      {
+        "comment": "",
+        "key": "Your profile has been updated successfully.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 211
+        }
+      }
+    ]
+  },
+  "version": 1
+}

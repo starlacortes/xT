@@ -106,3 +106,8 @@ struct JournalHormoneLevelRange {
     let max: Double
     let description: String
 }
+
+#Preview {
+    HealthInsightsView(level: 150.0)
+        .environment(\.medicationManager, MedicationManager.shared)
+}

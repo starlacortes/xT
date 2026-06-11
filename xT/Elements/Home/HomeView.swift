@@ -2,8 +2,7 @@
 //  HomeView.swift
 //  xT
 //
-//  Created by Starla Cortes on 8/5/25.
-//  Redesigned home view with modern mobile interface
+//  Redesigned home view. The gradient hero replaces the old HeaderView.
 //
 
 import SwiftUI
@@ -17,13 +16,19 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                HomeContentView(showingGraphDetail: $showingGraphDetail)
+                VStack(spacing: 0) {
+                    
+                    HeroView()
+
+                    MainContentView(showingGraphDetail: $showingGraphDetail)
+                        .padding(.top, 14)
+                        .padding(.bottom, 24)
+                }
             }
-            .navigationTitle("Home")
-            .navigationBarTitleDisplayMode(.inline)
-            .background(Color.clear)
+            
+            .navigationBarHidden(true)
+            .background(Theme.globalBackgroundGradient.ignoresSafeArea())
         }
-        .background(Theme.globalBackgroundGradient)
         .sheet(isPresented: $showingGraphDetail) {
             GraphView()
                 .environment(\.medicationManager, medicationManager)
@@ -31,31 +36,7 @@ struct HomeView: View {
     }
 }
 
-// MARK: - Home Content View
-struct HomeContentView: View {
-    @Environment(\.profileManager) private var profileManager
-    @Environment(\.medicationManager) private var medicationManager
-    @Environment(\.journalManager) private var journalManager
-    @Binding var showingGraphDetail: Bool
-
-    var body: some View {
-        VStack(spacing: 0) {
-            // Phone mockup container
-            VStack(spacing: 0) {
-                StatusBarView()
-
-                HeaderView(showingGraphDetail: $showingGraphDetail)
-
-                 MainContentView(showingGraphDetail: $showingGraphDetail)
-                     .padding(.top, 14)
-            }
-            .background(Theme.globalBackgroundGradient)
-            .cornerRadius(16)
-            .padding(16)
-        }
-    }
-}
-
+// MARK: - Preview
 #Preview {
     HomeView()
         .environment(\.profileManager, ProfileManager.shared)

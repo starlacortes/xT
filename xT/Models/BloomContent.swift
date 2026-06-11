@@ -46,8 +46,8 @@ struct BloomHormoneInsight {
     let level: Double
     let unit: String
     let rangeLabel: String
-    let rangePalette: BloomPalette
     let bodyDescription: String
+    let rangePalette: BloomPalette
 }
 
 // MARK: - Palette
@@ -175,8 +175,8 @@ struct BloomContentEngine {
                 level: level,
                 unit: "pg/mL",
                 rangeLabel: label,
-                rangePalette: palette,
-                bodyDescription: desc
+                bodyDescription: desc,
+                rangePalette: palette
             )
         } else {
             let (label, palette, desc) = testosteroneInsight(level: level, months: months)
@@ -184,8 +184,8 @@ struct BloomContentEngine {
                 level: level,
                 unit: "ng/dL",
                 rangeLabel: label,
-                rangePalette: palette,
-                bodyDescription: desc
+                bodyDescription: desc,
+                rangePalette: palette
             )
         }
     }

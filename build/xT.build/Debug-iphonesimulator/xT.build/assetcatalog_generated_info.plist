@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleIcons</key>
+	<dict>
+		<key>CFBundleAlternateIcons</key>
+		<dict>
+			<key>App Icon</key>
+			<dict>
+				<key>CFBundleIconName</key>
+				<string>App Icon</string>
+			</dict>
+		</dict>
+		<key>CFBundlePrimaryIcon</key>
+		<dict>
+			<key>CFBundleIconFiles</key>
+			<array>
+				<string>xTGlassIcon60x60</string>
+			</array>
+			<key>CFBundleIconName</key>
+			<string>xTGlassIcon</string>
+		</dict>
+	</dict>
+	<key>CFBundleIcons~ipad</key>
+	<dict>
+		<key>CFBundlePrimaryIcon</key>
+		<dict>
+			<key>CFBundleIconFiles</key>
+			<array>
+				<string>xTGlassIcon60x60</string>
+				<string>xTGlassIcon76x76</string>
+			</array>
+		</dict>
+	</dict>
+	<key>NSAccentColorName</key>
+	<string>AccentColor</string>
+</dict>
+</plist>

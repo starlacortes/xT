@@ -13,7 +13,7 @@ class MissedDoseTest: XCTestCase {
 
     var medicationManager: MedicationManager!
 
-    override func setUp() {
+    @MainActor override func setUp() {
         super.setUp()
         medicationManager = MedicationManager.shared
 
@@ -21,12 +21,12 @@ class MissedDoseTest: XCTestCase {
         medicationManager.clearSelection()
     }
 
-    override func tearDown() {
+    @MainActor override func tearDown() {
         medicationManager.clearSelection()
         super.tearDown()
     }
 
-    func testMissedDoseDetection() {
+    @MainActor func testMissedDoseDetection() {
         // Setup: Configure medication
         medicationManager.updateSelection(
             type: .estrogen,
@@ -49,7 +49,7 @@ class MissedDoseTest: XCTestCase {
         }
     }
 
-    func testNoMissedDoseWhenOnTime() {
+    @MainActor func testNoMissedDoseWhenOnTime() {
         // Setup: Configure medication
         medicationManager.updateSelection(
             type: .estrogen,
@@ -66,7 +66,7 @@ class MissedDoseTest: XCTestCase {
         XCTAssertNil(medicationManager.daysSinceMissedDose, "Days since missed dose should be nil when no dose is missed")
     }
 
-    func testMissedDoseRecovery() {
+    @MainActor func testMissedDoseRecovery() {
         // Setup: Create missed dose scenario
         medicationManager.updateSelection(
             type: .estrogen,

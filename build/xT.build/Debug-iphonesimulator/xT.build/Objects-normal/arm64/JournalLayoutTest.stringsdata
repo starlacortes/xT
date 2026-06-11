@@ -1,0 +1,16 @@
+{
+  "source": "/Users/starlacortes/Documents/xT/xT/Tests/JournalLayoutTest.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Layout Test",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 19
+        }
+      }
+    ]
+  },
+  "version": 1
+}

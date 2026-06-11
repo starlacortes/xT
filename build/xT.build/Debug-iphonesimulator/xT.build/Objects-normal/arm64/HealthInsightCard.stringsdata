@@ -1,0 +1,16 @@
+{
+  "source": "/Users/starlacortes/Documents/xT/xT/Elements/Home/Components/HealthInsightCard.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Health insight",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 69
+        }
+      }
+    ]
+  },
+  "version": 1
+}

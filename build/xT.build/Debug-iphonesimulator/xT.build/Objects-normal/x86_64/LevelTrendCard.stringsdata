@@ -1,0 +1,48 @@
+{
+  "source": "/Users/starlacortes/Documents/xT/xT/Elements/Home/Components/LevelTrendCard.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Hormone level",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 19
+        }
+      },
+      {
+        "comment": "",
+        "key": "View all",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 29
+        }
+      },
+      {
+        "comment": "",
+        "key": "current level",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 51
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 56
+        }
+      },
+      {
+        "comment": "",
+        "key": "pg/mL",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 61
+        }
+      }
+    ]
+  },
+  "version": 1
+}

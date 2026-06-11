@@ -334,3 +334,17 @@ struct HormoneInsightCard: View {
         .environment(\.journalManager, JournalManager.shared)
         .environment(\.medicationManager, MedicationManager.shared)
 }
+
+// MARK: - Previews for Subviews
+#Preview("MoodChip") {
+    MoodChip(mood: .happy, isSelected: true, action: {})
+}
+
+#Preview("SymptomTag") {
+    SymptomTag(symptom: Symptom(name: "Headache", icon: "brain.head.profile"), isSelected: false, action: {})
+}
+
+#Preview("HormoneInsightCard") {
+    HormoneInsightCard(level: 150.0)
+        .environment(\.medicationManager, MedicationManager.shared)
+}

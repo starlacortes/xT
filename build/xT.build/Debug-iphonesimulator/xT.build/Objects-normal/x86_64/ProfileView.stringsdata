@@ -1,0 +1,40 @@
+{
+  "source": "/Users/starlacortes/Documents/xT/xT/Elements/Profile/ProfileView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Profile",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 72
+        }
+      },
+      {
+        "comment": "",
+        "key": "Manage your profile settings",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 36
+        }
+      },
+      {
+        "comment": "",
+        "key": "Edit Profile",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 49
+        }
+      },
+      {
+        "comment": "",
+        "key": "View Full Profile",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 58
+        }
+      }
+    ]
+  },
+  "version": 1
+}

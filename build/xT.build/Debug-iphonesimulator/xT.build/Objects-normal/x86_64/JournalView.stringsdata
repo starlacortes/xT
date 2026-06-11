@@ -1,0 +1,48 @@
+{
+  "source": "/Users/starlacortes/Documents/xT/xT/Elements/Journal/JournalView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Journal",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 27
+        }
+      },
+      {
+        "comment": "",
+        "key": "Journal",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 50
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld days",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 90
+        }
+      },
+      {
+        "comment": "",
+        "key": "No journal entries yet",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 295
+        }
+      },
+      {
+        "comment": "",
+        "key": "Tap the + button to create your first entry",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 299
+        }
+      }
+    ]
+  },
+  "version": 1
+}

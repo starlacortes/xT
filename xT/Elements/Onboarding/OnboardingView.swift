@@ -26,10 +26,16 @@ struct OnboardingView: View {
     @State private var currentStep: Int = 0
     @State private var selectedTypeIndex: Int? = nil
     @State private var selectedMethodIndex: Int? = nil
+    @State private var selectedEsterIndex: Int? = nil
+    @State private var doseAmount: String = ""
+    @State private var doseDecimal: Double = 2.0
     @State private var profileName: String = ""
+    @State private var hasCompletedFirstDose: Bool = false
     @State private var showImagePicker: Bool = false
     @State private var showCamera: Bool = false
     @State private var opacity: Double = 0
+    @State private var isSyncingFromStepper = false
+    @State private var isSyncingFromText = false
 
     private let totalSteps = 4
 
@@ -313,9 +319,8 @@ struct OnboardingView: View {
                     .foregroundColor(.white.opacity(0.7))
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                ForEach(0..<MedicationManager.MedicationType.allCases.count, id: \.self) { index in
-                    let type = MedicationManager.MedicationType.allCases[index]
-                    medicationTypeCard(type: type, index: index)
+                ForEach(MedicationManager.MedicationType.allCases, id: \.self) { type in
+                    medicationTypeCard(type: type, index: MedicationManager.MedicationType.allCases.firstIndex(of: type) ?? 0)
                 }
             }
             .padding(.horizontal, 40)
@@ -331,15 +336,102 @@ struct OnboardingView: View {
                         .foregroundColor(.white.opacity(0.7))
                         .frame(maxWidth: .infinity, alignment: .leading)
 
-                    ForEach(0..<medicationManager.availableMethods(for: medicationType).count, id: \.self) { index in
-                        let method = medicationManager.availableMethods(for: medicationType)[index]
-                        let globalMethodIndex = MedicationManager.AdministrationMethod.allCases.firstIndex(of: method)
+                    ForEach(medicationManager.availableMethods(for: medicationType), id: \.rawValue) { method in
+                        let idx = MedicationManager.AdministrationMethod.allCases.firstIndex(of: method) ?? 0
                         
                         administrationMethodCard(
                             method: method,
-                            index: globalMethodIndex ?? index,
-                            isSelected: selectedMethodIndex == globalMethodIndex
+                            index: idx,
+                            isSelected: selectedMethodIndex == idx
                         )
+                    }
+                }
+                .padding(.horizontal, 40)
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
+
+            // Ester selection (shown when injectable method is selected)
+            if let methodIdx = selectedMethodIndex,
+               let method = MedicationManager.AdministrationMethod.allCases[safe: methodIdx],
+               method == .injectable,
+               let typeIdx = selectedTypeIndex,
+               let medicationType = MedicationManager.MedicationType.allCases[safe: typeIdx] {
+                VStack(spacing: 12) {
+                    Text("Ester")
+                        .font(.subheadline)
+                        .foregroundColor(.white.opacity(0.7))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    
+                    esterCards(for: medicationType)
+                }
+                .padding(.horizontal, 40)
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
+
+            // Dose amount
+            if selectedTypeIndex != nil && selectedMethodIndex != nil {
+                VStack(spacing: 12) {
+                    Text("Dose amount")
+                        .font(.subheadline)
+                        .foregroundColor(.white.opacity(0.7))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    HStack(spacing: 12) {
+                        // Stepper for fine control
+                        Stepper("", value: Binding(
+                            get: { doseDecimal },
+                            set: {
+                                isSyncingFromStepper = true
+                                doseDecimal = $0
+                                doseAmount = String(format: "%.1f", $0)
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
+                                    isSyncingFromStepper = false
+                                }
+                            }
+                        ), in: 0.5...500, step: 0.5)
+                            .labelsHidden()
+                            .accentColor(Theme.accentColor)
+
+                        // Text field showing the amount
+                        TextField("", text: Binding(
+                            get: { doseAmount },
+                            set: { text in
+                                isSyncingFromText = true
+                                // Parse as double
+                                if let val = Double(text) {
+                                    doseDecimal = val
+                                }
+                                doseAmount = text
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
+                                    isSyncingFromText = false
+                                }
+                            }
+                        ))
+                            .keyboardType(.decimalPad)
+                            .font(.system(size: 24, weight: .medium, design: .rounded))
+                            .foregroundColor(.white.opacity(0.9))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .padding(.horizontal, 16)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color.white.opacity(0.15))
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                            )
+
+                        // Unit label
+                        Text("mg")
+                            .font(.subheadline)
+                            .foregroundColor(.white.opacity(0.6))
+                    }
+
+                    // Quick-select common doses
+                    if let typeIdx = selectedTypeIndex,
+                       let medicationType = MedicationManager.MedicationType.allCases[safe: typeIdx] {
+                        commonDoses(for: medicationType)
                     }
                 }
                 .padding(.horizontal, 40)
@@ -360,17 +452,49 @@ struct OnboardingView: View {
                     }
 
                     Button(action: {
-                        if let typeIdx = selectedTypeIndex,
-                           let methodIdx = selectedMethodIndex {
-                            let medicationType = MedicationManager.MedicationType.allCases[typeIdx]
-                            let medicationMethod = MedicationManager.AdministrationMethod.allCases[methodIdx]
-                            medicationManager.configureMedication(
-                                type: medicationType,
-                                method: medicationMethod,
-                                firstDoseDate: Date()
-                            )
-                            completeOnboarding()
+                        // Wire up the completion to call addDose() with ester and dose amount
+                        guard let typeIdx = selectedTypeIndex,
+                              let methodIdx = selectedMethodIndex,
+                              let medicationType = MedicationManager.MedicationType.allCases[safe: typeIdx],
+                              let medicationMethod = MedicationManager.AdministrationMethod.allCases[safe: methodIdx]
+                        else { return }
+
+                        let typeLabel = medicationType.rawValue
+                        
+                        // Determine ester string if injectable
+                        var esterLabel = medicationMethod.rawValue
+                        if medicationMethod == .injectable, let eIdx = selectedEsterIndex {
+                            if medicationType == .estrogen,
+                               let e = MedicationManager.MedicationEster.allCases[safe: eIdx] {
+                                esterLabel = e.rawValue
+                            } else if let e = MedicationManager.TestosteroneEster.allCases[safe: eIdx] {
+                                esterLabel = e.rawValue
+                            }
                         }
+                        
+                        // Parse dose amount
+                        let dose: Double = {
+                            if let val = Double(doseAmount) {
+                                return val
+                            }
+                            // Fallback to stepper value
+                            return doseDecimal
+                        }()
+                        
+                        // Configure the medication
+                        medicationManager.updateSelection(type: medicationType, method: medicationMethod)
+                        
+                        // Log the first dose with actual amount and ester
+                        medicationManager.addDose(
+                            date: Date(),
+                            type: typeLabel,
+                            ester: esterLabel,
+                            method: medicationMethod.rawValue,
+                            doseAmount: dose
+                        )
+                        
+                        hasCompletedFirstDose = true
+                        completeOnboarding()
                     }) {
                         Text("You're all set")
                             .font(.headline)
@@ -419,10 +543,15 @@ struct OnboardingView: View {
         Button(action: {
             withAnimation(.easeInOut(duration: 0.2)) {
                 selectedTypeIndex = index
+                selectedEsterIndex = nil
+                
+                // Reset dose to typical range for new medication type
+                doseDecimal = type == .estrogen ? 2.0 : 40.0
+                doseAmount = String(format: "%.1f", doseDecimal)
                 
                 // Select first available method for this medication type
                 if let firstMethod = medicationManager.availableMethods(for: type).first {
-                    selectedMethodIndex = MedicationManager.AdministrationMethod.allCases.firstIndex(of: firstMethod)
+                    selectedMethodIndex = globalMethodIndex(for: firstMethod)
                 }
             }
         }) {
@@ -455,7 +584,11 @@ struct OnboardingView: View {
     private func administrationMethodCard(method: MedicationManager.AdministrationMethod, index: Int, isSelected: Bool) -> some View {
         Button(action: {
             withAnimation(.easeInOut(duration: 0.2)) {
-                selectedMethodIndex = index
+                selectedMethodIndex = globalMethodIndex(for: method)
+                // Reset ester when switching methods
+                if method != .injectable {
+                    selectedEsterIndex = nil
+                }
             }
         }) {
             HStack {
@@ -482,6 +615,102 @@ struct OnboardingView: View {
                     .stroke(isSelected ? Color.white.opacity(0.5) : Color.white.opacity(0.3), lineWidth: 1)
             )
         }
+    }
+
+    // MARK: - Ester Selection Cards
+    private func esterCards(for medicationType: MedicationManager.MedicationType) -> some View {
+        let estrogenEsters = MedicationManager.MedicationEster.allCases
+        let testosteroneEsters = MedicationManager.TestosteroneEster.allCases
+
+        let allEsters: [(label: String, index: Int)]
+        if medicationType == .estrogen {
+            allEsters = estrogenEsters.enumerated().map { (label: $0.1.rawValue, index: $0.0) }
+        } else {
+            allEsters = testosteroneEsters.enumerated().map { (label: $0.1.rawValue, index: $0.0) }
+        }
+
+        return VStack(spacing: 12) {
+            ForEach(allEsters, id: \.index) { item in
+                esterCard(name: item.label, index: item.index, isSelected: selectedEsterIndex == item.index)
+            }
+        }
+    }
+
+    private func esterCard(name: String, index: Int, isSelected: Bool) -> some View {
+        Button(action: {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                selectedEsterIndex = index
+            }
+        }) {
+            HStack {
+                Text(name)
+                    .font(.body)
+                    .foregroundColor(.white.opacity(0.9))
+
+                Spacer()
+
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.white.opacity(0.9))
+                        .transition(.scale.combined(with: .opacity))
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(isSelected ? Theme.accentColor.opacity(0.3) : Color.white.opacity(0.15))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(isSelected ? Color.white.opacity(0.5) : Color.white.opacity(0.3), lineWidth: 1)
+            )
+        }
+    }
+
+    // MARK: - Quick-Select Common Doses
+    private func commonDoses(for medicationType: MedicationManager.MedicationType) -> some View {
+        let commonDoseValues: [Double]
+        if medicationType == .estrogen {
+            commonDoseValues = [0.5, 1, 2, 4, 6]
+        } else {
+            commonDoseValues = [20, 40, 60, 80, 100]
+        }
+
+        return ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(commonDoseValues, id: \.self) { dose in
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            doseDecimal = dose
+                            doseAmount = String(format: "%.1f", dose)
+                        }
+                    }) {
+                        Text(String(format: "%.0f", dose))
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(.white.opacity(0.9))
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(doseDecimal == dose ? Theme.accentColor.opacity(0.5) : Color.white.opacity(0.15))
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(doseDecimal == dose ? Color.white.opacity(0.5) : Color.white.opacity(0.2), lineWidth: 1)
+                            )
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Helpers
+    
+    /// Maps an AdministrationMethod enum to its global index in AdministrationMethod.allCases.
+    private func globalMethodIndex(for method: MedicationManager.AdministrationMethod) -> Int {
+        MedicationManager.AdministrationMethod.allCases.firstIndex(of: method) ?? 0
     }
 
     // MARK: - Navigation Buttons (for steps 2-3)
@@ -545,9 +774,15 @@ struct OnboardingView: View {
         withAnimation(.easeInOut(duration: 0.4)) {
             opacity = 0
         }
-        
+
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
             onboardingComplete?()
         }
     }
+}
+
+#Preview {
+    OnboardingView()
+        .environment(\.medicationManager, MedicationManager.shared)
+        .environment(\.profileManager, ProfileManager.shared)
 }

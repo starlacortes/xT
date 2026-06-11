@@ -1,0 +1,32 @@
+{
+  "source": "/Users/starlacortes/Documents/xT/xT/Elements/Home/Components/QuickActionsCard.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Dose recorded!",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 56
+        }
+      },
+      {
+        "comment": "",
+        "key": "OK",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 57
+        }
+      },
+      {
+        "comment": "",
+        "key": "Your dose has been recorded for today.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 59
+        }
+      }
+    ]
+  },
+  "version": 1
+}

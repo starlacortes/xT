@@ -78,3 +78,10 @@ extension AuthenticationView {
         self.reason = reason
     }
 }
+
+#Preview {
+    ContentView()
+        .environment(\.medicationManager, MedicationManager.shared)
+        .environment(\.profileManager, ProfileManager.shared)
+        .environment(\.authenticationManager, AuthenticationManager.shared)
+}

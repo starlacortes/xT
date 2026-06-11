@@ -2,7 +2,8 @@
 //  SettingsView.swift
 //  xT
 //
-//  Created by starrrr on 8/5/25.
+//  Redesigned settings. The profile section now acts as a mini-dashboard
+//  with key stats. Section grouping and row styling are more intentional.
 //
 
 import SwiftUI
@@ -12,12 +13,15 @@ import SwiftData
 struct SettingsView: View {
     @Environment(\.profileManager) private var profileManager
     @Environment(\.medicationManager) private var medicationManager
-    @State private var showingProfileSheet = false
+    @Environment(\.notificationManager) private var notificationManager
     @State private var showingResetAlert = false
+    @State private var showingAuthRequest = false
     @State private var doseRemindersEnabled = true
-    @State private var journalRemindersEnabled = true
-    @State private var doseReminderTime = Date()
-    @State private var journalReminderTime = Date()
+    @State private var journalRemindersEnabled = false
+    @State private var doseReminderHour = 9
+    @State private var doseReminderMinute = 0
+    @State private var journalReminderHour = 21
+    @State private var journalReminderMinute = 0
     @State private var showingDoseTimePicker = false
     @State private var showingJournalTimePicker = false
 
@@ -25,414 +29,527 @@ struct SettingsView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 0) {
-                    // Settings title
-                    HStack {
-                        Text("Settings")
-                            .font(.system(size: 22, weight: .semibold))
-                            .foregroundColor(.primary)
-                        Spacer()
+                    // Profile + stats header (replaces generic title)
+                    profileHeader
+                        .padding(.bottom, 8)
+
+                    // Sections
+                    VStack(spacing: 20) {
+                        settingsMedicationSection
+                        settingsNotificationsSection
+                        settingsPrivacySection
+                        settingsAboutSection
                     }
                     .padding(.horizontal, 16)
-                    .padding(.bottom, 12)
-
-                    // Profile Section
-                    SectionCard {
-                        NavigationLink(destination: ProfileEditorView()) {
-                            SettingsRow {
-                                // Profile avatar
-                                ZStack {
-                                    Circle()
-                                        .fill(Theme.bloomCycleLightColor)
-                                        .frame(width: 44, height: 44)
-                                        .overlay(
-                                            Circle()
-                                                .stroke(Theme.bloomCycleBorderColor, lineWidth: 2)
-                                        )
-
-                                    if let profileImage = profileManager.profileImage {
-                                        Image(uiImage: profileImage)
-                                            .resizable()
-                                            .scaledToFill()
-                                            .frame(width: 40, height: 40)
-                                            .clipShape(Circle())
-                                    } else {
-                                        Text(profileManager.profileName.prefix(1).uppercased())
-                                            .font(.system(size: 18, weight: .semibold))
-                                            .foregroundColor(Theme.accentColor)
-                                    }
-                                }
-
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(profileManager.profileName.isEmpty ? "Your Profile" : profileManager.profileName)
-                                        .font(.system(size: 15, weight: .semibold))
-                                        .foregroundColor(.primary)
-
-                                    Text("Edit profile & photo")
-                                        .font(.system(size: 12))
-                                        .foregroundColor(.secondary)
-                                }
-
-                                Image(systemName: "chevron.right")
-                                    .font(.system(size: 16))
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 4)
-
-                    // Medication Section
-                    SectionLabel("Medication")
-
-                    SectionCard {
-                        VStack(spacing: 0) {
-                            // Type & Method
-                            NavigationLink(destination: UnifiedScheduleView(isFromSettings: true)) {
-                                SettingsRow {
-                                    RowIcon(backgroundColor: Theme.bloomCycleLightColor) {
-                                        Image(systemName: "pills.fill")
-                                            .font(.system(size: 17))
-                                            .foregroundColor(Theme.bloomCycleColor)
-                                    }
-
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text("Type & method")
-                                            .font(.system(size: 14))
-                                            .foregroundColor(.primary)
-
-                                        Text(medicationManager.medicationDisplayInfo)
-                                            .font(.system(size: 12))
-                                            .foregroundColor(.secondary)
-                                    }
-
-                                    Image(systemName: "chevron.right")
-                                        .font(.system(size: 16))
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-
-                            RowDivider()
-
-                            // Dose Schedule
-                            NavigationLink(destination: UnifiedScheduleView(isFromSettings: true)) {
-                                SettingsRow {
-                                    RowIcon(backgroundColor: Theme.bloomMindLightColor) {
-                                        Image(systemName: "calendar")
-                                            .font(.system(size: 17))
-                                            .foregroundColor(Theme.bloomMindColor)
-                                    }
-
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text("Dose schedule")
-                                            .font(.system(size: 14))
-                                            .foregroundColor(.primary)
-
-                                         if let nextDate = medicationManager.nextDoseDate {
-                                             let formattedDate = formatDate(nextDate)
-                                             Text("Next: \(formattedDate)")
-                                                 .font(.system(size: 12))
-                                                 .foregroundColor(.secondary)
-                                         } else {
-                                             Text("No schedule set")
-                                                 .font(.system(size: 12))
-                                                 .foregroundColor(.secondary)
-                                         }
-                                    }
-
-                                    Image(systemName: "chevron.right")
-                                        .font(.system(size: 16))
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-
-                            RowDivider()
-
-                            // Record a dose
-                            Button(action: {
-                                medicationManager.recordDose(on: Date())
-                            }) {
-                                SettingsRow {
-                                    RowIcon(backgroundColor: Theme.bloomSkinLightColor) {
-                                        Image(systemName: "checkmark")
-                                            .font(.system(size: 17))
-                                            .foregroundColor(Theme.bloomSkinColor)
-                                    }
-
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text("Record a dose")
-                                            .font(.system(size: 14))
-                                            .foregroundColor(.primary)
-
-                                        if let lastDate = medicationManager.lastDoseDate {
-                                            let formattedDate = formatDate(lastDate)
-                                            Text("Last: \(formattedDate)")
-                                                .font(.system(size: 12))
-                                                .foregroundColor(.secondary)
-                                        } else {
-                                            Text("No doses recorded")
-                                                .font(.system(size: 12))
-                                                .foregroundColor(.secondary)
-                                        }
-                                    }
-
-                                    Image(systemName: "chevron.right")
-                                        .font(.system(size: 16))
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-                        }
-                    }
-
-                    // Notifications Section
-                    SectionLabel("Notifications")
-
-                    SectionCard {
-                        VStack(spacing: 0) {
-                            // Dose reminders
-                            Button(action: {
-                                if doseRemindersEnabled {
-                                    showingDoseTimePicker = true
-                                }
-                            }) {
-                                SettingsRow {
-                                    RowIcon(backgroundColor: Theme.bloomBodyLightColor) {
-                                        Image(systemName: "bell.fill")
-                                            .font(.system(size: 17))
-                                            .foregroundColor(Theme.bloomBodyColor)
-                                    }
-
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text("Dose reminders")
-                                            .font(.system(size: 14))
-                                            .foregroundColor(.primary)
-
-                                        Text(doseRemindersEnabled ? "1 day before at \(formatTime(doseReminderTime))" : "Off")
-                                            .font(.system(size: 12))
-                                            .foregroundColor(.secondary)
-                                    }
-
-                                    Spacer()
-
-                                    Toggle("", isOn: $doseRemindersEnabled)
-                                        .labelsHidden()
-                                        .toggleStyle(SwitchToggleStyle(tint: Theme.accentColor))
-                                        .frame(width: 50)
-                                }
-                            }
-                            .buttonStyle(.plain)
-
-                            RowDivider()
-
-                            // Journal reminders
-                            Button(action: {
-                                if journalRemindersEnabled {
-                                    showingJournalTimePicker = true
-                                }
-                            }) {
-                                SettingsRow {
-                                    RowIcon(backgroundColor: Theme.bloomCycleLightColor) {
-                                        Image(systemName: "book.fill")
-                                            .font(.system(size: 17))
-                                            .foregroundColor(Theme.accentColor)
-                                    }
-
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text("Journal reminders")
-                                            .font(.system(size: 14))
-                                            .foregroundColor(.primary)
-
-                                        Text(journalRemindersEnabled ? "\(formatTime(journalReminderTime)) daily" : "Off")
-                                            .font(.system(size: 12))
-                                            .foregroundColor(.secondary)
-                                    }
-
-                                    Spacer()
-
-                                    Toggle("", isOn: $journalRemindersEnabled)
-                                        .labelsHidden()
-                                        .toggleStyle(SwitchToggleStyle(tint: Theme.accentColor))
-                                        .frame(width: 50)
-                                }
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-
-                    // Privacy & Security Section
-                    SectionLabel("Privacy & security")
-
-                    SectionCard {
-                        NavigationLink(destination: AppLockSettingsView()) {
-                            SettingsRow {
-                                RowIcon(backgroundColor: Color(.systemGray6)) {
-                                    Image(systemName: "lock.fill")
-                                        .font(.system(size: 17))
-                                        .foregroundColor(.secondary)
-                                }
-
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("App lock")
-                                        .font(.system(size: 14))
-                                        .foregroundColor(.primary)
-
-                                    Text("Face ID · 5 min timeout")
-                                        .font(.system(size: 12))
-                                        .foregroundColor(.secondary)
-                                }
-
-                                Image(systemName: "chevron.right")
-                                    .font(.system(size: 16))
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                    }
-
-                    // About Section
-                    SectionLabel("About")
-
-                    SectionCard {
-                        VStack(spacing: 0) {
-                            // Version
-                            SettingsRow {
-                                RowIcon(backgroundColor: Color(.systemGray6)) {
-                                    Image(systemName: "info.circle.fill")
-                                        .font(.system(size: 17))
-                                        .foregroundColor(.secondary)
-                                }
-
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Version")
-                                        .font(.system(size: 14))
-                                        .foregroundColor(.primary)
-                                }
-
-                                Text("1.0.0")
-                                    .font(.system(size: 13))
-                                    .foregroundColor(.secondary)
-                            }
-
-                            RowDivider()
-
-                            // Reset app data
-                            Button(role: .destructive, action: {
-                                showingResetAlert = true
-                            }) {
-                                SettingsRow {
-                                    RowIcon(backgroundColor: Theme.errorColor.opacity(0.1)) {
-                                        Image(systemName: "trash.fill")
-                                            .font(.system(size: 17))
-                                            .foregroundColor(Theme.errorColor)
-                                    }
-
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text("Reset app data")
-                                            .font(.system(size: 14))
-                                            .foregroundColor(Theme.errorColor)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    .padding(.bottom, 16)
-
-                    // Spacer for bottom padding
-                    Color.clear
-                        .frame(height: 16)
+                    .padding(.bottom, 32)
                 }
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .background(Theme.globalBackgroundGradient)
             .sheet(isPresented: $showingDoseTimePicker) {
-                TimePickerSheet(
-                    title: "Dose Reminder Time",
-                    time: $doseReminderTime,
-                    isPresented: $showingDoseTimePicker
-                )
+                TimePickerSheet(title: "Dose reminder time", hour: $doseReminderHour, minute: $doseReminderMinute, isPresented: $showingDoseTimePicker)
             }
             .sheet(isPresented: $showingJournalTimePicker) {
-                TimePickerSheet(
-                    title: "Journal Reminder Time",
-                    time: $journalReminderTime,
-                    isPresented: $showingJournalTimePicker
-                )
+                TimePickerSheet(title: "Journal reminder time", hour: $journalReminderHour, minute: $journalReminderMinute, isPresented: $showingJournalTimePicker)
             }
-            .onAppear {
-                // Load saved reminder times
-                if let doseTime = UserDefaults.standard.object(forKey: "doseReminderTime") as? Date {
-                    doseReminderTime = doseTime
-                } else {
-                    // Default to 9 AM
-                    var components = DateComponents()
-                    components.hour = 9
-                    components.minute = 0
-                    doseReminderTime = Calendar.current.date(from: components) ?? Date()
-                }
-                
-                if let journalTime = UserDefaults.standard.object(forKey: "journalReminderTime") as? Date {
-                    journalReminderTime = journalTime
-                } else {
-                    // Default to 9 PM
-                    var components = DateComponents()
-                    components.hour = 21
-                    components.minute = 0
-                    journalReminderTime = Calendar.current.date(from: components) ?? Date()
-                }
-                
-                doseRemindersEnabled = UserDefaults.standard.bool(forKey: "doseRemindersEnabled")
-                journalRemindersEnabled = UserDefaults.standard.bool(forKey: "journalRemindersEnabled")
-            }
-            .onChange(of: doseReminderTime) {
-                UserDefaults.standard.set(doseReminderTime, forKey: "doseReminderTime")
-            }
-            .onChange(of: journalReminderTime) {
-                UserDefaults.standard.set(journalReminderTime, forKey: "journalReminderTime")
-            }
-            .onChange(of: doseRemindersEnabled) {
-                UserDefaults.standard.set(doseRemindersEnabled, forKey: "doseRemindersEnabled")
-            }
-            .onChange(of: journalRemindersEnabled) {
-                UserDefaults.standard.set(journalRemindersEnabled, forKey: "journalRemindersEnabled")
+            .onAppear { loadSettings() }
+            .onChange(of: doseRemindersEnabled) { _, newValue in onDoseReminderToggle(newValue) }
+            .onChange(of: doseReminderHour) { _, _ in onDoseTimeChange() }
+            .onChange(of: doseReminderMinute) { _, _ in onDoseTimeChange() }
+            .onChange(of: journalRemindersEnabled) { _, newValue in onJournalReminderToggle(newValue) }
+            .onChange(of: journalReminderHour) { _, _ in onJournalTimeChange() }
+            .onChange(of: journalReminderMinute) { _, _ in onJournalTimeChange() }
+            .alert("Notifications disabled", isPresented: $showingAuthRequest) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("To receive dose and journal reminders, please enable notifications in System Settings.")
             }
             .alert("Are you sure?", isPresented: $showingResetAlert) {
-                Button("Cancel", role: .cancel) {
-                    // User cancelled
-                }
-                Button("Reset", role: .destructive) {
-                    resetAppData()
-                }
+                Button("Cancel", role: .cancel) {}
+                Button("Reset", role: .destructive) { resetAppData() }
             } message: {
                 Text("xT will close and restart the onboarding process.")
             }
         }
     }
 
-    private func resetAppData() {
-        // Clear all UserDefaults data
-        let defaults = UserDefaults.standard
-        let dictionary = defaults.dictionaryRepresentation()
-        dictionary.keys.forEach { key in
-            defaults.removeObject(forKey: key)
+    // MARK: - Profile Header
+
+    private var profileHeader: some View {
+        VStack(spacing: 0) {
+            // Gradient banner
+            LinearGradient(
+                gradient: Gradient(stops: [
+                    .init(color: Color(hex: "#D4537E"), location: 0),
+                    .init(color: Color(hex: "#8875D4"), location: 1)
+                ]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .frame(height: 56)
+
+            // Profile card overlapping the banner
+            VStack(spacing: 12) {
+                NavigationLink(destination: ProfileEditorView()) {
+                    HStack(spacing: 12) {
+                        // Avatar
+                        ZStack {
+                            Circle()
+                                .fill(
+                                    LinearGradient(
+                                        gradient: Gradient(colors: [Color(hex: "#D4537E"), Color(hex: "#8875D4")]),
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .frame(width: 52, height: 52)
+                                .overlay(Circle().stroke(Color.white, lineWidth: 2))
+
+                            if let img = profileManager.profileImage {
+                                Image(uiImage: img)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 52, height: 52)
+                                    .clipShape(Circle())
+                                    .overlay(Circle().stroke(Color.white, lineWidth: 2))
+                            } else {
+                                Text(profileManager.profileDisplayName.prefix(1).uppercased())
+                                    .font(.system(size: 20, weight: .medium))
+                                    .foregroundColor(.white)
+                            }
+                        }
+                        .offset(y: -20)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(profileManager.profileDisplayName)
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(.primary)
+
+                            Text(profileSubtitle)
+                                .font(.system(size: 12))
+                                .foregroundColor(.secondary)
+                        }
+                        .offset(y: -10)
+
+                        Spacer()
+
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 13))
+                            .foregroundColor(.secondary)
+                            .offset(y: -10)
+                    }
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+
+                // Stats strip
+                HStack(spacing: 8) {
+                    statChip(value: levelString, label: "current level")
+                    statChip(value: nextDoseString, label: "next dose")
+                    statChip(value: "\(medicationManager.monthsOnHRT) mo", label: "on HRT")
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 14)
+            }
+            .background(Color(UIColor.systemBackground))
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 0))
+    }
+
+    private func statChip(value: String, label: String) -> some View {
+        VStack(spacing: 2) {
+            Text(value)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundColor(.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Text(label)
+                .font(.system(size: 9))
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 9)
+        .background(Color(UIColor.secondarySystemBackground))
+        .cornerRadius(10)
+    }
+
+    // MARK: - Medication Section
+
+    private var settingsMedicationSection: some View {
+        settingsSection(label: "Medication") {
+            settingsRow(
+                icon: "pills.fill",
+                iconBg: Theme.bloomCycleLightColor,
+                iconColor: Theme.bloomCycleColor,
+                title: "Type & method",
+                subtitle: medicationManager.medicationDisplayInfo
+            ) {
+                NavigationLink(destination: UnifiedScheduleView(isFromSettings: true)) {
+                    EmptyView()
+                }
+                .opacity(0)
+            }
+
+            settingsDivider()
+
+            settingsRow(
+                icon: "calendar",
+                iconBg: Theme.bloomMindLightColor,
+                iconColor: Theme.bloomMindColor,
+                title: "Dose schedule",
+                subtitle: nextDoseSubtitle
+            ) {
+                NavigationLink(destination: UnifiedScheduleView(isFromSettings: true)) {
+                    EmptyView()
+                }
+                .opacity(0)
+            }
+
+            settingsDivider()
+
+            Button(action: {
+                medicationManager.recordDose(on: Date())
+            }) {
+                settingsRowContent(
+                    icon: "checkmark",
+                    iconBg: Theme.bloomSkinLightColor,
+                    iconColor: Theme.bloomSkinColor,
+                    title: "Record a dose",
+                    subtitle: lastDoseSubtitle,
+                    trailing: { Image(systemName: "checkmark.circle").font(.system(size: 16)).foregroundColor(Theme.bloomSkinColor) }
+                )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    // MARK: - Notifications Section
+
+    private var settingsNotificationsSection: some View {
+        settingsSection(label: "Notifications") {
+            HStack(spacing: 12) {
+                settingsIconView(icon: "bell.fill", bg: Theme.bloomBodyLightColor, color: Theme.bloomBodyColor)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Dose reminders")
+                        .font(.system(size: 14))
+                        .foregroundColor(.primary)
+                    Text(doseRemindersEnabled ? formatDoseReminderSubtitle : "Off")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+
+                Toggle("", isOn: $doseRemindersEnabled)
+                    .labelsHidden()
+                    .toggleStyle(SwitchToggleStyle(tint: Theme.accentColor))
+            }
+            .padding(12)
+            .contentShape(Rectangle())
+            .onTapGesture { if doseRemindersEnabled { showingDoseTimePicker = true } }
+
+            settingsDivider()
+
+            HStack(spacing: 12) {
+                settingsIconView(icon: "book.fill", bg: Theme.bloomCycleLightColor, color: Theme.accentColor)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Journal reminders")
+                        .font(.system(size: 14))
+                        .foregroundColor(.primary)
+                    Text(journalRemindersEnabled ? formatJournalReminderSubtitle : "Off")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+
+                Toggle("", isOn: $journalRemindersEnabled)
+                    .labelsHidden()
+                    .toggleStyle(SwitchToggleStyle(tint: Theme.accentColor))
+            }
+            .padding(12)
+            .contentShape(Rectangle())
+            .onTapGesture { if journalRemindersEnabled { showingJournalTimePicker = true } }
+        }
+    }
+
+    // MARK: - Privacy Section
+
+    private var settingsPrivacySection: some View {
+        settingsSection(label: "Privacy & security") {
+            NavigationLink(destination: AppLockSettingsView()) {
+                settingsRowContent(
+                    icon: "lock.fill",
+                    iconBg: Color(UIColor.systemGray6),
+                    iconColor: .secondary,
+                    title: "App lock",
+                    subtitle: "Face ID · 5 min timeout",
+                    trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundColor(.secondary) }
+                )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    // MARK: - About Section
+
+    private var settingsAboutSection: some View {
+        settingsSection(label: "About") {
+            settingsRowContent(
+                icon: "info.circle.fill",
+                iconBg: Color(UIColor.systemGray6),
+                iconColor: .secondary,
+                title: "Version",
+                subtitle: nil,
+                trailing: { Text("1.0.0").font(.system(size: 13)).foregroundColor(.secondary) }
+            )
+
+            settingsDivider()
+
+            Button(role: .destructive, action: { showingResetAlert = true }) {
+                settingsRowContent(
+                    icon: "trash.fill",
+                    iconBg: Theme.errorColor.opacity(0.1),
+                    iconColor: Theme.errorColor,
+                    title: "Reset app data",
+                    subtitle: nil,
+                    trailing: { EmptyView() }
+                )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    // MARK: - Reusable layout helpers
+
+    private func settingsSection<Content: View>(label: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label)
+                .font(.system(size: 11))
+                .foregroundColor(.secondary)
+                .textCase(.uppercase)
+                .kerning(0.05)
+                .padding(.leading, 4)
+
+            VStack(spacing: 0) {
+                content()
+            }
+            .background(Color(UIColor.secondarySystemBackground))
+            .cornerRadius(14)
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(Color(UIColor.systemGray4), lineWidth: 0.5)
+            )
+        }
+    }
+
+    private func settingsRow<Destination: View>(
+        icon: String,
+        iconBg: Color,
+        iconColor: Color,
+        title: String,
+        subtitle: String,
+        @ViewBuilder destination: () -> Destination
+    ) -> some View {
+        NavigationLink(destination: destination()) {
+            settingsRowContent(
+                icon: icon,
+                iconBg: iconBg,
+                iconColor: iconColor,
+                title: title,
+                subtitle: subtitle,
+                trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundColor(.secondary) }
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func settingsRowContent<Trailing: View>(
+        icon: String,
+        iconBg: Color,
+        iconColor: Color,
+        title: String,
+        subtitle: String?,
+        @ViewBuilder trailing: () -> Trailing
+    ) -> some View {
+        HStack(spacing: 12) {
+            settingsIconView(icon: icon, bg: iconBg, color: iconColor)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 14))
+                    .foregroundColor(.primary)
+                if let sub = subtitle {
+                    Text(sub)
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            Spacer()
+
+            trailing()
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+    }
+
+    private func settingsIconView(icon: String, bg: Color, color: Color) -> some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 8)
+                .fill(bg)
+                .frame(width: 32, height: 32)
+            Image(systemName: icon)
+                .font(.system(size: 16))
+                .foregroundColor(color)
+        }
+    }
+
+    private func settingsDivider() -> some View {
+        Divider()
+            .padding(.leading, 56)
+    }
+
+    // MARK: - Computed strings
+
+    private var profileSubtitle: String {
+        if medicationManager.isFullyConfigured {
+            return "\(medicationManager.monthsOnHRT) months · \(medicationManager.medicationDisplayInfo)"
+        }
+        return "Tap to edit profile"
+    }
+
+    private var levelString: String {
+        if let level = medicationManager.currentHormoneLevel?.value {
+            return "\(Int(level)) \(medicationManager.currentHormoneLevel?.unit ?? "pg/mL")"
+        }
+        return "—"
+    }
+
+    private var nextDoseString: String {
+        guard let next = medicationManager.nextDoseDate else { return "—" }
+        let days = Calendar.current.dateComponents([.day], from: Date(), to: next).day ?? 0
+        if days == 0 { return "Today" }
+        if days == 1 { return "Tomorrow" }
+        return "In \(days)d"
+    }
+
+    private var nextDoseSubtitle: String {
+        if let next = medicationManager.nextDoseDate {
+            return "Next: \(formatDate(next))"
+        }
+        return "No schedule set"
+    }
+
+    private var lastDoseSubtitle: String {
+        if let last = medicationManager.lastDoseDate {
+            return "Last: \(formatDate(last))"
+        }
+        return "No doses recorded"
+    }
+
+    // MARK: - Computed display strings
+
+    private var formatDoseReminderSubtitle: String {
+        let timeStr = String(format: "%02d:%02d", doseReminderHour, doseReminderMinute)
+        return "Daily at \(timeStr)"
+    }
+
+    private var formatJournalReminderSubtitle: String {
+        let timeStr = String(format: "%02d:%02d", journalReminderHour, journalReminderMinute)
+        return "Daily at \(timeStr)"
+    }
+
+    // MARK: - Notification Handlers
+
+    private func onDoseReminderToggle(_ enabled: Bool) {
+        notificationManager.configureDoseReminder(
+            enabled: enabled,
+            hour: doseReminderHour,
+            minute: doseReminderMinute
+        )
+    }
+
+    private func onDoseTimeChange() {
+        notificationManager.configureDoseReminder(
+            enabled: doseRemindersEnabled,
+            hour: doseReminderHour,
+            minute: doseReminderMinute
+        )
+    }
+
+    private func onJournalReminderToggle(_ enabled: Bool) {
+        notificationManager.configureJournalReminder(
+            enabled: enabled,
+            hour: journalReminderHour,
+            minute: journalReminderMinute
+        )
+    }
+
+    private func onJournalTimeChange() {
+        notificationManager.configureJournalReminder(
+            enabled: journalRemindersEnabled,
+            hour: journalReminderHour,
+            minute: journalReminderMinute
+        )
+    }
+
+    // MARK: - Persistence helpers
+
+    private func loadSettings() {
+        doseRemindersEnabled = UserDefaults.standard.bool(forKey: "doseReminderEnabled")
+        doseReminderHour = UserDefaults.standard.integer(forKey: "doseReminderHour")
+        doseReminderMinute = UserDefaults.standard.integer(forKey: "doseReminderMinute")
+        journalRemindersEnabled = UserDefaults.standard.bool(forKey: "journalReminderEnabled")
+        journalReminderHour = UserDefaults.standard.integer(forKey: "journalReminderHour")
+        journalReminderMinute = UserDefaults.standard.integer(forKey: "journalReminderMinute")
+
+        // If no notification settings have been saved yet, use defaults
+        if UserDefaults.standard.object(forKey: "doseReminderEnabled") == nil {
+            doseReminderHour = 9
+            doseReminderMinute = 0
+            doseRemindersEnabled = true
+            journalReminderHour = 21
+            journalReminderMinute = 0
+            journalRemindersEnabled = false
         }
 
-        // Reset managers
+        // Request authorization on first launch
+        Task { await notificationManager.requestAuthorization() }
+
+        // Apply loaded settings to NotificationManager
+        notificationManager.configureDoseReminder(
+            enabled: doseRemindersEnabled,
+            hour: doseReminderHour,
+            minute: doseReminderMinute
+        )
+        notificationManager.configureJournalReminder(
+            enabled: journalRemindersEnabled,
+            hour: journalReminderHour,
+            minute: journalReminderMinute
+        )
+    }
+
+    private func resetAppData() {
+        let defaults = UserDefaults.standard
+        defaults.dictionaryRepresentation().keys.forEach { defaults.removeObject(forKey: $0) }
         profileManager.clearProfileImage()
         profileManager.updateProfileName("")
         medicationManager.clearSelection()
-
-        // Clear SwiftData
         clearSwiftData()
-
-        // Restart the app by setting onboarding flag to false
         UserDefaults.standard.set(false, forKey: "hasCompletedOnboarding")
-
-        // Close the app
         exit(0)
     }
 
     private func clearSwiftData() {
         do {
-            let container = try ModelContainer(for: JournalEntry.self)
+            let schema = Schema([JournalEntry.self])
+            let container = try ModelContainer(for: schema)
             try container.mainContext.delete(model: JournalEntry.self)
         } catch {
             print("Error clearing SwiftData: \(error)")
@@ -440,317 +557,17 @@ struct SettingsView: View {
     }
 
     private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .none
-        return formatter.string(from: date)
+        let f = DateFormatter(); f.dateStyle = .medium; f.timeStyle = .none
+        return f.string(from: date)
     }
-    
+
     private func formatTime(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .none
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
+        let f = DateFormatter(); f.dateStyle = .none; f.timeStyle = .short
+        return f.string(from: date)
     }
 }
 
-// MARK: - Time Picker Sheet
-struct TimePickerSheet: View {
-    let title: String
-    @Binding var time: Date
-    @Binding var isPresented: Bool
-    
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: 20) {
-                Text("Select a time for your daily reminder")
-                    .font(.system(size: 14))
-                    .foregroundColor(.secondary)
-                    .padding(.top, 20)
-                
-                DatePicker(
-                    "Time",
-                    selection: $time,
-                    displayedComponents: .hourAndMinute
-                )
-                .datePickerStyle(.wheel)
-                .labelsHidden()
-                
-                Spacer()
-            }
-            .navigationTitle(title)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") {
-                        isPresented = false
-                    }
-                    .foregroundColor(Theme.accentColor)
-                }
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        isPresented = false
-                    }
-                }
-            }
-        }
-        .presentationDetents([.medium])
-    }
-}
-
-// MARK: - Custom Components (similar to HomeView pattern)
-
-struct SectionLabel: View {
-    let title: String
-
-    init(_ title: String) {
-        self.title = title
-    }
-
-    var body: some View {
-        Text(title)
-            .font(.system(size: 11))
-            .foregroundColor(.secondary)
-            .textCase(.uppercase)
-            .kerning(0.05)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 6)
-    }
-}
-
-struct SectionCard<Content: View>: View {
-    let content: Content
-
-    init(@ViewBuilder content: () -> Content) {
-        self.content = content()
-    }
-
-    var body: some View {
-        VStack(spacing: 0) {
-            content
-        }
-        .background(Color(UIColor.secondarySystemBackground))
-        .cornerRadius(14)
-        .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .stroke(Color(.systemGray4), lineWidth: 0.5)
-        )
-    }
-}
-
-struct SettingsRow<Content: View>: View {
-    let content: Content
-
-    init(@ViewBuilder content: () -> Content) {
-        self.content = content()
-    }
-
-    var body: some View {
-        HStack(alignment: .center, spacing: 12) {
-            content
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(Rectangle())
-    }
-}
-
-struct RowIcon<Content: View>: View {
-    let backgroundColor: Color
-    let content: Content
-
-    init(backgroundColor: Color, @ViewBuilder content: () -> Content) {
-        self.backgroundColor = backgroundColor
-        self.content = content()
-    }
-
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 8)
-                .fill(backgroundColor)
-                .frame(width: 32, height: 32)
-
-            content
-        }
-    }
-}
-
-struct RowDivider: View {
-    var body: some View {
-        Divider()
-            .padding(.leading, 56) // Align with content after icon
-            .padding(.vertical, 0)
-    }
-}
-
-// MARK: - Profile Settings Subview
-struct ProfileSettingsView: View {
-    @Environment(\.profileManager) private var profileManager
-    @State private var name: String = ""
-    @State private var showingImageSourceOptions = false
-
-    var body: some View {
-        Form {
-            Section(header: Text("Profile Information")) {
-                // Profile image with change option
-                VStack {
-                    Image(uiImage: profileManager.getCurrentProfileImage())
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 100, height: 100)
-                        .clipShape(Circle())
-                        .overlay(
-                            Circle()
-                                .stroke(Color.blue, lineWidth: 2)
-                        )
-                        .onTapGesture {
-                            showingImageSourceOptions = true
-                        }
-
-                    Button(action: {
-                        showingImageSourceOptions = true
-                    }) {
-                        Text("Change Photo")
-                            .font(.subheadline)
-                            .foregroundColor(.blue)
-                    }
-                    .padding(.top, 8)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical)
-
-                // Name field
-                TextField("Your Name", text: $name)
-                    .onAppear {
-                        name = profileManager.profileName
-                    }
-                    .onChange(of: name) {
-                        profileManager.updateProfileName(name)
-                    }
-            }
-
-            Section {
-                Button(action: {
-                    profileManager.clearProfileImage()
-                }) {
-                    Text("Reset to Default Photo")
-                        .frame(maxWidth: .infinity)
-                }
-
-                Button(role: .destructive) {
-                    profileManager.updateProfileName("")
-                    profileManager.clearProfileImage()
-                } label: {
-                    Text("Clear All Profile Data")
-                }
-            }
-        }
-        .navigationTitle("Profile")
-        .actionSheet(isPresented: $showingImageSourceOptions) {
-            ActionSheet(
-                title: Text("Change Profile Photo"),
-                message: Text("Choose a photo source"),
-                buttons: [
-                    .default(Text("Photo Library")) {
-                        profileManager.showImagePicker = true
-                    },
-                    .default(Text("Take Photo")) {
-                        profileManager.showCamera = true
-                    },
-                    .default(Text("Use Default")) {
-                        profileManager.clearProfileImage()
-                    },
-                    .cancel()
-                ]
-            )
-        }
-        .sheet(isPresented: Binding(
-            get: { profileManager.showImagePicker },
-            set: { profileManager.showImagePicker = $0 }
-        )) {
-            PhotoPicker(imageData: Binding(
-                get: { profileManager.profileImageData },
-                set: { profileManager.profileImageData = $0 }
-            ), sourceType: .photoLibrary)
-        }
-        .sheet(isPresented: Binding(
-            get: { profileManager.showCamera },
-            set: { profileManager.showCamera = $0 }
-        )) {
-            PhotoPicker(imageData: Binding(
-                get: { profileManager.profileImageData },
-                set: { profileManager.profileImageData = $0 }
-            ), sourceType: .camera)
-        }
-        .onChange(of: profileManager.selectedPhotoItem) {
-            profileManager.handlePhotoSelection()
-        }
-    }
-}
-
-// MARK: - Photo Picker Helper
-struct PhotoPicker: UIViewControllerRepresentable {
-    @Binding var imageData: Data?
-    @Environment(\.dismiss) private var dismiss
-    var sourceType: UIImagePickerController.SourceType
-
-    func makeUIViewController(context: Context) -> UIImagePickerController {
-        let picker = UIImagePickerController()
-        picker.sourceType = sourceType
-        picker.delegate = context.coordinator
-        return picker
-    }
-
-    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(self)
-    }
-
-    class Coordinator: NSObject, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
-        let parent: PhotoPicker
-
-        init(_ parent: PhotoPicker) {
-            self.parent = parent
-        }
-
-        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
-            if let image = info[.originalImage] as? UIImage {
-                parent.imageData = image.jpegData(compressionQuality: 0.8)
-            }
-            parent.dismiss()
-        }
-    }
-}
-
-// Color extension for hex colors
-extension Color {
-    init(hex: String) {
-        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-        var int: UInt64 = 0
-        Scanner(string: hex).scanHexInt64(&int)
-        let a, r, g, b: UInt64
-        switch hex.count {
-        case 3: // RGB (12-bit)
-            (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
-        case 6: // RGB (24-bit)
-            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
-        case 8: // ARGB (32-bit)
-            (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
-        default:
-            (a, r, g, b) = (255, 0, 0, 0)
-        }
-        self.init(
-            .sRGB,
-            red: Double(r) / 255,
-            green: Double(g) / 255,
-            blue: Double(b) / 255,
-            opacity: Double(a) / 255
-        )
-    }
-}
-
+// MARK: - Preview
 #Preview {
     SettingsView()
         .environment(\.profileManager, ProfileManager.shared)

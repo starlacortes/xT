@@ -1,0 +1,128 @@
+{
+  "source": "/Users/starlacortes/Documents/xT/xT/Elements/Home/GraphView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Graph",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 54
+        }
+      },
+      {
+        "comment": "",
+        "key": "Hormone level curve",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 151
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@ · %@ · %@ cycle",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 157
+        }
+      },
+      {
+        "comment": "",
+        "key": "Scrub to a day",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 172
+        }
+      },
+      {
+        "comment": "",
+        "key": "Optimal 100–200",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 203
+        }
+      },
+      {
+        "comment": "",
+        "key": "Low <100",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 213
+        }
+      },
+      {
+        "comment": "",
+        "key": "High >200",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 223
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld pg/mL",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 404
+        }
+      },
+      {
+        "comment": "",
+        "key": "pg/mL",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 452
+        }
+      },
+      {
+        "comment": "",
+        "key": "—",
+        "location": {
+          "startingColumn": 41,
+          "startingLine": 447
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 49,
+          "startingLine": 447
+        }
+      },
+      {
+        "comment": "",
+        "key": "range",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 468
+        }
+      },
+      {
+        "comment": "",
+        "key": "of cycle",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 484
+        }
+      },
+      {
+        "comment": "",
+        "key": "Dose",
+        "location": {
+          "startingColumn": 41,
+          "startingLine": 479
+        }
+      },
+      {
+        "comment": "",
+        "key": "Day %lld",
+        "location": {
+          "startingColumn": 50,
+          "startingLine": 479
+        }
+      }
+    ]
+  },
+  "version": 1
+}

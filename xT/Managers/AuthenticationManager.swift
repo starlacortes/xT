@@ -272,6 +272,11 @@ struct AuthenticationView: View {
     }
 }
 
+#Preview {
+    AuthenticationView(reason: "Access your health data")
+        .environment(\.authenticationManager, AuthenticationManager.shared)
+}
+
 // MARK: - Environment Key
 
 // nonisolated so the default value can be created outside the main actor

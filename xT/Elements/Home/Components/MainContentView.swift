@@ -2,8 +2,8 @@
 //  MainContentView.swift
 //  xT
 //
-//  Created by Starla Cortes on 6/10/26.
-//  Main content area for HomeView
+//  Redesigned main content area. Cards are consolidated and reordered
+//  for cleaner visual hierarchy: actions → level → dose → journal → insight.
 //
 
 import SwiftUI
@@ -15,42 +15,47 @@ struct MainContentView: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            // Missed dose prompt (shows first if applicable)
+            // Missed dose prompt (urgent — always first if applicable)
             if medicationManager.isFullyConfigured && medicationManager.hasMissedDose {
                 MissedDosePrompt()
-                    .padding(.horizontal, 14)
+                    .padding(.horizontal, 16)
             }
 
-            // Quick actions card
+            // Quick actions — compact 3-button strip
             QuickActionsCard()
+                .padding(.horizontal, 16)
 
-            // Level and trend card
+            // Hormone level + sparkline
             if medicationManager.isFullyConfigured {
                 LevelTrendCard(showingGraphDetail: $showingGraphDetail)
+                    .padding(.horizontal, 16)
             }
 
-            // Next dose card
-            if medicationManager.isFullyConfigured,
-               let nextDose = medicationManager.nextDoseDate {
-                NextDoseCard(nextDose: nextDose)
+            // Dose streak / next dose
+            if medicationManager.isFullyConfigured {
+                DoseStreakCard()
+                    .padding(.horizontal, 16)
             }
 
-            // Today's journal card
+            // Today's journal entry
             if let lastEntry = journalManager.lastEntry {
                 JournalCardView(entry: lastEntry)
+                    .padding(.horizontal, 16)
             }
 
-            // Health insight card
+            // Health insight
             if medicationManager.isFullyConfigured {
                 HealthInsightCard()
+                    .padding(.horizontal, 16)
             }
         }
-        .padding(.horizontal, 14)
     }
 }
 
 #Preview {
     MainContentView(showingGraphDetail: .constant(false))
+        .padding(.vertical)
+        .background(Theme.globalBackgroundGradient)
         .environment(\.medicationManager, MedicationManager.shared)
         .environment(\.journalManager, JournalManager.shared)
 }

@@ -2,8 +2,8 @@
 //  QuickActionsCard.swift
 //  xT
 //
-//  Created by Starla Cortes on 6/10/26.
-//  Quick actions card component
+//  Redesigned as a compact 3-button strip: record dose, new journal entry,
+//  and a link to the schedule view.
 //
 
 import SwiftUI
@@ -12,104 +12,110 @@ struct QuickActionsCard: View {
     @Environment(\.medicationManager) private var medicationManager
     @Environment(\.journalManager) private var journalManager
     @State private var showingJournalComposer = false
+    @State private var showingDoseConfirmation = false
 
     var body: some View {
-        VStack(spacing: 8) {
-            HStack {
-                Text("Quick actions")
-                    .font(.system(size: 16))
-                    .fontWeight(.medium)
-                    .foregroundColor(.primary)
-                Spacer()
+        HStack(spacing: 8) {
+            actionButton(
+                icon: "checkmark.circle.fill",
+                label: "Record dose",
+                color: Theme.bloomSkinColor,
+                background: Theme.bloomSkinLightColor,
+                border: Theme.bloomSkinBorderColor
+            ) {
+                medicationManager.recordDose(on: Date())
+                showingDoseConfirmation = true
             }
 
-            HStack(spacing: 8) {
-                // Record dose button
-                Button(action: {
-                    medicationManager.recordDose(on: Date())
-                }) {
-                    HStack(spacing: 8) {
-                        ZStack {
-                            Circle()
-                                .fill(Theme.bloomSkinLightColor)
-                                .frame(width: 32, height: 32)
-
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 16))
-                                .foregroundColor(Theme.bloomSkinColor)
-                        }
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Record dose")
-                                .font(.system(size: 13))
-                                .fontWeight(.medium)
-                                .foregroundColor(.primary)
-                        }
-
-                        Spacer()
-                    }
-                    .padding(10)
-                    .background(.ultraThinMaterial)
-                    .cornerRadius(Theme.smallCornerRadius)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: Theme.smallCornerRadius)
-                            .stroke(Theme.bloomSkinBorderColor, lineWidth: 0.5)
-                    )
-                }
-                .buttonStyle(.plain)
-
-                // New journal entry button
-                Button(action: {
-                    showingJournalComposer = true
-                }) {
-                    HStack(spacing: 8) {
-                        ZStack {
-                            Circle()
-                                .fill(Theme.bloomCycleLightColor)
-                                .frame(width: 32, height: 32)
-
-                            Image(systemName: "square.and.pencil")
-                                .font(.system(size: 16))
-                                .foregroundColor(Theme.bloomCycleColor)
-                        }
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("New entry")
-                                .font(.system(size: 13))
-                                .fontWeight(.medium)
-                                .foregroundColor(.primary)
-                        }
-
-                        Spacer()
-                    }
-                    .padding(10)
-                    .background(.ultraThinMaterial)
-                    .cornerRadius(Theme.smallCornerRadius)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: Theme.smallCornerRadius)
-                            .stroke(Theme.bloomCycleBorderColor, lineWidth: 0.5)
-                    )
-                }
-                .buttonStyle(.plain)
+            actionButton(
+                icon: "square.and.pencil",
+                label: "New entry",
+                color: Theme.accentColor,
+                background: Theme.bloomCycleLightColor,
+                border: Theme.bloomCycleBorderColor
+            ) {
+                showingJournalComposer = true
             }
+
+            NavigationLink(destination: UnifiedScheduleView()) {
+                actionButtonContent(
+                    icon: "calendar",
+                    label: "Schedule",
+                    color: Theme.bloomMindColor,
+                    background: Theme.bloomMindLightColor,
+                    border: Theme.bloomMindBorderColor
+                )
+            }
+            .buttonStyle(.plain)
         }
-        .padding(14)
-        .background(.ultraThinMaterial)
-        .cornerRadius(Theme.mediumCornerRadius)
-        .overlay(
-            RoundedRectangle(cornerRadius: Theme.mediumCornerRadius)
-                .stroke(Theme.borderColor, lineWidth: 0.5)
-        )
         .sheet(isPresented: $showingJournalComposer) {
             JournalComposerView()
                 .environment(\.journalManager, journalManager)
                 .environment(\.medicationManager, medicationManager)
         }
+        .alert("Dose recorded!", isPresented: $showingDoseConfirmation) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Your dose has been recorded for today.")
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func actionButton(
+        icon: String,
+        label: String,
+        color: Color,
+        background: Color,
+        border: Color,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            actionButtonContent(icon: icon, label: label, color: color, background: background, border: border)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func actionButtonContent(
+        icon: String,
+        label: String,
+        color: Color,
+        background: Color,
+        border: Color
+    ) -> some View {
+        VStack(spacing: 6) {
+            ZStack {
+                Circle()
+                    .fill(background)
+                    .frame(width: 38, height: 38)
+
+                Image(systemName: icon)
+                    .font(.system(size: 17))
+                    .foregroundColor(color)
+            }
+
+            Text(label)
+                .font(.system(size: 11))
+                .foregroundColor(.primary)
+                .multilineTextAlignment(.center)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .background(.ultraThinMaterial)
+        .cornerRadius(Theme.smallCornerRadius)
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.smallCornerRadius)
+                .stroke(border, lineWidth: 0.5)
+        )
     }
 }
 
 #Preview {
     QuickActionsCard()
+        .padding()
+        .background(Theme.globalBackgroundGradient)
         .environment(\.medicationManager, MedicationManager.shared)
         .environment(\.journalManager, JournalManager.shared)
 }

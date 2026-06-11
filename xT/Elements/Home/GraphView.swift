@@ -63,8 +63,8 @@ struct GraphView: View {
         tooltipValue = levels[selectedDay]
         showingTooltip = true
 
-        // Calculate tooltip position
-        let widthPerDay = UIScreen.main.bounds.width / CGFloat(levels.count - 1)
+        // Calculate tooltip position using GeometryReader-safe sizing
+        let widthPerDay = 1000.0 / CGFloat(levels.count - 1)
         tooltipPosition = CGPoint(
             x: CGFloat(selectedDay) * widthPerDay,
             y: getYPosition(for: tooltipValue, in: 180) - 30
@@ -374,7 +374,8 @@ struct ChartAreaView: View {
 
     private func handleChartTap(location: CGPoint) {
         // Convert tap location to day index
-        let widthPerDay = UIScreen.main.bounds.width / CGFloat(levels.count - 1)
+        // Using widthPerDay consistent with updateTooltip
+        let widthPerDay = 1000.0 / CGFloat(levels.count - 1)
         let tappedDay = Int(location.x / widthPerDay)
         selectedDay = max(0, min(levels.count - 1, tappedDay))
     }

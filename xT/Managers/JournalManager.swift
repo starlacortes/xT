@@ -7,11 +7,15 @@
 //
 //
 import SwiftUI
+import SwiftData
 import Foundation
-import CryptoKit
 
+@MainActor
 class JournalManager: ObservableObject {
     static let shared = JournalManager()
+
+    /// Injected from the app container.
+    var modelContext: ModelContext?
 
     @Published var entries: [JournalEntry] = []
     @Published var currentMood: Mood = .neutral
@@ -20,13 +24,13 @@ class JournalManager: ObservableObject {
     // Load from persistence
     init() {
         loadEntries()
-        migrateToEncryptedStorage()
     }
 
     // CRUD operations
     func addEntry(_ entry: JournalEntry) {
         entries.insert(entry, at: 0)
-        persistEntries()
+        modelContext?.insert(entry)
+        try? modelContext?.save()
     }
 
     func updateCurrentMood(_ mood: Mood) {
@@ -52,24 +56,15 @@ class JournalManager: ObservableObject {
         return entry
     }
 
-    // Persistence methods
-    private func loadEntries() {
-        let defaults = UserDefaults.standard
-        let securityManager = SecurityManager.shared
+    // MARK: - Persistence
 
-        // Try encrypted data first
-        if let encryptedEntriesData = defaults.data(forKey: "encryptedJournalEntries"),
-           let decryptedEntriesData = securityManager.decryptData(encryptedEntriesData),
-           let decoded = try? JSONDecoder().decode([JournalEntry].self, from: decryptedEntriesData) {
-            entries = decoded
-        }
-        // Fallback to unencrypted data (migration)
-        else if let data = defaults.data(forKey: "journalEntries"),
-                let decoded = try? JSONDecoder().decode([JournalEntry].self, from: data) {
-            entries = decoded
-        }
+    /// Loads journal entries from SwiftData.
+    func loadEntries() {
+        guard let context = modelContext else { return }
+        let descriptor = SortDescriptor<JournalEntry>(\JournalEntry.date, order: .forward)
+        let allEntries = try? context.fetch(FetchDescriptor<JournalEntry>(sortBy: [descriptor]))
+        entries = (allEntries ?? []).sorted { $0.date > $1.date } // newest first
 
-        // Set default current mood if no entries exist
         if entries.isEmpty {
             currentMood = .neutral
         } else if let lastEntry = entries.first {
@@ -78,45 +73,17 @@ class JournalManager: ObservableObject {
         }
     }
 
-    private func persistEntries() {
-        let defaults = UserDefaults.standard
-        let securityManager = SecurityManager.shared
-
-        if let encoded = try? JSONEncoder().encode(entries) {
-            if let encryptedEntries = securityManager.encryptData(encoded) {
-                defaults.set(encryptedEntries, forKey: "encryptedJournalEntries")
-            }
-        }
-
-        // Clear old unencrypted data
-        defaults.removeObject(forKey: "journalEntries")
-    }
-
-    /// Migrate existing unencrypted data to encrypted storage
-    private func migrateToEncryptedStorage() {
-        let defaults = UserDefaults.standard
-        let securityManager = SecurityManager.shared
-
-        // Check if migration is needed
-        if defaults.object(forKey: "encryptedJournalEntries") != nil {
-            return // Already migrated
-        }
-
-        // Migrate journal entries
-        if let unencryptedData = defaults.data(forKey: "journalEntries") {
-            if let encryptedData = securityManager.encryptData(unencryptedData) {
-                defaults.set(encryptedData, forKey: "encryptedJournalEntries")
-                defaults.removeObject(forKey: "journalEntries")
-            }
-        }
-    }
-
     // Clear all journal data (for testing)
     func clearAllData() {
+        guard let context = modelContext else { return }
+        let all = try? context.fetch(FetchDescriptor<JournalEntry>())
+        for entry in all ?? [] {
+            context.delete(entry)
+        }
         entries.removeAll()
         currentMood = .neutral
         currentSymptoms = []
-        persistEntries()
+        try? context.save()
     }
 
     // Create sample entries for demo purposes
@@ -169,13 +136,20 @@ class JournalManager: ObservableObject {
 
         // Add entries in reverse chronological order
         entries = [todayEntry, yesterdayEntry, twoDaysAgoEntry, fiveDaysAgoEntry, sixDaysAgoEntry]
-        persistEntries()
+        for entry in entries {
+            modelContext?.insert(entry)
+        }
+        try? modelContext?.save()
     }
 }
 
-// Environment extension
+// EnvironmentKey for JournalManager.
+// defaultValue is @MainActor because JournalManager is @MainActor.
+// EnvironmentValues is also @MainActor, so there's no actual race condition.
 struct JournalManagerKey: EnvironmentKey {
-    static let defaultValue = JournalManager()
+    static var defaultValue: JournalManager {
+        .shared
+    }
 }
 
 extension EnvironmentValues {

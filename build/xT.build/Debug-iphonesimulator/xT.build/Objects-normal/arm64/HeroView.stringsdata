@@ -1,0 +1,32 @@
+{
+  "source": "/Users/starlacortes/Documents/xT/xT/Elements/Home/HeroView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Good %@",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 41
+        }
+      },
+      {
+        "comment": "",
+        "key": "Hi %@ ✦",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 46
+        }
+      },
+      {
+        "comment": "",
+        "key": "· Day %lld",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 61
+        }
+      }
+    ]
+  },
+  "version": 1
+}

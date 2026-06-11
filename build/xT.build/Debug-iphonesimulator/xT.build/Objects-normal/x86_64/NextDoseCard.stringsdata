@@ -1,0 +1,32 @@
+{
+  "source": "/Users/starlacortes/Documents/xT/xT/Elements/Home/Components/NextDoseCard.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "next dose",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 17
+        }
+      },
+      {
+        "comment": "",
+        "key": "in",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 30
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld day%@",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 35
+        }
+      }
+    ]
+  },
+  "version": 1
+}

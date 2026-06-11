@@ -1,0 +1,32 @@
+{
+  "source": "/Users/starlacortes/Documents/xT/xT/Elements/Journal/Components/JournalDetailSheet.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Entry",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 54
+        }
+      },
+      {
+        "comment": "",
+        "key": "Symptoms",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 78
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 114
+        }
+      }
+    ]
+  },
+  "version": 1
+}

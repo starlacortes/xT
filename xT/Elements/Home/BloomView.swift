@@ -85,6 +85,10 @@ struct BloomSectionLabel: View {
     }
 }
 
+#Preview {
+    BloomSectionLabel(text: "Section Title")
+}
+
 // MARK: - Timeline Header Card
 
 struct BloomTimelineHeader: View {
@@ -375,4 +379,113 @@ struct BloomMilestoneCard: View {
 #Preview {
     BloomView()
         .environment(\.medicationManager, MedicationManager.shared)
+}
+
+// MARK: - Previews for Subviews
+
+#Preview("BloomTimelineHeader") {
+    let engine = BloomContentEngine(
+        medication: "Estrogen",
+        method: "Injectable",
+        months: 6,
+        currentLevel: 150.0
+    )
+    return BloomTimelineHeader(engine: engine)
+}
+
+#Preview("BloomChangeChip") {
+    BloomChangeChip(change: BloomChange(label: "Skin softening", unlocked: true))
+}
+
+#Preview("BloomHormoneCard") {
+    let insight = BloomHormoneInsight(
+        level: 150.0,
+        unit: "pg/mL",
+        rangeLabel: "Optimal",
+        bodyDescription: "Your hormone levels are in the optimal range for your current stage.",
+        rangePalette: BloomPalette(
+            surface: Color(hex: "#F0F8F5"),
+            border: Color(hex: "#C0E8D5"),
+            accent: Color(hex: "#0F6E56"),
+            title: Color(hex: "#0F6E56"),
+            progress: Color(hex: "#0F6E56"),
+            iconBorder: Color(hex: "#C0E8D5")
+        )
+    )
+    BloomHormoneCard(insight: insight, medication: "Estrogen")
+}
+
+#Preview("BloomBodySystemGrid") {
+    let systems = [
+        BloomBodySystem(
+            title: "Skin",
+            subtitle: "Softening and hydration",
+            icon: "sparkles",
+            palette: BloomPalette(
+                surface: Color(hex: "#FEF6F0"),
+                border: Color(hex: "#F4D4B8"),
+                accent: Color(hex: "#D4537E"),
+                title: Color(hex: "#D4537E"),
+                progress: Color(hex: "#D4537E"),
+                iconBorder: Color(hex: "#F4D4B8")
+            ),
+            progressFraction: 0.75,
+            progressLabel: "75% complete"
+        ),
+        BloomBodySystem(
+            title: "Mood",
+            subtitle: "Emotional regulation",
+            icon: "brain",
+            palette: BloomPalette(
+                surface: Color(hex: "#F0F8F5"),
+                border: Color(hex: "#C0E8D5"),
+                accent: Color(hex: "#0F6E56"),
+                title: Color(hex: "#0F6E56"),
+                progress: Color(hex: "#0F6E56"),
+                iconBorder: Color(hex: "#C0E8D5")
+            ),
+            progressFraction: 0.50,
+            progressLabel: "50% complete"
+        )
+    ]
+    BloomBodySystemGrid(systems: systems)
+}
+
+#Preview("BloomBodySystemCard") {
+        let system = BloomBodySystem(
+            title: "Skin",
+            subtitle: "Softening and hydration",
+            icon: "sparkles",
+            palette: BloomPalette(
+                surface: Color(hex: "#FEF6F0"),
+                border: Color(hex: "#F4D4B8"),
+                accent: Color(hex: "#D4537E"),
+                title: Color(hex: "#D4537E"),
+                progress: Color(hex: "#D4537E"),
+                iconBorder: Color(hex: "#F4D4B8")
+            ),
+            progressFraction: 0.75,
+            progressLabel: "75% complete"
+        )
+    BloomBodySystemCard(system: system)
+        .frame(width: 180)
+}
+
+#Preview("BloomMilestoneCard") {
+        let milestone = BloomMilestone(
+            title: "3 Months",
+            description: "You may start noticing changes in skin texture and emotional regulation.",
+            icon: "clock",
+            palette: BloomPalette(
+                surface: Color(hex: "#FEF6F0"),
+                border: Color(hex: "#F4D4B8"),
+                accent: Color(hex: "#D4537E"),
+                title: Color(hex: "#D4537E"),
+                progress: Color(hex: "#D4537E"),
+                iconBorder: Color(hex: "#F4D4B8")
+            ),
+            badge: "Upcoming"
+        )
+    BloomMilestoneCard(milestone: milestone)
+        .frame(width: 300)
 }
