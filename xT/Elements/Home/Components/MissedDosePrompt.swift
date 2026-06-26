@@ -2,8 +2,7 @@
 //  MissedDosePrompt.swift
 //  xT
 //
-//  Created by Cline on 5/28/2026.
-//  Missed dose prompt component for HomeView
+//  Missed dose prompt component for HomeView.
 //
 
 import SwiftUI
@@ -12,35 +11,37 @@ struct MissedDosePrompt: View {
     @Environment(\.medicationManager) private var medicationManager
     @State private var showingRecordDose = false
 
+    // Rose text that reads clearly on the cycle surface in both modes
+    private static let cycleText = Color(lightHex: "#993554", darkHex: "#F4A8C0")
+
     var body: some View {
-        VStack(spacing: 12) {
-            // Icon and title
-            HStack(spacing: 12) {
+        VStack(spacing: Theme.Spacing.md) {
+            HStack(spacing: Theme.Spacing.md) {
                 // Warning icon
                 ZStack {
                     Circle()
-                        .fill(Color(red: 0.98, green: 0.92, blue: 0.94))
+                        .fill(Theme.Colors.Bloom.cycle.surface)
                         .frame(width: 40, height: 40)
                         .overlay(
                             Circle()
-                                .stroke(Color(red: 0.96, green: 0.75, blue: 0.82), lineWidth: 0.5)
+                                .stroke(Theme.Colors.Bloom.cycle.border, lineWidth: 0.5)
                         )
 
                     Image(systemName: "exclamationmark.triangle.fill")
                         .font(.system(size: 20))
-                        .foregroundColor(Color(red: 0.60, green: 0.21, blue: 0.33))
+                        .foregroundStyle(Self.cycleText)
                 }
 
-                // Title and subtitle
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Missed dose?")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(Color(red: 0.60, green: 0.21, blue: 0.33))
+                        .font(Theme.Fonts.callout)
+                        .fontWeight(.medium)
+                        .foregroundStyle(Self.cycleText)
 
                     if let days = medicationManager.daysSinceMissedDose {
                         Text("Your dose was due \(days) day\(days == 1 ? "" : "s") ago")
-                            .font(.system(size: 12))
-                            .foregroundColor(Color(.tertiaryLabel))
+                            .font(Theme.Fonts.caption)
+                            .foregroundStyle(Theme.Colors.textTertiary)
                     }
                 }
 
@@ -48,55 +49,52 @@ struct MissedDosePrompt: View {
             }
 
             // Action buttons
-            HStack(spacing: 12) {
-                // Record dose now button
-                Button(action: {
-                    showingRecordDose = true
-                }) {
+            HStack(spacing: Theme.Spacing.md) {
+                Button(action: { showingRecordDose = true }) {
                     Text("Record dose now")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(Color(red: 0.60, green: 0.21, blue: 0.33))
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background(Color(red: 0.98, green: 0.92, blue: 0.94))
-                        .cornerRadius(10)
+                        .font(Theme.Fonts.footnote)
+                        .fontWeight(.medium)
+                        .foregroundStyle(Self.cycleText)
+                        .padding(.horizontal, Theme.Spacing.lg)
+                        .padding(.vertical, Theme.Spacing.sm)
+                        .background(Theme.Colors.Bloom.cycle.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 10)
-                                .stroke(Color(red: 0.96, green: 0.75, blue: 0.82), lineWidth: 0.5)
+                            RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                                .stroke(Theme.Colors.Bloom.cycle.border, lineWidth: 0.5)
                         )
                 }
                 .buttonStyle(.plain)
 
-                // Adjust schedule button
                 NavigationLink(destination: UnifiedScheduleView()) {
                     Text("Adjust schedule")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(Color(red: 0.32, green: 0.29, blue: 0.71))
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background(Color(red: 0.93, green: 0.93, blue: 0.99))
-                        .cornerRadius(10)
+                        .font(Theme.Fonts.footnote)
+                        .fontWeight(.medium)
+                        .foregroundStyle(Theme.Colors.Bloom.mind.base)
+                        .padding(.horizontal, Theme.Spacing.lg)
+                        .padding(.vertical, Theme.Spacing.sm)
+                        .background(Theme.Colors.Bloom.mind.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 10)
-                                .stroke(Color(red: 0.85, green: 0.83, blue: 0.95), lineWidth: 0.5)
+                            RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                                .stroke(Theme.Colors.Bloom.mind.border, lineWidth: 0.5)
                         )
                 }
                 .buttonStyle(.plain)
             }
 
-            // Helpful message
             Text("It's okay! Just record your dose or adjust your schedule to get back on track.")
-                .font(.system(size: 11))
-                .foregroundColor(Color(.tertiaryLabel))
+                .font(Theme.Fonts.caption2)
+                .foregroundStyle(Theme.Colors.textTertiary)
                 .multilineTextAlignment(.leading)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(14)
+        .padding(Theme.Spacing.card)
         .background(Color.clear)
-        .cornerRadius(16)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md))
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color(red: 0.96, green: 0.75, blue: 0.82), lineWidth: 1.0)
+            RoundedRectangle(cornerRadius: Theme.Radius.md)
+                .stroke(Theme.Colors.Bloom.cycle.border, lineWidth: 1.0)
         )
         .sheet(isPresented: $showingRecordDose) {
             RecordDoseView()
@@ -106,7 +104,8 @@ struct MissedDosePrompt: View {
     }
 }
 
-// MARK: - Record Dose View (Sheet)
+// MARK: - Record Dose Sheet
+
 struct RecordDoseView: View {
     @Environment(\.medicationManager) private var medicationManager
     @Environment(\.dismiss) private var dismiss
@@ -116,59 +115,58 @@ struct RecordDoseView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 20) {
-                // Header
+            VStack(spacing: Theme.Spacing.xl) {
                 Text("Record your dose")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundColor(Color(red: 0.60, green: 0.21, blue: 0.33))
+                    .font(Theme.Fonts.title3)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Theme.Colors.accent)
 
-                // Date picker
-                DatePicker("When did you take your dose?", selection: $selectedDate, displayedComponents: [.date, .hourAndMinute])
-                    .datePickerStyle(.graphical)
-                    .padding(.horizontal, 20)
+                DatePicker(
+                    "When did you take your dose?",
+                    selection: $selectedDate,
+                    displayedComponents: [.date, .hourAndMinute]
+                )
+                .datePickerStyle(.graphical)
+                .padding(.horizontal, Theme.Spacing.xl)
 
-                // Record button
-                Button(action: {
+                Button {
                     medicationManager.recordDose(on: selectedDate)
                     showingConfirmation = true
-
-                    // Dismiss after a short delay
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                         dismiss()
                     }
-                }) {
+                } label: {
                     Text("Record dose")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.white)
+                        .font(Theme.Fonts.callout)
+                        .fontWeight(.medium)
+                        .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
-                        .background(Color(red: 0.60, green: 0.21, blue: 0.33))
-                        .cornerRadius(12)
+                        .background(Theme.Colors.accent)
+                        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
                 }
-                .padding(.horizontal, 20)
+                .buttonStyle(.plain)
+                .padding(.horizontal, Theme.Spacing.xl)
 
                 if showingConfirmation {
                     Text("✓ Dose recorded successfully!")
-                        .font(.system(size: 14))
-                        .foregroundColor(Color(red: 0.23, green: 0.43, blue: 0.07))
+                        .font(Theme.Fonts.footnote)
+                        .foregroundStyle(Theme.Colors.success)
                         .transition(.opacity)
                 }
             }
-            .padding(.top, 20)
+            .padding(.top, Theme.Spacing.xl)
             .padding(.bottom, 40)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
+                    Button("Done") { dismiss() }
                 }
             }
         }
     }
 }
 
-// MARK: - Preview
 #Preview {
     MissedDosePrompt()
         .environment(\.medicationManager, MedicationManager.shared)

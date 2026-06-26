@@ -2,8 +2,9 @@
 //  MainContentView.swift
 //  xT
 //
-//  Redesigned main content area. Cards are consolidated and reordered
-//  for cleaner visual hierarchy: actions → level → dose → journal → insight.
+//  Streamlined card stack. HybridStatusCard replaces the separate
+//  LevelTrendCard + DoseStreakCard pair. DiscoveryRow removed (placeholder
+//  content). Horizontal padding lives in HomeView, not here.
 //
 
 import SwiftUI
@@ -14,48 +15,49 @@ struct MainContentView: View {
     @Binding var showingGraphDetail: Bool
 
     var body: some View {
-        VStack(spacing: 10) {
-            // Missed dose prompt (urgent — always first if applicable)
+        VStack(spacing: 14) {
+            // Missed dose prompt — urgent, always surfaces first
             if medicationManager.isFullyConfigured && medicationManager.hasMissedDose {
                 MissedDosePrompt()
-                    .padding(.horizontal, 16)
+                    .transition(.opacity)
+                    .entrance(index: 0)
             }
 
-            // Quick actions — compact 3-button strip
+            // Quick actions strip
             QuickActionsCard()
-                .padding(.horizontal, 16)
+                .transition(.opacity)
+                .entrance(index: 1)
 
-            // Hormone level + sparkline
+            // Hormone level + trend + next dose + streak — single unified card
             if medicationManager.isFullyConfigured {
-                LevelTrendCard(showingGraphDetail: $showingGraphDetail)
-                    .padding(.horizontal, 16)
+                HybridStatusCard(showingGraphDetail: $showingGraphDetail)
+                    .transition(.opacity)
+                    .entrance(index: 2)
             }
 
-            // Dose streak / next dose
-            if medicationManager.isFullyConfigured {
-                DoseStreakCard()
-                    .padding(.horizontal, 16)
-            }
-
-            // Today's journal entry
-            if let lastEntry = journalManager.lastEntry {
-                JournalCardView(entry: lastEntry)
-                    .padding(.horizontal, 16)
-            }
-
-            // Health insight
+            // Contextual health insight
             if medicationManager.isFullyConfigured {
                 HealthInsightCard()
-                    .padding(.horizontal, 16)
+                    .transition(.opacity)
+                    .entrance(index: 3)
+            }
+
+            // Today's journal snapshot
+            if let lastEntry = journalManager.lastEntry {
+                JournalCardView(entry: lastEntry)
+                    .transition(.opacity)
+                    .entrance(index: 4)
             }
         }
+        .animation(.easeInOut(duration: 0.3), value: medicationManager.hasMissedDose)
     }
 }
 
 #Preview {
     MainContentView(showingGraphDetail: .constant(false))
+        .padding(.horizontal, 18)
         .padding(.vertical)
-        .background(Theme.globalBackgroundGradient)
+        .background(AnimatedMeshGradient().ignoresSafeArea())
         .environment(\.medicationManager, MedicationManager.shared)
         .environment(\.journalManager, JournalManager.shared)
 }

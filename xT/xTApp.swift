@@ -17,7 +17,8 @@ struct ModelContainerKey: EnvironmentKey {
     static let defaultValue: ModelContainer? = nil
 }
 
-struct NotificationManagerKey: EnvironmentKey {
+@MainActor
+struct NotificationManagerKey: @MainActor EnvironmentKey {
     // Bridge to @MainActor singleton safely: EnvironmentValues is itself MainActor-isolated,
     // so this defaultValue is always accessed on the main actor with no race condition.
     static var defaultValue: NotificationManager {
@@ -26,19 +27,22 @@ struct NotificationManagerKey: EnvironmentKey {
 }
 
 extension EnvironmentValues {
+    @MainActor
+    var notificationManager: NotificationManager {
+        get { self[NotificationManagerKey.self] }
+        set { self[NotificationManagerKey.self] = newValue }
+    }
+}
+
+extension EnvironmentValues {
     var securityManager: SecurityManager {
         get { self[SecurityManagerKey.self] }
         set { self[SecurityManagerKey.self] = newValue }
     }
-    
+
     var modelContainer: ModelContainer? {
         get { self[ModelContainerKey.self] }
         set { self[ModelContainerKey.self] = newValue }
-    }
-
-    var notificationManager: NotificationManager {
-        get { self[NotificationManagerKey.self] }
-        set { self[NotificationManagerKey.self] = newValue }
     }
 }
 
@@ -57,7 +61,26 @@ struct xTApp: App {
         do {
             return try ModelContainer(for: schema, configurations: [modelConfiguration])
         } catch {
-            fatalError("Could not create ModelContainer: \(error)")
+            print("[xTApp] Failed to create ModelContainer: \(error)")
+            print("[xTApp] Deleting corrupted store and retrying...")
+            
+            let supportDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+            let storeURL = supportDir.appendingPathComponent("default.store")
+            
+            do {
+                try FileManager.default.removeItem(at: storeURL)
+                try? FileManager.default.removeItem(at: storeURL.appendingPathComponent("sqlite-shm"))
+                try? FileManager.default.removeItem(at: storeURL.appendingPathComponent("sqlite-wal"))
+            } catch {
+                print("[xTApp] Could not remove store: \(error)")
+            }
+            
+            let memoryConfig = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+            do {
+                return try ModelContainer(for: schema, configurations: [memoryConfig])
+            } catch {
+                fatalError("Could not create ModelContainer: \(error)")
+            }
         }
     }()
     
@@ -72,9 +95,14 @@ struct xTApp: App {
         NotificationManager.shared.scheduleAllReminders()
     }
     
+    @Environment(\.scenePhase) private var scenePhase
+
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .onChange(of: scenePhase) { _, newPhase in
+                    AuthenticationManager.shared.handleScenePhase(newPhase)
+                }
         }
         .environment(\.modelContainer, Self.modelContainer)
         .environment(\.medicationManager, MedicationManager.shared)

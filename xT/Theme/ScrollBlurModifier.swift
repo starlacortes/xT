@@ -8,7 +8,6 @@
 
 import SwiftUI
 
-/// Scroll blur modifier that adds a blur effect under the notch when scrolling up
 struct ScrollBlurModifier: ViewModifier {
     @State private var scrollOffset: CGFloat = 0
 
@@ -29,7 +28,8 @@ struct ScrollBlurModifier: ViewModifier {
                 }
             }
             .overlay(
-                VisualEffectView(effect: UIBlurEffect(style: .systemThinMaterial))
+                Rectangle()
+                    .fill(.ultraThinMaterial)
                     .opacity(scrollOffset < -20 ? 1 : 0)
                     .frame(height: scrollOffset < -20 ? 80 : 0)
                     .clipped()
@@ -39,7 +39,6 @@ struct ScrollBlurModifier: ViewModifier {
     }
 }
 
-/// Helper for scroll offset tracking
 struct ScrollOffsetPreferenceKey: PreferenceKey {
     static var defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
@@ -47,20 +46,6 @@ struct ScrollOffsetPreferenceKey: PreferenceKey {
     }
 }
 
-/// UIKit VisualEffectView wrapper for SwiftUI
-struct VisualEffectView: UIViewRepresentable {
-    var effect: UIVisualEffect?
-
-    func makeUIView(context: UIViewRepresentableContext<Self>) -> UIVisualEffectView {
-        UIVisualEffectView()
-    }
-
-    func updateUIView(_ uiView: UIVisualEffectView, context: UIViewRepresentableContext<Self>) {
-        uiView.effect = effect
-    }
-}
-
-/// Extension for easy use
 extension View {
     func scrollBlurEffect() -> some View {
         self.modifier(ScrollBlurModifier())

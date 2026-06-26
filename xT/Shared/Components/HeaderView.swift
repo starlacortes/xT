@@ -19,7 +19,7 @@ struct HeaderView: View {
             HStack(spacing: 12) {
                 // Avatar
                 ZStack {
-                    Theme.globalBackgroundGradient
+                    Theme.Gradients.brand
                         .frame(width: 66, height: 66)
                         .clipShape(Circle())
 

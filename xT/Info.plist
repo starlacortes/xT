@@ -4,9 +4,5 @@
 <dict>
 	<key>CFBundleIconName</key>
 	<string>xTGlassIcon</string>
-	<key>UILaunchStoryboardName</key>
-	<string>xTLaunchScreen.storyboard</string>
-	<key>LSApplicationCategoryType</key>
-	<string>public.app-category.healthcare-fitness</string>
 </dict>
 </plist>

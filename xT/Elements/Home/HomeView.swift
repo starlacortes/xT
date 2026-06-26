@@ -2,7 +2,8 @@
 //  HomeView.swift
 //  xT
 //
-//  Redesigned home view. The gradient hero replaces the old HeaderView.
+//  Home tab. HeroView goes full-bleed; MainContentView gets consistent
+//  horizontal padding from here so child cards don't double-pad.
 //
 
 import SwiftUI
@@ -17,17 +18,17 @@ struct HomeView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 0) {
-                    
                     HeroView()
 
                     MainContentView(showingGraphDetail: $showingGraphDetail)
-                        .padding(.top, 14)
-                        .padding(.bottom, 24)
+                        .padding(.horizontal, 18)
+                        .padding(.top, 16)
+                        .padding(.bottom, 32)
                 }
             }
-            
-            .navigationBarHidden(true)
-            .background(Theme.globalBackgroundGradient.ignoresSafeArea())
+            .coordinateSpace(.named("homeScroll"))
+            .toolbar(.hidden, for: .navigationBar)
+            .background(AnimatedMeshGradient().ignoresSafeArea())
         }
         .sheet(isPresented: $showingGraphDetail) {
             GraphView()

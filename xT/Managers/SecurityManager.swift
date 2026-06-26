@@ -1,106 +1,108 @@
-//
-//  SecurityManager.swift
-//  xT
-//
-//  Created by Cline on 4/16/2026.
-//  Security management system for encryption and authentication
-//
-
 import Foundation
 import Security
 import LocalAuthentication
 import CryptoKit
+import OSLog
 
-class SecurityManager {
+private let log = Logger(subsystem: "com.starlacortes.xT", category: "security")
+
+enum SecurityError: Error {
+    case keyGenerationFailed
+    case keychainSaveFailed(OSStatus)
+    case keychainReadFailed(OSStatus)
+    case keychainDeleteFailed(OSStatus)
+    case encryptionFailed(Error)
+    case decryptionFailed(Error)
+    case biometricNotAvailable
+    case authenticationFailed(Error)
+    case passcodeNotSet
+}
+
+final class SecurityManager: Sendable {
     static let shared = SecurityManager()
 
-    // Keychain service identifier
     private let serviceName = "com.starlacortes.xT.security"
-
-    // Encryption key tag
     private let encryptionKeyTag = "xTEncryptionKey"
 
-    // Biometric authentication context
-    private let authContext = LAContext()
-
-    /// Generate or retrieve encryption key from Keychain
-    func getEncryptionKey() -> SymmetricKey? {
-        // Check if key exists in Keychain
-        if let keyData = getKeyFromKeychain() {
+    func getEncryptionKey() throws -> SymmetricKey {
+        if let keyData = try? getKeyFromKeychain() {
             return SymmetricKey(data: keyData)
         }
-
-        // Generate new key if none exists
         let newKey = SymmetricKey(size: .bits256)
         let keyData = newKey.withUnsafeBytes { Data($0) }
-
-        // Store new key in Keychain
-        if saveKeyToKeychain(keyData) {
-            return newKey
-        }
-
-        return nil
+        try saveKeyToKeychain(keyData)
+        return newKey
     }
 
-    /// Encrypt data using AES-256-GCM
-    func encryptData(_ data: Data) -> Data? {
-        guard let key = getEncryptionKey() else { return nil }
-
+    func encryptData(_ data: Data) throws -> Data {
+        let key = try getEncryptionKey()
         do {
             let sealedBox = try AES.GCM.seal(data, using: key)
-            return sealedBox.combined
+            return sealedBox.combined!
         } catch {
-            print("Encryption failed: \(error)")
-            return nil
+            throw SecurityError.encryptionFailed(error)
         }
     }
 
-    /// Decrypt data using AES-256-GCM
-    func decryptData(_ encryptedData: Data) -> Data? {
-        guard let key = getEncryptionKey() else { return nil }
-
+    func decryptData(_ encryptedData: Data) throws -> Data {
+        let key = try getEncryptionKey()
         do {
             let sealedBox = try AES.GCM.SealedBox(combined: encryptedData)
-            let decryptedData = try AES.GCM.open(sealedBox, using: key)
-            return decryptedData
+            return try AES.GCM.open(sealedBox, using: key)
         } catch {
-            print("Decryption failed: \(error)")
-            return nil
+            throw SecurityError.decryptionFailed(error)
         }
     }
 
-    /// Check if biometric authentication is available
     func canUseBiometrics() -> Bool {
-        var error: NSError?
-        return authContext.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error)
+        LAContext().canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: nil)
     }
 
-    /// Authenticate using biometrics
-    func authenticateWithBiometrics(reason: String, completion: @escaping (Bool, Error?) -> Void) {
+    func authenticateWithBiometrics(reason: String) async throws {
+        let context = LAContext()
         var error: NSError?
-
-        if authContext.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) {
-            authContext.evaluatePolicy(
-                .deviceOwnerAuthenticationWithBiometrics,
-                localizedReason: reason
-            ) { success, authenticationError in
-                DispatchQueue.main.async {
-                    completion(success, authenticationError)
-                }
+        guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) else {
+            if let error {
+                throw SecurityError.authenticationFailed(error)
             }
-        } else {
-            completion(false, error)
+            throw SecurityError.biometricNotAvailable
+        }
+        do {
+            let success = try await context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: reason)
+            guard success else {
+                throw SecurityError.authenticationFailed(LAError(.userCancel))
+            }
+        } catch {
+            throw SecurityError.authenticationFailed(error)
         }
     }
 
-    /// Check if device passcode is set
-    func isPasscodeSet() -> Bool {
-        return authContext.canEvaluatePolicy(.deviceOwnerAuthentication, error: nil)
+    func authenticateWithDevicePasscode(reason: String) async throws {
+        let context = LAContext()
+        var error: NSError?
+        guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else {
+            if context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: nil) {
+                try await authenticateWithBiometrics(reason: reason)
+            }
+            throw SecurityError.passcodeNotSet
+        }
+        do {
+            let success = try await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason)
+            guard success else {
+                throw SecurityError.authenticationFailed(LAError(.userCancel))
+            }
+        } catch {
+            throw SecurityError.authenticationFailed(error)
+        }
     }
 
-    // MARK: - Private Keychain Methods
+    func isPasscodeSet() -> Bool {
+        LAContext().canEvaluatePolicy(.deviceOwnerAuthentication, error: nil)
+    }
 
-    private func saveKeyToKeychain(_ keyData: Data) -> Bool {
+    // MARK: - Keychain
+
+    private func saveKeyToKeychain(_ keyData: Data) throws {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: serviceName,
@@ -108,16 +110,14 @@ class SecurityManager {
             kSecValueData as String: keyData,
             kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         ]
-
-        // Delete existing key first
         SecItemDelete(query as CFDictionary)
-
-        // Add new key
         let status = SecItemAdd(query as CFDictionary, nil)
-        return status == errSecSuccess
+        guard status == errSecSuccess else {
+            throw SecurityError.keychainSaveFailed(status)
+        }
     }
 
-    private func getKeyFromKeychain() -> Data? {
+    private func getKeyFromKeychain() throws -> Data {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: serviceName,
@@ -125,25 +125,23 @@ class SecurityManager {
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne
         ]
-
         var dataTypeRef: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &dataTypeRef)
-
-        if status == errSecSuccess, let data = dataTypeRef as? Data {
-            return data
+        guard status == errSecSuccess, let data = dataTypeRef as? Data else {
+            throw SecurityError.keychainReadFailed(status)
         }
-
-        return nil
+        return data
     }
 
-    private func deleteKeyFromKeychain() -> Bool {
+    private func deleteKeyFromKeychain() throws {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: serviceName,
             kSecAttrAccount as String: encryptionKeyTag
         ]
-
         let status = SecItemDelete(query as CFDictionary)
-        return status == errSecSuccess
+        guard status == errSecSuccess else {
+            throw SecurityError.keychainDeleteFailed(status)
+        }
     }
 }

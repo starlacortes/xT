@@ -7,7 +7,7 @@
         "key": "xT",
         "location": {
           "startingColumn": 18,
-          "startingLine": 105
+          "startingLine": 106
         }
       },
       {
@@ -15,7 +15,7 @@
         "key": "Welcome to your journey",
         "location": {
           "startingColumn": 18,
-          "startingLine": 110
+          "startingLine": 111
         }
       },
       {
@@ -23,14 +23,14 @@
         "key": "Begin",
         "location": {
           "startingColumn": 22,
-          "startingLine": 120
+          "startingLine": 121
         }
       },
       {
         "comment": "",
         "key": "This is your space",
         "location": {
-          "startingColumn": 18,
+          "startingColumn": 22,
           "startingLine": 181
         }
       },
@@ -38,119 +38,119 @@
         "comment": "",
         "key": "Tap to add photo",
         "location": {
-          "startingColumn": 18,
-          "startingLine": 201
+          "startingColumn": 22,
+          "startingLine": 202
         }
       },
       {
         "comment": "",
         "key": "Your name",
         "location": {
-          "startingColumn": 27,
-          "startingLine": 207
+          "startingColumn": 31,
+          "startingLine": 208
         }
       },
       {
         "comment": "",
         "key": "Back",
         "location": {
-          "startingColumn": 26,
-          "startingLine": 240
+          "startingColumn": 30,
+          "startingLine": 239
         }
       },
       {
         "comment": "",
         "key": "Continue",
         "location": {
-          "startingColumn": 26,
-          "startingLine": 253
+          "startingColumn": 30,
+          "startingLine": 252
         }
       },
       {
         "comment": "",
         "key": "Let's set up your tracking",
         "location": {
-          "startingColumn": 18,
-          "startingLine": 308
+          "startingColumn": 26,
+          "startingLine": 314
         }
       },
       {
         "comment": "",
         "key": "Medication type",
         "location": {
-          "startingColumn": 22,
-          "startingLine": 317
+          "startingColumn": 30,
+          "startingLine": 324
         }
       },
       {
         "comment": "",
         "key": "Administration method",
         "location": {
-          "startingColumn": 26,
-          "startingLine": 334
+          "startingColumn": 34,
+          "startingLine": 342
         }
       },
       {
         "comment": "",
         "key": "Ester",
         "location": {
-          "startingColumn": 26,
-          "startingLine": 360
+          "startingColumn": 34,
+          "startingLine": 369
         }
       },
       {
         "comment": "",
         "key": "Dose amount",
         "location": {
-          "startingColumn": 26,
-          "startingLine": 374
+          "startingColumn": 34,
+          "startingLine": 384
         }
       },
       {
         "comment": "",
         "key": "mg",
         "location": {
-          "startingColumn": 30,
-          "startingLine": 426
+          "startingColumn": 38,
+          "startingLine": 445
         }
       },
       {
         "comment": "",
         "key": "",
         "location": {
-          "startingColumn": 33,
-          "startingLine": 381
+          "startingColumn": 41,
+          "startingLine": 391
         }
       },
       {
         "comment": "",
         "key": "",
         "location": {
-          "startingColumn": 35,
-          "startingLine": 396
+          "startingColumn": 43,
+          "startingLine": 406
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 52,
+          "startingLine": 438
         }
       },
       {
         "comment": "",
         "key": "Back",
         "location": {
-          "startingColumn": 30,
-          "startingLine": 447
+          "startingColumn": 38,
+          "startingLine": 465
         }
       },
       {
         "comment": "",
         "key": "You're all set",
         "location": {
-          "startingColumn": 30,
-          "startingLine": 499
-        }
-      },
-      {
-        "comment": "",
-        "key": "Back",
-        "location": {
-          "startingColumn": 26,
+          "startingColumn": 38,
           "startingLine": 517
         }
       },
@@ -158,8 +158,16 @@
         "comment": "",
         "key": "Back",
         "location": {
+          "startingColumn": 34,
+          "startingLine": 535
+        }
+      },
+      {
+        "comment": "",
+        "key": "Back",
+        "location": {
           "startingColumn": 26,
-          "startingLine": 721
+          "startingLine": 762
         }
       },
       {
@@ -167,7 +175,7 @@
         "key": "Continue",
         "location": {
           "startingColumn": 41,
-          "startingLine": 730
+          "startingLine": 771
         }
       },
       {
@@ -175,7 +183,7 @@
         "key": "Next",
         "location": {
           "startingColumn": 54,
-          "startingLine": 730
+          "startingLine": 771
         }
       }
     ]

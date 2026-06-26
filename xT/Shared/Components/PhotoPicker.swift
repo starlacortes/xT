@@ -1,39 +1,31 @@
-//
-//  PhotoPicker.swift
-//  xT
-//
-//  Created by Cline on 6/10/2026.
-//  Image picker component for profile photos
-//
-
 import SwiftUI
 import PhotosUI
 
-struct PhotoPicker: UIViewControllerRepresentable {
+struct CameraPicker: UIViewControllerRepresentable {
     @Binding var imageData: Data?
-    let sourceType: UIImagePickerController.SourceType
 
-    func makeUIViewController(context: Context) -> UIImagePickerController {
+    func makeUIViewController(context: Context) -> UIViewController {
         let picker = UIImagePickerController()
-        picker.sourceType = sourceType
+        picker.sourceType = .camera
+        picker.cameraCaptureMode = .photo
         picker.delegate = context.coordinator
         return picker
     }
 
-    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+    func updateUIViewController(_ uiViewController: UIViewController, context: Context) {}
 
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
     }
 
-    class Coordinator: NSObject, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
-        let parent: PhotoPicker
+    class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        let parent: CameraPicker
 
-        init(_ parent: PhotoPicker) {
+        init(_ parent: CameraPicker) {
             self.parent = parent
         }
 
-        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
             if let image = info[.originalImage] as? UIImage {
                 parent.imageData = image.jpegData(compressionQuality: 0.8)
             }
@@ -44,8 +36,4 @@ struct PhotoPicker: UIViewControllerRepresentable {
             picker.dismiss(animated: true)
         }
     }
-}
-
-#Preview {
-    PhotoPicker(imageData: .constant(nil), sourceType: .photoLibrary)
 }

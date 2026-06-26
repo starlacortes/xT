@@ -2,8 +2,7 @@
 //  JournalView.swift
 //  xT
 //
-//  Created by Cline on 4/6/2026.
-//  Redesigned journaling interface with modern mobile design
+//  Redesigned journaling interface with modern mobile design.
 //
 
 import SwiftUI
@@ -17,16 +16,14 @@ struct JournalView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // Navigation bar with streak and FAB
                 JournalNavigationBar(showingComposer: $showingComposer)
 
-                // Journal entries list
                 JournalEntryListView(entries: journalManager.entries, selectedEntry: $selectedEntry)
-                    .padding(.top, 8)
+                    .padding(.top, Theme.Spacing.sm)
             }
             .navigationTitle("Journal")
             .navigationBarTitleDisplayMode(.inline)
-            .background(Theme.globalBackgroundGradient)
+            .background(Theme.Gradients.brand)
             .sheet(isPresented: $showingComposer) {
                 JournalComposerView()
                     .environment(\.journalManager, journalManager)
@@ -41,6 +38,7 @@ struct JournalView: View {
 }
 
 // MARK: - Journal Navigation Bar
+
 struct JournalNavigationBar: View {
     @Environment(\.medicationManager) private var medicationManager
     @Binding var showingComposer: Bool
@@ -48,28 +46,29 @@ struct JournalNavigationBar: View {
     var body: some View {
         HStack {
             Text("Journal")
-                .font(.system(size: 20, weight: .semibold))
-                .foregroundColor(.primary)
+                .font(Theme.Fonts.title3)
+                .fontWeight(.semibold)
+                .foregroundStyle(.primary)
 
             Spacer()
 
             HStack(spacing: 10) {
-                // Streak pill
                 if medicationManager.isFullyConfigured,
                    let streak = medicationManager.currentStreakDays {
                     StreakPill(days: streak)
                 }
 
-                // FAB button
                 Button(action: { showingComposer = true }) {
                     Image(systemName: "plus")
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundColor(.white)
+                        .font(Theme.Fonts.title3)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.white)
                         .frame(width: 44, height: 44)
-                        .background(Theme.accentColor)
+                        .background(Theme.Colors.accent)
                         .clipShape(Circle())
-                        .shadow(color: Theme.accentColor.opacity(0.3), radius: 8, x: 0, y: 4)
+                        .shadow(color: Theme.Colors.accent.opacity(0.3), radius: 8, x: 0, y: 4)
                 }
+                .buttonStyle(.pressable)
             }
         }
         .padding(.horizontal, 18)
@@ -78,6 +77,7 @@ struct JournalNavigationBar: View {
 }
 
 // MARK: - Streak Pill
+
 struct StreakPill: View {
     let days: Int
 
@@ -85,24 +85,26 @@ struct StreakPill: View {
         HStack(spacing: 6) {
             Image(systemName: "flame.fill")
                 .font(.system(size: 14))
-                .foregroundColor(Theme.bloomBodyColor)
+                .foregroundStyle(Theme.Colors.Bloom.body.base)
 
-            Text("\(days) days")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundColor(Theme.bloomBodyColor)
+            AnimatedCounter(value: Double(days), format: { "\(Int($0.rounded())) days" })
+                .font(Theme.Fonts.caption)
+                .fontWeight(.semibold)
+                .foregroundStyle(Theme.Colors.Bloom.body.base)
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, Theme.Spacing.md)
         .padding(.vertical, 5)
-        .background(Theme.bloomBodyLightColor)
-        .cornerRadius(Theme.smallCornerRadius)
+        .background(Theme.Colors.Bloom.body.surface)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
         .overlay(
-            RoundedRectangle(cornerRadius: Theme.smallCornerRadius)
-                .stroke(Theme.bloomBodyBorderColor, lineWidth: 0.5)
+            RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                .stroke(Theme.Colors.Bloom.body.border, lineWidth: 0.5)
         )
     }
 }
 
 // MARK: - Journal Entry List View
+
 struct JournalEntryListView: View {
     let entries: [JournalEntry]
     @Binding var selectedEntry: JournalEntry?
@@ -110,35 +112,37 @@ struct JournalEntryListView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
-                // This week section
                 if !entries.isEmpty {
                     SectionHeader(title: "This week")
 
-                    ForEach(entries.prefix(3)) { entry in
-                        JournalEntryCard(entry: entry)
-                            .padding(.horizontal, 14)
-                            .padding(.bottom, 10)
-                            .onTapGesture {
-                                selectedEntry = entry
-                            }
+                    ForEach(Array(entries.prefix(3).enumerated()), id: \.element.id) { index, entry in
+                        Button { selectedEntry = entry } label: {
+                            JournalEntryCard(entry: entry)
+                        }
+                        .buttonStyle(.pressable)
+                        .padding(.horizontal, Theme.Spacing.card)
+                        .padding(.bottom, 10)
+                        .entrance(index: index)
                     }
 
-                    // Earlier section
                     if entries.count > 3 {
                         SectionHeader(title: "Earlier")
-                            .padding(.top, 14)
+                            .padding(.top, Theme.Spacing.lg)
 
-                        // Grid layout for earlier entries
-                        LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
-                            ForEach(entries.dropFirst(3)) { entry in
-                                JournalEntryCard(entry: entry, compact: true)
-                                    .onTapGesture {
-                                        selectedEntry = entry
-                                    }
+                        LazyVGrid(
+                            columns: [GridItem(.flexible(), spacing: Theme.Spacing.sm), GridItem(.flexible(), spacing: Theme.Spacing.sm)],
+                            spacing: Theme.Spacing.sm
+                        ) {
+                            ForEach(Array(entries.dropFirst(3).enumerated()), id: \.element.id) { index, entry in
+                                Button { selectedEntry = entry } label: {
+                                    JournalEntryCard(entry: entry, compact: true)
+                                }
+                                .buttonStyle(.pressable)
+                                .entrance(index: index + 3)
                             }
                         }
-                        .padding(.horizontal, 14)
-                        .padding(.bottom, 14)
+                        .padding(.horizontal, Theme.Spacing.card)
+                        .padding(.bottom, Theme.Spacing.card)
                     }
                 } else {
                     EmptyJournalView()
@@ -149,22 +153,24 @@ struct JournalEntryListView: View {
 }
 
 // MARK: - Section Header
+
 struct SectionHeader: View {
     let title: String
 
     var body: some View {
         Text(title)
-            .font(.system(size: 11))
-            .foregroundColor(.secondary)
+            .font(Theme.Fonts.caption2)
+            .foregroundStyle(.secondary)
             .textCase(.uppercase)
             .tracking(0.05)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 14)
+            .padding(.horizontal, Theme.Spacing.card)
             .padding(.bottom, 4)
     }
 }
 
 // MARK: - Journal Entry Card
+
 struct JournalEntryCard: View {
     let entry: JournalEntry
     let compact: Bool
@@ -177,64 +183,55 @@ struct JournalEntryCard: View {
     private var palette: JournalPalette { JournalTheme.palette(for: entry.mood) }
 
     var body: some View {
-        if compact {
-            compactCard
-        } else {
-            fullCard
-        }
+        if compact { compactCard } else { fullCard }
     }
 
     private var fullCard: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top, spacing: 10) {
-                // Mood dot
                 ZStack {
                     Circle()
                         .fill(palette.surface)
                         .frame(width: 28, height: 28)
-
                     Image(systemName: entry.mood.icon)
-                        .font(.system(size: 16))
-                        .foregroundColor(palette.accent)
+                        .font(Theme.Fonts.callout)
+                        .foregroundStyle(palette.accent)
                 }
 
-                // Entry content
                 VStack(alignment: .leading, spacing: 4) {
-                    // Date and time
                     HStack {
                         Text(entry.date.journalDateLabel)
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(palette.title)
+                            .font(Theme.Fonts.footnote)
+                            .fontWeight(.medium)
+                            .foregroundStyle(palette.title)
 
                         Spacer()
 
                         Text(entry.date, style: .time)
-                            .font(.system(size: 11))
-                            .foregroundColor(palette.accent)
+                            .font(Theme.Fonts.caption2)
+                            .foregroundStyle(palette.accent)
                     }
 
-                    // Entry text
                     if !entry.text.isEmpty {
                         Text(entry.previewText)
-                            .font(.system(size: 12, design: .serif))
-                            .foregroundColor(palette.title)
+                            .font(.system(.caption, design: .serif))
+                            .foregroundStyle(palette.title)
                             .lineSpacing(2)
-                            .padding(.bottom, 8)
+                            .padding(.bottom, Theme.Spacing.sm)
                     }
 
-                    // Symptoms tags
                     if !entry.symptoms.isEmpty {
                         FlowLayout(spacing: 5) {
                             ForEach(Array(entry.symptoms.prefix(2)), id: \.id) { symptom in
                                 Text(symptom.name)
-                                    .font(.system(size: 10))
-                                    .foregroundColor(palette.title)
-                                    .padding(.horizontal, 8)
+                                    .font(Theme.Fonts.micro)
+                                    .foregroundStyle(palette.title)
+                                    .padding(.horizontal, Theme.Spacing.sm)
                                     .padding(.vertical, 2)
                                     .background(palette.border)
-                                    .cornerRadius(10)
+                                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
                                     .overlay(
-                                        RoundedRectangle(cornerRadius: 10)
+                                        RoundedRectangle(cornerRadius: Theme.Radius.sm)
                                             .stroke(palette.border, lineWidth: 0.5)
                                     )
                             }
@@ -243,12 +240,12 @@ struct JournalEntryCard: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(14)
+            .padding(Theme.Spacing.card)
         }
         .background(palette.surface)
-        .cornerRadius(16)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md))
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
+            RoundedRectangle(cornerRadius: Theme.Radius.md)
                 .stroke(palette.border, lineWidth: 0.5)
         )
     }
@@ -256,49 +253,50 @@ struct JournalEntryCard: View {
     private var compactCard: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(entry.date, style: .date)
-                .font(.system(size: 10))
-                .foregroundColor(palette.title)
+                .font(Theme.Fonts.micro)
+                .foregroundStyle(palette.title)
 
-            // Mood icon
             Image(systemName: entry.mood.icon)
-                .font(.system(size: 22))
-                .foregroundColor(palette.accent)
+                .font(Theme.Fonts.title3)
+                .foregroundStyle(palette.accent)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             if !entry.text.isEmpty {
                 Text(entry.previewText)
-                    .font(.system(size: 11, design: .serif))
-                    .foregroundColor(palette.title)
+                    .font(.system(.caption2, design: .serif))
+                    .foregroundStyle(palette.title)
                     .lineLimit(2)
             }
         }
-        .padding(12)
+        .padding(Theme.Spacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(palette.surface)
-        .cornerRadius(14)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md))
         .overlay(
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: Theme.Radius.md)
                 .stroke(palette.border, lineWidth: 0.5)
         )
     }
 }
 
 // MARK: - Empty Journal View
+
 struct EmptyJournalView: View {
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: Theme.Spacing.xl) {
             Image(systemName: "book.pages")
                 .font(.system(size: 48))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .padding(.top, 60)
 
             Text("No journal entries yet")
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(.secondary)
+                .font(Theme.Fonts.callout)
+                .fontWeight(.medium)
+                .foregroundStyle(.secondary)
 
             Text("Tap the + button to create your first entry")
-                .font(.system(size: 14))
-                .foregroundColor(.secondary)
+                .font(Theme.Fonts.footnote)
+                .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
         }
@@ -307,6 +305,7 @@ struct EmptyJournalView: View {
 }
 
 // MARK: - Preview
+
 #Preview {
     NavigationStack {
         JournalView()

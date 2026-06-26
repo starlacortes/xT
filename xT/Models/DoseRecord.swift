@@ -52,11 +52,16 @@ class DoseRecord: Identifiable, Hashable {
 extension DoseRecord {
     /// Human-readable summary string (e.g., "Estrogen @ 2mg EV i.j. — Jun 10, 2026")
     var summary: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d, yyyy"
+        let formatter = DoseRecord.dateFormatter
         let dateStr = formatter.string(from: doseDate)
         return "\(medicationType) @ \(String(format: "%.1f", doseAmount))mg \(ester) \(administrationMethod) — \(dateStr)"
     }
+
+    private static let dateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "MMM d, yyyy"
+        return f
+    }()
 
     /// Is this dose considered active (not soft-deleted)?
     var isActive: Bool { !isDeleted }

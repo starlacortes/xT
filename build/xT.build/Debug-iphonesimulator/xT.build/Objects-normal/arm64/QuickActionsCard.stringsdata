@@ -7,7 +7,7 @@
         "key": "Dose recorded!",
         "location": {
           "startingColumn": 16,
-          "startingLine": 56
+          "startingLine": 108
         }
       },
       {
@@ -15,7 +15,7 @@
         "key": "OK",
         "location": {
           "startingColumn": 20,
-          "startingLine": 57
+          "startingLine": 109
         }
       },
       {
@@ -23,7 +23,7 @@
         "key": "Your dose has been recorded for today.",
         "location": {
           "startingColumn": 18,
-          "startingLine": 59
+          "startingLine": 111
         }
       }
     ]

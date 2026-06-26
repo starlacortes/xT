@@ -45,7 +45,7 @@ struct UnifiedScheduleView: View {
                         if medicationManager.isFullyConfigured {
                             Text("Taking \(medicationManager.medicationDisplayInfo)")
                                 .font(.subheadline)
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                         }
                     }
 
@@ -57,7 +57,7 @@ struct UnifiedScheduleView: View {
                     }) {
                         Image(systemName: "plus.circle.fill")
                             .font(.title)
-                            .foregroundColor(.blue)
+                            .foregroundStyle(Theme.Colors.accent)
                     }
                 }
                 .padding(.bottom, 10)
@@ -100,7 +100,7 @@ struct UnifiedScheduleView: View {
             if medicationManager.isFullyConfigured {
                 HStack {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.green)
+                        .foregroundStyle(.green)
 
                     Text(medicationManager.getConfigurationSummary())
                         .font(.body)
@@ -108,7 +108,7 @@ struct UnifiedScheduleView: View {
             } else if medicationManager.isPartiallyConfigured {
                 HStack {
                     Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundColor(.orange)
+                        .foregroundStyle(.orange)
 
                     Text(medicationManager.getConfigurationSummary())
                         .font(.body)
@@ -116,7 +116,7 @@ struct UnifiedScheduleView: View {
             } else {
                 HStack {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.red)
+                        .foregroundStyle(.red)
 
                     Text("Not configured")
                         .font(.body)
@@ -147,7 +147,7 @@ struct UnifiedScheduleView: View {
                 scheduleCard(
                     title: "Last Dose",
                     value: "\(last.formatted(date: .abbreviated, time: .omitted))",
-                    color: .blue,
+                    color: Theme.Colors.Bloom.mind.base,
                     icon: "checkmark.circle"
                 )
             } else {
@@ -187,18 +187,13 @@ struct UnifiedScheduleView: View {
 
                 Text("Next dose will be: \(medicationManager.calculateNextDoseDate(from: selectedDoseDate), style: .date)")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
 
                 Button(action: {
                     recordDose()
                 }) {
                     Text("Record Dose on Selected Date")
-                        .font(.headline)
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(Color.blue)
-                        .foregroundColor(.white)
-                        .cornerRadius(10)
+                        .asAccentButton()
                 }
             }
             .padding()
@@ -216,18 +211,18 @@ struct UnifiedScheduleView: View {
             HStack {
                 Text(title)
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
 
                 Spacer()
 
                 Image(systemName: icon)
-                    .foregroundColor(color)
+                    .foregroundStyle(color)
             }
 
             Text(value)
                 .font(.body)
                 .bold()
-                .foregroundColor(color)
+                .foregroundStyle(color)
         }
         .padding()
         .background(

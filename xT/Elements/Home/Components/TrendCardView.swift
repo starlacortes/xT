@@ -15,14 +15,14 @@ struct TrendCardView: View {
                 Text("7-day trend")
                     .font(.system(size: 16))
                     .fontWeight(.medium)
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
 
                 Spacer()
 
                  NavigationLink(destination: GraphView(isFullScreen: true)) {
                      Text("View all")
                         .font(.system(size: 11))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
             }
 
@@ -32,10 +32,10 @@ struct TrendCardView: View {
         }
         .padding(14)
         .background(.ultraThinMaterial)
-        .cornerRadius(Theme.mediumCornerRadius)
+        .cornerRadius(Theme.Radius.lg)
         .overlay(
-            RoundedRectangle(cornerRadius: Theme.mediumCornerRadius)
-                .stroke(Theme.borderColor, lineWidth: 0.5)
+            RoundedRectangle(cornerRadius: Theme.Radius.lg)
+                .stroke(Theme.Colors.border, lineWidth: 0.5)
         )
     }
 }

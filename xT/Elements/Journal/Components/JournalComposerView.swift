@@ -2,7 +2,7 @@
 //  JournalComposerView.swift
 //  xT
 //
-//  Full-screen composer sheet for new journal entries with updated design
+//  Full-screen composer sheet for new journal entries.
 //
 
 import SwiftUI
@@ -30,43 +30,42 @@ struct JournalComposerView: View {
                 HStack {
                     Spacer()
                     Text("9:41")
-                        .font(.system(size: 10))
-                        .foregroundColor(Color(.tertiaryLabel))
+                        .font(Theme.Fonts.micro)
+                        .foregroundStyle(Theme.Colors.textTertiary)
                 }
                 .frame(height: 14)
-                .padding(.horizontal, 16)
+                .padding(.horizontal, Theme.Spacing.lg)
 
                 // Custom navigation bar
                 HStack {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                    .foregroundColor(.secondary)
+                    Button("Cancel") { dismiss() }
+                        .foregroundStyle(.secondary)
 
                     Spacer()
 
                     Text("New entry")
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundColor(.primary)
+                        .font(Theme.Fonts.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundStyle(.primary)
 
                     Spacer()
 
                     Text(Date.now, formatter: weekdayFormatter)
-                        .font(.system(size: 12))
-                        .foregroundColor(Color(.tertiaryLabel))
+                        .font(Theme.Fonts.caption)
+                        .foregroundStyle(Theme.Colors.textTertiary)
                 }
                 .padding(.horizontal, 18)
                 .padding(.vertical, 10)
 
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
+                    VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
                         // Mood selector
                         Text("How are you feeling?")
-                            .font(.system(size: 11))
-                            .foregroundColor(.secondary)
+                            .font(Theme.Fonts.caption2)
+                            .foregroundStyle(.secondary)
                             .textCase(.uppercase)
                             .tracking(0.05)
-                            .padding(.leading, 14)
+                            .padding(.leading, Theme.Spacing.card)
 
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 6) {
@@ -78,52 +77,51 @@ struct JournalComposerView: View {
                                     }
                                 }
                             }
-                            .padding(.horizontal, 14)
+                            .padding(.horizontal, Theme.Spacing.card)
                             .padding(.vertical, 2)
                         }
 
                         // Text entry
                         Text("Your entry")
-                            .font(.system(size: 11))
-                            .foregroundColor(.secondary)
+                            .font(Theme.Fonts.caption2)
+                            .foregroundStyle(.secondary)
                             .textCase(.uppercase)
                             .tracking(0.05)
-                            .padding(.leading, 14)
+                            .padding(.leading, Theme.Spacing.card)
 
-                        // Text area with cursor animation
                         ZStack(alignment: .topLeading) {
                             if text.isEmpty {
                                 Text("Write how you're feeling…")
-                                    .font(.system(size: 13, design: .serif))
-                                    .foregroundColor(Color(hex: "#D4537E").opacity(0.7))
-                                    .padding(.top, 14)
-                                    .padding(.leading, 16)
+                                    .font(.system(.footnote, design: .serif))
+                                    .foregroundStyle(Theme.Colors.accent.opacity(0.7))
+                                    .padding(.top, Theme.Spacing.card)
+                                    .padding(.leading, Theme.Spacing.lg)
                                     .allowsHitTesting(false)
                             }
 
                             TextEditor(text: $text)
                                 .focused($textFocused)
-                                .font(.system(size: 13, design: .serif))
-                                .foregroundColor(Color(hex: "#72243E"))
+                                .font(.system(.footnote, design: .serif))
+                                .foregroundStyle(JournalComposerView.journalText)
                                 .scrollContentBackground(.hidden)
                                 .frame(minHeight: 80)
-                                .padding(12)
+                                .padding(Theme.Spacing.md)
                         }
-                        .background(Color(hex: "#FBEAF0"))
-                        .cornerRadius(14)
+                        .background(Theme.Colors.Bloom.cycle.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 14)
-                                .stroke(Color(hex: "#F4C0D1"), lineWidth: 0.5)
+                            RoundedRectangle(cornerRadius: Theme.Radius.md)
+                                .stroke(Theme.Colors.Bloom.cycle.border, lineWidth: 0.5)
                         )
-                        .padding(.horizontal, 14)
+                        .padding(.horizontal, Theme.Spacing.card)
 
                         // Symptoms selector
                         Text("Symptoms")
-                            .font(.system(size: 11))
-                            .foregroundColor(.secondary)
+                            .font(Theme.Fonts.caption2)
+                            .foregroundStyle(.secondary)
                             .textCase(.uppercase)
                             .tracking(0.05)
-                            .padding(.leading, 14)
+                            .padding(.leading, Theme.Spacing.card)
 
                         FlowLayout(spacing: 6) {
                             ForEach(Symptom.commonSymptoms) { symptom in
@@ -139,13 +137,13 @@ struct JournalComposerView: View {
                                 }
                             }
                         }
-                        .padding(.horizontal, 14)
+                        .padding(.horizontal, Theme.Spacing.card)
 
                         // Hormone insight card
                         if medicationManager.isFullyConfigured,
                            let level = medicationManager.estimatedRecentLevels(days: 1).last?.value {
                             HormoneInsightCard(level: level)
-                                .padding(.horizontal, 14)
+                                .padding(.horizontal, Theme.Spacing.card)
                         }
 
                         // Save button
@@ -153,17 +151,18 @@ struct JournalComposerView: View {
                             HStack {
                                 Spacer()
                                 Text("Save entry ↗")
-                                    .font(.system(size: 15, weight: .medium))
-                                    .foregroundColor(.white)
+                                    .font(Theme.Fonts.subheadline)
+                                    .fontWeight(.medium)
+                                    .foregroundStyle(.white)
                                 Spacer()
                             }
                             .padding(.vertical, 13)
-                            .background(Theme.accentColor)
-                            .cornerRadius(14)
+                            .background(Theme.Colors.accent)
+                            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md))
                         }
                         .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                        .padding(.horizontal, 14)
-                        .padding(.bottom, 20)
+                        .padding(.horizontal, Theme.Spacing.card)
+                        .padding(.bottom, Theme.Spacing.xl)
                     }
                 }
             }
@@ -172,6 +171,8 @@ struct JournalComposerView: View {
             }
         }
     }
+
+    private static let journalText = Color(lightHex: "#72243E", darkHex: "#F4A8C0")
 
     private func saveAndDismiss() {
         let entry = JournalEntry(
@@ -186,6 +187,7 @@ struct JournalComposerView: View {
 }
 
 // MARK: - Mood Chip
+
 struct MoodChip: View {
     let mood: Mood
     let isSelected: Bool
@@ -195,22 +197,22 @@ struct MoodChip: View {
         Button(action: action) {
             VStack(spacing: 4) {
                 Image(systemName: mood.icon)
-                    .font(.system(size: 22))
-                    .foregroundColor(isSelected ? Theme.accentColor : .secondary)
+                    .font(Theme.Fonts.title3)
+                    .foregroundStyle(isSelected ? Theme.Colors.accent : .secondary)
 
                 Text(mood.rawValue)
-                    .font(.system(size: 10))
-                    .foregroundColor(isSelected ? Color(hex: "#993556") : .secondary)
+                    .font(Theme.Fonts.micro)
+                    .foregroundStyle(isSelected ? Theme.Colors.Bloom.cycle.base : .secondary)
             }
             .frame(minWidth: 52)
             .padding(.vertical, 10)
-            .padding(.horizontal, 8)
-            .background(isSelected ? Color(hex: "#FBEAF0") : Color(UIColor.secondarySystemBackground))
-            .cornerRadius(14)
+            .padding(.horizontal, Theme.Spacing.sm)
+            .background(isSelected ? Theme.Colors.Bloom.cycle.surface : Color(UIColor.secondarySystemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md))
             .overlay(
-                RoundedRectangle(cornerRadius: 14)
+                RoundedRectangle(cornerRadius: Theme.Radius.md)
                     .stroke(
-                        isSelected ? Color(hex: "#ED93B1") : Color(UIColor.separator).opacity(0.4),
+                        isSelected ? Theme.Colors.Bloom.cycle.border : Color(UIColor.separator).opacity(0.4),
                         lineWidth: 0.5
                     )
             )
@@ -220,6 +222,7 @@ struct MoodChip: View {
 }
 
 // MARK: - Symptom Tag
+
 struct SymptomTag: View {
     let symptom: Symptom
     let isSelected: Bool
@@ -228,16 +231,16 @@ struct SymptomTag: View {
     var body: some View {
         Button(action: action) {
             Text(symptom.name)
-                .font(.system(size: 12))
-                .foregroundColor(isSelected ? Color(hex: "#993556") : .secondary)
-                .padding(.horizontal, 12)
+                .font(Theme.Fonts.caption)
+                .foregroundStyle(isSelected ? Theme.Colors.Bloom.cycle.base : .secondary)
+                .padding(.horizontal, Theme.Spacing.md)
                 .padding(.vertical, 7)
-                .background(isSelected ? Color(hex: "#FBEAF0") : Color(UIColor.secondarySystemBackground))
-                .cornerRadius(20)
+                .background(isSelected ? Theme.Colors.Bloom.cycle.surface : Color(UIColor.secondarySystemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.lg))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 20)
+                    RoundedRectangle(cornerRadius: Theme.Radius.lg)
                         .stroke(
-                            isSelected ? Color(hex: "#ED93B1") : Color(UIColor.separator).opacity(0.3),
+                            isSelected ? Theme.Colors.Bloom.cycle.border : Color(UIColor.separator).opacity(0.3),
                             lineWidth: 0.5
                         )
                 )
@@ -247,9 +250,13 @@ struct SymptomTag: View {
 }
 
 // MARK: - Hormone Insight Card
+
 struct HormoneInsightCard: View {
     @Environment(\.medicationManager) private var medicationManager
     let level: Double
+
+    // Dark lavender — readable on mind surface in both modes
+    private static let mindText = Color(lightHex: "#3C3489", darkHex: "#ABA7F0")
 
     private var rangeName: String {
         guard let med = medicationManager.selectedMedication else { return "" }
@@ -269,17 +276,17 @@ struct HormoneInsightCard: View {
 
     private var rangeColor: Color {
         switch rangeName {
-        case "Optimal", "Suppressed": return Color(hex: "#3B6D11")
-        case "Low", "Low male": return Color(hex: "#854F0B")
-        default: return Color(hex: "#993556")
+        case "Optimal", "Suppressed": return Theme.Colors.success
+        case "Low", "Low male":       return Theme.Colors.Bloom.body.base
+        default:                       return Theme.Colors.Bloom.cycle.base
         }
     }
 
     private var rangeBg: Color {
         switch rangeName {
-        case "Optimal", "Suppressed": return Color(hex: "#EAF3DE")
-        case "Low", "Low male": return Color(hex: "#FAEEDA")
-        default: return Color(hex: "#FBEAF0")
+        case "Optimal", "Suppressed": return Theme.Colors.success.opacity(0.12)
+        case "Low", "Low male":       return Theme.Colors.Bloom.body.surface
+        default:                       return Theme.Colors.Bloom.cycle.surface
         }
     }
 
@@ -291,51 +298,53 @@ struct HormoneInsightCard: View {
         HStack(spacing: 10) {
             Image(systemName: "chart.line.uptrend.xyaxis")
                 .font(.system(size: 18))
-                .foregroundColor(Color(hex: "#534AB7"))
+                .foregroundStyle(Theme.Colors.Bloom.mind.base)
                 .frame(width: 36, height: 36)
-                .background(Color(hex: "#EEEDFE"))
-                .cornerRadius(10)
+                .background(Theme.Colors.Bloom.mind.surface)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("Today's level")
-                    .font(.system(size: 11))
-                    .foregroundColor(Color(hex: "#534AB7"))
+                    .font(Theme.Fonts.caption2)
+                    .foregroundStyle(Theme.Colors.Bloom.mind.base)
 
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text("\(Int(level)) \(unit)")
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundColor(Color(hex: "#3C3489"))
+                        .font(Theme.Fonts.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundStyle(Self.mindText)
 
                     Text(rangeName)
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(rangeColor)
-                        .padding(.horizontal, 8)
+                        .font(Theme.Fonts.caption2)
+                        .fontWeight(.medium)
+                        .foregroundStyle(rangeColor)
+                        .padding(.horizontal, Theme.Spacing.sm)
                         .padding(.vertical, 3)
                         .background(rangeBg)
-                        .cornerRadius(10)
+                        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
                 }
             }
 
             Spacer()
         }
         .padding(10)
-        .background(Color(hex: "#EEEDFE"))
-        .cornerRadius(12)
+        .background(Theme.Colors.Bloom.mind.surface)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color(hex: "#CECBF6"), lineWidth: 0.5)
+            RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                .stroke(Theme.Colors.Bloom.mind.border, lineWidth: 0.5)
         )
     }
 }
 
 // MARK: - Preview
+
 #Preview {
     JournalComposerView()
         .environment(\.journalManager, JournalManager.shared)
         .environment(\.medicationManager, MedicationManager.shared)
 }
 
-// MARK: - Previews for Subviews
 #Preview("MoodChip") {
     MoodChip(mood: .happy, isSelected: true, action: {})
 }

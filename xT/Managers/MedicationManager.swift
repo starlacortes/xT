@@ -543,7 +543,7 @@ class MedicationManager: ObservableObject {
         let defaults = UserDefaults.standard
         let security = SecurityManager.shared
         if let data = defaults.data(forKey: "encryptedMedicationSelection"),
-           let decrypted = security.decryptData(data),
+           let decrypted = try? security.decryptData(data),
            let str = String(data: decrypted, encoding: .utf8) {
             let parts = str.components(separatedBy: "|")
             if parts.count == 2 {
@@ -560,7 +560,7 @@ class MedicationManager: ObservableObject {
         let defaults = UserDefaults.standard
         let security = SecurityManager.shared
         let str = "\(selectedMedication ?? "")|\(selectedAdministrationMethod ?? "")"
-        if let data = str.data(using: .utf8), let encrypted = security.encryptData(data) {
+        if let data = str.data(using: .utf8), let encrypted = try? security.encryptData(data) {
             defaults.set(encrypted, forKey: "encryptedMedicationSelection")
         }
     }
@@ -569,7 +569,7 @@ class MedicationManager: ObservableObject {
         let defaults = UserDefaults.standard
         let security = SecurityManager.shared
         if let data = defaults.data(forKey: "encryptedDoseDates"),
-           let decrypted = security.decryptData(data),
+           let decrypted = try? security.decryptData(data),
            let container = try? JSONDecoder().decode(DoseDatesContainer.self, from: decrypted) {
             lastDoseDate = container.lastDoseDate
             nextDoseDate = container.nextDoseDate
@@ -580,7 +580,7 @@ class MedicationManager: ObservableObject {
         let defaults = UserDefaults.standard
         let security = SecurityManager.shared
         let container = DoseDatesContainer(lastDoseDate: lastDoseDate, nextDoseDate: nextDoseDate)
-        if let data = try? JSONEncoder().encode(container), let encrypted = security.encryptData(data) {
+        if let data = try? JSONEncoder().encode(container), let encrypted = try? security.encryptData(data) {
             defaults.set(encrypted, forKey: "encryptedDoseDates")
         }
     }

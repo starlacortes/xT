@@ -1,5 +1,7 @@
+/Users/starlacortes/Documents/xT/xT/Elements/Home/Components/DiscoveryRow.swift
 /Users/starlacortes/Documents/xT/xT/Elements/Home/Components/DoseStreakCard.swift
 /Users/starlacortes/Documents/xT/xT/Elements/Home/Components/HealthInsightCard.swift
+/Users/starlacortes/Documents/xT/xT/Elements/Home/Components/HybridStatusCard.swift
 /Users/starlacortes/Documents/xT/xT/Elements/Home/Components/LevelTrendCard.swift
 /Users/starlacortes/Documents/xT/xT/Elements/Home/Components/MainContentView.swift
 /Users/starlacortes/Documents/xT/xT/Elements/Home/Components/MiniTrendGraph.swift
@@ -7,6 +9,8 @@
 /Users/starlacortes/Documents/xT/xT/Elements/Home/Components/NextDoseCard.swift
 /Users/starlacortes/Documents/xT/xT/Elements/Home/Components/QuickActionsCard.swift
 /Users/starlacortes/Documents/xT/xT/Elements/Home/Components/TrendCardView.swift
+/Users/starlacortes/Documents/xT/xT/Elements/Home/AnimatedMeshGradient.swift
+/Users/starlacortes/Documents/xT/xT/Elements/Home/BloomEffect.swift
 /Users/starlacortes/Documents/xT/xT/Elements/Home/BloomView.swift
 /Users/starlacortes/Documents/xT/xT/Elements/Home/GraphView.swift
 /Users/starlacortes/Documents/xT/xT/Elements/Home/HeroView.swift

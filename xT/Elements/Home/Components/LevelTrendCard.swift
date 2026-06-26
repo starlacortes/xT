@@ -19,7 +19,7 @@ struct LevelTrendCard: View {
                 Text("Hormone level")
                     .font(.system(size: 16))
                     .fontWeight(.medium)
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
 
                 Spacer()
 
@@ -28,7 +28,7 @@ struct LevelTrendCard: View {
                 }) {
                     Text("View all")
                         .font(.system(size: 11))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
             }
 
@@ -38,29 +38,29 @@ struct LevelTrendCard: View {
                     // Icon badge
                     ZStack {
                         Circle()
-                            .fill(Theme.bloomCycleLightColor)
+                            .fill(Theme.Colors.Bloom.cycle.surface)
                             .frame(width: 36, height: 79)
 
                         Image(systemName: "chart.line.uptrend.xyaxis")
                             .font(.system(size: 18))
-                            .foregroundColor(Theme.bloomCycleColor)
+                            .foregroundStyle(Theme.Colors.Bloom.cycle.base)
                     }
 
                     // Level info
                     VStack(alignment: .leading, spacing: 2) {
                         Text("current level")
                             .font(.system(size: 12))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
 
                         HStack(spacing: 6) {
                             Text("\(Int(currentLevel))")
                                 .font(.system(size: 22))
                                 .fontWeight(.medium)
-                                .foregroundColor(Theme.accentColor.opacity(0.8))
+                                .foregroundStyle(Theme.Colors.accent.opacity(0.8))
 
                             Text("pg/mL")
                                 .font(.system(size: 12))
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
 
                             // Range indicator
                             let rangeText = getHormoneRangeText(level: currentLevel)
@@ -72,8 +72,8 @@ struct LevelTrendCard: View {
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 3)
                                 .background(rangeColor.opacity(0.2))
-                                .foregroundColor(rangeColor)
-                                .cornerRadius(Theme.smallCornerRadius)
+                                .foregroundStyle(rangeColor)
+                                .cornerRadius(Theme.Radius.sm)
                         }
                     }
 
@@ -88,10 +88,10 @@ struct LevelTrendCard: View {
         }
         .padding(14)
         .background(.ultraThinMaterial)
-        .cornerRadius(Theme.mediumCornerRadius)
+        .cornerRadius(Theme.Radius.lg)
         .overlay(
-            RoundedRectangle(cornerRadius: Theme.mediumCornerRadius)
-                .stroke(Theme.borderColor, lineWidth: 0.5)
+            RoundedRectangle(cornerRadius: Theme.Radius.lg)
+                .stroke(Theme.Colors.border, lineWidth: 0.5)
         )
     }
 
@@ -104,9 +104,9 @@ struct LevelTrendCard: View {
     }
 
     private func getHormoneRangeColor(level: Double) -> Color {
-        if level < 100 { return Theme.bloomBodyColor }
-        else if level < 200 { return Theme.successColor }
-        else { return Theme.bloomCycleColor }
+        if level < 100 { return Theme.Colors.Bloom.body.base }
+        else if level < 200 { return Theme.Colors.success }
+        else { return Theme.Colors.Bloom.cycle.base }
     }
 }
 

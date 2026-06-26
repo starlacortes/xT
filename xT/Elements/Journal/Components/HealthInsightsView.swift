@@ -40,50 +40,48 @@ struct HealthInsightsView: View {
         VStack(spacing: 12) {
             Text("Health Insights")
                 .font(.headline)
-                .foregroundColor(Theme.secondaryTextColor)
+                .foregroundStyle(Theme.Colors.textSecondary)
 
             if let currentRange = hormoneLevelRanges.first(where: { $0.min <= level && $0.max >= level }) {
                 VStack(spacing: 8) {
                     HStack {
                         Text("Current Range:")
                             .font(.subheadline)
-                            .foregroundColor(Theme.secondaryTextColor)
+                            .foregroundStyle(Theme.Colors.textSecondary)
 
                         Text(currentRange.name)
                             .font(.headline)
                             .bold()
-                            .foregroundColor(rangeColor(for: currentRange.name))
+                            .foregroundStyle(rangeColor(for: currentRange.name))
 
                         Spacer()
 
                         Image(systemName: rangeIcon(for: currentRange.name))
-                            .foregroundColor(rangeColor(for: currentRange.name))
+                            .foregroundStyle(rangeColor(for: currentRange.name))
                     }
 
                     Text(currentRange.description)
                         .font(.caption)
-                        .foregroundColor(Theme.secondaryTextColor)
+                        .foregroundStyle(Theme.Colors.textSecondary)
 
                     Text("\(Int(currentRange.min))-\(Int(currentRange.max)) \(medicationManager.selectedMedication == "Estrogen" ? "pg/mL" : "ng/dL")")
                         .font(.caption)
-                        .foregroundColor(Theme.tertiaryTextColor)
+                        .foregroundStyle(Theme.Colors.textTertiary)
                 }
                 .padding()
-                .background(.regularMaterial)
-                .cornerRadius(Theme.smallCornerRadius)
-                .background(.regularMaterial)
+                .asGlassCard()
             }
         }
     }
 
     private func rangeColor(for rangeName: String) -> Color {
         switch rangeName {
-        case "Very Low", "Suppressed": return Theme.errorColor
-        case "Low", "Low Male": return Theme.warningColor
-        case "Optimal": return Theme.successColor
+        case "Very Low", "Suppressed": return Theme.Colors.error
+        case "Low", "Low Male": return Theme.Colors.warning
+        case "Optimal": return Theme.Colors.success
         case "High", "Male Range": return .yellow
-        case "Very High", "High Male": return Theme.errorColor
-        default: return Theme.infoColor
+        case "Very High", "High Male": return Theme.Colors.error
+        default: return Theme.Colors.info
         }
     }
 

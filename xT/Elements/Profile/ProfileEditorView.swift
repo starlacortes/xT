@@ -33,7 +33,7 @@ struct ProfileEditorView: View {
                             .clipShape(Circle())
                             .overlay(
                                 Circle()
-                                    .stroke(Color.blue, lineWidth: 3)
+                                    .stroke(Theme.Colors.accent, lineWidth: 3)
                             )
                             .onTapGesture {
                                 showingImageSourceOptions = true
@@ -46,7 +46,7 @@ struct ProfileEditorView: View {
 
                         Text(profileManager.hasProfileData ? "Profile Complete" : "Profile Incomplete")
                             .font(.subheadline)
-                            .foregroundColor(profileManager.hasProfileData ? .green : .orange)
+                            .foregroundStyle(profileManager.hasProfileData ? .green : .orange)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 8)
@@ -57,7 +57,7 @@ struct ProfileEditorView: View {
                     // Name field with better validation
                     TextField("Your Name", text: $name)
                         .textFieldStyle(.roundedBorder)
-                        .onChange(of: name) {
+                        .onChange(of: name) { _, _ in
                             checkForChanges()
                         }
 
@@ -73,7 +73,7 @@ struct ProfileEditorView: View {
                                     .font(.caption)
                             }
                             .frame(width: 80, height: 80)
-                            .background(Color.blue.opacity(0.1))
+                            .background(Theme.Colors.accent.opacity(0.1))
                             .cornerRadius(10)
                         }
 
@@ -87,7 +87,7 @@ struct ProfileEditorView: View {
                                     .font(.caption)
                             }
                             .frame(width: 80, height: 80)
-                            .background(Color.blue.opacity(0.1))
+                            .background(Theme.Colors.accent.opacity(0.1))
                             .cornerRadius(10)
                         }
 
@@ -102,7 +102,7 @@ struct ProfileEditorView: View {
                                     .font(.caption)
                             }
                             .frame(width: 80, height: 80)
-                            .background(Color.blue.opacity(0.1))
+                            .background(Theme.Colors.accent.opacity(0.1))
                             .cornerRadius(10)
                         }
                     }
@@ -121,7 +121,7 @@ struct ProfileEditorView: View {
                         }
                     }
                     .disabled(!hasChanges)
-                    .foregroundColor(hasChanges ? .blue : .gray)
+                    .foregroundStyle(hasChanges ? Theme.Colors.accent : Color.gray)
 
                     Button(role: .destructive, action: {
                         resetToOriginal()
@@ -170,31 +170,26 @@ struct ProfileEditorView: View {
                     ]
                 )
             }
-            .sheet(isPresented: Binding(
+            .photosPicker(isPresented: Binding(
                 get: { profileManager.showImagePicker },
                 set: { profileManager.showImagePicker = $0 }
-            )) {
-                PhotoPicker(imageData: Binding(
-                    get: { profileManager.profileImageData },
-                    set: { newData in
-                        profileManager.profileImageData = newData
-                        checkForChanges()
-                    }
-                ), sourceType: .photoLibrary)
-            }
+            ), selection: Binding(
+                get: { profileManager.selectedPhotoItem },
+                set: { profileManager.selectedPhotoItem = $0 }
+            ), matching: .images)
             .sheet(isPresented: Binding(
                 get: { profileManager.showCamera },
                 set: { profileManager.showCamera = $0 }
             )) {
-                PhotoPicker(imageData: Binding(
+                CameraPicker(imageData: Binding(
                     get: { profileManager.profileImageData },
                     set: { newData in
                         profileManager.profileImageData = newData
                         checkForChanges()
                     }
-                ), sourceType: .camera)
+                ))
             }
-            .onChange(of: profileManager.selectedPhotoItem) {
+            .onChange(of: profileManager.selectedPhotoItem) { _, _ in
                 profileManager.handlePhotoSelection()
                 checkForChanges()
             }

@@ -7,7 +7,7 @@
         "key": "Settings",
         "location": {
           "startingColumn": 30,
-          "startingLine": 47
+          "startingLine": 48
         }
       },
       {
@@ -15,7 +15,7 @@
         "key": "Notifications disabled",
         "location": {
           "startingColumn": 20,
-          "startingLine": 63
+          "startingLine": 64
         }
       },
       {
@@ -23,7 +23,7 @@
         "key": "Are you sure?",
         "location": {
           "startingColumn": 20,
-          "startingLine": 68
+          "startingLine": 69
         }
       },
       {
@@ -31,7 +31,7 @@
         "key": "OK",
         "location": {
           "startingColumn": 24,
-          "startingLine": 64
+          "startingLine": 65
         }
       },
       {
@@ -39,7 +39,7 @@
         "key": "To receive dose and journal reminders, please enable notifications in System Settings.",
         "location": {
           "startingColumn": 22,
-          "startingLine": 66
+          "startingLine": 67
         }
       },
       {
@@ -47,7 +47,7 @@
         "key": "Cancel",
         "location": {
           "startingColumn": 24,
-          "startingLine": 69
+          "startingLine": 70
         }
       },
       {
@@ -55,7 +55,7 @@
         "key": "Reset",
         "location": {
           "startingColumn": 24,
-          "startingLine": 70
+          "startingLine": 71
         }
       },
       {
@@ -63,7 +63,7 @@
         "key": "xT will close and restart the onboarding process.",
         "location": {
           "startingColumn": 22,
-          "startingLine": 72
+          "startingLine": 73
         }
       },
       {
@@ -71,7 +71,7 @@
         "key": "",
         "location": {
           "startingColumn": 24,
-          "startingLine": 246
+          "startingLine": 247
         }
       },
       {
@@ -79,7 +79,7 @@
         "key": "Dose reminders",
         "location": {
           "startingColumn": 26,
-          "startingLine": 236
+          "startingLine": 237
         }
       },
       {
@@ -87,7 +87,7 @@
         "key": "",
         "location": {
           "startingColumn": 24,
-          "startingLine": 270
+          "startingLine": 271
         }
       },
       {
@@ -95,7 +95,7 @@
         "key": "Journal reminders",
         "location": {
           "startingColumn": 26,
-          "startingLine": 260
+          "startingLine": 261
         }
       },
       {
@@ -103,7 +103,7 @@
         "key": "1.0.0",
         "location": {
           "startingColumn": 34,
-          "startingLine": 308
+          "startingLine": 315
         }
       }
     ]

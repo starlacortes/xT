@@ -17,11 +17,11 @@ struct DoseStreakCard: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Next dose")
                         .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                     if let next = medicationManager.nextDoseDate {
                         Text(nextDoseLabel(next))
                             .font(.system(size: 11))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                 }
 
@@ -30,12 +30,12 @@ struct DoseStreakCard: View {
                 if onTrack {
                     Text("On track")
                         .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(Theme.bloomMindColor)
+                        .foregroundStyle(Theme.Colors.Bloom.mind.base)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 4)
-                        .background(Theme.bloomMindLightColor)
+                        .background(Theme.Colors.Bloom.mind.surface)
                         .overlay(
-                            Capsule().stroke(Theme.bloomMindBorderColor, lineWidth: 0.5)
+                            Capsule().stroke(Theme.Colors.Bloom.mind.border, lineWidth: 0.5)
                         )
                         .clipShape(Capsule())
                 }
@@ -45,10 +45,10 @@ struct DoseStreakCard: View {
             HStack(spacing: 5) {
                 ForEach(0..<cycleDays, id: \.self) { index in
                     Circle()
-                        .fill(index < completedDays ? Theme.accentColor : Color(UIColor.systemGray5))
+                        .fill(index < completedDays ? Theme.Colors.accent : Color(UIColor.systemGray5))
                         .overlay(
                             Circle().stroke(
-                                index < completedDays ? Theme.bloomCycleBorderColor : Color(UIColor.systemGray4),
+                                index < completedDays ? Theme.Colors.Bloom.cycle.border : Color(UIColor.systemGray4),
                                 lineWidth: 0.5
                             )
                         )
@@ -57,16 +57,16 @@ struct DoseStreakCard: View {
 
                 Text("\(completedDays) of \(cycleDays) days")
                     .font(.system(size: 10))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .padding(.leading, 4)
             }
         }
         .padding(14)
         .background(.ultraThinMaterial)
-        .cornerRadius(Theme.mediumCornerRadius)
+        .cornerRadius(Theme.Radius.lg)
         .overlay(
-            RoundedRectangle(cornerRadius: Theme.mediumCornerRadius)
-                .stroke(Theme.borderColor, lineWidth: 0.5)
+            RoundedRectangle(cornerRadius: Theme.Radius.lg)
+                .stroke(Theme.Colors.border, lineWidth: 0.5)
         )
     }
 
@@ -98,6 +98,6 @@ struct DoseStreakCard: View {
 #Preview {
     DoseStreakCard()
         .padding()
-        .background(Theme.globalBackgroundGradient)
+        .background(Theme.Gradients.brand)
         .environment(\.medicationManager, MedicationManager.shared)
 }

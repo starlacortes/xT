@@ -1,111 +1,120 @@
-//
-//  AuthenticationManager.swift
-//  xT
-//
-//  Created by Cline on 4/16/2026.
-//  Authentication management system for app security
-//
-
 import Foundation
 import LocalAuthentication
 import SwiftUI
+
+@propertyWrapper
+struct UserDefault<T> {
+    let key: String
+    let defaultValue: T
+
+    var wrappedValue: T {
+        get { UserDefaults.standard.object(forKey: key) as? T ?? defaultValue }
+        set { UserDefaults.standard.set(newValue, forKey: key) }
+    }
+}
+
+public enum XAuthenticationError: Error {
+    case cancelled
+    case failed(Error)
+    case passcodeNotSet
+    case biometricNotAvailable
+}
 
 @MainActor
 class AuthenticationManager: ObservableObject {
     static let shared = AuthenticationManager()
 
-    @Published var isAuthenticated = false
+    @Published var isAuthenticated = true
     @Published var showAuthentication = false
     @Published var lastActivityTime: Date = Date()
+    private var hasExited = false
 
-    @Published var requireAuthentication = true
-    @Published var autoLockTimeout: TimeInterval = 300
+    @UserDefault(key: "requireAuthentication", defaultValue: true)
+    var requireAuthentication: Bool {
+        didSet { if !requireAuthentication { isAuthenticated = true } }
+    }
 
-    private var activityTimer: Timer?
+    @UserDefault(key: "autoLockTimeout", defaultValue: 300.0)
+    var autoLockTimeout: TimeInterval
+
+    var allowPasscodeFallback: Bool {
+        get { UserDefaults.standard.bool(forKey: "allowPasscodeFallback") }
+        set { UserDefaults.standard.set(newValue, forKey: "allowPasscodeFallback") }
+    }
+    
+    var timeoutLabel: String {
+        switch autoLockTimeout {
+        case 0: return "Immediately"
+        case 60: return "1 minute"
+        case 300: return "5 minutes"
+        case 900: return "15 minutes"
+        case 1800: return "30 minutes"
+        case 3600: return "1 hour"
+        default: return "5 minutes"
+        }
+    }
 
     init() {
-        loadSettings()
-        startActivityMonitoring()
+        if !requireAuthentication { isAuthenticated = true }
     }
 
     // MARK: - Authentication
 
-    func authenticate(reason: String = "Access your health data", completion: @escaping (Bool) -> Void) {
+    func authenticate(reason: String = "Access your health data") async throws {
         let context = LAContext()
         var error: NSError?
 
         if context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) {
-            context.evaluatePolicy(
-                .deviceOwnerAuthenticationWithBiometrics,
-                localizedReason: reason
-            ) { success, _ in
-                DispatchQueue.main.async {
-                    if success {
-                        self.isAuthenticated = true
-                        self.lastActivityTime = Date()
-                    }
-                    completion(success)
-                }
-            }
+            let success = try await context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: reason)
+            guard success else { throw XAuthenticationError.cancelled }
         } else {
-            context.evaluatePolicy(
-                .deviceOwnerAuthentication,
-                localizedReason: reason
-            ) { success, _ in
-                DispatchQueue.main.async {
-                    if success {
-                        self.isAuthenticated = true
-                        self.lastActivityTime = Date()
-                    }
-                    completion(success)
-                }
-            }
+            let success = try await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason)
+            guard success else { throw XAuthenticationError.cancelled }
         }
+
+        isAuthenticated = true
+        lastActivityTime = Date()
+        hasExited = false
+    }
+
+    func authenticateWithPasscode(reason: String = "Access your health data") async throws {
+        let context = LAContext()
+        var error: NSError?
+        guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else {
+            throw XAuthenticationError.passcodeNotSet
+        }
+        let success = try await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason)
+        guard success else { throw XAuthenticationError.cancelled }
+        
+        isAuthenticated = true
+        lastActivityTime = Date()
+        hasExited = false
     }
 
     func checkAuthenticationRequired() -> Bool {
         guard requireAuthentication else { return false }
-        return Date().timeIntervalSince(lastActivityTime) > autoLockTimeout
+        return !hasExited == false || isAuthenticated == false
     }
 
     func recordActivity() {
         if isAuthenticated { lastActivityTime = Date() }
     }
 
-    // MARK: - Activity monitoring
+    // MARK: - Scene Phase
 
-    private func startActivityMonitoring() {
-        activityTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                self?.checkActivityTimeout()
+    func handleScenePhase(_ phase: ScenePhase) {
+        switch phase {
+        case .active:
+            if requireAuthentication && hasExited {
+                showAuthentication = true
             }
+        case .background, .inactive:
+            if isAuthenticated {
+                isAuthenticated = false
+                hasExited = true
+            }
+        @unknown default: break
         }
-    }
-
-    private func checkActivityTimeout() {
-        guard requireAuthentication, isAuthenticated else { return }
-        if Date().timeIntervalSince(lastActivityTime) > autoLockTimeout {
-            isAuthenticated = false
-            showAuthentication = true
-        }
-    }
-
-    // MARK: - Settings
-
-    private func loadSettings() {
-        let defaults = UserDefaults.standard
-        requireAuthentication = defaults.bool(forKey: "requireAuthentication")
-        autoLockTimeout = TimeInterval(defaults.integer(forKey: "autoLockTimeout"))
-        if autoLockTimeout == 0 {
-            autoLockTimeout = 300
-            defaults.set(300, forKey: "autoLockTimeout")
-        }
-    }
-
-    func saveSettings() {
-        let defaults = UserDefaults.standard
-        defaults.set(requireAuthentication, forKey: "requireAuthentication")
-        defaults.set(Int(autoLockTimeout), forKey: "autoLockTimeout")
     }
 
     // MARK: - Biometrics
@@ -154,7 +163,7 @@ enum BiometricType {
 // MARK: - View Modifiers
 
 struct AuthenticationRequiredModifier: ViewModifier {
-    @EnvironmentObject var authManager: AuthenticationManager
+    @Environment(\.authenticationManager) var authManager
     var reason: String = "Access your health data"
 
     func body(content: Content) -> some View {
@@ -166,9 +175,11 @@ struct AuthenticationRequiredModifier: ViewModifier {
                     authManager.recordActivity()
                 }
             }
-            .sheet(isPresented: $authManager.showAuthentication) {
+            .sheet(isPresented: Binding(
+                get: { authManager.showAuthentication },
+                set: { authManager.showAuthentication = $0 }
+            )) {
                 AuthenticationView(reason: reason)
-                    .environmentObject(authManager)
             }
     }
 }
@@ -180,95 +191,113 @@ struct AuthenticationView: View {
     var reason: String
     @State private var showFallback = false
     @State private var errorMessage: String?
+    @State private var isAuthenticating = false
 
     var body: some View {
         ZStack {
-            Theme.globalBackgroundGradient
+            Theme.Gradients.brand
                 .ignoresSafeArea()
-            
+
             VStack(spacing: 24) {
                 Spacer()
-                
+
                 ZStack {
                     Circle()
                         .fill(Color.white.opacity(0.2))
                         .frame(width: 100, height: 100)
-                    
+
                     Image(systemName: authManager.biometricType().iconName)
                         .font(.system(size: 50))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                 }
+                .padding(.horizontal, 40)
                 .padding(.bottom, 8)
 
                 Text("Authenticate to continue")
                     .font(.title2)
                     .fontWeight(.medium)
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
 
                 Text(reason)
                     .font(.body)
                     .multilineTextAlignment(.center)
-                    .foregroundColor(.white.opacity(0.85))
+                    .foregroundStyle(.white.opacity(0.85))
                     .padding(.horizontal, 40)
 
                 if let error = errorMessage {
                     Text(error)
                         .font(.caption)
-                        .foregroundColor(Theme.errorColor)
+                        .foregroundStyle(Theme.Colors.error)
                         .padding()
                         .background(Color.white.opacity(0.2))
                         .cornerRadius(10)
                 }
 
-                Button(action: authenticate) {
-                    Text("Authenticate with \(authManager.biometricType().description)")
-                        .font(.headline)
-                        .fontWeight(.medium)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(Theme.accentColor.opacity(0.8))
-                        .cornerRadius(16)
-                        .shadow(color: Theme.accentColor.opacity(0.3), radius: 12, x: 0, y: 4)
-                }
-                .padding(.horizontal, 40)
-                .padding(.top, 8)
-
-                if showFallback {
-                    Button {
-                        authManager.authenticate(reason: "Enter your passcode") { success in
-                            if success { dismiss() } else { errorMessage = "Authentication failed" }
+                if isAuthenticating {
+                    ProgressView()
+                        .tint(.white)
+                } else {
+                    if authManager.biometricType() != .none {
+                        Button(action: { Task { await authenticate() } }) {
+                            Text("Authenticate with \(authManager.biometricType().description)")
+                                .font(.headline)
+                                .fontWeight(.medium)
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                                .background(Theme.Colors.accent.opacity(0.8))
+                                .cornerRadius(16)
+                                .shadow(color: Theme.Colors.accent.opacity(0.3), radius: 12, x: 0, y: 4)
                         }
-                    } label: {
-                        Text("Use passcode instead")
-                            .font(.subheadline)
-                            .foregroundColor(.white.opacity(0.7))
+                        .padding(.horizontal, 40)
+                        .padding(.top, 8)
+                    }
+
+                    if showFallback {
+                        Button {
+                            Task { await authenticateWithPasscode() }
+                        } label: {
+                            Text("Use passcode instead")
+                                .font(.subheadline)
+                                .foregroundStyle(.white.opacity(0.7))
+                        }
+                        .padding(.top, 8)
                     }
                 }
 
                 Spacer()
-                
-                Button { 
-                    // Can't dismiss if authentication is required
-                } label: {
-                    Text("") // Hidden
-                }
-                .opacity(0)
             }
             .padding()
         }
-        .onAppear { authenticate() }
+        .task { await authenticate() }
     }
 
-    private func authenticate() {
-        authManager.authenticate(reason: reason) { success in
-            if success {
-                dismiss()
-            } else {
-                errorMessage = "Authentication failed"
-                showFallback = true
-            }
+    private func authenticate() async {
+        isAuthenticating = true
+        errorMessage = nil
+        do {
+            try await authManager.authenticate(reason: reason)
+            dismiss()
+        } catch XAuthenticationError.cancelled {
+            errorMessage = "Authentication was cancelled"
+            showFallback = authManager.allowPasscodeFallback
+        } catch {
+            errorMessage = "Authentication failed"
+            showFallback = authManager.allowPasscodeFallback
         }
+        isAuthenticating = false
+    }
+
+    private func authenticateWithPasscode() async {
+        isAuthenticating = true
+        errorMessage = nil
+        do {
+            try await authManager.authenticateWithPasscode(reason: "Enter your passcode")
+            dismiss()
+        } catch {
+            errorMessage = "Authentication failed"
+        }
+        isAuthenticating = false
     }
 }
 
@@ -279,11 +308,8 @@ struct AuthenticationView: View {
 
 // MARK: - Environment Key
 
-// nonisolated so the default value can be created outside the main actor
 struct AuthenticationManagerKey: EnvironmentKey {
     nonisolated static let defaultValue: AuthenticationManager = {
-        // Accessing a @MainActor type from a nonisolated context is safe here
-        // because this is only used as a SwiftUI environment default fallback
         MainActor.assumeIsolated { AuthenticationManager.shared }
     }()
 }

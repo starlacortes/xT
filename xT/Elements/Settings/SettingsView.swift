@@ -14,6 +14,7 @@ struct SettingsView: View {
     @Environment(\.profileManager) private var profileManager
     @Environment(\.medicationManager) private var medicationManager
     @Environment(\.notificationManager) private var notificationManager
+    @Environment(\.authenticationManager) private var authManager
     @State private var showingResetAlert = false
     @State private var showingAuthRequest = false
     @State private var doseRemindersEnabled = true
@@ -46,7 +47,7 @@ struct SettingsView: View {
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
-            .background(Theme.globalBackgroundGradient)
+            .background(Theme.Gradients.brand)
             .sheet(isPresented: $showingDoseTimePicker) {
                 TimePickerSheet(title: "Dose reminder time", hour: $doseReminderHour, minute: $doseReminderMinute, isPresented: $showingDoseTimePicker)
             }
@@ -79,15 +80,8 @@ struct SettingsView: View {
     private var profileHeader: some View {
         VStack(spacing: 0) {
             // Gradient banner
-            LinearGradient(
-                gradient: Gradient(stops: [
-                    .init(color: Color(hex: "#D4537E"), location: 0),
-                    .init(color: Color(hex: "#8875D4"), location: 1)
-                ]),
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .frame(height: 56)
+            Theme.Gradients.brand
+                .frame(height: 56)
 
             // Profile card overlapping the banner
             VStack(spacing: 12) {
@@ -96,13 +90,7 @@ struct SettingsView: View {
                         // Avatar
                         ZStack {
                             Circle()
-                                .fill(
-                                    LinearGradient(
-                                        gradient: Gradient(colors: [Color(hex: "#D4537E"), Color(hex: "#8875D4")]),
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
+                                .fill(Theme.Gradients.brand)
                                 .frame(width: 52, height: 52)
                                 .overlay(Circle().stroke(Color.white, lineWidth: 2))
 
@@ -116,7 +104,7 @@ struct SettingsView: View {
                             } else {
                                 Text(profileManager.profileDisplayName.prefix(1).uppercased())
                                     .font(.system(size: 20, weight: .medium))
-                                    .foregroundColor(.white)
+                                    .foregroundStyle(.white)
                             }
                         }
                         .offset(y: -20)
@@ -124,11 +112,11 @@ struct SettingsView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(profileManager.profileDisplayName)
                                 .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(.primary)
+                                .foregroundStyle(.primary)
 
                             Text(profileSubtitle)
                                 .font(.system(size: 12))
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                         }
                         .offset(y: -10)
 
@@ -136,7 +124,7 @@ struct SettingsView: View {
 
                         Image(systemName: "chevron.right")
                             .font(.system(size: 13))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                             .offset(y: -10)
                     }
                 }
@@ -162,12 +150,12 @@ struct SettingsView: View {
         VStack(spacing: 2) {
             Text(value)
                 .font(.system(size: 15, weight: .medium))
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
             Text(label)
                 .font(.system(size: 9))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 9)
@@ -181,8 +169,8 @@ struct SettingsView: View {
         settingsSection(label: "Medication") {
             settingsRow(
                 icon: "pills.fill",
-                iconBg: Theme.bloomCycleLightColor,
-                iconColor: Theme.bloomCycleColor,
+                iconBg: Theme.Colors.Bloom.cycle.surface,
+                iconColor: Theme.Colors.Bloom.cycle.base,
                 title: "Type & method",
                 subtitle: medicationManager.medicationDisplayInfo
             ) {
@@ -196,8 +184,8 @@ struct SettingsView: View {
 
             settingsRow(
                 icon: "calendar",
-                iconBg: Theme.bloomMindLightColor,
-                iconColor: Theme.bloomMindColor,
+                iconBg: Theme.Colors.Bloom.mind.surface,
+                iconColor: Theme.Colors.Bloom.mind.base,
                 title: "Dose schedule",
                 subtitle: nextDoseSubtitle
             ) {
@@ -214,11 +202,11 @@ struct SettingsView: View {
             }) {
                 settingsRowContent(
                     icon: "checkmark",
-                    iconBg: Theme.bloomSkinLightColor,
-                    iconColor: Theme.bloomSkinColor,
+                    iconBg: Theme.Colors.Bloom.skin.surface,
+                    iconColor: Theme.Colors.Bloom.skin.base,
                     title: "Record a dose",
                     subtitle: lastDoseSubtitle,
-                    trailing: { Image(systemName: "checkmark.circle").font(.system(size: 16)).foregroundColor(Theme.bloomSkinColor) }
+                    trailing: { Image(systemName: "checkmark.circle").font(.system(size: 16)).foregroundStyle(Theme.Colors.Bloom.skin.base) }
                 )
             }
             .buttonStyle(.plain)
@@ -230,22 +218,22 @@ struct SettingsView: View {
     private var settingsNotificationsSection: some View {
         settingsSection(label: "Notifications") {
             HStack(spacing: 12) {
-                settingsIconView(icon: "bell.fill", bg: Theme.bloomBodyLightColor, color: Theme.bloomBodyColor)
+                settingsIconView(icon: "bell.fill", bg: Theme.Colors.Bloom.body.surface, color: Theme.Colors.Bloom.body.base)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Dose reminders")
                         .font(.system(size: 14))
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                     Text(doseRemindersEnabled ? formatDoseReminderSubtitle : "Off")
                         .font(.system(size: 12))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
 
                 Spacer()
 
                 Toggle("", isOn: $doseRemindersEnabled)
                     .labelsHidden()
-                    .toggleStyle(SwitchToggleStyle(tint: Theme.accentColor))
+                    .toggleStyle(SwitchToggleStyle(tint: Theme.Colors.accent))
             }
             .padding(12)
             .contentShape(Rectangle())
@@ -254,22 +242,22 @@ struct SettingsView: View {
             settingsDivider()
 
             HStack(spacing: 12) {
-                settingsIconView(icon: "book.fill", bg: Theme.bloomCycleLightColor, color: Theme.accentColor)
+                settingsIconView(icon: "book.fill", bg: Theme.Colors.Bloom.cycle.surface, color: Theme.Colors.accent)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Journal reminders")
                         .font(.system(size: 14))
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                     Text(journalRemindersEnabled ? formatJournalReminderSubtitle : "Off")
                         .font(.system(size: 12))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
 
                 Spacer()
 
                 Toggle("", isOn: $journalRemindersEnabled)
                     .labelsHidden()
-                    .toggleStyle(SwitchToggleStyle(tint: Theme.accentColor))
+                    .toggleStyle(SwitchToggleStyle(tint: Theme.Colors.accent))
             }
             .padding(12)
             .contentShape(Rectangle())
@@ -277,6 +265,12 @@ struct SettingsView: View {
         }
     }
 
+    private var privacyLockSubtitle: String {
+        let biometric = authManager.biometricType().description
+        let timeout = authManager.timeoutLabel
+        return "\(biometric) · \(timeout) timeout"
+    }
+    
     // MARK: - Privacy Section
 
     private var settingsPrivacySection: some View {
@@ -287,8 +281,8 @@ struct SettingsView: View {
                     iconBg: Color(UIColor.systemGray6),
                     iconColor: .secondary,
                     title: "App lock",
-                    subtitle: "Face ID · 5 min timeout",
-                    trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundColor(.secondary) }
+                    subtitle: privacyLockSubtitle,
+                    trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(.secondary) }
                 )
             }
             .buttonStyle(.plain)
@@ -305,7 +299,7 @@ struct SettingsView: View {
                 iconColor: .secondary,
                 title: "Version",
                 subtitle: nil,
-                trailing: { Text("1.0.0").font(.system(size: 13)).foregroundColor(.secondary) }
+                trailing: { Text("1.0.0").font(.system(size: 13)).foregroundStyle(.secondary) }
             )
 
             settingsDivider()
@@ -313,8 +307,8 @@ struct SettingsView: View {
             Button(role: .destructive, action: { showingResetAlert = true }) {
                 settingsRowContent(
                     icon: "trash.fill",
-                    iconBg: Theme.errorColor.opacity(0.1),
-                    iconColor: Theme.errorColor,
+                    iconBg: Theme.Colors.error.opacity(0.1),
+                    iconColor: Theme.Colors.error,
                     title: "Reset app data",
                     subtitle: nil,
                     trailing: { EmptyView() }
@@ -330,7 +324,7 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(label)
                 .font(.system(size: 11))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .textCase(.uppercase)
                 .kerning(0.05)
                 .padding(.leading, 4)
@@ -362,7 +356,7 @@ struct SettingsView: View {
                 iconColor: iconColor,
                 title: title,
                 subtitle: subtitle,
-                trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundColor(.secondary) }
+                trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(.secondary) }
             )
         }
         .buttonStyle(.plain)
@@ -382,11 +376,11 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.system(size: 14))
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
                 if let sub = subtitle {
                     Text(sub)
                         .font(.system(size: 12))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
             }
 
@@ -406,7 +400,7 @@ struct SettingsView: View {
                 .frame(width: 32, height: 32)
             Image(systemName: icon)
                 .font(.system(size: 16))
-                .foregroundColor(color)
+                .foregroundStyle(color)
         }
     }
 
@@ -543,7 +537,6 @@ struct SettingsView: View {
         medicationManager.clearSelection()
         clearSwiftData()
         UserDefaults.standard.set(false, forKey: "hasCompletedOnboarding")
-        exit(0)
     }
 
     private func clearSwiftData() {
@@ -556,14 +549,26 @@ struct SettingsView: View {
         }
     }
 
+    private static let dateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .medium
+        f.timeStyle = .none
+        return f
+    }()
+
+    private static let timeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .none
+        f.timeStyle = .short
+        return f
+    }()
+
     private func formatDate(_ date: Date) -> String {
-        let f = DateFormatter(); f.dateStyle = .medium; f.timeStyle = .none
-        return f.string(from: date)
+        Self.dateFormatter.string(from: date)
     }
 
     private func formatTime(_ date: Date) -> String {
-        let f = DateFormatter(); f.dateStyle = .none; f.timeStyle = .short
-        return f.string(from: date)
+        Self.timeFormatter.string(from: date)
     }
 }
 

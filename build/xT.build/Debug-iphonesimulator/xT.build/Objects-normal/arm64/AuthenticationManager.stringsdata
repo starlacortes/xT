@@ -7,31 +7,23 @@
         "key": "Authenticate to continue",
         "location": {
           "startingColumn": 22,
-          "startingLine": 203
+          "startingLine": 216
         }
       },
       {
         "comment": "",
         "key": "Authenticate with %@",
         "location": {
-          "startingColumn": 26,
-          "startingLine": 224
+          "startingColumn": 34,
+          "startingLine": 242
         }
       },
       {
         "comment": "",
         "key": "Use passcode instead",
         "location": {
-          "startingColumn": 30,
-          "startingLine": 243
-        }
-      },
-      {
-        "comment": "",
-        "key": "",
-        "location": {
-          "startingColumn": 26,
-          "startingLine": 254
+          "startingColumn": 34,
+          "startingLine": 260
         }
       }
     ]

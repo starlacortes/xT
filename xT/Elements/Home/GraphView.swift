@@ -53,7 +53,7 @@ struct GraphView: View {
         }
         .navigationTitle("Graph")
         .navigationBarTitleDisplayMode(.inline)
-        .background(Theme.globalBackgroundGradient)
+        .background(Theme.Gradients.brand)
         .onAppear {
             updateTooltip()
         }
@@ -128,12 +128,12 @@ struct GraphCardView: View {
         }
         .padding(16)
         .background(isFullScreen ? Color.clear : Color(UIColor.systemBackground).opacity(0.8))
-        .cornerRadius(isFullScreen ? 0 : Theme.mediumCornerRadius)
+        .cornerRadius(isFullScreen ? 0 : Theme.Radius.lg)
         .overlay(
             Group {
                 if !isFullScreen {
-                    RoundedRectangle(cornerRadius: Theme.mediumCornerRadius)
-                        .stroke(Theme.borderColor, lineWidth: 0.5)
+                    RoundedRectangle(cornerRadius: Theme.Radius.lg)
+                        .stroke(Theme.Colors.border, lineWidth: 0.5)
                 }
             }
         )
@@ -151,12 +151,12 @@ struct GraphHeaderView: View {
             Text("Hormone level curve")
                 .font(.system(size: 15))
                 .fontWeight(.medium)
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
 
             // Subtitle
             Text("\(medicationName) · \(administrationMethod ?? "Unknown") · \(administrationMethod == "Injectable" ? "7-day" : "Daily") cycle")
                 .font(.system(size: 12))
-                .foregroundColor(Color(.tertiaryLabel))
+                .foregroundStyle(Color(.tertiaryLabel))
         }
     }
 }
@@ -171,7 +171,7 @@ struct GraphSliderView: View {
             // Slider label
             Text("Scrub to a day")
                 .font(.system(size: 12))
-                .foregroundColor(Color(.tertiaryLabel))
+                .foregroundStyle(Color(.tertiaryLabel))
 
             // Day slider
             Slider(value: Binding(
@@ -180,14 +180,14 @@ struct GraphSliderView: View {
                     selectedDay = Int(newValue)
                 }
             ), in: 0...Double(labels.count - 1), step: 1)
-            .tint(Theme.accentColor)
+            .tint(Theme.Colors.accent)
 
             // Day labels
             HStack {
                 ForEach(0..<labels.count, id: \.self) { day in
                     Text(labels[day])
                         .font(.system(size: 10))
-                        .foregroundColor(day == selectedDay ? .primary : Color(.tertiaryLabel))
+                        .foregroundStyle(day == selectedDay ? .primary : Color(.tertiaryLabel))
                         .frame(maxWidth: .infinity)
                 }
             }
@@ -205,9 +205,9 @@ struct RangeIndicatorsView: View {
                 .fontWeight(.medium)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 4)
-                .background(Theme.successColor.opacity(0.2))
-                .foregroundColor(Theme.successColor)
-                .cornerRadius(Theme.smallCornerRadius)
+                .background(Theme.Colors.success.opacity(0.2))
+                .foregroundStyle(Theme.Colors.success)
+                .cornerRadius(Theme.Radius.sm)
 
             // Low range
             Text("Low <100")
@@ -215,9 +215,9 @@ struct RangeIndicatorsView: View {
                 .fontWeight(.medium)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 4)
-                .background(Theme.bloomBodyLightColor)
-                .foregroundColor(Theme.bloomBodyColor)
-                .cornerRadius(Theme.smallCornerRadius)
+                .background(Theme.Colors.Bloom.body.surface)
+                .foregroundStyle(Theme.Colors.Bloom.body.base)
+                .cornerRadius(Theme.Radius.sm)
 
             // High range
             Text("High >200")
@@ -225,9 +225,9 @@ struct RangeIndicatorsView: View {
                 .fontWeight(.medium)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 4)
-                .background(Theme.bloomCycleLightColor)
-                .foregroundColor(Theme.bloomCycleColor)
-                .cornerRadius(Theme.smallCornerRadius)
+                .background(Theme.Colors.Bloom.cycle.surface)
+                .foregroundStyle(Theme.Colors.Bloom.cycle.base)
+                .cornerRadius(Theme.Radius.sm)
         }
     }
 }
@@ -251,7 +251,7 @@ struct ChartAreaView: View {
                 let optimalMaxY = getYPosition(for: 200, in: chartHeight)
 
                 Rectangle()
-                    .fill(Theme.successColor.opacity(0.1))
+                    .fill(Theme.Colors.success.opacity(0.1))
                     .frame(height: optimalMaxY - optimalMinY)
                     .position(x: geometry.size.width / 2,
                              y: optimalMinY + (optimalMaxY - optimalMinY) / 2)
@@ -263,7 +263,7 @@ struct ChartAreaView: View {
                     path.move(to: CGPoint(x: 0, y: optimalMaxY))
                     path.addLine(to: CGPoint(x: geometry.size.width, y: optimalMaxY))
                 }
-                .stroke(Theme.successColor.opacity(0.3), style: StrokeStyle(lineWidth: 0.5, dash: [4, 4]))
+                .stroke(Theme.Colors.success.opacity(0.3), style: StrokeStyle(lineWidth: 0.5, dash: [4, 4]))
 
                 // Hormone curve with gradient fill
                 let curvePath = createCurvePath(in: geometry.size)
@@ -277,8 +277,8 @@ struct ChartAreaView: View {
                 }
                 .fill(
                     LinearGradient(gradient: Gradient(colors: [
-                        Theme.accentColor.opacity(0.12),
-                        Theme.accentColor.opacity(0.05)
+                        Theme.Colors.accent.opacity(0.12),
+                        Theme.Colors.accent.opacity(0.05)
                     ]),
                                    startPoint: .top,
                                    endPoint: .bottom)
@@ -286,7 +286,7 @@ struct ChartAreaView: View {
 
                 // Curve line
                 curvePath
-                    .stroke(Theme.accentColor, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                    .stroke(Theme.Colors.accent, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
 
                 // Data points
                 ForEach(0..<levels.count, id: \.self) { index in
@@ -295,7 +295,7 @@ struct ChartAreaView: View {
                     let y = getYPosition(for: level, in: chartHeight)
 
                     Circle()
-                        .fill(Theme.accentColor)
+                        .fill(Theme.Colors.accent)
                         .frame(width: 4, height: 4)
                         .position(x: x, y: y)
                 }
@@ -306,14 +306,14 @@ struct ChartAreaView: View {
 
                 // Vertical guide line
                 Rectangle()
-                    .fill(Theme.accentColor.opacity(0.2))
+                    .fill(Theme.Colors.accent.opacity(0.2))
                     .frame(width: 1, height: chartHeight)
                     .position(x: selectedX, y: chartHeight / 2)
                     .animation(.easeInOut(duration: 0.2), value: selectedDay)
 
                 // Selected point marker
                 Circle()
-                    .fill(Theme.accentColor)
+                    .fill(Theme.Colors.accent)
                     .frame(width: 14, height: 14)
                     .position(x: selectedX, y: selectedY)
                     .animation(.easeInOut(duration: 0.2), value: selectedDay)
@@ -394,9 +394,9 @@ struct TooltipView: View {
     }
 
     private func getRangeColor(for value: Double) -> Color {
-        if value < 100 { return Theme.bloomBodyColor }
-        else if value < 200 { return Theme.successColor }
-        else { return Theme.bloomCycleColor }
+        if value < 100 { return Theme.Colors.Bloom.body.base }
+        else if value < 200 { return Theme.Colors.success }
+        else { return Theme.Colors.Bloom.cycle.base }
     }
 
     var body: some View {
@@ -404,19 +404,19 @@ struct TooltipView: View {
             Text("\(Int(value)) pg/mL")
                 .font(.system(size: 12))
                 .fontWeight(.medium)
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
 
             Text(getRangeText(for: value))
                 .font(.system(size: 10))
-                .foregroundColor(getRangeColor(for: value))
+                .foregroundStyle(getRangeColor(for: value))
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
         .background(.ultraThinMaterial)
-        .cornerRadius(Theme.smallCornerRadius)
+        .cornerRadius(Theme.Radius.sm)
         .overlay(
-            RoundedRectangle(cornerRadius: Theme.smallCornerRadius)
-                .stroke(Theme.borderColor, lineWidth: 0.5)
+            RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                .stroke(Theme.Colors.border, lineWidth: 0.5)
         )
     }
 }
@@ -435,9 +435,9 @@ struct StatsRowView: View {
     }
 
     private func getRangeColor(for value: Double) -> Color {
-        if value < 100 { return Theme.bloomBodyColor }
-        else if value < 200 { return Theme.successColor }
-        else { return Theme.bloomCycleColor }
+        if value < 100 { return Theme.Colors.Bloom.body.base }
+        else if value < 200 { return Theme.Colors.success }
+        else { return Theme.Colors.Bloom.cycle.base }
     }
 
     var body: some View {
@@ -447,11 +447,11 @@ struct StatsRowView: View {
                 Text(selectedDay == 0 ? "—" : "\(Int(levels[selectedDay]))")
                     .font(.system(size: 18))
                     .fontWeight(.medium)
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
 
                 Text("pg/mL")
                     .font(.system(size: 10))
-                    .foregroundColor(Color(.tertiaryLabel))
+                    .foregroundStyle(Color(.tertiaryLabel))
             }
             .frame(maxWidth: .infinity)
             .padding(10)
@@ -463,11 +463,11 @@ struct StatsRowView: View {
                 Text(getRangeText(for: levels[selectedDay]))
                     .font(.system(size: 18))
                     .fontWeight(.medium)
-                    .foregroundColor(getRangeColor(for: levels[selectedDay]))
+                    .foregroundStyle(getRangeColor(for: levels[selectedDay]))
 
                 Text("range")
                     .font(.system(size: 10))
-                    .foregroundColor(Color(.tertiaryLabel))
+                    .foregroundStyle(Color(.tertiaryLabel))
             }
             .frame(maxWidth: .infinity)
             .padding(10)
@@ -479,11 +479,11 @@ struct StatsRowView: View {
                 Text(selectedDay == 0 ? "Dose" : "Day \(selectedDay)")
                     .font(.system(size: 18))
                     .fontWeight(.medium)
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
 
                 Text("of cycle")
                     .font(.system(size: 10))
-                    .foregroundColor(Color(.tertiaryLabel))
+                    .foregroundStyle(Color(.tertiaryLabel))
             }
             .frame(maxWidth: .infinity)
             .padding(10)

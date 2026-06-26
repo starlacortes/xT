@@ -41,15 +41,15 @@ struct HealthInsightCard: View {
 
     private var insightColor: Color {
         guard let currentLevel = medicationManager.currentHormoneLevel?.value else {
-            return Theme.infoColor
+            return Theme.Colors.info
         }
 
         if currentLevel < 100 {
-            return Theme.warningColor
+            return Theme.Colors.warning
         } else if currentLevel < 200 {
-            return Theme.successColor
+            return Theme.Colors.success
         } else {
-            return Theme.infoColor
+            return Theme.Colors.info
         }
     }
 
@@ -62,18 +62,18 @@ struct HealthInsightCard: View {
 
                 Image(systemName: insightIcon)
                     .font(.system(size: 16))
-                    .foregroundColor(insightColor)
+                    .foregroundStyle(insightColor)
             }
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("Health insight")
                     .font(.system(size: 13))
                     .fontWeight(.medium)
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
 
                 Text(insightText)
                     .font(.system(size: 12))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .lineSpacing(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -82,9 +82,9 @@ struct HealthInsightCard: View {
         }
         .padding(14)
         .background(.ultraThinMaterial)
-        .cornerRadius(Theme.mediumCornerRadius)
+        .cornerRadius(Theme.Radius.lg)
         .overlay(
-            RoundedRectangle(cornerRadius: Theme.mediumCornerRadius)
+            RoundedRectangle(cornerRadius: Theme.Radius.lg)
                 .stroke(insightColor.opacity(0.3), lineWidth: 0.5)
         )
     }

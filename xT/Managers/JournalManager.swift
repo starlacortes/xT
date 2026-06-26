@@ -5,7 +5,7 @@
 //  Created by Cline on 4/6/2026.
 //  Journal management system for tracking mood, symptoms, and entries
 //
-//
+
 import SwiftUI
 import SwiftData
 import Foundation
@@ -14,7 +14,7 @@ import Foundation
 class JournalManager: ObservableObject {
     static let shared = JournalManager()
 
-    /// Injected from the app container.
+    // Injected from the app container.
     var modelContext: ModelContext?
 
     @Published var entries: [JournalEntry] = []
@@ -28,7 +28,7 @@ class JournalManager: ObservableObject {
 
     // CRUD operations
     func addEntry(_ entry: JournalEntry) {
-        entries.insert(entry, at: 0)
+        entries.append(entry)
         modelContext?.insert(entry)
         try? modelContext?.save()
     }
@@ -58,12 +58,11 @@ class JournalManager: ObservableObject {
 
     // MARK: - Persistence
 
-    /// Loads journal entries from SwiftData.
+    // Loads journal entries from SwiftData.
     func loadEntries() {
         guard let context = modelContext else { return }
-        let descriptor = SortDescriptor<JournalEntry>(\JournalEntry.date, order: .forward)
-        let allEntries = try? context.fetch(FetchDescriptor<JournalEntry>(sortBy: [descriptor]))
-        entries = (allEntries ?? []).sorted { $0.date > $1.date } // newest first
+        let allEntries = try? context.fetch(FetchDescriptor<JournalEntry>())
+        entries = allEntries?.sorted { $0.date > $1.date } ?? [] // newest first
 
         if entries.isEmpty {
             currentMood = .neutral
@@ -146,9 +145,10 @@ class JournalManager: ObservableObject {
 // EnvironmentKey for JournalManager.
 // defaultValue is @MainActor because JournalManager is @MainActor.
 // EnvironmentValues is also @MainActor, so there's no actual race condition.
+@MainActor
 struct JournalManagerKey: EnvironmentKey {
-    static var defaultValue: JournalManager {
-        .shared
+    @safe static var defaultValue: JournalManager {
+        return JournalManager.shared
     }
 }
 

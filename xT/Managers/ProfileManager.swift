@@ -116,7 +116,7 @@ internal extension ProfileManager {
 
         // Load profile name with validation and decryption
         if let encryptedNameData = defaults.data(forKey: "encryptedProfileName"),
-           let decryptedNameData = securityManager.decryptData(encryptedNameData),
+           let decryptedNameData = try? securityManager.decryptData(encryptedNameData),
            let savedName = String(data: decryptedNameData, encoding: .utf8) {
             profileName = savedName.trimmingCharacters(in: .whitespacesAndNewlines)
         } else if let savedName = defaults.string(forKey: "profileName") {
@@ -130,7 +130,7 @@ internal extension ProfileManager {
 
         // Load profile image data with validation and decryption
         if let encryptedImageData = defaults.data(forKey: "encryptedProfileImageData"),
-           let decryptedImageData = securityManager.decryptData(encryptedImageData) {
+           let decryptedImageData = try? securityManager.decryptData(encryptedImageData) {
             // Validate image data
             if let image = UIImage(data: decryptedImageData) {
                 profileImageData = decryptedImageData
@@ -166,7 +166,7 @@ internal extension ProfileManager {
         // Migrate profile name
         if let unencryptedName = defaults.string(forKey: "profileName") {
             if let nameData = unencryptedName.data(using: .utf8),
-               let encryptedName = securityManager.encryptData(nameData) {
+               let encryptedName = try? securityManager.encryptData(nameData) {
                 defaults.set(encryptedName, forKey: "encryptedProfileName")
                 defaults.removeObject(forKey: "profileName")
             }
@@ -174,7 +174,7 @@ internal extension ProfileManager {
 
         // Migrate profile image
         if let unencryptedImageData = defaults.data(forKey: "profileImageData") {
-            if let encryptedImage = securityManager.encryptData(unencryptedImageData) {
+            if let encryptedImage = try? securityManager.encryptData(unencryptedImageData) {
                 defaults.set(encryptedImage, forKey: "encryptedProfileImageData")
                 defaults.removeObject(forKey: "profileImageData")
             }
@@ -188,7 +188,7 @@ internal extension ProfileManager {
         // Save profile name with validation and encryption
         let trimmedName = profileName.trimmingCharacters(in: .whitespacesAndNewlines)
         if let nameData = trimmedName.data(using: .utf8),
-           let encryptedName = securityManager.encryptData(nameData) {
+           let encryptedName = try? securityManager.encryptData(nameData) {
             defaults.set(encryptedName, forKey: "encryptedProfileName")
         } else {
             defaults.removeObject(forKey: "encryptedProfileName")
@@ -198,7 +198,7 @@ internal extension ProfileManager {
         if let imageData = profileImageData {
             // Validate that the data can be converted to UIImage
             if UIImage(data: imageData) != nil {
-                if let encryptedImage = securityManager.encryptData(imageData) {
+                if let encryptedImage = try? securityManager.encryptData(imageData) {
                     defaults.set(encryptedImage, forKey: "encryptedProfileImageData")
                 } else {
                     // Encryption failed, clear the data

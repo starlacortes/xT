@@ -16,7 +16,7 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            Theme.globalBackgroundGradient
+            Theme.Gradients.brand
                 .ignoresSafeArea()
 
             NavigationStack(path: $navigationPath) {
@@ -69,13 +69,6 @@ struct ContentView: View {
                 print("Onboarding marked as completed on disappear")
             }
         }
-    }
-}
-
-// MARK: - Authentication View for ContentView
-extension AuthenticationView {
-    init(reason: String) {
-        self.reason = reason
     }
 }
 

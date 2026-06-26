@@ -3,7 +3,7 @@
 //  xT
 //
 //  Mood-coded color palettes, shared layout helpers, and Date extensions
-//  for the redesigned journal UI
+//  for the redesigned journal UI.
 //
 
 import SwiftUI
@@ -15,36 +15,34 @@ struct JournalPalette {
     let border: Color    // card stroke
     let accent: Color    // icon, timestamp, tag text
     let title: Color     // headline + body text
-    // tag: Color       // symptom tag background - removed as it always equals border
 }
 
 enum JournalTheme {
-    // Primary rose accent used across composer controls
-    static let rose = Theme.accentColor
-    static let lavender = Theme.secondaryAccentColor
+    static let rose     = Theme.Colors.accent
+    static let lavender = Theme.Colors.accentSecondary
 
     static func palette(for mood: Mood) -> JournalPalette {
         switch mood {
         case .happy, .energetic:
             return JournalPalette(
-                surface: Color(hex: "#FBEAF0"),
-                border:  Color(hex: "#F4C0D1"),
-                accent:  Theme.accentColor,
-                title:   Color(hex: "#72243E")
+                surface: Color(lightHex: "#FBEAF0", darkHex: "#2E1018"),
+                border:  Color(lightHex: "#F4C0D1", darkHex: "#7A2846"),
+                accent:  Theme.Colors.accent,
+                title:   Color(lightHex: "#72243E", darkHex: "#F4A8C0")
             )
         case .calm, .neutral:
             return JournalPalette(
-                surface: Color(hex: "#EEEDFE"),
-                border:  Color(hex: "#CECBF6"),
-                accent:  Theme.secondaryAccentColor,
-                title:   Color(hex: "#3C3489")
+                surface: Color(lightHex: "#EEEDFE", darkHex: "#1E1C3A"),
+                border:  Color(lightHex: "#CECBF6", darkHex: "#3D3880"),
+                accent:  Theme.Colors.accentSecondary,
+                title:   Color(lightHex: "#3C3489", darkHex: "#ABA7F0")
             )
         case .tired, .sad, .anxious:
             return JournalPalette(
-                surface: Color(hex: "#F1EFE8"),
-                border:  Color(hex: "#D3D1C7"),
-                accent:  Color(hex: "#5F5E5A"),
-                title:   Color(hex: "#444441")
+                surface: Color(lightHex: "#F1EFE8", darkHex: "#1E1D18"),
+                border:  Color(lightHex: "#D3D1C7", darkHex: "#4A4840"),
+                accent:  Color(lightHex: "#5F5E5A", darkHex: "#A8A7A2"),
+                title:   Color(lightHex: "#444441", darkHex: "#C8C7C2")
             )
         }
     }
@@ -96,29 +94,37 @@ struct FlowLayout: Layout {
 // MARK: - Date helpers
 
 extension Date {
-    /// "Today", "Yesterday", or "Mon, May 26"
+    private static let journalDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "EEE, MMM d"
+        return f
+    }()
+
+    private static let fullDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "EEEE, MMM d · h:mm a"
+        return f
+    }()
+
+    private static let composerDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "EEEE, MMMM d"
+        return f
+    }()
+
     var journalDateLabel: String {
         if Calendar.current.isDateInToday(self) { return "Today" }
         if Calendar.current.isDateInYesterday(self) { return "Yesterday" }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEE, MMM d"
-        return formatter.string(from: self)
+        return Self.journalDateFormatter.string(from: self)
     }
 
-    /// "Wednesday, May 28 · 2:34 pm"
     var fullDateLabel: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEEE, MMM d · h:mm a"
-        return formatter.string(from: self).lowercased()
+        Self.fullDateFormatter.string(from: self).lowercased()
             .replacingOccurrences(of: "am", with: "am")
             .replacingOccurrences(of: "pm", with: "pm")
     }
 
-    /// "Wednesday, May 28" for the composer header
     var composerDateLabel: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEEE, MMMM d"
-        return formatter.string(from: self)
+        Self.composerDateFormatter.string(from: self)
     }
 }
-

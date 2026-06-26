@@ -4,5 +4,7 @@
 <dict>
 	<key>application-identifier</key>
 	<string>68M5FXET7D.starlacortes.xT</string>
+	<key>com.apple.developer.default-data-protection</key>
+	<string>NSFileProtectionComplete</string>
 </dict>
 </plist>

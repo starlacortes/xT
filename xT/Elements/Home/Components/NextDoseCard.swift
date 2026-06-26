@@ -16,12 +16,12 @@ struct NextDoseCard: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("next dose")
                     .font(.system(size: 11))
-                    .foregroundColor(Color(.tertiaryLabel))
+                    .foregroundStyle(Color(.tertiaryLabel))
 
                 Text(nextDose, style: .date)
                     .font(.system(size: 15))
                     .fontWeight(.medium)
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
             }
 
             Spacer()
@@ -29,32 +29,32 @@ struct NextDoseCard: View {
             VStack(alignment: .trailing, spacing: 2) {
                 Text("in")
                     .font(.system(size: 11))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
 
                 let daysUntilNextDose = Calendar.current.dateComponents([.day], from: Date(), to: nextDose).day ?? 0
                 Text("\(daysUntilNextDose) day\(daysUntilNextDose == 1 ? "" : "s")")
                     .font(.system(size: 15))
                     .fontWeight(.medium)
-                    .foregroundColor(Theme.bloomMindColor)
+                    .foregroundStyle(Theme.Colors.Bloom.mind.base)
             }
 
             // Calendar icon
             ZStack {
                 RoundedRectangle(cornerRadius: 9)
-                    .fill(Theme.bloomMindLightColor)
+                    .fill(Theme.Colors.Bloom.mind.surface)
                     .frame(width: 32, height: 40)
 
                 Image(systemName: "calendar")
                     .font(.system(size: 18))
-                    .foregroundColor(Theme.bloomMindColor)
+                    .foregroundStyle(Theme.Colors.Bloom.mind.base)
             }
         }
         .padding(14)
         .background(.ultraThinMaterial)
-        .cornerRadius(Theme.mediumCornerRadius)
+        .cornerRadius(Theme.Radius.lg)
         .overlay(
-            RoundedRectangle(cornerRadius: Theme.mediumCornerRadius)
-                .stroke(Theme.borderColor, lineWidth: 0.5)
+            RoundedRectangle(cornerRadius: Theme.Radius.lg)
+                .stroke(Theme.Colors.border, lineWidth: 0.5)
         )
     }
 }

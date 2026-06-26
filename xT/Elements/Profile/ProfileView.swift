@@ -23,7 +23,7 @@ struct ProfileView: View {
                             .clipShape(Circle())
                             .overlay(
                                 Circle()
-                                    .stroke(Color.blue, lineWidth: 2)
+                                    .stroke(Theme.Colors.accent, lineWidth: 2)
                             )
                             .shadow(radius: 3)
 
@@ -31,11 +31,11 @@ struct ProfileView: View {
                             Text(profileManager.profileDisplayName)
                                 .font(.title2)
                                 .bold()
-                                .foregroundColor(profileManager.hasProfileData ? .primary : .gray)
+                                .foregroundStyle(profileManager.hasProfileData ? Color.primary : Color.gray)
 
                             Text("Manage your profile settings")
                                 .font(.subheadline)
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                         }
                         .padding(.leading, 12)
 
@@ -47,11 +47,7 @@ struct ProfileView: View {
                     VStack(spacing: 16) {
                         NavigationLink(destination: ProfileEditorView()) {
                             Text("Edit Profile")
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color.blue)
-                                .foregroundColor(.white)
-                                .cornerRadius(8)
+                                .asAccentButton()
                         }
 
                         NavigationLink(destination: ProfileEditorView()) {
@@ -59,8 +55,8 @@ struct ProfileView: View {
                                 .frame(maxWidth: .infinity)
                                 .padding()
                                 .background(Color(UIColor.secondarySystemBackground))
-                                .foregroundColor(.blue)
-                                .cornerRadius(8)
+                                .foregroundStyle(Theme.Colors.accent)
+                                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
                         }
                     }
                     .padding(.vertical, 16)

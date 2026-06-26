@@ -10,6 +10,9 @@ import SwiftUI
 
 struct MiniTrendGraph: View {
     @Environment(\.medicationManager) private var medicationManager
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var drawProgress: CGFloat = 0
+    @State private var pulse = false
 
     var body: some View {
         GeometryReader { geometry in
@@ -41,14 +44,15 @@ struct MiniTrendGraph: View {
                 }
                 .fill(
                     LinearGradient(gradient: Gradient(colors: [
-                        Theme.accentColor.opacity(0.18),
-                        Theme.accentColor.opacity(0)
+                        Theme.Colors.accent.opacity(0.18),
+                        Theme.Colors.accent.opacity(0)
                     ]),
                                    startPoint: .top,
                                    endPoint: .bottom)
                 )
+                .opacity(drawProgress)
 
-                // Trend line
+                // Trend line — draws itself left to right on appear
                 Path { path in
                     for (index, point) in points.enumerated() {
                         let x = CGFloat(index) * (geometry.size.width / CGFloat(points.count - 1))
@@ -63,19 +67,40 @@ struct MiniTrendGraph: View {
                         }
                     }
                 }
-                .stroke(Theme.accentColor, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                .trim(from: 0, to: drawProgress)
+                .stroke(Theme.Colors.accent, style: StrokeStyle(lineWidth: 2, lineCap: .round))
 
-                // Current point marker
+                // Current point marker — fades in after the line draws, with a soft pulse
                 if let currentPoint = points.last {
                     let x = geometry.size.width - 10
                     let y = valueRange > 0 ?
                         geometry.size.height - CGFloat((currentPoint.value - minValue) / valueRange) * geometry.size.height :
                         geometry.size.height / 2
 
-                    Circle()
-                        .fill(Theme.accentColor)
-                        .frame(width: 10, height: 10)
-                        .position(x: x, y: y)
+                    ZStack {
+                        Circle()
+                            .fill(Theme.Colors.accent.opacity(0.35))
+                            .frame(width: 10, height: 10)
+                            .scaleEffect(pulse ? 2.2 : 1)
+                            .opacity(pulse ? 0 : 0.6)
+
+                        Circle()
+                            .fill(Theme.Colors.accent)
+                            .frame(width: 10, height: 10)
+                    }
+                    .position(x: x, y: y)
+                    .scaleEffect(drawProgress >= 1 ? 1 : 0)
+                    .animation(Theme.Motion.snappy, value: drawProgress >= 1)
+                }
+            }
+            .onAppear {
+                if reduceMotion {
+                    drawProgress = 1
+                    return
+                }
+                withAnimation(.easeInOut(duration: 1.0)) { drawProgress = 1 }
+                withAnimation(.easeOut(duration: 1.6).repeatForever(autoreverses: false).delay(1.0)) {
+                    pulse = true
                 }
             }
         }

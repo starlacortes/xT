@@ -46,7 +46,7 @@ struct WelcomeTourView: View {
                 ForEach(0..<tourSteps.count, id: \.self) { index in
                     Circle()
                         .frame(width: 8, height: 8)
-                        .foregroundColor(index == currentStep ? .blue : .gray.opacity(0.3))
+                        .foregroundStyle(index == currentStep ? Theme.Colors.accent : .gray.opacity(0.3))
                         .scaleEffect(index == currentStep ? 1.2 : 1.0)
                         .animation(.spring(), value: currentStep)
                 }
@@ -59,7 +59,7 @@ struct WelcomeTourView: View {
             VStack(spacing: 24) {
                 Image(systemName: tourSteps[currentStep].icon)
                     .font(.system(size: 64))
-                    .foregroundColor(tourSteps[currentStep].color)
+                    .foregroundStyle(tourSteps[currentStep].color)
                     .padding()
                     .background(tourSteps[currentStep].color.opacity(0.1))
                     .clipShape(Circle())
@@ -74,7 +74,7 @@ struct WelcomeTourView: View {
                 Text(tourSteps[currentStep].description)
                     .font(.body)
                     .multilineTextAlignment(.center)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .padding(.horizontal)
             }
             .padding()
@@ -94,8 +94,8 @@ struct WelcomeTourView: View {
                             .frame(maxWidth: .infinity)
                             .padding()
                             .background(Color.gray.opacity(0.2))
-                            .foregroundColor(.blue)
-                            .cornerRadius(10)
+                            .foregroundStyle(Theme.Colors.accent)
+                            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
                     }
                 }
 
@@ -106,22 +106,14 @@ struct WelcomeTourView: View {
                         }
                     }) {
                         Text("Next")
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color.blue)
-                            .foregroundColor(.white)
-                            .cornerRadius(10)
+                            .asAccentButton()
                     }
                 } else {
                     Button(action: {
                         dismiss()
                     }) {
                         Text("Get Started")
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color.blue)
-                            .foregroundColor(.white)
-                            .cornerRadius(10)
+                            .asAccentButton()
                     }
                 }
             }

@@ -26,16 +26,16 @@ struct JournalDetailSheet: View {
                                 .frame(width: 52, height: 52)
                             Image(systemName: entry.mood.icon)
                                 .font(.system(size: 24))
-                                .foregroundColor(palette.accent)
+                                .foregroundStyle(palette.accent)
                         }
 
                         VStack(alignment: .leading, spacing: 3) {
                             Text(entry.mood.rawValue)
                                 .font(.system(size: 17, weight: .medium))
-                                .foregroundColor(palette.title)
+                                .foregroundStyle(palette.title)
                             Text(entry.date.fullDateLabel)
                                 .font(.system(size: 13))
-                                .foregroundColor(palette.accent)
+                                .foregroundStyle(palette.accent)
                         }
 
                         Spacer()
@@ -53,13 +53,13 @@ struct JournalDetailSheet: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Label("Entry", systemImage: "pencil")
                                 .font(.system(size: 11, weight: .medium))
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                                 .textCase(.uppercase)
                                 .tracking(0.5)
 
                             Text(entry.text)
                                 .font(.system(size: 15, design: .serif))
-                                .foregroundColor(palette.title)
+                                .foregroundStyle(palette.title)
                                 .lineSpacing(5)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(16)
@@ -77,7 +77,7 @@ struct JournalDetailSheet: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Label("Symptoms", systemImage: "list.bullet")
                                 .font(.system(size: 11, weight: .medium))
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                                 .textCase(.uppercase)
                                 .tracking(0.5)
 
@@ -89,7 +89,7 @@ struct JournalDetailSheet: View {
                                         Text(symptom.name)
                                             .font(.system(size: 12))
                                     }
-                                    .foregroundColor(palette.title)
+                                    .foregroundStyle(palette.title)
                                     .padding(.horizontal, 11)
                                     .padding(.vertical, 6)
                                     .background(palette.border)
@@ -112,7 +112,7 @@ struct JournalDetailSheet: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
-                        .foregroundColor(Theme.accentColor)
+                        .foregroundStyle(Theme.Colors.accent)
                 }
             }
         }

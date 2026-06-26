@@ -6,40 +6,24 @@
         "comment": "",
         "key": "🌸",
         "location": {
-          "startingColumn": 22,
-          "startingLine": 17
+          "startingColumn": 26,
+          "startingLine": 24
         }
       },
       {
         "comment": "",
         "key": "Today's journal",
         "location": {
-          "startingColumn": 26,
-          "startingLine": 21
-        }
-      },
-      {
-        "comment": "",
-        "key": "•",
-        "location": {
           "startingColumn": 30,
-          "startingLine": 31
+          "startingLine": 28
         }
       },
       {
         "comment": "",
-        "key": "•",
+        "key": "View full entry",
         "location": {
           "startingColumn": 34,
-          "startingLine": 40
-        }
-      },
-      {
-        "comment": "",
-        "key": "%lld symptom%@",
-        "location": {
-          "startingColumn": 34,
-          "startingLine": 44
+          "startingLine": 68
         }
       }
     ]

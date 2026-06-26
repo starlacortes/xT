@@ -7,15 +7,7 @@
         "key": "App Lock",
         "location": {
           "startingColumn": 30,
-          "startingLine": 110
-        }
-      },
-      {
-        "comment": "",
-        "key": "Authentication",
-        "location": {
-          "startingColumn": 38,
-          "startingLine": 31
+          "startingLine": 89
         }
       },
       {
@@ -23,7 +15,7 @@
         "key": "Auto-lock timeout",
         "location": {
           "startingColumn": 42,
-          "startingLine": 71
+          "startingLine": 61
         }
       },
       {
@@ -31,7 +23,7 @@
         "key": "xT will require authentication after being inactive for the selected duration.",
         "location": {
           "startingColumn": 41,
-          "startingLine": 72
+          "startingLine": 62
         }
       },
       {
@@ -39,55 +31,7 @@
         "key": "About app lock",
         "location": {
           "startingColumn": 38,
-          "startingLine": 96
-        }
-      },
-      {
-        "comment": "",
-        "key": "",
-        "location": {
-          "startingColumn": 32,
-          "startingLine": 61
-        }
-      },
-      {
-        "comment": "",
-        "key": "Require %@",
-        "location": {
-          "startingColumn": 34,
-          "startingLine": 44
-        }
-      },
-      {
-        "comment": "",
-        "key": "Use biometrics to unlock xT",
-        "location": {
-          "startingColumn": 38,
-          "startingLine": 49
-        }
-      },
-      {
-        "comment": "",
-        "key": "Biometrics not available",
-        "location": {
-          "startingColumn": 38,
-          "startingLine": 53
-        }
-      },
-      {
-        "comment": "",
-        "key": "Privacy & Security",
-        "location": {
-          "startingColumn": 30,
-          "startingLine": 98
-        }
-      },
-      {
-        "comment": "",
-        "key": "App lock helps protect your sensitive health data by requiring authentication when opening xT or after a period of inactivity.",
-        "location": {
-          "startingColumn": 30,
-          "startingLine": 102
+          "startingLine": 85
         }
       },
       {
@@ -95,7 +39,207 @@
         "key": "Done",
         "location": {
           "startingColumn": 28,
-          "startingLine": 114
+          "startingLine": 93
+        }
+      },
+      {
+        "comment": "",
+        "key": "Require Face ID",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 124
+        }
+      },
+      {
+        "comment": "",
+        "key": "Use Face ID to quickly unlock xT. You can also set up Face ID in the Settings app if you haven't already.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 128
+        }
+      },
+      {
+        "comment": "",
+        "key": "Require Face ID",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 134
+        }
+      },
+      {
+        "comment": "",
+        "key": "Allow passcode fallback",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 136
+        }
+      },
+      {
+        "comment": "",
+        "key": "Test Face ID",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 140
+        }
+      },
+      {
+        "comment": "",
+        "key": "Require %@",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 161
+        }
+      },
+      {
+        "comment": "",
+        "key": "Use %@ to unlock xT. You can also set up %@ in the Settings app if you haven't already.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 165
+        }
+      },
+      {
+        "comment": "",
+        "key": "Require %@",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 171
+        }
+      },
+      {
+        "comment": "",
+        "key": "Allow passcode fallback",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 173
+        }
+      },
+      {
+        "comment": "",
+        "key": "Test %@",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 177
+        }
+      },
+      {
+        "comment": "",
+        "key": "Biometrics Unavailable",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 198
+        }
+      },
+      {
+        "comment": "",
+        "key": "Your device doesn't have Face ID or Touch ID set up. You can set up Face ID or Touch ID in Settings to unlock xT with biometrics, or use the passcode option below.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 202
+        }
+      },
+      {
+        "comment": "",
+        "key": "Require passcode instead",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 214
+        }
+      },
+      {
+        "comment": "",
+        "key": "Open Settings",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 209
+        }
+      },
+      {
+        "comment": "",
+        "key": "Privacy & Security",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 223
+        }
+      },
+      {
+        "comment": "",
+        "key": "App lock helps protect your sensitive health data by requiring authentication when opening xT or after a period of inactivity. Your biometric data is never stored on our servers or shared with Apple.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 227
+        }
+      },
+      {
+        "comment": "",
+        "key": "Test your biometric authentication",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 301
+        }
+      },
+      {
+        "comment": "",
+        "key": "Biometrics Enabled!",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 314
+        }
+      },
+      {
+        "comment": "",
+        "key": "Biometric authentication is working correctly.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 318
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 324
+        }
+      },
+      {
+        "comment": "",
+        "key": "Authentication Failed",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 345
+        }
+      },
+      {
+        "comment": "",
+        "key": "Your biometric data doesn't match. Please try again.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 349
+        }
+      },
+      {
+        "comment": "",
+        "key": "Try Again",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 355
+        }
+      },
+      {
+        "comment": "",
+        "key": "Test Cancelled",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 376
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 382
         }
       }
     ]

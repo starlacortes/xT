@@ -26,7 +26,8 @@ struct BloomView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     BloomTimelineHeader(engine: engine)
                         .padding(.horizontal)
-                        .padding(.top, 8)
+                        .padding(.top, Theme.Spacing.sm)
+                        .entrance(delay: 0)
 
                     BloomSectionLabel(text: "Happening right now")
                         .padding(.horizontal)
@@ -34,7 +35,8 @@ struct BloomView: View {
                     if let insight = engine.hormoneInsight {
                         BloomHormoneCard(insight: insight, medication: engine.medication)
                             .padding(.horizontal)
-                            .padding(.bottom, 8)
+                            .padding(.bottom, Theme.Spacing.sm)
+                            .entrance(delay: 0.08)
                     }
 
                     BloomBodySystemGrid(systems: engine.bodySystems)
@@ -44,12 +46,13 @@ struct BloomView: View {
                         .padding(.horizontal)
 
                     VStack(spacing: 10) {
-                        ForEach(engine.upcomingMilestones) { milestone in
+                        ForEach(Array(engine.upcomingMilestones.enumerated()), id: \.element.id) { index, milestone in
                             BloomMilestoneCard(milestone: milestone)
+                                .entrance(index: index)
                         }
                     }
                     .padding(.horizontal)
-                    .padding(.bottom, 24)
+                    .padding(.bottom, Theme.Spacing.xxl)
                 }
             }
             .navigationTitle("Bloom")
@@ -58,11 +61,11 @@ struct BloomView: View {
                 ToolbarItem(placement: .principal) {
                     VStack(spacing: 1) {
                         Text("Bloom")
-                            .font(.system(size: 17, weight: .medium))
-                            .foregroundColor(.primary)
+                            .font(Theme.Fonts.headline)
+                            .foregroundStyle(.primary)
                         Text("Your body, your journey ✦")
-                            .font(.system(size: 11))
-                            .foregroundColor(.secondary)
+                            .font(Theme.Fonts.caption2)
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
@@ -76,12 +79,13 @@ struct BloomSectionLabel: View {
     let text: String
     var body: some View {
         Text(text)
-            .font(.system(size: 11, weight: .medium))
-            .foregroundColor(.secondary)
+            .font(Theme.Fonts.caption2)
+            .fontWeight(.medium)
+            .foregroundStyle(.secondary)
             .textCase(.uppercase)
             .tracking(0.5)
-            .padding(.top, 20)
-            .padding(.bottom, 8)
+            .padding(.top, Theme.Spacing.xl)
+            .padding(.bottom, Theme.Spacing.sm)
     }
 }
 
@@ -94,40 +98,46 @@ struct BloomSectionLabel: View {
 struct BloomTimelineHeader: View {
     let engine: BloomContentEngine
 
+    // Dark rose title — readable on cycle surface in both modes
+    private static let cycleTitle = Color(lightHex: "#72243E", darkHex: "#F4A8C0")
+
     private var unlockedCount: Int { engine.unlockedChanges.filter(\.unlocked).count }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(engine.timelineSubtitle)
-                        .font(.system(size: 12))
-                        .foregroundColor(Color(hex: "#993556"))
+                        .font(Theme.Fonts.caption)
+                        .foregroundStyle(Theme.Colors.Bloom.cycle.base)
                     Text(engine.timelineTitle)
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(Color(hex: "#72243E"))
+                        .font(Theme.Fonts.callout)
+                        .fontWeight(.medium)
+                        .foregroundStyle(Self.cycleTitle)
                 }
                 Spacer()
                 HStack(spacing: 4) {
                     Text(engine.medication)
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(Color(hex: "#72243E"))
+                        .font(Theme.Fonts.caption2)
+                        .fontWeight(.medium)
+                        .foregroundStyle(Self.cycleTitle)
                     Text("·")
-                        .font(.system(size: 11))
-                        .foregroundColor(Color(hex: "#993556"))
+                        .font(Theme.Fonts.caption2)
+                        .foregroundStyle(Theme.Colors.Bloom.cycle.base)
                     Text(engine.method)
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(Color(hex: "#72243E"))
+                        .font(Theme.Fonts.caption2)
+                        .fontWeight(.medium)
+                        .foregroundStyle(Self.cycleTitle)
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 4)
-                .background(Color(hex: "#F4C0D1"))
-                .cornerRadius(20)
+                .background(Theme.Colors.Bloom.cycle.border)
+                .clipShape(Capsule())
             }
 
             Text("Changes unlocked so far")
-                .font(.system(size: 12))
-                .foregroundColor(Color(hex: "#993556"))
+                .font(Theme.Fonts.caption)
+                .foregroundStyle(Theme.Colors.Bloom.cycle.base)
 
             LazyVGrid(
                 columns: [GridItem(.flexible()), GridItem(.flexible())],
@@ -138,12 +148,12 @@ struct BloomTimelineHeader: View {
                 }
             }
         }
-        .padding(14)
-        .background(Color(hex: "#FBEAF0"))
-        .cornerRadius(16)
+        .padding(Theme.Spacing.card)
+        .background(Theme.Colors.Bloom.cycle.surface)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md))
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color(hex: "#F4C0D1"), lineWidth: 0.5)
+            RoundedRectangle(cornerRadius: Theme.Radius.md)
+                .stroke(Theme.Colors.Bloom.cycle.border, lineWidth: 0.5)
         )
     }
 }
@@ -151,24 +161,29 @@ struct BloomTimelineHeader: View {
 struct BloomChangeChip: View {
     let change: BloomChange
 
+    private static let cycleTitle = Color(lightHex: "#72243E", darkHex: "#F4A8C0")
+
     var body: some View {
         HStack(spacing: 6) {
             Image(systemName: change.unlocked ? "checkmark" : "clock")
-                .font(.system(size: 11))
-                .foregroundColor(change.unlocked ? Color(hex: "#0F6E56") : Color(hex: "#5F5E5A"))
+                .font(Theme.Fonts.caption2)
+                .foregroundStyle(change.unlocked ? Theme.Colors.Bloom.skin.base : Theme.Colors.textTertiary)
             Text(change.label)
-                .font(.system(size: 11))
-                .foregroundColor(change.unlocked ? Color(hex: "#72243E") : Color(hex: "#444441"))
+                .font(Theme.Fonts.caption2)
+                .foregroundStyle(change.unlocked ? Self.cycleTitle : Theme.Colors.textSecondary)
                 .lineLimit(1)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 8)
+        .padding(.horizontal, Theme.Spacing.sm)
         .padding(.vertical, 6)
-        .background(change.unlocked ? Color.white : Color(hex: "#F1EFE8"))
-        .cornerRadius(8)
+        .background(change.unlocked ? Color(.systemBackground) : Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay(
             RoundedRectangle(cornerRadius: 8)
-                .stroke(change.unlocked ? Color(hex: "#F4C0D1") : Color(hex: "#D3D1C7"), lineWidth: 0.5)
+                .stroke(
+                    change.unlocked ? Theme.Colors.Bloom.cycle.border : Color(UIColor.separator).opacity(0.5),
+                    lineWidth: 0.5
+                )
         )
     }
 }
@@ -180,7 +195,7 @@ struct BloomHormoneCard: View {
     let medication: String
 
     var body: some View {
-        HStack(alignment: .top, spacing: 14) {
+        HStack(alignment: .top, spacing: Theme.Spacing.lg) {
             ZStack {
                 Circle()
                     .fill(Color.white)
@@ -188,42 +203,45 @@ struct BloomHormoneCard: View {
                     .overlay(Circle().stroke(insight.rangePalette.iconBorder, lineWidth: 0.5))
                 Image(systemName: "drop")
                     .font(.system(size: 24))
-                    .foregroundColor(insight.rangePalette.accent)
+                    .foregroundStyle(insight.rangePalette.accent)
             }
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("Your \(medication.lowercased()) right now")
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundColor(insight.rangePalette.title)
+                    .font(Theme.Fonts.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundStyle(insight.rangePalette.title)
 
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text("\(Int(insight.level))")
+                    AnimatedCounter(value: insight.level)
                         .font(.system(size: 24, weight: .medium))
-                        .foregroundColor(insight.rangePalette.title)
+                        .foregroundStyle(insight.rangePalette.title)
+                        .contentTransition(.numericText())
                     Text(insight.unit)
-                        .font(.system(size: 12))
-                        .foregroundColor(insight.rangePalette.accent)
+                        .font(Theme.Fonts.caption)
+                        .foregroundStyle(insight.rangePalette.accent)
                     Text(insight.rangeLabel)
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(insight.rangePalette.accent)
-                        .padding(.horizontal, 8)
+                        .font(Theme.Fonts.caption2)
+                        .fontWeight(.medium)
+                        .foregroundStyle(insight.rangePalette.accent)
+                        .padding(.horizontal, Theme.Spacing.sm)
                         .padding(.vertical, 3)
                         .background(insight.rangePalette.surface)
-                        .cornerRadius(10)
+                        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
                 }
 
                 Text(insight.bodyDescription)
-                    .font(.system(size: 12))
-                    .foregroundColor(insight.rangePalette.accent)
+                    .font(Theme.Fonts.caption)
+                    .foregroundStyle(insight.rangePalette.accent)
                     .lineSpacing(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .padding(14)
+        .padding(Theme.Spacing.card)
         .background(insight.rangePalette.surface)
-        .cornerRadius(16)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md))
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
+            RoundedRectangle(cornerRadius: Theme.Radius.md)
                 .stroke(insight.rangePalette.border, lineWidth: 0.5)
         )
     }
@@ -237,10 +255,11 @@ struct BloomBodySystemGrid: View {
     var body: some View {
         LazyVGrid(
             columns: [GridItem(.flexible()), GridItem(.flexible())],
-            spacing: 8
+            spacing: Theme.Spacing.sm
         ) {
-            ForEach(systems) { system in
+            ForEach(Array(systems.enumerated()), id: \.element.id) { index, system in
                 BloomBodySystemCard(system: system)
+                    .entrance(index: index)
             }
         }
     }
@@ -248,6 +267,8 @@ struct BloomBodySystemGrid: View {
 
 struct BloomBodySystemCard: View {
     let system: BloomBodySystem
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var fillFraction: CGFloat = 0
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -258,21 +279,22 @@ struct BloomBodySystemCard: View {
                     .overlay(Circle().stroke(system.palette.iconBorder, lineWidth: 0.5))
                 Image(systemName: sfSymbol(for: system.icon))
                     .font(.system(size: 26))
-                    .foregroundColor(system.palette.accent)
+                    .foregroundStyle(system.palette.accent)
             }
             .padding(.bottom, 10)
 
             Text(system.title)
-                .font(.system(size: 13, weight: .medium))
-                .foregroundColor(system.palette.title)
+                .font(Theme.Fonts.footnote)
+                .fontWeight(.medium)
+                .foregroundStyle(system.palette.title)
                 .padding(.bottom, 3)
 
             Text(system.subtitle)
-                .font(.system(size: 11))
-                .foregroundColor(system.palette.accent)
+                .font(Theme.Fonts.caption2)
+                .foregroundStyle(system.palette.accent)
                 .lineLimit(2)
                 .lineSpacing(1)
-                .padding(.bottom, 8)
+                .padding(.bottom, Theme.Spacing.sm)
 
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
@@ -281,22 +303,31 @@ struct BloomBodySystemCard: View {
                         .frame(height: 5)
                     RoundedRectangle(cornerRadius: 3)
                         .fill(system.palette.progress)
-                        .frame(width: geo.size.width * system.progressFraction, height: 5)
+                        .frame(width: geo.size.width * fillFraction, height: 5)
                 }
             }
             .frame(height: 5)
             .padding(.bottom, 4)
+            .onAppear {
+                if reduceMotion {
+                    fillFraction = system.progressFraction
+                } else {
+                    withAnimation(.easeOut(duration: 0.9).delay(0.25)) {
+                        fillFraction = system.progressFraction
+                    }
+                }
+            }
 
             Text(system.progressLabel)
-                .font(.system(size: 10))
-                .foregroundColor(system.palette.accent)
+                .font(Theme.Fonts.micro)
+                .foregroundStyle(system.palette.accent)
         }
-        .padding(12)
+        .padding(Theme.Spacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(system.palette.surface)
-        .cornerRadius(14)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md))
         .overlay(
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: Theme.Radius.md)
                 .stroke(system.palette.border, lineWidth: 0.5)
         )
     }
@@ -321,7 +352,7 @@ struct BloomMilestoneCard: View {
     let milestone: BloomMilestone
 
     var body: some View {
-        HStack(alignment: .center, spacing: 14) {
+        HStack(alignment: .center, spacing: Theme.Spacing.lg) {
             ZStack {
                 Circle()
                     .fill(milestone.palette.surface)
@@ -329,38 +360,40 @@ struct BloomMilestoneCard: View {
                     .overlay(Circle().stroke(milestone.palette.iconBorder, lineWidth: 0.5))
                 Image(systemName: sfSymbol(for: milestone.icon))
                     .font(.system(size: 24))
-                    .foregroundColor(milestone.palette.accent)
+                    .foregroundStyle(milestone.palette.accent)
             }
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(milestone.title)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(.primary)
+                    .font(Theme.Fonts.footnote)
+                    .fontWeight(.medium)
+                    .foregroundStyle(.primary)
 
                 Text(milestone.description)
-                    .font(.system(size: 12))
-                    .foregroundColor(.secondary)
+                    .font(Theme.Fonts.caption)
+                    .foregroundStyle(.secondary)
                     .lineSpacing(2)
                     .fixedSize(horizontal: false, vertical: true)
 
                 if let badge = milestone.badge {
                     Text(badge)
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(milestone.palette.accent)
-                        .padding(.horizontal, 8)
+                        .font(Theme.Fonts.caption2)
+                        .fontWeight(.medium)
+                        .foregroundStyle(milestone.palette.accent)
+                        .padding(.horizontal, Theme.Spacing.sm)
                         .padding(.vertical, 3)
                         .background(milestone.palette.surface)
-                        .cornerRadius(10)
+                        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
                         .padding(.top, 2)
                 }
             }
             Spacer(minLength: 0)
         }
-        .padding(14)
+        .padding(Theme.Spacing.card)
         .background(Color(UIColor.secondarySystemBackground))
-        .cornerRadius(16)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md))
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
+            RoundedRectangle(cornerRadius: Theme.Radius.md)
                 .stroke(Color(UIColor.separator).opacity(0.3), lineWidth: 0.5)
         )
     }
@@ -404,12 +437,12 @@ struct BloomMilestoneCard: View {
         rangeLabel: "Optimal",
         bodyDescription: "Your hormone levels are in the optimal range for your current stage.",
         rangePalette: BloomPalette(
-            surface: Color(hex: "#F0F8F5"),
-            border: Color(hex: "#C0E8D5"),
-            accent: Color(hex: "#0F6E56"),
-            title: Color(hex: "#0F6E56"),
-            progress: Color(hex: "#0F6E56"),
-            iconBorder: Color(hex: "#C0E8D5")
+            surface: Theme.Colors.Bloom.skin.surface,
+            border: Theme.Colors.Bloom.skin.border,
+            accent: Theme.Colors.Bloom.skin.base,
+            title: Theme.Colors.Bloom.skin.base,
+            progress: Theme.Colors.Bloom.skin.base,
+            iconBorder: Theme.Colors.Bloom.skin.border
         )
     )
     BloomHormoneCard(insight: insight, medication: "Estrogen")
@@ -422,12 +455,12 @@ struct BloomMilestoneCard: View {
             subtitle: "Softening and hydration",
             icon: "sparkles",
             palette: BloomPalette(
-                surface: Color(hex: "#FEF6F0"),
-                border: Color(hex: "#F4D4B8"),
-                accent: Color(hex: "#D4537E"),
-                title: Color(hex: "#D4537E"),
-                progress: Color(hex: "#D4537E"),
-                iconBorder: Color(hex: "#F4D4B8")
+                surface: Theme.Colors.Bloom.cycle.surface,
+                border: Theme.Colors.Bloom.cycle.border,
+                accent: Theme.Colors.Bloom.cycle.base,
+                title: Theme.Colors.Bloom.cycle.base,
+                progress: Theme.Colors.Bloom.cycle.base,
+                iconBorder: Theme.Colors.Bloom.cycle.border
             ),
             progressFraction: 0.75,
             progressLabel: "75% complete"
@@ -437,12 +470,12 @@ struct BloomMilestoneCard: View {
             subtitle: "Emotional regulation",
             icon: "brain",
             palette: BloomPalette(
-                surface: Color(hex: "#F0F8F5"),
-                border: Color(hex: "#C0E8D5"),
-                accent: Color(hex: "#0F6E56"),
-                title: Color(hex: "#0F6E56"),
-                progress: Color(hex: "#0F6E56"),
-                iconBorder: Color(hex: "#C0E8D5")
+                surface: Theme.Colors.Bloom.skin.surface,
+                border: Theme.Colors.Bloom.skin.border,
+                accent: Theme.Colors.Bloom.skin.base,
+                title: Theme.Colors.Bloom.skin.base,
+                progress: Theme.Colors.Bloom.skin.base,
+                iconBorder: Theme.Colors.Bloom.skin.border
             ),
             progressFraction: 0.50,
             progressLabel: "50% complete"
@@ -452,40 +485,40 @@ struct BloomMilestoneCard: View {
 }
 
 #Preview("BloomBodySystemCard") {
-        let system = BloomBodySystem(
-            title: "Skin",
-            subtitle: "Softening and hydration",
-            icon: "sparkles",
-            palette: BloomPalette(
-                surface: Color(hex: "#FEF6F0"),
-                border: Color(hex: "#F4D4B8"),
-                accent: Color(hex: "#D4537E"),
-                title: Color(hex: "#D4537E"),
-                progress: Color(hex: "#D4537E"),
-                iconBorder: Color(hex: "#F4D4B8")
-            ),
-            progressFraction: 0.75,
-            progressLabel: "75% complete"
-        )
+    let system = BloomBodySystem(
+        title: "Skin",
+        subtitle: "Softening and hydration",
+        icon: "sparkles",
+        palette: BloomPalette(
+            surface: Theme.Colors.Bloom.cycle.surface,
+            border: Theme.Colors.Bloom.cycle.border,
+            accent: Theme.Colors.Bloom.cycle.base,
+            title: Theme.Colors.Bloom.cycle.base,
+            progress: Theme.Colors.Bloom.cycle.base,
+            iconBorder: Theme.Colors.Bloom.cycle.border
+        ),
+        progressFraction: 0.75,
+        progressLabel: "75% complete"
+    )
     BloomBodySystemCard(system: system)
         .frame(width: 180)
 }
 
 #Preview("BloomMilestoneCard") {
-        let milestone = BloomMilestone(
-            title: "3 Months",
-            description: "You may start noticing changes in skin texture and emotional regulation.",
-            icon: "clock",
-            palette: BloomPalette(
-                surface: Color(hex: "#FEF6F0"),
-                border: Color(hex: "#F4D4B8"),
-                accent: Color(hex: "#D4537E"),
-                title: Color(hex: "#D4537E"),
-                progress: Color(hex: "#D4537E"),
-                iconBorder: Color(hex: "#F4D4B8")
-            ),
-            badge: "Upcoming"
-        )
+    let milestone = BloomMilestone(
+        title: "3 Months",
+        description: "You may start noticing changes in skin texture and emotional regulation.",
+        icon: "clock",
+        palette: BloomPalette(
+            surface: Theme.Colors.Bloom.cycle.surface,
+            border: Theme.Colors.Bloom.cycle.border,
+            accent: Theme.Colors.Bloom.cycle.base,
+            title: Theme.Colors.Bloom.cycle.base,
+            progress: Theme.Colors.Bloom.cycle.base,
+            iconBorder: Theme.Colors.Bloom.cycle.border
+        ),
+        badge: "Upcoming"
+    )
     BloomMilestoneCard(milestone: milestone)
         .frame(width: 300)
 }
