@@ -1,0 +1,198 @@
+//
+//  FlatGraphView.swift
+//  xT
+//
+//  Edge-to-edge hormone level graph. Accent-rose gradient fill under the
+//  curve, no card container — sits flush on the home background.
+//
+
+import SwiftUI
+
+struct FlatGraphView: View {
+    @Environment(\.medicationManager) private var medicationManager
+    @Binding var showingGraphDetail: Bool
+
+    private var points: [MedicationManager.EstimatedPoint] {
+        medicationManager.recentLevels
+    }
+
+    private var currentLevel: Double? {
+        medicationManager.currentHormoneLevel?.value
+    }
+
+    private var unit: String {
+        medicationManager.currentHormoneLevel?.unit ?? "pg/mL"
+    }
+
+    var body: some View {
+        ZStack(alignment: .trailing) {
+            graphBody
+                .frame(height: 200)
+
+            Button(action: { showingGraphDetail = true }) {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.accent.opacity(0.35))
+            }
+            .frame(width: 44, height: 200)
+            .contentShape(Rectangle())
+        }
+    }
+
+    // MARK: - Graph body
+
+    @ViewBuilder
+    private var graphBody: some View {
+        if points.isEmpty {
+            Rectangle()
+                .fill(Theme.Colors.accent.opacity(0.05))
+                .overlay(
+                    Text("Log a dose to see your curve")
+                        .font(Theme.Fonts.caption)
+                        .foregroundStyle(Theme.Colors.accent.opacity(0.4))
+                )
+        } else {
+            GeometryReader { geo in
+                let w = geo.size.width
+                let h = geo.size.height
+                let values = points.map(\.value)
+                let minV = (values.min() ?? 0) * 0.85
+                let maxV = (values.max() ?? 1) * 1.1
+                let range = maxV - minV
+
+                ZStack(alignment: .topLeading) {
+                    curveFillPath(values: values, min: minV, range: range, w: w, h: h)
+                        .fill(
+                            LinearGradient(
+                                stops: [
+                                    .init(color: Theme.Colors.accent.opacity(0.42), location: 0),
+                                    .init(color: Theme.Colors.accent.opacity(0.0), location: 1),
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+
+                    curvePath(values: values, min: minV, range: range, w: w, h: h)
+                        .stroke(
+                            Theme.Colors.accent,
+                            style: StrokeStyle(lineWidth: 1.8, lineCap: .round, lineJoin: .round)
+                        )
+
+                    if let peakIdx = values.indices.min(by: { values[$0] > values[$1] }) {
+                        let px = xPos(index: peakIdx, count: values.count, w: w)
+                        let py = yPos(value: values[peakIdx], min: minV, range: range, h: h)
+
+                        Circle()
+                            .fill(Theme.Colors.accent.opacity(0.22))
+                            .frame(width: 14, height: 14)
+                            .position(x: px, y: py)
+
+                        Circle()
+                            .fill(Theme.Colors.accent)
+                            .frame(width: 6, height: 6)
+                            .position(x: px, y: py)
+                    }
+
+                    levelLabel
+                        .padding(.leading, 22)
+                        .padding(.top, 14)
+                }
+            }
+        }
+    }
+
+    // MARK: - Level label
+
+    private var levelLabel: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 5) {
+            if let level = currentLevel {
+                AnimatedCounter(value: level)
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundStyle(Color.primary)
+                    .contentTransition(.numericText())
+
+                Text(unit)
+                    .font(Theme.Fonts.caption)
+                    .foregroundStyle(Color.secondary)
+
+                if let word = rangeWord(for: level) {
+                    Text("·")
+                        .foregroundStyle(Color.secondary.opacity(0.5))
+                    Text(word)
+                        .font(Theme.Fonts.caption)
+                        .foregroundStyle(Color.secondary)
+                }
+            }
+        }
+    }
+
+    // MARK: - Path helpers
+
+    private func xPos(index: Int, count: Int, w: CGFloat) -> CGFloat {
+        guard count > 1 else { return w / 2 }
+        return CGFloat(index) / CGFloat(count - 1) * w
+    }
+
+    private func yPos(value: Double, min: Double, range: Double, h: CGFloat) -> CGFloat {
+        guard range > 0 else { return h / 2 }
+        let norm = (value - min) / range
+        return h - CGFloat(norm) * h * 0.85 - h * 0.07
+    }
+
+    private func curvePath(values: [Double], min: Double, range: Double, w: CGFloat, h: CGFloat) -> Path {
+        Path { path in
+            for (i, v) in values.enumerated() {
+                let x = xPos(index: i, count: values.count, w: w)
+                let y = yPos(value: v, min: min, range: range, h: h)
+                if i == 0 {
+                    path.move(to: .init(x: x, y: y))
+                } else {
+                    let prev = CGPoint(
+                        x: xPos(index: i - 1, count: values.count, w: w),
+                        y: yPos(value: values[i - 1], min: min, range: range, h: h)
+                    )
+                    let ctrl1 = CGPoint(x: prev.x + (x - prev.x) * 0.5, y: prev.y)
+                    let ctrl2 = CGPoint(x: prev.x + (x - prev.x) * 0.5, y: y)
+                    path.addCurve(to: .init(x: x, y: y), control1: ctrl1, control2: ctrl2)
+                }
+            }
+        }
+    }
+
+    private func curveFillPath(values: [Double], min: Double, range: Double, w: CGFloat, h: CGFloat) -> Path {
+        var base = curvePath(values: values, min: min, range: range, w: w, h: h)
+        base.addLine(to: .init(x: w, y: h))
+        base.addLine(to: .init(x: 0, y: h))
+        base.closeSubpath()
+        return base
+    }
+
+    // MARK: - Range word
+
+    private func rangeWord(for level: Double) -> String? {
+        guard let med = medicationManager.selectedMedication else { return nil }
+        if med == "Estrogen" {
+            switch level {
+            case ..<50:  return "very low"
+            case ..<100: return "low"
+            case ..<200: return "optimal"
+            case ..<500: return "high"
+            default:     return "very high"
+            }
+        } else {
+            switch level {
+            case ..<50:  return "suppressed"
+            case ..<200: return "low"
+            case ..<800: return "in range"
+            default:     return "high"
+            }
+        }
+    }
+}
+
+#Preview {
+    FlatGraphView(showingGraphDetail: .constant(false))
+        .background(Color(.systemBackground))
+        .environment(\.medicationManager, MedicationManager.shared)
+}

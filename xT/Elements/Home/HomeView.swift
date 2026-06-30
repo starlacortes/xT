@@ -2,8 +2,8 @@
 //  HomeView.swift
 //  xT
 //
-//  Home tab. HeroView goes full-bleed; MainContentView gets consistent
-//  horizontal padding from here so child cards don't double-pad.
+//  Flat home layout. HeroView bleeds into FlatGraphView, then the card
+//  stack — everything lives on the system background surface.
 //
 
 import SwiftUI
@@ -20,15 +20,21 @@ struct HomeView: View {
                 VStack(spacing: 0) {
                     HeroView()
 
+                    if medicationManager.isFullyConfigured {
+                        FlatGraphView(showingGraphDetail: $showingGraphDetail)
+                            .padding(.top, 18)
+                            .entrance(delay: 0.22)
+                    }
+
                     MainContentView(showingGraphDetail: $showingGraphDetail)
-                        .padding(.horizontal, 18)
-                        .padding(.top, 16)
-                        .padding(.bottom, 32)
+                        .padding(.horizontal, 22)
+                        .padding(.top, 20)
+                        .padding(.bottom, 40)
                 }
             }
             .coordinateSpace(.named("homeScroll"))
             .toolbar(.hidden, for: .navigationBar)
-            .background(AnimatedMeshGradient().ignoresSafeArea())
+            .background(Color(.systemBackground).ignoresSafeArea())
         }
         .sheet(isPresented: $showingGraphDetail) {
             GraphView()
@@ -37,7 +43,6 @@ struct HomeView: View {
     }
 }
 
-// MARK: - Preview
 #Preview {
     HomeView()
         .environment(\.profileManager, ProfileManager.shared)

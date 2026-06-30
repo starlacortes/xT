@@ -2,8 +2,8 @@
 //  SettingsView.swift
 //  xT
 //
-//  Redesigned settings. The profile section now acts as a mini-dashboard
-//  with key stats. Section grouping and row styling are more intentional.
+//  Flat design matching Home screen — centered profile block at top,
+//  section rows separated by hairline dividers.
 //
 
 import SwiftUI
@@ -30,24 +30,26 @@ struct SettingsView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 0) {
-                    // Profile + stats header (replaces generic title)
-                    profileHeader
-                        .padding(.bottom, 8)
+                    profileHeaderBlock
+                        .entrance(delay: 0.04)
 
-                    // Sections
-                    VStack(spacing: 20) {
+                    Divider()
+                        .opacity(0.5)
+
+                    VStack(spacing: 32) {
                         settingsMedicationSection
                         settingsNotificationsSection
                         settingsPrivacySection
                         settingsAboutSection
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 32)
+                    .padding(.top, 24)
+                    .padding(.bottom, 48)
                 }
             }
-            .navigationTitle("Settings")
+            .scrollIndicators(.hidden)
+            .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
-            .background(Theme.Gradients.brand)
+            .background(Color(.systemBackground))
             .sheet(isPresented: $showingDoseTimePicker) {
                 TimePickerSheet(title: "Dose reminder time", hour: $doseReminderHour, minute: $doseReminderMinute, isPresented: $showingDoseTimePicker)
             }
@@ -75,92 +77,82 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - Profile Header
+    // MARK: - Profile Header Block
 
-    private var profileHeader: some View {
-        VStack(spacing: 0) {
-            // Gradient banner
-            Theme.Gradients.brand
-                .frame(height: 56)
+    private var profileHeaderBlock: some View {
+        VStack(spacing: 14) {
+            if let img = profileManager.profileImage {
+                // Large borderless circle photo
+                Image(uiImage: img)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 120, height: 120)
+                    .clipShape(Circle())
 
-            // Profile card overlapping the banner
-            VStack(spacing: 12) {
-                NavigationLink(destination: ProfileEditorView()) {
-                    HStack(spacing: 12) {
-                        // Avatar
-                        ZStack {
-                            Circle()
-                                .fill(Theme.Gradients.brand)
-                                .frame(width: 52, height: 52)
-                                .overlay(Circle().stroke(Color.white, lineWidth: 2))
+                Text(profileManager.profileDisplayName)
+                    .font(Theme.Fonts.headline)
+                    .foregroundStyle(.primary)
 
-                            if let img = profileManager.profileImage {
-                                Image(uiImage: img)
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(width: 52, height: 52)
-                                    .clipShape(Circle())
-                                    .overlay(Circle().stroke(Color.white, lineWidth: 2))
-                            } else {
-                                Text(profileManager.profileDisplayName.prefix(1).uppercased())
-                                    .font(.system(size: 20, weight: .medium))
-                                    .foregroundStyle(.white)
-                            }
-                        }
-                        .offset(y: -20)
+            } else if !profileManager.profileName.isEmpty {
+                // Name in large gradient text (no photo)
+                Text(profileManager.profileName)
+                    .font(.system(size: 48, weight: .bold))
+                    .tracking(-1.0)
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: Theme.Gradients.brandColors,
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 22)
 
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(profileManager.profileDisplayName)
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundStyle(.primary)
-
-                            Text(profileSubtitle)
-                                .font(.system(size: 12))
-                                .foregroundStyle(.secondary)
-                        }
-                        .offset(y: -10)
-
-                        Spacer()
-
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 13))
-                            .foregroundStyle(.secondary)
-                            .offset(y: -10)
-                    }
-                }
-                .buttonStyle(.plain)
-                .padding(.horizontal, 16)
-                .padding(.top, 8)
-
-                // Stats strip
-                HStack(spacing: 8) {
-                    statChip(value: levelString, label: "current level")
-                    statChip(value: nextDoseString, label: "next dose")
-                    statChip(value: "\(medicationManager.monthsOnHRT) mo", label: "on HRT")
-                }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 14)
+            } else {
+                // No photo, no name — gradient circle placeholder
+                Circle()
+                    .fill(Theme.Gradients.brand)
+                    .frame(width: 120, height: 120)
             }
-            .background(Color(UIColor.systemBackground))
+
+            NavigationLink(destination: ProfileEditorView()) {
+                Text("Edit Profile")
+                    .font(Theme.Fonts.footnote)
+                    .foregroundStyle(Theme.Colors.accent)
+            }
+            .buttonStyle(.plain)
+
+            // Stats strip
+            if medicationManager.isFullyConfigured {
+                HStack(spacing: 0) {
+                    statItem(value: levelString, label: "level")
+                    Divider().frame(height: 28)
+                    statItem(value: nextDoseString, label: "next dose")
+                    Divider().frame(height: 28)
+                    statItem(value: "\(medicationManager.monthsOnHRT) mo", label: "on HRT")
+                }
+                .padding(.top, 4)
+            }
         }
-        .clipShape(RoundedRectangle(cornerRadius: 0))
+        .frame(maxWidth: .infinity)
+        .padding(.top, 40)
+        .padding(.bottom, 28)
     }
 
-    private func statChip(value: String, label: String) -> some View {
+    private func statItem(value: String, label: String) -> some View {
         VStack(spacing: 2) {
             Text(value)
-                .font(.system(size: 15, weight: .medium))
+                .font(Theme.Fonts.callout)
+                .fontWeight(.medium)
                 .foregroundStyle(.primary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
             Text(label)
-                .font(.system(size: 9))
+                .font(Theme.Fonts.micro)
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 9)
-        .background(Color(UIColor.secondarySystemBackground))
-        .cornerRadius(10)
+        .padding(.vertical, 6)
     }
 
     // MARK: - Medication Section
@@ -217,15 +209,15 @@ struct SettingsView: View {
 
     private var settingsNotificationsSection: some View {
         settingsSection(label: "Notifications") {
-            HStack(spacing: 12) {
+            HStack(spacing: 14) {
                 settingsIconView(icon: "bell.fill", bg: Theme.Colors.Bloom.body.surface, color: Theme.Colors.Bloom.body.base)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Dose reminders")
-                        .font(.system(size: 14))
+                        .font(Theme.Fonts.callout)
                         .foregroundStyle(.primary)
                     Text(doseRemindersEnabled ? formatDoseReminderSubtitle : "Off")
-                        .font(.system(size: 12))
+                        .font(Theme.Fonts.caption)
                         .foregroundStyle(.secondary)
                 }
 
@@ -235,21 +227,22 @@ struct SettingsView: View {
                     .labelsHidden()
                     .toggleStyle(SwitchToggleStyle(tint: Theme.Colors.accent))
             }
-            .padding(12)
+            .padding(.horizontal, 22)
+            .padding(.vertical, 16)
             .contentShape(Rectangle())
             .onTapGesture { if doseRemindersEnabled { showingDoseTimePicker = true } }
 
             settingsDivider()
 
-            HStack(spacing: 12) {
+            HStack(spacing: 14) {
                 settingsIconView(icon: "book.fill", bg: Theme.Colors.Bloom.cycle.surface, color: Theme.Colors.accent)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Journal reminders")
-                        .font(.system(size: 14))
+                        .font(Theme.Fonts.callout)
                         .foregroundStyle(.primary)
                     Text(journalRemindersEnabled ? formatJournalReminderSubtitle : "Off")
-                        .font(.system(size: 12))
+                        .font(Theme.Fonts.caption)
                         .foregroundStyle(.secondary)
                 }
 
@@ -259,7 +252,8 @@ struct SettingsView: View {
                     .labelsHidden()
                     .toggleStyle(SwitchToggleStyle(tint: Theme.Colors.accent))
             }
-            .padding(12)
+            .padding(.horizontal, 22)
+            .padding(.vertical, 16)
             .contentShape(Rectangle())
             .onTapGesture { if journalRemindersEnabled { showingJournalTimePicker = true } }
         }
@@ -270,7 +264,7 @@ struct SettingsView: View {
         let timeout = authManager.timeoutLabel
         return "\(biometric) · \(timeout) timeout"
     }
-    
+
     // MARK: - Privacy Section
 
     private var settingsPrivacySection: some View {
@@ -278,7 +272,7 @@ struct SettingsView: View {
             NavigationLink(destination: AppLockSettingsView()) {
                 settingsRowContent(
                     icon: "lock.fill",
-                    iconBg: Color(UIColor.systemGray6),
+                    iconBg: Color(.systemGray6),
                     iconColor: .secondary,
                     title: "App lock",
                     subtitle: privacyLockSubtitle,
@@ -295,7 +289,7 @@ struct SettingsView: View {
         settingsSection(label: "About") {
             settingsRowContent(
                 icon: "info.circle.fill",
-                iconBg: Color(UIColor.systemGray6),
+                iconBg: Color(.systemGray6),
                 iconColor: .secondary,
                 title: "Version",
                 subtitle: nil,
@@ -318,26 +312,20 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - Reusable layout helpers
+    // MARK: - Layout helpers
 
     private func settingsSection<Content: View>(label: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(label)
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-                .kerning(0.05)
-                .padding(.leading, 4)
+        VStack(alignment: .leading, spacing: 0) {
+            Text(label.uppercased())
+                .font(Theme.Fonts.caption2)
+                .foregroundStyle(Theme.Colors.accent)
+                .tracking(0.5)
+                .padding(.horizontal, 22)
+                .padding(.bottom, 10)
 
-            VStack(spacing: 0) {
-                content()
-            }
-            .background(Color(UIColor.secondarySystemBackground))
-            .cornerRadius(14)
-            .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .stroke(Color(UIColor.systemGray4), lineWidth: 0.5)
-            )
+            Divider().opacity(0.5)
+            content()
+            Divider().opacity(0.5)
         }
     }
 
@@ -370,16 +358,16 @@ struct SettingsView: View {
         subtitle: String?,
         @ViewBuilder trailing: () -> Trailing
     ) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 14) {
             settingsIconView(icon: icon, bg: iconBg, color: iconColor)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.system(size: 14))
+                    .font(Theme.Fonts.callout)
                     .foregroundStyle(.primary)
                 if let sub = subtitle {
                     Text(sub)
-                        .font(.system(size: 12))
+                        .font(Theme.Fonts.caption)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -388,7 +376,8 @@ struct SettingsView: View {
 
             trailing()
         }
-        .padding(12)
+        .padding(.horizontal, 22)
+        .padding(.vertical, 16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
     }
@@ -399,24 +388,18 @@ struct SettingsView: View {
                 .fill(bg)
                 .frame(width: 32, height: 32)
             Image(systemName: icon)
-                .font(.system(size: 16))
+                .font(.system(size: 15))
                 .foregroundStyle(color)
         }
     }
 
     private func settingsDivider() -> some View {
         Divider()
-            .padding(.leading, 56)
+            .opacity(0.5)
+            .padding(.leading, 22 + 32 + 14) // align with text
     }
 
     // MARK: - Computed strings
-
-    private var profileSubtitle: String {
-        if medicationManager.isFullyConfigured {
-            return "\(medicationManager.monthsOnHRT) months · \(medicationManager.medicationDisplayInfo)"
-        }
-        return "Tap to edit profile"
-    }
 
     private var levelString: String {
         if let level = medicationManager.currentHormoneLevel?.value {
@@ -447,50 +430,30 @@ struct SettingsView: View {
         return "No doses recorded"
     }
 
-    // MARK: - Computed display strings
-
     private var formatDoseReminderSubtitle: String {
-        let timeStr = String(format: "%02d:%02d", doseReminderHour, doseReminderMinute)
-        return "Daily at \(timeStr)"
+        String(format: "Daily at %02d:%02d", doseReminderHour, doseReminderMinute)
     }
 
     private var formatJournalReminderSubtitle: String {
-        let timeStr = String(format: "%02d:%02d", journalReminderHour, journalReminderMinute)
-        return "Daily at \(timeStr)"
+        String(format: "Daily at %02d:%02d", journalReminderHour, journalReminderMinute)
     }
 
     // MARK: - Notification Handlers
 
     private func onDoseReminderToggle(_ enabled: Bool) {
-        notificationManager.configureDoseReminder(
-            enabled: enabled,
-            hour: doseReminderHour,
-            minute: doseReminderMinute
-        )
+        notificationManager.configureDoseReminder(enabled: enabled, hour: doseReminderHour, minute: doseReminderMinute)
     }
 
     private func onDoseTimeChange() {
-        notificationManager.configureDoseReminder(
-            enabled: doseRemindersEnabled,
-            hour: doseReminderHour,
-            minute: doseReminderMinute
-        )
+        notificationManager.configureDoseReminder(enabled: doseRemindersEnabled, hour: doseReminderHour, minute: doseReminderMinute)
     }
 
     private func onJournalReminderToggle(_ enabled: Bool) {
-        notificationManager.configureJournalReminder(
-            enabled: enabled,
-            hour: journalReminderHour,
-            minute: journalReminderMinute
-        )
+        notificationManager.configureJournalReminder(enabled: enabled, hour: journalReminderHour, minute: journalReminderMinute)
     }
 
     private func onJournalTimeChange() {
-        notificationManager.configureJournalReminder(
-            enabled: journalRemindersEnabled,
-            hour: journalReminderHour,
-            minute: journalReminderMinute
-        )
+        notificationManager.configureJournalReminder(enabled: journalRemindersEnabled, hour: journalReminderHour, minute: journalReminderMinute)
     }
 
     // MARK: - Persistence helpers
@@ -503,7 +466,6 @@ struct SettingsView: View {
         journalReminderHour = UserDefaults.standard.integer(forKey: "journalReminderHour")
         journalReminderMinute = UserDefaults.standard.integer(forKey: "journalReminderMinute")
 
-        // If no notification settings have been saved yet, use defaults
         if UserDefaults.standard.object(forKey: "doseReminderEnabled") == nil {
             doseReminderHour = 9
             doseReminderMinute = 0
@@ -513,20 +475,10 @@ struct SettingsView: View {
             journalRemindersEnabled = false
         }
 
-        // Request authorization on first launch
         Task { await notificationManager.requestAuthorization() }
 
-        // Apply loaded settings to NotificationManager
-        notificationManager.configureDoseReminder(
-            enabled: doseRemindersEnabled,
-            hour: doseReminderHour,
-            minute: doseReminderMinute
-        )
-        notificationManager.configureJournalReminder(
-            enabled: journalRemindersEnabled,
-            hour: journalReminderHour,
-            minute: journalReminderMinute
-        )
+        notificationManager.configureDoseReminder(enabled: doseRemindersEnabled, hour: doseReminderHour, minute: doseReminderMinute)
+        notificationManager.configureJournalReminder(enabled: journalRemindersEnabled, hour: journalReminderHour, minute: journalReminderMinute)
     }
 
     private func resetAppData() {
@@ -556,19 +508,8 @@ struct SettingsView: View {
         return f
     }()
 
-    private static let timeFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateStyle = .none
-        f.timeStyle = .short
-        return f
-    }()
-
     private func formatDate(_ date: Date) -> String {
         Self.dateFormatter.string(from: date)
-    }
-
-    private func formatTime(_ date: Date) -> String {
-        Self.timeFormatter.string(from: date)
     }
 }
 

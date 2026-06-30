@@ -24,14 +24,24 @@ public enum XAuthenticationError: Error {
 class AuthenticationManager: ObservableObject {
     static let shared = AuthenticationManager()
 
-    @Published var isAuthenticated = true
+    @Published var isAuthenticated = false
     @Published var showAuthentication = false
     @Published var lastActivityTime: Date = Date()
     private var hasExited = false
 
-    @UserDefault(key: "requireAuthentication", defaultValue: true)
+    @UserDefault(key: "requireAuthentication", defaultValue: false)
     var requireAuthentication: Bool {
-        didSet { if !requireAuthentication { isAuthenticated = true } }
+        didSet {
+            if !requireAuthentication {
+                isAuthenticated = true
+                showAuthentication = false
+                hasExited = false
+            } else {
+                // Require auth immediately when turned on
+                isAuthenticated = false
+                showAuthentication = true
+            }
+        }
     }
 
     @UserDefault(key: "autoLockTimeout", defaultValue: 300.0)
@@ -55,7 +65,14 @@ class AuthenticationManager: ObservableObject {
     }
 
     init() {
-        if !requireAuthentication { isAuthenticated = true }
+        if requireAuthentication {
+            // Require auth on cold launch
+            isAuthenticated = false
+            hasExited = true
+            showAuthentication = true
+        } else {
+            isAuthenticated = true
+        }
     }
 
     // MARK: - Authentication
@@ -73,6 +90,7 @@ class AuthenticationManager: ObservableObject {
         }
 
         isAuthenticated = true
+        showAuthentication = false
         lastActivityTime = Date()
         hasExited = false
     }
@@ -87,13 +105,9 @@ class AuthenticationManager: ObservableObject {
         guard success else { throw XAuthenticationError.cancelled }
         
         isAuthenticated = true
+        showAuthentication = false
         lastActivityTime = Date()
         hasExited = false
-    }
-
-    func checkAuthenticationRequired() -> Bool {
-        guard requireAuthentication else { return false }
-        return !hasExited == false || isAuthenticated == false
     }
 
     func recordActivity() {
@@ -108,11 +122,15 @@ class AuthenticationManager: ObservableObject {
             if requireAuthentication && hasExited {
                 showAuthentication = true
             }
-        case .background, .inactive:
-            if isAuthenticated {
+        case .background:
+            // Only lock when auth is required; don't lock on .inactive to avoid
+            // triggering on Notification Center / Control Center pulls.
+            if requireAuthentication {
                 isAuthenticated = false
                 hasExited = true
             }
+        case .inactive:
+            break
         @unknown default: break
         }
     }
@@ -169,17 +187,7 @@ struct AuthenticationRequiredModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .onAppear {
-                if authManager.checkAuthenticationRequired() {
-                    authManager.showAuthentication = true
-                } else {
-                    authManager.recordActivity()
-                }
-            }
-            .sheet(isPresented: Binding(
-                get: { authManager.showAuthentication },
-                set: { authManager.showAuthentication = $0 }
-            )) {
-                AuthenticationView(reason: reason)
+                authManager.recordActivity()
             }
     }
 }
@@ -253,11 +261,11 @@ struct AuthenticationView: View {
                         .padding(.top, 8)
                     }
 
-                    if showFallback {
+                    if showFallback || authManager.biometricType() == .none {
                         Button {
                             Task { await authenticateWithPasscode() }
                         } label: {
-                            Text("Use passcode instead")
+                            Text(authManager.biometricType() == .none ? "Use Passcode" : "Use passcode instead")
                                 .font(.subheadline)
                                 .foregroundStyle(.white.opacity(0.7))
                         }

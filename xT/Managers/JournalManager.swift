@@ -8,18 +8,20 @@
 
 import SwiftUI
 import SwiftData
+import Observation
 import Foundation
 
 @MainActor
-class JournalManager: ObservableObject {
+@Observable
+class JournalManager {
     static let shared = JournalManager()
 
     // Injected from the app container.
     var modelContext: ModelContext?
 
-    @Published var entries: [JournalEntry] = []
-    @Published var currentMood: Mood = .neutral
-    @Published var currentSymptoms: Set<Symptom> = []
+    var entries: [JournalEntry] = []
+    var currentMood: Mood = .neutral
+    var currentSymptoms: Set<Symptom> = []
 
     // Load from persistence
     init() {
@@ -28,7 +30,7 @@ class JournalManager: ObservableObject {
 
     // CRUD operations
     func addEntry(_ entry: JournalEntry) {
-        entries.append(entry)
+        entries.insert(entry, at: 0)
         modelContext?.insert(entry)
         try? modelContext?.save()
     }

@@ -10,6 +10,7 @@ import SwiftUI
 
 struct JournalCardView: View {
     let entry: JournalEntry
+    var showBackground: Bool = true
     @State private var isExpanded: Bool = false
 
     var body: some View {
@@ -46,7 +47,7 @@ struct JournalCardView: View {
                 }
                 .padding(.vertical, 10)
                 .padding(.horizontal, 14)
-                .background(Theme.Colors.Bloom.skin.surface.opacity(0.2))
+                .background(showBackground ? Theme.Colors.Bloom.skin.surface.opacity(0.2) : Color.clear)
                 .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.lg))
             }
             .buttonStyle(.plain)

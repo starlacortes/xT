@@ -17,10 +17,8 @@ struct JournalComposerView: View {
     @State private var selectedSymptoms: Set<Symptom> = []
     @FocusState private var textFocused: Bool
 
-    private var weekdayFormatter: DateFormatter {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEE"
-        return formatter
+    private var canSave: Bool {
+        !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     var body: some View {
@@ -50,9 +48,11 @@ struct JournalComposerView: View {
 
                     Spacer()
 
-                    Text(Date.now, formatter: weekdayFormatter)
-                        .font(Theme.Fonts.caption)
-                        .foregroundStyle(Theme.Colors.textTertiary)
+                    Button("Save") { saveAndDismiss() }
+                        .font(Theme.Fonts.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundStyle(canSave ? Theme.Colors.accent : Color.secondary)
+                        .disabled(!canSave)
                 }
                 .padding(.horizontal, 18)
                 .padding(.vertical, 10)
@@ -141,28 +141,11 @@ struct JournalComposerView: View {
 
                         // Hormone insight card
                         if medicationManager.isFullyConfigured,
-                           let level = medicationManager.estimatedRecentLevels(days: 1).last?.value {
+                           let level = medicationManager.currentHormoneLevel?.value {
                             HormoneInsightCard(level: level)
                                 .padding(.horizontal, Theme.Spacing.card)
+                                .padding(.bottom, Theme.Spacing.xl)
                         }
-
-                        // Save button
-                        Button(action: saveAndDismiss) {
-                            HStack {
-                                Spacer()
-                                Text("Save entry ↗")
-                                    .font(Theme.Fonts.subheadline)
-                                    .fontWeight(.medium)
-                                    .foregroundStyle(.white)
-                                Spacer()
-                            }
-                            .padding(.vertical, 13)
-                            .background(Theme.Colors.accent)
-                            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md))
-                        }
-                        .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                        .padding(.horizontal, Theme.Spacing.card)
-                        .padding(.bottom, Theme.Spacing.xl)
                     }
                 }
             }
