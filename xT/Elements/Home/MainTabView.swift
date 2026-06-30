@@ -24,7 +24,7 @@ struct MainTabView: View {
 
             BloomView()
                 .tabItem {
-                    Label("Bloom", systemImage: "sparkles")
+                    Label("Time", systemImage: "wand.and.stars")
                 }
                 .tag(2)
 

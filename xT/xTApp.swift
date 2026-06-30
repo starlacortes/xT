@@ -55,6 +55,7 @@ struct xTApp: App {
             UserPreferences.self,
             DoseRecord.self,
             JournalEntry.self,
+            BloodTestRecord.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         

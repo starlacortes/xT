@@ -118,6 +118,7 @@ struct BloomContentEngine {
     let method: String            // "Injectable", "Patch", "Gel", "Pill"
     let months: Int
     let currentLevel: Double?
+    let dayOfCycle: Int           // actual day in the current dose cycle
 
     // MARK: Timeline header
 
@@ -307,7 +308,6 @@ struct BloomContentEngine {
         ]
     }
 
-    private var dayOfCycle: Int { 3 }
     private var cycleLengthDays: Int {
         switch method {
         case "Injectable": return 7

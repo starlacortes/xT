@@ -16,17 +16,14 @@ import Foundation
 class JournalManager {
     static let shared = JournalManager()
 
-    // Injected from the app container.
-    var modelContext: ModelContext?
+    // Injected from the app container. Loading entries is deferred until the context arrives.
+    var modelContext: ModelContext? {
+        didSet { loadEntries() }
+    }
 
     var entries: [JournalEntry] = []
     var currentMood: Mood = .neutral
     var currentSymptoms: Set<Symptom> = []
-
-    // Load from persistence
-    init() {
-        loadEntries()
-    }
 
     // CRUD operations
     func addEntry(_ entry: JournalEntry) {

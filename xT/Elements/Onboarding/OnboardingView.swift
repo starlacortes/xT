@@ -37,6 +37,9 @@ struct OnboardingView: View {
     @State private var isSyncingFromStepper = false
     @State private var isSyncingFromText = false
     @FocusState private var doseAmountFocused: Bool
+    @State private var hasBeenOnHRT: Bool = false
+    @State private var hrtDurationUnit: String = "Month"
+    @State private var hrtDurationValue: Int = 1
 
     private let totalSteps = 4
 
@@ -458,6 +461,67 @@ struct OnboardingView: View {
                         .id("doseAmountSection")
                     }
 
+                    // HRT duration — shown after medication is configured
+                    if selectedTypeIndex != nil && selectedMethodIndex != nil {
+                        VStack(spacing: 12) {
+                            Text("Have you started HRT before?")
+                                .font(.subheadline)
+                                .foregroundStyle(.white.opacity(0.7))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+
+                            HStack(spacing: 12) {
+                                hrtStatusButton(label: "Just starting", isSelected: !hasBeenOnHRT) {
+                                    withAnimation(.easeInOut(duration: 0.2)) { hasBeenOnHRT = false }
+                                }
+                                hrtStatusButton(label: "I've been on it", isSelected: hasBeenOnHRT) {
+                                    withAnimation(.easeInOut(duration: 0.2)) { hasBeenOnHRT = true }
+                                }
+                            }
+
+                            if hasBeenOnHRT {
+                                VStack(spacing: 10) {
+                                    Picker("Time unit", selection: $hrtDurationUnit) {
+                                        Text("Month").tag("Month")
+                                        Text("Year").tag("Year")
+                                    }
+                                    .pickerStyle(.segmented)
+                                    .onChange(of: hrtDurationUnit) { _, _ in hrtDurationValue = 1 }
+
+                                    HStack {
+                                        Stepper(
+                                            "",
+                                            value: $hrtDurationValue,
+                                            in: 1...(hrtDurationUnit == "Month" ? 23 : 10)
+                                        )
+                                        .labelsHidden()
+                                        .tint(.white)
+
+                                        Spacer()
+
+                                        Text("\(hrtDurationValue) \(hrtDurationUnit)\(hrtDurationValue == 1 ? "" : "s")")
+                                            .font(.system(size: 26, weight: .medium, design: .rounded))
+                                            .foregroundStyle(.white.opacity(0.9))
+                                    }
+                                    .padding(.vertical, 10)
+                                    .padding(.horizontal, 16)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                                            .fill(Color.white.opacity(0.15))
+                                    )
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                                            .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                                    )
+                                }
+                                .transition(.opacity.combined(with: .move(edge: .bottom)))
+                            }
+                        }
+                        .padding(.horizontal, 40)
+                        .transition(.opacity.combined(with: .move(edge: .bottom)))
+                        .animation(.easeInOut(duration: 0.2), value: hasBeenOnHRT)
+                        .id("hrtDurationSection")
+                    }
+
                     // Navigation buttons
                     if selectedTypeIndex != nil && selectedMethodIndex != nil {
                         HStack(spacing: 16) {
@@ -498,6 +562,16 @@ struct OnboardingView: View {
                                     // Fallback to stepper value
                                     return doseDecimal
                                 }()
+
+                                // Set HRT start date if user was already on HRT
+                                if hasBeenOnHRT {
+                                    let cal = Calendar.current
+                                    if hrtDurationUnit == "Month" {
+                                        medicationManager.hrtStartDate = cal.date(byAdding: .month, value: -hrtDurationValue, to: Date())
+                                    } else {
+                                        medicationManager.hrtStartDate = cal.date(byAdding: .year, value: -hrtDurationValue, to: Date())
+                                    }
+                                }
 
                                 // Configure the medication
                                 medicationManager.updateSelection(type: medicationType, method: medicationMethod)
@@ -748,7 +822,33 @@ struct OnboardingView: View {
     }
 
     // MARK: - Helpers
-    
+
+    private func hrtStatusButton(label: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack {
+                Text(label)
+                    .font(.body)
+                    .foregroundStyle(.white.opacity(0.9))
+                Spacer()
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.white.opacity(0.9))
+                        .transition(.scale.combined(with: .opacity))
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(
+                RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                    .fill(isSelected ? Theme.Colors.accent.opacity(0.3) : Color.white.opacity(0.15))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                    .stroke(isSelected ? Color.white.opacity(0.5) : Color.white.opacity(0.3), lineWidth: 1)
+            )
+        }
+    }
+
     /// Maps an AdministrationMethod enum to its global index in AdministrationMethod.allCases.
     private func globalMethodIndex(for method: MedicationManager.AdministrationMethod) -> Int {
         MedicationManager.AdministrationMethod.allCases.firstIndex(of: method) ?? 0

@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>xT App — Interactive User Flow</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    :root {
+      --bg: #0a0a1a;
+      --surface: #12122a;
+      --border: #2a2a4a;
+      --text: #e0e0f0;
+      --text-dim: #8888aa;
+      --accent-1: #7c6ff7;
+      --accent-2: #f77c8a;
+      --accent-3: #7cf7d4;
+      --accent-4: #f7d77c;
+      --accent-5: #7caef7;
+      --glow-1: rgba(124, 111, 247, 0.3);
+      --glow-2: rgba(247, 124, 138, 0.3);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    #root { width: 100%; height: 100%; }
+
+    .app-container {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      position: relative;
+      cursor: grab;
+    }
+
+    .app-container:active { cursor: grabbing; }
+
+    .canvas-world {
+      position: absolute;
+      transform-origin: 0 0;
+      width: 6000px;
+      height: 4000px;
+    }
+
+    .zoom-controls {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 100;
+    }
+
+    .zoom-btn {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 22px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      backdrop-filter: blur(12px);
+    }
+
+    .zoom-btn:hover {
+      background: var(--accent-1);
+      border-color: var(--accent-1);
+      transform: scale(1.08);
+    }
+
+    .zoom-level {
+      position: fixed;
+      bottom: 24px;
+      left: 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 18px;
+      font-size: 13px;
+      color: var(--text-dim);
+      backdrop-filter: blur(12px);
+      z-index: 100;
+    }
+
+    .zoom-level span { color: var(--accent-1); font-weight: 600; }
+
+    .minimap {
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      width: 200px;
+      height: 133px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      z-index: 100;
+      backdrop-filter: blur(12px);
+    }
+
+    .minimap-viewport {
+      position: absolute;
+      border: 2px solid var(--accent-1);
+      background: rgba(124, 111, 247, 0.1);
+      border-radius: 2px;
+      pointer-events: none;
+    }
+
+    .minimap-dot {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+    }
+
+    .phase-label {
+      position: absolute;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      opacity: 0.4;
+      pointer-events: none;
+    }
+
+    .flow-node {
+      position: absolute;
+      border-radius: 16px;
+      padding: 20px 24px;
+      min-width: 220px;
+      max-width: 300px;
+      cursor: pointer;
+      transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+      backdrop-filter: blur(8px);
+      border: 1px solid transparent;
+    }
+
+    .flow-node:hover {
+      transform: translateY(-4px) scale(1.03);
+      z-index: 50;
+    }
+
+    .flow-node.active {
+      transform: scale(1.08);
+      z-index: 60;
+      box-shadow: 0 0 40px var(--glow-1);
+    }
+
+    .flow-node .node-title {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      line-height: 1.3;
+    }
+
+    .flow-node .node-desc {
+      font-size: 12px;
+      color: var(--text-dim);
+      line-height: 1.5;
+    }
+
+    .flow-node .node-icon {
+      font-size: 28px;
+      margin-bottom: 10px;
+    }
+
+    .flow-connector {
+      position: absolute;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .detail-panel {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 420px;
+      height: 100vh;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      z-index: 200;
+      transform: translateX(-100%);
+      transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow-y: auto;
+      padding: 32px;
+    }
+
+    .detail-panel.open { transform: translateX(0); }
+
+    .detail-panel-close {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text);
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .detail-panel h2 {
+      font-size: 22px;
+      margin-bottom: 16px;
+    }
+
+    .detail-panel p {
+      color: var(--text-dim);
+      line-height: 1.7;
+      margin-bottom: 12px;
+      font-size: 14px;
+    }
+
+    .detail-panel ul {
+      list-style: none;
+      padding: 0;
+      margin: 16px 0;
+    }
+
+    .detail-panel li {
+      padding: 10px 14px;
+      background: var(--bg);
+      border-radius: 10px;
+      margin-bottom: 8px;
+      font-size: 13px;
+      color: var(--text-dim);
+      border-left: 3px solid var(--accent-1);
+    }
+
+    .detail-panel li::before {
+      content: '→ ';
+      color: var(--accent-1);
+    }
+
+    .title-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 60px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 28px;
+      z-index: 150;
+      backdrop-filter: blur(12px);
+    }
+
+    .title-bar h1 {
+      font-size: 20px;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .title-bar .subtitle {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-left: 16px;
+    }
+
+    .legend {
+      position: fixed;
+      top: 80px;
+      left: 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      z-index: 100;
+      backdrop-filter: blur(12px);
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    .legend-color {
+      width: 14px;
+      height: 14px;
+      border-radius: 4px;
+    }
+
+    @keyframes pulse-glow {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+
+    .grid-bg {
+      position: absolute;
+      inset: 0;
+      background-image: 
+        radial-gradient(circle at 1px 1px, rgba(255,255,255,0.03) 1px, transparent 0);
+      background-size: 40px 40px;
+      pointer-events: none;
+    }
+
+    .phase-zone {
+      position: absolute;
+      border-radius: 24px;
+      border: 1px dashed var(--border);
+      opacity: 0.3;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useRef, useCallback, useEffect, useMemo } = React;
+
+    // ── Flow Data ──────────────────────────────────────────────────
+    const phases = [
+      {
+        id: 'launch',
+        title: 'Launch & Auth',
+        color: '#7c6ff7',
+        glow: 'rgba(124,111,247,0.3)',
+        nodes: [
+          { id: 'launch-app', x: 100, y: 100, icon: '🚀', title: 'App Launch', desc: 'User opens xT app' },
+          { id: 'check-onboard', x: 100, y: 220, icon: '📋', title: 'Check Onboarding', desc: 'AppStorage flag: hasCompletedOnboarding' },
+          { id: 'show-onboard', x: 420, y: 160, icon: '✨', title: 'Show Onboarding', desc: '4-step flow if not completed' },
+          { id: 'show-main', x: 420, y: 340, icon: '🏠', title: 'Show Main UI', desc: 'Home / Journal / Bloom / Settings' },
+          { id: 'app-lock', x: 100, y: 460, icon: '🔒', title: 'App Lock', desc: 'Scene phase → inactive triggers auth' },
+          { id: 'biometric', x: 100, y: 580, icon: '👆', title: 'Biometric Auth', desc: 'Face ID / Touch ID / Passcode' },
+        ]
+      },
+      {
+        id: 'onboarding',
+        title: 'Onboarding (4 Steps)',
+        color: '#f77c8a',
+        glow: 'rgba(247,124,138,0.3)',
+        nodes: [
+          { id: 'ob-welcome', x: 800, y: 100, icon: '💎', title: 'Welcome Screen', desc: 'xT branding, "Your cycle. Your insights."' },
+          { id: 'ob-features', x: 800, y: 240, icon: '🎯', title: 'Features Tour', desc: 'Cycle tracking, journal, bloom view, notifications' },
+          { id: 'ob-profile', x: 800, y: 380, icon: '👤', title: 'Profile Setup', desc: 'Name, cycle length, LMP date, symptoms' },
+          { id: 'ob-medication', x: 800, y: 520, icon: '💊', title: 'Medication Setup', desc: 'Medication name, dosage, reminder times' },
+          { id: 'ob-complete', x: 800, y: 660, icon: '✅', title: 'Complete', desc: 'hasCompletedOnboarding = true' },
+        ]
+      },
+      {
+        id: 'home',
+        title: 'Home Tab',
+        color: '#7cf7d4',
+        glow: 'rgba(124,247,212,0.3)',
+        nodes: [
+          { id: 'home-hero', x: 1200, y: 100, icon: '🌸', title: 'Hero View', desc: 'Current phase name, day range, gradient animation' },
+          { id: 'home-graph', x: 1200, y: 260, icon: '📊', title: 'Graph View', desc: 'Hormone curves (E2, P4, LH, PRL)' },
+          { id: 'home-missed', x: 1200, y: 420, icon: '⚠️', title: 'Missed Dose Prompt', desc: 'Shows if dose not confirmed by 10am' },
+          { id: 'home-quick', x: 1200, y: 540, icon: '⚡', title: 'Quick Actions', desc: 'Log mood, take photo, record dose' },
+          { id: 'home-insight', x: 1200, y: 660, icon: '💡', title: 'Daily Insight', desc: 'Contextual health tip based on current phase' },
+        ]
+      },
+      {
+        id: 'journal',
+        title: 'Journal Tab',
+        color: '#f7d77c',
+        glow: 'rgba(247,215,124,0.3)',
+        nodes: [
+          { id: 'journal-timeline', x: 1600, y: 100, icon: '📅', title: 'Timeline View', desc: 'Date-grouped entries, scrubber navigation' },
+          { id: 'journal-compose', x: 1600, y: 260, icon: '✏️', title: 'New Entry', desc: 'Mood, text, symptoms, photo, hormone overlay' },
+          { id: 'journal-save', x: 1600, y: 420, icon: '💾', title: 'Save Entry', desc: 'JournalManager.createEntry() → SwiftData' },
+          { id: 'journal-detail', x: 1600, y: 560, icon: '🔍', title: 'Entry Detail', desc: 'Full view with photo, mood, symptoms' },
+        ]
+      },
+      {
+        id: 'bloom',
+        title: 'Bloom / Time Tab',
+        color: '#7caef7',
+        glow: 'rgba(124,174,247,0.3)',
+        nodes: [
+          { id: 'bloom-hormones', x: 2000, y: 100, icon: '📈', title: 'Hormone Levels', desc: 'E2, P4, LH, PRL current values & history' },
+          { id: 'bloom-changes', x: 2000, y: 260, icon: '🧬', title: 'Changes Unlocked', desc: 'Physical/emotional changes per phase' },
+          { id: 'bloom-body', x: 2000, y: 420, icon: '🫀', title: 'Body Systems', desc: 'Uterus, ovaries, cervix status' },
+          { id: 'bloom-milestones', x: 2000, y: 560, icon: '🏆', title: 'Milestones', desc: 'Cycle day goals, streak tracking' },
+        ]
+      },
+      {
+        id: 'schedule',
+        title: 'Schedule Management',
+        color: '#d77cf7',
+        glow: 'rgba(215,124,247,0.3)',
+        nodes: [
+          { id: 'schedule-list', x: 2400, y: 100, icon: '📋', title: 'Upcoming Events', desc: 'Scheduled doses, reminders, appointments' },
+          { id: 'schedule-record', x: 2400, y: 260, icon: '✅', title: 'Record Dose', desc: 'Date/time picker, confirmation' },
+          { id: 'schedule-reminders', x: 2400, y: 420, icon: '🔔', title: 'Notification Setup', desc: 'UNUserNotificationCenter configuration' },
+        ]
+      },
+      {
+        id: 'settings',
+        title: 'Settings Tab',
+        color: '#f7a77c',
+        glow: 'rgba(247,167,124,0.3)',
+        nodes: [
+          { id: 'settings-profile', x: 2800, y: 100, icon: '👤', title: 'Profile Settings', desc: 'Edit name, photo, cycle details' },
+          { id: 'settings-med', x: 2800, y: 240, icon: '💊', title: 'Medication', desc: 'Update name, dosage, times' },
+          { id: 'settings-notif', x: 2800, y: 380, icon: '🔔', title: 'Notifications', desc: 'Dose & journal reminder toggles' },
+          { id: 'settings-privacy', x: 2800, y: 520, icon: '🔐', title: 'Privacy & Security', desc: 'App lock, biometric auth, passcode' },
+          { id: 'settings-about', x: 2800, y: 660, icon: 'ℹ️', title: 'About', desc: 'Version, data export, legal' },
+        ]
+      },
+      {
+        id: 'notifications',
+        title: 'Notification System',
+        color: '#7cf7a0',
+        glow: 'rgba(124,247,160,0.3)',
+        nodes: [
+          { id: 'notif-dose', x: 3200, y: 100, icon: '💊', title: 'Dose Reminder', desc: 'Daily scheduled medication alert' },
+          { id: 'notif-journal', x: 3200, y: 240, icon: '📝', title: 'Journal Prompt', desc: 'Evening reminder to log entry' },
+          { id: 'notif-missed', x: 3200, y: 380, icon: '⚠️', title: 'Missed Dose Alert', desc: 'Escalation if dose not recorded' },
+          { id: 'notif-insight', x: 3200, y: 520, icon: '💡', title: 'Daily Insight', desc: 'Phase-based health tip notification' },
+        ]
+      },
+      {
+        id: 'data',
+        title: 'Data Architecture',
+        color: '#a77cf7',
+        glow: 'rgba(167,124,247,0.3)',
+        nodes: [
+          { id: 'data-swiftdata', x: 3600, y: 100, icon: '🗄️', title: 'SwiftData Model', desc: 'JournalEntry, DoseRecord, UserDosePreferences' },
+          { id: 'data-managers', x: 3600, y: 260, icon: '⚙️', title: 'Managers', desc: 'MedicationManager, JournalManager, ProfileManager' },
+          { id: 'data-appstorage', x: 3600, y: 420, icon: '💾', title: 'AppStorage', desc: 'UserPreferences enum state persistence' },
+          { id: 'data-auth', x: 3600, y: 560, icon: '🔐', title: 'Auth State', desc: 'AuthenticationManager, LocalAuthentication' },
+        ]
+      },
+      {
+        id: 'theme',
+        title: 'Theme & Design System',
+        color: '#f7c7a0',
+        glow: 'rgba(247,199,160,0.3)',
+        nodes: [
+          { id: 'theme-colors', x: 4000, y: 100, icon: '🎨', title: 'Colors', desc: 'Phase-based dynamic palette' },
+          { id: 'theme-gradients', x: 4000, y: 240, icon: '🌈', title: 'Gradients', desc: 'AnimatedMeshGradient, BloomEffect' },
+          { id: 'theme-motion', x: 4000, y: 380, icon: '✨', title: 'Motion', desc: 'Spring animations, parallax scrolling' },
+          { id: 'theme-typography', x: 4000, y: 520, icon: '🔤', title: 'Typography', desc: 'SF Pro, dynamic type support' },
+        ]
+      }
+    ];
+
+    // ── Connector paths between nodes ──────────────────────────────
+    const connectors = [
+      // Launch flow
+      { from: 'launch-app', to: 'check-onboard' },
+      { from: 'check-onboard', to: 'show-onboard', dashed: true },
+      { from: 'check-onboard', to: 'show-main', dashed: true },
+      { from: 'show-onboard', to: 'ob-complete' },
+      { from: 'show-main', to: 'home-hero' },
+      { from: 'app-lock', to: 'biometric' },
+      { from: 'biometric', to: 'show-main' },
+      
+      // Onboarding flow
+      { from: 'ob-welcome', to: 'ob-features' },
+      { from: 'ob-features', to: 'ob-profile' },
+      { from: 'ob-profile', to: 'ob-medication' },
+      { from: 'ob-medication', to: 'ob-complete' },
+      
+      // Home tab
+      { from: 'home-hero', to: 'home-graph' },
+      { from: 'home-graph', to: 'home-missed' },
+      { from: 'home-missed', to: 'home-quick' },
+      { from: 'home-quick', to: 'home-insight' },
+      
+      // Journal tab
+      { from: 'home-quick', to: 'journal-timeline' },
+      { from: 'journal-timeline', to: 'journal-compose' },
+      { from: 'journal-compose', to: 'journal-save' },
+      { from: 'journal-save', to: 'journal-detail' },
+      
+      // Bloom tab
+      { from: 'journal-detail', to: 'bloom-hormones' },
+      { from: 'bloom-hormones', to: 'bloom-changes' },
+      { from: 'bloom-changes', to: 'bloom-body' },
+      { from: 'bloom-body', to: 'bloom-milestones' },
+      
+      // Schedule
+      { from: 'bloom-milestones', to: 'schedule-list' },
+      { from: 'schedule-list', to: 'schedule-record' },
+      { from: 'schedule-record', to: 'schedule-reminders' },
+      
+      // Settings
+      { from: 'schedule-reminders', to: 'settings-profile' },
+      { from: 'settings-profile', to: 'settings-med' },
+      { from: 'settings-med', to: 'settings-notif' },
+      { from: 'settings-notif', to: 'settings-privacy' },
+      { from: 'settings-privacy', to: 'settings-about' },
+      
+      // Notifications
+      { from: 'schedule-reminders', to: 'notif-dose' },
+      { from: 'notif-dose', to: 'notif-journal' },
+      { from: 'notif-journal', to: 'notif-missed' },
+      { from: 'notif-missed', to: 'notif-insight' },
+      
+      // Data
+      { from: 'notif-insight', to: 'data-swiftdata' },
+      { from: 'data-swiftdata', to: 'data-managers' },
+      { from: 'data-managers', to: 'data-appstorage' },
+      { from: 'data-appstorage', to: 'data-auth' },
+      
+      // Theme
+      { from: 'data-auth', to: 'theme-colors' },
+      { from: 'theme-colors', to: 'theme-gradients' },
+      { from: 'theme-gradients', to: 'theme-motion' },
+      { from: 'theme-motion', to: 'theme-typography' },
+    ];
+
+    // ── Node detail content ────────────────────────────────────────
+    const nodeDetails = {
+      'launch-app': {
+        title: '🚀 App Launch',
+        desc: 'The xT app initializes with a SwiftData ModelContainer containing the full Schema. Environment objects for managers are injected before the root view renders.',
+        steps: ['ModelContainer creation with Schema([JournalEntry, DoseRecord, UserDosePreferences])', 'Environment objects injected: medicationManager, journalManager, profileManager', 'Root ContentView renders with @State variables for navigation and authentication']
+      },
+      'launch-app-lock': {
+        title: '🔒 App Lock Flow',
+        desc: 'When the app transitions to background or inactive scene phase, the AuthenticationManager triggers the app lock.',
+        steps: ['ScenePhase.inactive triggers on appearance', 'authenticate() called with current auth policy', 'Face ID / Touch ID prompt appears', 'On success, app returns to active state', 'On failure/timeout, shows passcode entry']
+      },
+      'ob-welcome': {
+        title: '✨ Welcome Screen (Step 1/4)',
+        desc: 'Beautiful onboarding introduction with xT branding and tagline.',
+        steps: ['Large xT logo display', 'Tagline: "Your cycle. Your insights."', 'Personalized greeting using first name from UserDefaults', 'Continue button to step 2']
+      },
+      'ob-features': {
+        title: '🎯 Features Tour (Step 2/4)',
+        desc: 'Swipeable cards showcasing core features of xT.',
+        steps: ['Card 1: Cycle tracking with 4 hormone phases', 'Card 2: Journal with mood & symptom logging', 'Card 3: Bloom view for hormone visualization', 'Card 4: Smart notifications & dose reminders', 'Horizontal swipe navigation between cards']
+      },
+      'ob-profile': {
+        title: '👤 Profile Setup (Step 3/4)',
+        desc: 'Collect key cycle and health information to personalize tracking.',
+        steps: ['Name display customization', 'Average cycle length (21-35 days default)', 'Last menstrual period (LMP) date picker', 'Common symptoms checklist', 'Optional: cycle regularity notes']
+      },
+      'ob-medication': {
+        title: '💊 Medication Setup (Step 4/4)',
+        desc: 'Configure medication and reminder preferences for dose tracking.',
+        steps: ['Medication name input (e.g., "Estrogen Patch")', 'Dosage amount and unit entry', 'Reminder time selection (time picker)', 'Dose frequency (daily, alternate days)', 'Confirmation triggers onboarding completion']
+      },
+      'home-hero': {
+        title: '🌸 Hero View — Home Tab',
+        desc: 'The primary home screen showing current cycle phase and key actions.',
+        steps: ['Phase name display (Follicular, Ovulation, Luteal, Menstrual)', 'Day range for current phase (e.g., "Days 5-13 of 28")', 'Animated mesh gradient background', 'Quick-action buttons below']
+      },
+      'home-graph': {
+        title: '📊 Hormone Graph',
+        desc: 'Visual representation of current hormone levels across the cycle.',
+        steps: ['Curved hormone lines: E2, P4, LH, PRL', 'Current day indicator on timeline', 'Phase-colored background zones', 'Swipeable between single and dual-cycle views']
+      },
+      'home-missed': {
+        title: '⚠️ Missed Dose Prompt',
+        desc: 'If no dose confirmed by 10am, shows a prominent reminder card.',
+        steps: ['Checked each morning on app launch', 'Shows if no dose record exists for today', 'Direct link to quick-dose recording', 'Dismissed once dose is logged']
+      },
+      'journal-compose': {
+        title: '✏️ New Journal Entry',
+        desc: 'Rich form for logging daily mood, symptoms, and notes.',
+        steps: ['Mood selector with emoji icons', 'Free-form text editor (auto-saved)', 'Optional symptom tags', 'Photo attachment via PhotosUI', 'Hormone phase context shown as overlay']
+      },
+      'bloom-hormones': {
+        title: '📈 Hormone Levels Detail',
+        desc: 'Deep dive into current and historical hormone values.',
+        steps: ['E2 (Estradiol) current pg/mL and 30-day trend', 'P4 (Progesterone) with ovulation detection', 'LH surge indicators', 'PRL (Prolactin) reference ranges', 'Phase-based expected value zones']
+      },
+      'data-swiftdata': {
+        title: '🗄️ SwiftData Model',
+        desc: 'Persistent storage layer using SwiftData with ModelContainer.',
+        steps: ['JournalEntry: id, timestamp, mood, notes, symptoms[], photos[]', 'DoseRecord: id, timestamp, doseAmount, confirmed', 'UserDosePreferences: medicationName, dosage, reminderTimes[], frequency', 'ModelContainer auto-saves to persistent store']
+      }
+    };
+
+    // ── Main App Component ─────────────────────────────────────────
+    function App() {
+      const [zoom, setZoom] = useState(0.5);
+      const [pan, setPan] = useState({ x: 0, y: 0 });
+      const [isDragging, setIsDragging] = useState(false);
+      const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+      const [activeNode, setActiveNode] = useState(null);
+      const [showDetail, setShowDetail] = useState(false);
+      const [selectedPhase, setSelectedPhase] = useState(null);
+      const canvasRef = useRef(null);
+      const lastPan = useRef({ x: 0, y: 0 });
+
+      // Center the canvas on mount
+      useEffect(() => {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        setPan({ x: w/2 - 2000 * 0.5, y: h/2 - 1000 * 0.5 });
+      }, []);
+
+      const handleWheel = useCallback((e) => {
+        e.preventDefault();
+        const delta = -e.deltaY * 0.001;
+        const newZoom = Math.max(0.15, Math.min(3, zoom + delta));
+        
+        // Zoom toward mouse position
+        const rect = canvasRef.current.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        
+        const zoomRatio = newZoom / zoom;
+        const newPan = {
+          x: mouseX - (mouseX - pan.x) * zoomRatio,
+          y: mouseY - (mouseY - pan.y) * zoomRatio
+        };
+        
+        setZoom(newZoom);
+        setPan(newPan);
+      }, [zoom, pan]);
+
+      const handleMouseDown = useCallback((e) => {
+        setIsDragging(true);
+        setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+      }, [pan]);
+
+      const handleMouseMove = useCallback((e) => {
+        if (isDragging) {
+          setPan({
+            x: e.clientX - dragStart.x,
+            y: e.clientY - dragStart.y
+          });
+        }
+      }, [isDragging, dragStart]);
+
+      const handleMouseUp = useCallback(() => {
+        setIsDragging(false);
+      }, []);
+
+      const handleNodeClick = useCallback((nodeId) => {
+        setActiveNode(nodeId);
+        setShowDetail(true);
+        // Zoom to node
+        const allNodes = phases.flatMap(p => p.nodes);
+        const node = allNodes.find(n => n.id === nodeId);
+        if (node) {
+          const w = window.innerWidth;
+          const h = window.innerHeight;
+          setPan({ x: w/2 - node.x * 1.2, y: h/2 - node.y * 1.2 });
+          setZoom(1.2);
+        }
+      }, []);
+
+      const handleCloseDetail = useCallback(() => {
+        setShowDetail(false);
+        setActiveNode(null);
+      }, []);
+
+      const handleZoomIn = useCallback(() => {
+        setZoom(z => Math.min(3, z + 0.2));
+      }, []);
+
+      const handleZoomOut = useCallback(() => {
+        setZoom(z => Math.max(0.15, z - 0.2));
+      }, []);
+
+      const handleReset = useCallback(() => {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        setZoom(0.5);
+        setPan({ x: w/2 - 2000 * 0.5, y: h/2 - 1000 * 0.5 });
+        setShowDetail(false);
+        setActiveNode(null);
+      }, []);
+
+      // Build SVG path for connectors
+      const allNodesMap = useMemo(() => {
+        const map = {};
+        phases.forEach(p => p.nodes.forEach(n => { map[n.id] = n; }));
+        return map;
+      }, []);
+
+      const svgPaths = useMemo(() => {
+        return connectors.map((conn, i) => {
+          const from = allNodesMap[conn.from];
+          const to = allNodesMap[conn.to];
+          if (!from || !to) return null;
+          
+          const x1 = from.x + 150;
+          const y1 = from.y + 50;
+          const x2 = to.x + 50;
+          const y2 = to.y + 50;
+          
+          const midX = (x1 + x2) / 2;
+          const path = `M ${x1} ${y1} C ${midX} ${y1}, ${midX} ${y2}, ${x2} ${y2}`;
+          
+          return { path, id: i, dashed: conn.dashed };
+        }).filter(Boolean);
+      }, [allNodesMap]);
+
+      return (
+        <div className="app-container" ref={canvasRef}
+          onWheel={handleWheel}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}>
+          
+          {/* Grid background */}
+          <div className="grid-bg"></div>
+          
+          {/* Title bar */}
+          <div className="title-bar">
+            <h1>xT App</h1>
+            <span className="subtitle">Interactive User Experience Flow</span>
+          </div>
+
+          {/* Legend */}
+          <div className="legend">
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, color: 'var(--text)' }}>Phases</div>
+            {phases.map(p => (
+              <div key={p.id} className="legend-item"
+                onClick={() => {
+                  setSelectedPhase(selectedPhase === p.id ? null : p.id);
+                  // Zoom to phase
+                  const phaseNodes = p.nodes;
+                  if (phaseNodes.length > 0) {
+                    const w = window.innerWidth;
+                    const h = window.innerHeight;
+                    const cx = phaseNodes.reduce((s, n) => s + n.x, 0) / phaseNodes.length;
+                    const cy = phaseNodes.reduce((s, n) => s + n.y, 0) / phaseNodes.length;
+                    setPan({ x: w/2 - cx * 0.8, y: h/2 - cy * 0.8 });
+                    setZoom(0.8);
+                  }
+                }}
+                style={{ cursor: 'pointer' }}>
+                <div className="legend-color" style={{ background: p.color }}></div>
+                {p.title}
+              </div>
+            ))}
+          </div>
+
+          {/* Zoom controls */}
+          <div className="zoom-controls">
+            <button className="zoom-btn" onClick={handleZoomIn}>+</button>
+            <button className="zoom-btn" onClick={handleZoomOut}>−</button>
+            <button className="zoom-btn" onClick={handleReset} style={{ fontSize: 16 }}>⟲</button>
+          </div>
+
+          {/* Zoom level indicator */}
+          <div className="zoom-level">Zoom: <span>{Math.round(zoom * 100)}%</span></div>
+
+          {/* Phase zones */}
+          {phases.map(phase => {
+            const xs = phase.nodes.map(n => n.x);
+            const ys = phase.nodes.map(n => n.y);
+            const minX = Math.min(...xs) - 60;
+            const minY = Math.min(...ys) - 60;
+            const maxX = Math.max(...xs) + 340;
+            const maxY = Math.max(...ys) + 120;
+            const isSelected = selectedPhase === phase.id;
+            
+            return (
+              <div key={phase.id} className="phase-zone"
+                style={{
+                  left: minX, top: minY,
+                  width: maxX - minX, height: maxY - minY,
+                  borderColor: isSelected ? phase.color : 'var(--border)',
+                  opacity: isSelected ? 0.5 : 0.3,
+                  background: isSelected ? `${phase.glow}` : 'transparent'
+                }}>
+                <div className="phase-label" style={{ left: 20, top: -14 }}>
+                  {phase.title}
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Canvas world */}
+          <div className="canvas-world" style={{
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`
+          }}>
+            {/* SVG connectors */}
+            <svg className="flow-connector" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible' }}>
+              <defs>
+                <linearGradient id="connGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="var(--accent-1)" stopOpacity="0.4" />
+                  <stop offset="100%" stopColor="var(--accent-2)" stopOpacity="0.4" />
+                </linearGradient>
+              </defs>
+              {svgPaths.map(pathObj => (
+                <path key={pathObj.id}
+                  d={pathObj.path}
+                  fill="none"
+                  stroke="url(#connGrad)"
+                  strokeWidth="2"
+                  strokeDasharray={pathObj.dashed ? '6,6' : 'none'}
+                  opacity="0.5"
+                />
+              ))}
+            </svg>
+
+            {/* Flow nodes */}
+            {phases.map(phase => 
+              phase.nodes.map(node => {
+                const isActive = activeNode === node.id;
+                const detail = nodeDetails[node.id];
+                const phaseColor = phase.color;
+                
+                return (
+                  <div key={node.id}
+                    className={`flow-node ${isActive ? 'active' : ''}`}
+                    style={{
+                      left: node.x,
+                      top: node.y,
+                      background: `linear-gradient(135deg, ${phaseColor}15, ${phaseColor}08)`,
+                      borderColor: isActive ? phaseColor : `${phaseColor}30`,
+                      boxShadow: isActive ? `0 0 30px ${phaseColor}40` : 'none'
+                    }}
+                    onClick={() => handleNodeClick(node.id)}>
+                    <div className="node-icon">{node.icon}</div>
+                    <div className="node-title" style={{ color: phaseColor }}>{node.title}</div>
+                    <div className="node-desc">{node.desc}</div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Detail panel */}
+          <div className={`detail-panel ${showDetail ? 'open' : ''}`}>
+            <button className="detail-panel-close" onClick={handleCloseDetail}>✕</button>
+            {activeNode && nodeDetails[activeNode] ? (
+              <>
+                <h2>{nodeDetails[activeNode].title}</h2>
+                <p>{nodeDetails[activeNode].desc}</p>
+                <ul>
+                  {nodeDetails[activeNode].steps.map((step, i) => (
+                    <li key={i}>{step}</li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <>
+                <h2>Click any node</h2>
+                <p>Click on a flow node to see detailed information about that part of the app experience.</p>
+                <p>Use mouse wheel to zoom, click and drag to pan. Use the +/− buttons or scroll to navigate the canvas.</p>
+              </>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // ── Render ─────────────────────────────────────────────────────
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>

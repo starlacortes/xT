@@ -13,11 +13,19 @@ struct BloomView: View {
     @Environment(\.medicationManager) private var medicationManager
 
     private var engine: BloomContentEngine {
-        BloomContentEngine(
+        let cycleDay: Int = {
+            guard let last = medicationManager.lastDoseDate,
+                  let methodStr = medicationManager.selectedAdministrationMethod,
+                  let adm = MedicationManager.AdministrationMethod(rawValue: methodStr) else { return 1 }
+            let elapsed = Calendar.current.dateComponents([.day], from: last, to: Date()).day ?? 0
+            return (elapsed % adm.frequencyDays) + 1
+        }()
+        return BloomContentEngine(
             medication: medicationManager.selectedMedication ?? "Estrogen",
             method: medicationManager.selectedAdministrationMethod ?? "Injectable",
             months: medicationManager.monthsOnHRT,
-            currentLevel: medicationManager.estimatedRecentLevels(days: 1).last?.value
+            currentLevel: medicationManager.estimatedRecentLevels(days: 1).last?.value,
+            dayOfCycle: cycleDay
         )
     }
 
