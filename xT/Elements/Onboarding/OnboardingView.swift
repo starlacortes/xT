@@ -2,8 +2,8 @@
 //  OnboardingView.swift
 //  xT
 //
-//  Redesigned by Cline on 5/28/2026.
-//  Warm and understated onboarding experience
+//  Redesigned by Cline on 6/30/2026.
+//  8-step progressive onboarding with one decision per screen.
 //
 
 import SwiftUI
@@ -19,54 +19,66 @@ extension Array {
 struct OnboardingView: View {
     @Environment(\.medicationManager) private var medicationManager
     @Environment(\.profileManager) private var profileManager
-    @Environment(\.modelContext) private var modelContext
 
     var onboardingComplete: (() -> Void)? = nil
 
+    // MARK: - Step State
     @State private var currentStep: Int = 0
-    @State private var selectedTypeIndex: Int? = nil
-    @State private var selectedMethodIndex: Int? = nil
-    @State private var selectedEsterIndex: Int? = nil
-    @State private var doseAmount: String = ""
+    @State private var opacity: Double = 0
+    
+    // Step 2 — medication type
+    @State private var selectedType: String = ""
+    
+    // Step 3 — HRT experience
+    @State private var hasBeenOnHRT: Bool = false
+    @State private var hrtDurationMonths: Int = 1
+    @State private var hrtDurationYears: Int = 0
+    
+    // Step 4 — method + ester
+    @State private var selectedMethod: String = ""
+    @State private var selectedEster: String = ""
+    @State private var selectedFrequency: Int = 7
+    
+    // Step 5 — dose + timing
     @State private var doseDecimal: Double = 2.0
+    @State private var doseText: String = "2.0"
+    @State private var lastDoseDate: Date = Date()
+    @FocusState private var doseFieldFocused: Bool
+    
+    // Step 6 — anti-androgens
+    @State private var antiAndrogenChoice: String = "None"
+    
+    // Step 7 — profile
     @State private var profileName: String = ""
-    @State private var hasCompletedFirstDose: Bool = false
     @State private var showImagePicker: Bool = false
     @State private var showCamera: Bool = false
-    @State private var opacity: Double = 0
-    @State private var isSyncingFromStepper = false
-    @State private var isSyncingFromText = false
-    @FocusState private var doseAmountFocused: Bool
-    @State private var hasBeenOnHRT: Bool = false
-    @State private var hrtDurationUnit: String = "Month"
-    @State private var hrtDurationValue: Int = 1
 
-    private let totalSteps = 4
-
+    private let totalSteps = 8
+    
+    // MARK: - Body
     var body: some View {
         ZStack {
-            // Soft gradient background
             Theme.Gradients.brand
                 .opacity(0.7)
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Subtle progress indicator
                 progressBar
                     .padding(.top, 32)
                     .padding(.horizontal, 40)
 
-                // Content area with generous spacing
                 ZStack {
                     Group {
-                        if currentStep == 0 {
-                            welcomeStep
-                        } else if currentStep == 1 {
-                            featuresStep
-                        } else if currentStep == 2 {
-                            profileStep
-                        } else {
-                            medicationStep
+                        switch currentStep {
+                        case 0: welcomeStep
+                        case 1: pathStep
+                        case 2: experienceStep
+                        case 3: medicationStep
+                        case 4: doseStep
+                        case 5: antiAndrogenStep
+                        case 6: profileStep
+                        case 7: reviewStep
+                        default: EmptyView()
                         }
                     }
                     .opacity(opacity)
@@ -75,732 +87,368 @@ struct OnboardingView: View {
             }
         }
         .onAppear {
-            withAnimation(.easeIn(duration: 0.4)) {
-                opacity = 1.0
-            }
+            withAnimation(.easeIn(duration: 0.4)) { opacity = 1.0 }
         }
     }
 
     // MARK: - Progress Bar
     private var progressBar: some View {
-        GeometryReader { geometry in
+        GeometryReader { geo in
             ZStack(alignment: .leading) {
-                // Background track
                 RoundedRectangle(cornerRadius: 2)
                     .fill(Color.white.opacity(0.3))
                     .frame(height: 3)
-
-                // Progress fill
                 RoundedRectangle(cornerRadius: 2)
                     .fill(Theme.Colors.accent.opacity(0.8))
-                    .frame(width: geometry.size.width * CGFloat(currentStep + 1) / CGFloat(totalSteps), height: 3)
+                    .frame(width: geo.size.width * CGFloat(currentStep + 1) / CGFloat(totalSteps), height: 3)
                     .animation(.easeInOut(duration: 0.3), value: currentStep)
             }
         }
         .frame(height: 3)
     }
 
-    // MARK: - Step 1: Gentle Welcome
+    // MARK: - Step 1: Welcome
     private var welcomeStep: some View {
         VStack(spacing: 32) {
             Spacer()
-
-            // Logo or app name with gentle appearance
             Text("xT")
                 .font(.system(size: 64, weight: .light))
                 .foregroundStyle(.white.opacity(0.95))
-                .padding(.bottom, 8)
-
             Text("Welcome to your journey")
                 .font(.title3)
                 .fontWeight(.regular)
                 .foregroundStyle(.white.opacity(0.85))
                 .multilineTextAlignment(.center)
+            Spacer()
+            primaryButton("Begin") { advanceStep() }
+                .padding(.horizontal, 40)
+                .padding(.bottom, 40)
+        }
+    }
+
+    // MARK: - Step 2: Medication Type
+    private var pathStep: some View {
+        VStack(spacing: 28) {
+            Spacer()
+            Text("What hormone are you taking?")
+                .font(.title2)
+                .fontWeight(.regular)
+                .foregroundStyle(.white.opacity(0.9))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+
+            VStack(spacing: 14) {
+                pathCard(
+                    title: "Estrogen‑based HRT",
+                    subtitle: "Estradiol — feminizing hormone therapy",
+                    isSelected: selectedType == "Estrogen"
+                ) { selectType("Estrogen", defaultDose: 2.0) }
+
+                pathCard(
+                    title: "Testosterone‑based HRT",
+                    subtitle: "Testosterone — masculinizing hormone therapy",
+                    isSelected: selectedType == "Testosterone"
+                ) { selectType("Testosterone", defaultDose: 40.0) }
+            }
+            .padding(.horizontal, 40)
 
             Spacer()
-
-            // Begin button with soft glow
-            Button(action: { advanceStep() }) {
-                Text("Begin")
-                    .font(.headline)
-                    .fontWeight(.medium)
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(
-                        RoundedRectangle(cornerRadius: Theme.Radius.md)
-                            .fill(Theme.Colors.accent.opacity(0.8))
-                            .shadow(color: Theme.Colors.accent.opacity(0.3), radius: 12, x: 0, y: 4)
-                    )
+            HStack(spacing: 16) {
+                secondaryButton("Back") { previousStep() }
+                primaryButton("Continue", disabled: selectedType.isEmpty) { advanceStep() }
             }
             .padding(.horizontal, 40)
             .padding(.bottom, 40)
         }
     }
 
-    // MARK: - Step 2: What We Do (Minimal)
-    private var featuresStep: some View {
-        VStack(spacing: 40) {
+    // MARK: - Step 3: HRT Experience
+    private var experienceStep: some View {
+        VStack(spacing: 28) {
             Spacer()
+            Text("How long have you been on HRT?")
+                .font(.title2)
+                .fontWeight(.regular)
+                .foregroundStyle(.white.opacity(0.9))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
 
-            VStack(spacing: 28) {
-                featureRow(icon: "pills.fill", text: "Track your medication", color: Theme.Colors.accent.opacity(0.7))
-                featureRow(icon: "chart.line.uptrend.xyaxis", text: "Understand your levels", color: Theme.Colors.accentSecondary.opacity(0.6))
-                featureRow(icon: "heart.fill", text: "Feel supported", color: Theme.Colors.Bloom.cycle.base.opacity(0.7))
+            VStack(spacing: 14) {
+                choiceCard(title: "Just starting", isSelected: !hasBeenOnHRT) {
+                    withAnimation { hasBeenOnHRT = false }
+                }
+                choiceCard(title: "I've been on it", isSelected: hasBeenOnHRT) {
+                    withAnimation { hasBeenOnHRT = true }
+                }
             }
             .padding(.horizontal, 40)
 
-            Spacer()
-
-            // Navigation buttons
-            navigationButtons
-        }
-    }
-
-    private func featureRow(icon: String, text: String, color: Color) -> some View {
-        HStack(spacing: 20) {
-            Image(systemName: icon)
-                .font(.system(size: 28))
-                .foregroundStyle(color)
-                .frame(width: 44, height: 44)
-                .background(
-                    Circle()
-                        .fill(color.opacity(0.15))
-                )
-
-            Text(text)
-                .font(.body)
-                .fontWeight(.regular)
-                .foregroundStyle(.white.opacity(0.9))
+            if hasBeenOnHRT {
+                HStack(spacing: 12) {
+                    durationStepper(label: "Years", value: $hrtDurationYears, range: 0...20)
+                    durationStepper(label: "Months", value: $hrtDurationMonths, range: 1...11)
+                }
+                .padding(.horizontal, 40)
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
 
             Spacer()
+            HStack(spacing: 16) {
+                secondaryButton("Back") { previousStep() }
+                primaryButton("Continue") { advanceStep() }
+            }
+            .padding(.horizontal, 40)
+            .padding(.bottom, 40)
         }
+        .animation(.easeInOut(duration: 0.2), value: hasBeenOnHRT)
     }
 
-    // MARK: - Step 3: Profile (Optional, Gentle)
-    private var profileStep: some View {
+    // MARK: - Step 4: Method & Ester
+    private var medicationStep: some View {
         ScrollView {
-            VStack(spacing: 32) {
-                Text("This is your space")
+            VStack(spacing: 24) {
+                Text("How do you take it?")
                     .font(.title2)
                     .fontWeight(.regular)
                     .foregroundStyle(.white.opacity(0.9))
-                    .padding(.bottom, 8)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
                     .padding(.top, 32)
 
-                // Profile image with gentle pulse
-                Button(action: { showImagePicker = true }) {
-                    Image(uiImage: profileManager.getCurrentProfileImage())
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 100, height: 100)
-                        .clipShape(Circle())
-                        .overlay(
-                            Circle()
-                                .stroke(Color.white.opacity(0.6), lineWidth: 2)
-                        )
-                        .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 4)
-                }
-
-                Text("Tap to add photo")
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.6))
-
-                // Name field with subtle styling
-                VStack(alignment: .leading, spacing: 8) {
-                    TextField("Your name", text: $profileName)
-                        .font(.body)
-                        .foregroundStyle(.white.opacity(0.9))
-                        .padding(.vertical, 12)
-                        .padding(.horizontal, 16)
-                        .background(
-                            RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                                .fill(Color.white.opacity(0.15))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                                .stroke(Color.white.opacity(0.3), lineWidth: 1)
-                        )
+                // Method cards
+                VStack(spacing: 12) {
+                    ForEach(MedicationManager.AdministrationMethod.allCases, id: \.rawValue) { method in
+                        methodCard(method)
+                    }
                 }
                 .padding(.horizontal, 40)
 
-                // Photo options as soft icons
-                HStack(spacing: 24) {
-                    photoOptionButton(icon: "photo", label: "Library") {
-                        showImagePicker = true
-                    }
-
-                    photoOptionButton(icon: "camera", label: "Camera") {
-                        showCamera = true
-                    }
-                }
-                .padding(.top, 8)
-
-                // Navigation with skip option
-                HStack(spacing: 16) {
-                    Button(action: { previousStep() }) {
-                        Text("Back")
-                            .font(.body)
+                // Ester selection — only for injectables
+                if selectedMethod == "Injectable" {
+                    VStack(spacing: 12) {
+                        Text("Which ester?")
+                            .font(.subheadline)
                             .foregroundStyle(.white.opacity(0.7))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                    }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 40)
 
-                    Button(action: {
-                        if !profileName.isEmpty {
-                            profileManager.updateProfileName(profileName)
+                        esterList
+                            .padding(.horizontal, 40)
+                    }
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+                    .animation(.easeInOut(duration: 0.2), value: selectedMethod)
+                }
+
+                // Frequency selector
+                if !selectedMethod.isEmpty {
+                    VStack(spacing: 8) {
+                        Text("Dosing frequency")
+                            .font(.subheadline)
+                            .foregroundStyle(.white.opacity(0.7))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 40)
+                        
+                        HStack {
+                            Stepper("Every \(selectedFrequency) days", value: $selectedFrequency, in: 1...30)
+                                .foregroundStyle(.white.opacity(0.9))
                         }
+                        .padding(.horizontal, 40)
+                    }
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+                }
+
+                Spacer(minLength: 40)
+                HStack(spacing: 16) {
+                    secondaryButton("Back") { previousStep() }
+                    primaryButton("Continue", disabled: selectedMethod.isEmpty || (selectedMethod == "Injectable" && selectedEster.isEmpty)) {
                         advanceStep()
-                    }) {
-                        Text("Continue")
-                            .font(.headline)
-                            .fontWeight(.medium)
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(
-                                RoundedRectangle(cornerRadius: Theme.Radius.md)
-                                    .fill(Theme.Colors.accent.opacity(0.8))
-                            )
                     }
                 }
                 .padding(.horizontal, 40)
                 .padding(.bottom, 40)
             }
         }
-        .sheet(isPresented: $showImagePicker) {
-            PhotosPicker(selection: Binding(
-                get: { profileManager.selectedPhotoItem },
-                set: { profileManager.selectedPhotoItem = $0 }
-            ), matching: .images) {
-                EmptyView()
-            }
-        }
-        .photosPicker(isPresented: $showImagePicker, selection: Binding(
-            get: { profileManager.selectedPhotoItem },
-            set: { profileManager.selectedPhotoItem = $0 }
-        ), matching: .images)
-        .sheet(isPresented: $showCamera) {
-            CameraPicker(imageData: Binding(
-                get: { profileManager.profileImageData },
-                set: { profileManager.profileImageData = $0 }
-            ))
-        }
-        .onChange(of: profileManager.selectedPhotoItem) { _, _ in
-            profileManager.handlePhotoSelection()
-        }
     }
 
-    private func photoOptionButton(icon: String, label: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            VStack(spacing: 8) {
-                Image(systemName: icon)
-                    .font(.title2)
-                    .foregroundStyle(.white.opacity(0.8))
-                Text(label)
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.7))
+    private func methodCard(_ method: MedicationManager.AdministrationMethod) -> some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                selectedMethod = method.rawValue
+                selectedFrequency = method.frequencyDays
+                if method != .injectable { selectedEster = "" }
+                if method == .injectable && selectedType == "Estrogen" && selectedEster.isEmpty {
+                    selectedEster = "Valerate (EV)"
+                } else if method == .injectable && selectedType == "Testosterone" && selectedEster.isEmpty {
+                    selectedEster = "Cypionate (TC)"
+                }
             }
-            .frame(width: 70, height: 70)
+        } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(method.rawValue)
+                        .font(.body)
+                        .foregroundStyle(.white.opacity(0.9))
+                    Text(frequencyHint(for: method))
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.5))
+                }
+                Spacer()
+                if selectedMethod == method.rawValue {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.white.opacity(0.9))
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
             .background(
                 RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                    .fill(Color.white.opacity(0.15))
+                    .fill(selectedMethod == method.rawValue ? Theme.Colors.accent.opacity(0.3) : Color.white.opacity(0.15))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                    .stroke(selectedMethod == method.rawValue ? Color.white.opacity(0.5) : Color.white.opacity(0.3), lineWidth: 1)
             )
         }
     }
 
-    // MARK: - Step 4: Medication Setup (Simplified)
-    private var medicationStep: some View {
-        ScrollViewReader { scrollProxy in
-            ScrollView {
-                VStack(spacing: 32) {
-                    Text("Let's set up your tracking")
-                        .font(.title2)
-                        .fontWeight(.regular)
+    private var esterList: some View {
+        let items: [(name: String, tHalf: Double)] = {
+            if selectedType == "Estrogen" {
+                return MedicationManager.MedicationEster.allCases
+                    .filter { $0 != .oral && $0 != .transdermal }
+                    .map { ($0.rawValue, $0.halfLifeDays) }
+            } else {
+                return MedicationManager.TestosteroneEster.allCases.map { ($0.rawValue, $0.halfLifeDays) }
+            }
+        }()
+
+        return VStack(spacing: 10) {
+            ForEach(items, id: \.name) { item in
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) { selectedEster = item.name }
+                } label: {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(item.name)
+                                .font(.body)
+                                .foregroundStyle(.white.opacity(0.9))
+                            Text("Half‑life ~\(String(format: "%.1f", item.tHalf)) days · Peaks day \(peakDay(halfLife: item.tHalf))")
+                                .font(.caption)
+                                .foregroundStyle(.white.opacity(0.5))
+                        }
+                        Spacer()
+                        if selectedEster == item.name {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.white.opacity(0.9))
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                            .fill(selectedEster == item.name ? Theme.Colors.accentSecondary.opacity(0.3) : Color.white.opacity(0.15))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                            .stroke(selectedEster == item.name ? Color.white.opacity(0.5) : Color.white.opacity(0.3), lineWidth: 1)
+                    )
+                }
+            }
+        }
+    }
+
+    // MARK: - Step 5: Dose & Timing
+    private var doseStep: some View {
+        VStack(spacing: 24) {
+            Spacer()
+            Text("What's your dose?")
+                .font(.title2)
+                .fontWeight(.regular)
+                .foregroundStyle(.white.opacity(0.9))
+                .padding(.horizontal, 40)
+
+            VStack(spacing: 12) {
+                HStack(spacing: 12) {
+                    Stepper("", value: $doseDecimal, in: 0.5...500, step: 0.5)
+                        .labelsHidden()
+                        .tint(Theme.Colors.accent)
+
+                    TextField("", text: $doseText)
+                        .keyboardType(.decimalPad)
+                        .font(.system(size: 28, weight: .medium, design: .rounded))
                         .foregroundStyle(.white.opacity(0.9))
                         .multilineTextAlignment(.center)
-                        .padding(.horizontal, 40)
-                        .padding(.top, 32)
-
-                    // Medication types as soft, rounded cards
-                    VStack(spacing: 12) {
-                        Text("Medication type")
-                            .font(.subheadline)
-                            .foregroundStyle(.white.opacity(0.7))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-
-                        ForEach(MedicationManager.MedicationType.allCases, id: \.self) { type in
-                            medicationTypeCard(type: type, index: MedicationManager.MedicationType.allCases.firstIndex(of: type) ?? 0)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(
+                            RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                                .fill(Color.white.opacity(0.15))
+                        )
+                        .focused($doseFieldFocused)
+                        .onChange(of: doseText) { _, new in
+                            if let val = Double(new) { doseDecimal = val }
                         }
-                    }
+                        .onChange(of: doseDecimal) { _, new in
+                            doseText = String(format: "%.1f", new)
+                        }
+                        .toolbar {
+                            ToolbarItemGroup(placement: .keyboard) {
+                                Spacer()
+                                Button("Done") { doseFieldFocused = false }
+                            }
+                        }
+
+                    Text("mg")
+                        .font(.title3)
+                        .foregroundStyle(.white.opacity(0.6))
+                }
+                .padding(.horizontal, 40)
+
+                // Quick dose chips
+                quickDoseChips
                     .padding(.horizontal, 40)
-                    .id("medicationTypeSection")
-
-                    // Administration method
-                    if let typeIdx = selectedTypeIndex,
-                       typeIdx < MedicationManager.MedicationType.allCases.count {
-                        let medicationType = MedicationManager.MedicationType.allCases[typeIdx]
-
-                        VStack(spacing: 12) {
-                            Text("Administration method")
-                                .font(.subheadline)
-                                .foregroundStyle(.white.opacity(0.7))
-                                .frame(maxWidth: .infinity, alignment: .leading)
-
-                            ForEach(medicationManager.availableMethods(for: medicationType), id: \.rawValue) { method in
-                                let idx = MedicationManager.AdministrationMethod.allCases.firstIndex(of: method) ?? 0
-
-                                administrationMethodCard(
-                                    method: method,
-                                    index: idx,
-                                    isSelected: selectedMethodIndex == idx
-                                )
-                            }
-                        }
-                        .padding(.horizontal, 40)
-                        .transition(.opacity.combined(with: .move(edge: .bottom)))
-                        .id("administrationMethodSection")
-                    }
-
-                    // Ester selection (shown when injectable method is selected)
-                    if let methodIdx = selectedMethodIndex,
-                       let method = MedicationManager.AdministrationMethod.allCases[safe: methodIdx],
-                       method == .injectable,
-                       let typeIdx = selectedTypeIndex,
-                       let medicationType = MedicationManager.MedicationType.allCases[safe: typeIdx] {
-                        VStack(spacing: 12) {
-                            Text("Ester")
-                                .font(.subheadline)
-                                .foregroundStyle(.white.opacity(0.7))
-                                .frame(maxWidth: .infinity, alignment: .leading)
-
-                            esterCards(for: medicationType)
-                        }
-                        .padding(.horizontal, 40)
-                        .transition(.opacity.combined(with: .move(edge: .bottom)))
-                        .id("esterSelectionSection")
-                    }
-
-                    // Dose amount
-                    if selectedTypeIndex != nil && selectedMethodIndex != nil {
-                        VStack(spacing: 12) {
-                            Text("Dose amount")
-                                .font(.subheadline)
-                                .foregroundStyle(.white.opacity(0.7))
-                                .frame(maxWidth: .infinity, alignment: .leading)
-
-                            HStack(spacing: 12) {
-                                // Stepper for fine control
-                                Stepper("", value: Binding(
-                                    get: { doseDecimal },
-                                    set: {
-                                        isSyncingFromStepper = true
-                                        doseDecimal = $0
-                                        doseAmount = String(format: "%.1f", $0)
-                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
-                                            isSyncingFromStepper = false
-                                        }
-                                    }
-                                ), in: 0.5...500, step: 0.5)
-                                    .labelsHidden()
-                                    .tint(Theme.Colors.accent)
-
-                                // Text field showing the amount
-                                TextField("", text: Binding(
-                                    get: { doseAmount },
-                                    set: { text in
-                                        isSyncingFromText = true
-                                        // Parse as double
-                                        if let val = Double(text) {
-                                            doseDecimal = val
-                                        }
-                                        doseAmount = text
-                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
-                                            isSyncingFromText = false
-                                        }
-                                    }
-                                ))
-                                    .keyboardType(.decimalPad)
-                                    .font(.system(size: 24, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.white.opacity(0.9))
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 14)
-                                    .padding(.horizontal, 16)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                                            .fill(Color.white.opacity(0.15))
-                                    )
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                                            .stroke(Color.white.opacity(0.3), lineWidth: 1)
-                                    )
-                                    .focused($doseAmountFocused)
-                                    .toolbar {
-                                        ToolbarItemGroup(placement: .keyboard) {
-                                            Spacer()
-                                            Button("Done") {
-                                                doseAmountFocused = false
-                                            }
-                                        }
-                                    }
-
-                                // Unit label
-                                Text("mg")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.white.opacity(0.6))
-                            }
-
-                            // Quick-select common doses
-                            if let typeIdx = selectedTypeIndex,
-                               let medicationType = MedicationManager.MedicationType.allCases[safe: typeIdx] {
-                                commonDoses(for: medicationType)
-                            }
-                        }
-                        .padding(.horizontal, 40)
-                        .transition(.opacity.combined(with: .move(edge: .bottom)))
-                        .id("doseAmountSection")
-                    }
-
-                    // HRT duration — shown after medication is configured
-                    if selectedTypeIndex != nil && selectedMethodIndex != nil {
-                        VStack(spacing: 12) {
-                            Text("Have you started HRT before?")
-                                .font(.subheadline)
-                                .foregroundStyle(.white.opacity(0.7))
-                                .frame(maxWidth: .infinity, alignment: .leading)
-
-                            HStack(spacing: 12) {
-                                hrtStatusButton(label: "Just starting", isSelected: !hasBeenOnHRT) {
-                                    withAnimation(.easeInOut(duration: 0.2)) { hasBeenOnHRT = false }
-                                }
-                                hrtStatusButton(label: "I've been on it", isSelected: hasBeenOnHRT) {
-                                    withAnimation(.easeInOut(duration: 0.2)) { hasBeenOnHRT = true }
-                                }
-                            }
-
-                            if hasBeenOnHRT {
-                                VStack(spacing: 10) {
-                                    Picker("Time unit", selection: $hrtDurationUnit) {
-                                        Text("Month").tag("Month")
-                                        Text("Year").tag("Year")
-                                    }
-                                    .pickerStyle(.segmented)
-                                    .onChange(of: hrtDurationUnit) { _, _ in hrtDurationValue = 1 }
-
-                                    HStack {
-                                        Stepper(
-                                            "",
-                                            value: $hrtDurationValue,
-                                            in: 1...(hrtDurationUnit == "Month" ? 23 : 10)
-                                        )
-                                        .labelsHidden()
-                                        .tint(.white)
-
-                                        Spacer()
-
-                                        Text("\(hrtDurationValue) \(hrtDurationUnit)\(hrtDurationValue == 1 ? "" : "s")")
-                                            .font(.system(size: 26, weight: .medium, design: .rounded))
-                                            .foregroundStyle(.white.opacity(0.9))
-                                    }
-                                    .padding(.vertical, 10)
-                                    .padding(.horizontal, 16)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                                            .fill(Color.white.opacity(0.15))
-                                    )
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                                            .stroke(Color.white.opacity(0.3), lineWidth: 1)
-                                    )
-                                }
-                                .transition(.opacity.combined(with: .move(edge: .bottom)))
-                            }
-                        }
-                        .padding(.horizontal, 40)
-                        .transition(.opacity.combined(with: .move(edge: .bottom)))
-                        .animation(.easeInOut(duration: 0.2), value: hasBeenOnHRT)
-                        .id("hrtDurationSection")
-                    }
-
-                    // Navigation buttons
-                    if selectedTypeIndex != nil && selectedMethodIndex != nil {
-                        HStack(spacing: 16) {
-                            Button(action: { previousStep() }) {
-                                Text("Back")
-                                    .font(.body)
-                                    .foregroundStyle(.white.opacity(0.7))
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 16)
-                            }
-
-                            Button(action: {
-                                // Wire up the completion to call addDose() with ester and dose amount
-                                guard let typeIdx = selectedTypeIndex,
-                                      let methodIdx = selectedMethodIndex,
-                                      let medicationType = MedicationManager.MedicationType.allCases[safe: typeIdx],
-                                      let medicationMethod = MedicationManager.AdministrationMethod.allCases[safe: methodIdx]
-                                else { return }
-
-                                let typeLabel = medicationType.rawValue
-
-                                // Determine ester string if injectable
-                                var esterLabel = medicationMethod.rawValue
-                                if medicationMethod == .injectable, let eIdx = selectedEsterIndex {
-                                    if medicationType == .estrogen,
-                                       let e = MedicationManager.MedicationEster.allCases[safe: eIdx] {
-                                        esterLabel = e.rawValue
-                                    } else if let e = MedicationManager.TestosteroneEster.allCases[safe: eIdx] {
-                                        esterLabel = e.rawValue
-                                    }
-                                }
-
-                                // Parse dose amount
-                                let dose: Double = {
-                                    if let val = Double(doseAmount) {
-                                        return val
-                                    }
-                                    // Fallback to stepper value
-                                    return doseDecimal
-                                }()
-
-                                // Set HRT start date if user was already on HRT
-                                if hasBeenOnHRT {
-                                    let cal = Calendar.current
-                                    if hrtDurationUnit == "Month" {
-                                        medicationManager.hrtStartDate = cal.date(byAdding: .month, value: -hrtDurationValue, to: Date())
-                                    } else {
-                                        medicationManager.hrtStartDate = cal.date(byAdding: .year, value: -hrtDurationValue, to: Date())
-                                    }
-                                }
-
-                                // Configure the medication
-                                medicationManager.updateSelection(type: medicationType, method: medicationMethod)
-
-                                // Log the first dose with actual amount and ester
-                                medicationManager.addDose(
-                                    date: Date(),
-                                    type: typeLabel,
-                                    ester: esterLabel,
-                                    method: medicationMethod.rawValue,
-                                    doseAmount: dose
-                                )
-
-                                hasCompletedFirstDose = true
-                                completeOnboarding()
-                            }) {
-                                Text("You're all set")
-                                    .font(.headline)
-                                    .fontWeight(.medium)
-                                    .foregroundStyle(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 16)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: Theme.Radius.md)
-                                            .fill(Theme.Colors.accent.opacity(0.8))
-                                            .shadow(color: Theme.Colors.accent.opacity(0.3), radius: 12, x: 0, y: 4)
-                                    )
-                            }
-                        }
-                        .padding(.horizontal, 40)
-                        .padding(.bottom, 40)
-                        .transition(.opacity.combined(with: .move(edge: .bottom)))
-                    } else {
-                        Button(action: { previousStep() }) {
-                            Text("Back")
-                                .font(.body)
-                                .foregroundStyle(.white.opacity(0.7))
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 16)
-                        }
-                        .padding(.horizontal, 40)
-                        .padding(.bottom, 40)
-                    }
-                }
-                .onChange(of: selectedTypeIndex) { _, _ in
-                    if selectedTypeIndex != nil {
-                        withAnimation {
-                            scrollProxy.scrollTo("administrationMethodSection", anchor: .top)
-                        }
-                    }
-                }
-                .onChange(of: selectedMethodIndex) { _, _ in
-                    if selectedMethodIndex != nil {
-                        withAnimation {
-                            scrollProxy.scrollTo("doseAmountSection", anchor: .top)
-                        }
-                    }
-                }
-                .onChange(of: selectedEsterIndex) { _, _ in
-                    if selectedEsterIndex != nil {
-                        withAnimation {
-                            scrollProxy.scrollTo("doseAmountSection", anchor: .top)
-                        }
-                    }
-                }
             }
-        }
-        .onAppear {
-            // Restore previous selection
-            if let type = medicationManager.selectedMedication {
-                if let index = MedicationManager.MedicationType.allCases.firstIndex(where: { $0.rawValue == type }) {
-                    selectedTypeIndex = index
-                }
+
+            // Last dose date
+            VStack(spacing: 8) {
+                Text("When was your last dose?")
+                    .font(.subheadline)
+                    .foregroundStyle(.white.opacity(0.7))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 40)
+
+                DatePicker("", selection: $lastDoseDate, displayedComponents: [.date, .hourAndMinute])
+                    .datePickerStyle(.compact)
+                    .labelsHidden()
+                    .colorScheme(.dark)
+                    .tint(Theme.Colors.accentSecondary)
+                    .padding(.horizontal, 40)
             }
-            if let method = medicationManager.selectedAdministrationMethod {
-                if let index = MedicationManager.AdministrationMethod.allCases.firstIndex(where: { $0.rawValue == method }) {
-                    selectedMethodIndex = index
-                }
+
+            Spacer()
+            HStack(spacing: 16) {
+                secondaryButton("Back") { previousStep() }
+                primaryButton("Continue") { advanceStep() }
             }
+            .padding(.horizontal, 40)
+            .padding(.bottom, 40)
         }
     }
 
-    private func medicationTypeCard(type: MedicationManager.MedicationType, index: Int) -> some View {
-        Button(action: {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                selectedTypeIndex = index
-                selectedEsterIndex = nil
-                
-                // Reset dose to typical range for new medication type
-                doseDecimal = type == .estrogen ? 2.0 : 40.0
-                doseAmount = String(format: "%.1f", doseDecimal)
-                
-                // Select first available method for this medication type
-                if let firstMethod = medicationManager.availableMethods(for: type).first {
-                    selectedMethodIndex = globalMethodIndex(for: firstMethod)
-                }
-            }
-        }) {
-            HStack {
-                Text(type.rawValue)
-                    .font(.body)
-                    .foregroundStyle(.white.opacity(0.9))
-                
-                Spacer()
-                
-                if selectedTypeIndex == index {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.white.opacity(0.9))
-                        .transition(.scale.combined(with: .opacity))
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-            .background(
-                RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                    .fill(selectedTypeIndex == index ? Theme.Colors.accent.opacity(0.3) : Color.white.opacity(0.15))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                    .stroke(selectedTypeIndex == index ? Color.white.opacity(0.5) : Color.white.opacity(0.3), lineWidth: 1)
-            )
-        }
-    }
-
-    private func administrationMethodCard(method: MedicationManager.AdministrationMethod, index: Int, isSelected: Bool) -> some View {
-        Button(action: {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                selectedMethodIndex = globalMethodIndex(for: method)
-                // Reset ester when switching methods
-                if method != .injectable {
-                    selectedEsterIndex = nil
-                }
-            }
-        }) {
-            HStack {
-                Text(method.rawValue)
-                    .font(.body)
-                    .foregroundStyle(.white.opacity(0.9))
-                
-                Spacer()
-                
-                if isSelected {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.white.opacity(0.9))
-                        .transition(.scale.combined(with: .opacity))
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-            .background(
-                RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                    .fill(isSelected ? Theme.Colors.accentSecondary.opacity(0.3) : Color.white.opacity(0.15))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                    .stroke(isSelected ? Color.white.opacity(0.5) : Color.white.opacity(0.3), lineWidth: 1)
-            )
-        }
-    }
-
-    // MARK: - Ester Selection Cards
-    private func esterCards(for medicationType: MedicationManager.MedicationType) -> some View {
-        let estrogenEsters = MedicationManager.MedicationEster.allCases
-        let testosteroneEsters = MedicationManager.TestosteroneEster.allCases
-
-        let allEsters: [(label: String, index: Int)]
-        if medicationType == .estrogen {
-            allEsters = estrogenEsters.enumerated().map { (label: $0.1.rawValue, index: $0.0) }
-        } else {
-            allEsters = testosteroneEsters.enumerated().map { (label: $0.1.rawValue, index: $0.0) }
-        }
-
-        return VStack(spacing: 12) {
-            ForEach(allEsters, id: \.index) { item in
-                esterCard(name: item.label, index: item.index, isSelected: selectedEsterIndex == item.index)
-            }
-        }
-    }
-
-    private func esterCard(name: String, index: Int, isSelected: Bool) -> some View {
-        Button(action: {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                selectedEsterIndex = index
-            }
-        }) {
-            HStack {
-                Text(name)
-                    .font(.body)
-                    .foregroundStyle(.white.opacity(0.9))
-
-                Spacer()
-
-                if isSelected {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.white.opacity(0.9))
-                        .transition(.scale.combined(with: .opacity))
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-            .background(
-                RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                    .fill(isSelected ? Theme.Colors.accent.opacity(0.3) : Color.white.opacity(0.15))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                    .stroke(isSelected ? Color.white.opacity(0.5) : Color.white.opacity(0.3), lineWidth: 1)
-            )
-        }
-    }
-
-    // MARK: - Quick-Select Common Doses
-    private func commonDoses(for medicationType: MedicationManager.MedicationType) -> some View {
-        let commonDoseValues: [Double]
-        if medicationType == .estrogen {
-            commonDoseValues = [0.5, 1, 2, 4, 6]
-        } else {
-            commonDoseValues = [20, 40, 60, 80, 100]
-        }
+    private var quickDoseChips: some View {
+        let doses: [Double] = selectedType == "Estrogen"
+            ? [0.5, 1, 2, 4, 6]
+            : [20, 40, 60, 80, 100]
 
         return ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                ForEach(commonDoseValues, id: \.self) { dose in
-                    Button(action: {
+                ForEach(doses, id: \.self) { dose in
+                    Button {
                         withAnimation(.easeInOut(duration: 0.15)) {
                             doseDecimal = dose
-                            doseAmount = String(format: "%.1f", dose)
+                            doseText = String(format: "%.0f", dose)
                         }
-                    }) {
+                    } label: {
                         Text(String(format: "%.0f", dose))
                             .font(.caption)
                             .fontWeight(.medium)
@@ -821,19 +469,180 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: - Helpers
+    // MARK: - Step 6: Anti-Androgens
+    private var antiAndrogenStep: some View {
+        VStack(spacing: 28) {
+            Spacer()
+            Text("Are you taking any other medications?")
+                .font(.title2)
+                .fontWeight(.regular)
+                .foregroundStyle(.white.opacity(0.9))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
 
-    private func hrtStatusButton(label: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+            VStack(spacing: 12) {
+                aaCard(title: "None", subtitle: "I only take my hormone", choice: "None")
+                aaCard(title: "Spironolactone", subtitle: "Common anti‑androgen — can slightly increase estrogen clearance", choice: "Spiro")
+                aaCard(title: "Cyproterone / GnRH agonist", subtitle: "Suppresses testosterone production", choice: "Other AA")
+                aaCard(title: "Finasteride / Dutasteride", subtitle: "5α‑reductase inhibitor — blocks DHT conversion", choice: "5ARI")
+            }
+            .padding(.horizontal, 40)
+
+            Spacer()
+            HStack(spacing: 16) {
+                secondaryButton("Back") { previousStep() }
+                primaryButton("Continue") { advanceStep() }
+            }
+            .padding(.horizontal, 40)
+            .padding(.bottom, 40)
+        }
+    }
+
+    // MARK: - Step 7: Profile
+    private var profileStep: some View {
+        VStack(spacing: 28) {
+            Spacer()
+            Text("Personalize your space")
+                .font(.title2)
+                .fontWeight(.regular)
+                .foregroundStyle(.white.opacity(0.9))
+                .padding(.bottom, 8)
+
+            // Photo
+            Button { showImagePicker = true } label: {
+                Image(uiImage: profileManager.getCurrentProfileImage())
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 100, height: 100)
+                    .clipShape(Circle())
+                    .overlay(Circle().stroke(Color.white.opacity(0.6), lineWidth: 2))
+                    .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
+            }
+            Text("Tap to add photo")
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.6))
+
+            // Name
+            TextField("Your name", text: $profileName)
+                .font(.body)
+                .foregroundStyle(.white.opacity(0.9))
+                .padding(.vertical, 12)
+                .padding(.horizontal, 16)
+                .background(RoundedRectangle(cornerRadius: Theme.Radius.sm).fill(Color.white.opacity(0.15)))
+                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.sm).stroke(Color.white.opacity(0.3), lineWidth: 1))
+                .padding(.horizontal, 40)
+
+            // Photo options
+            HStack(spacing: 24) {
+                photoBtn("photo", "Library") { showImagePicker = true }
+                photoBtn("camera", "Camera") { showCamera = true }
+            }
+            .padding(.top, 8)
+
+            Spacer()
+            HStack(spacing: 16) {
+                secondaryButton("Back") { previousStep() }
+                primaryButton("Continue") {
+                    if !profileName.isEmpty { profileManager.updateProfileName(profileName) }
+                    advanceStep()
+                }
+            }
+            .padding(.horizontal, 40)
+            .padding(.bottom, 40)
+        }
+        .sheet(isPresented: $showImagePicker) {
+            PhotosPicker(selection: Binding(get: { profileManager.selectedPhotoItem }, set: { profileManager.selectedPhotoItem = $0 }), matching: .images) { EmptyView() }
+        }
+        .photosPicker(isPresented: $showImagePicker, selection: Binding(get: { profileManager.selectedPhotoItem }, set: { profileManager.selectedPhotoItem = $0 }), matching: .images)
+        .sheet(isPresented: $showCamera) {
+            CameraPicker(imageData: Binding(get: { profileManager.profileImageData }, set: { profileManager.profileImageData = $0 }))
+        }
+        .onChange(of: profileManager.selectedPhotoItem) { _, _ in profileManager.handlePhotoSelection() }
+    }
+
+    // MARK: - Step 8: Review & Start
+    private var reviewStep: some View {
+        ScrollView {
+            VStack(spacing: 24) {
+                Text("Here's your setup")
+                    .font(.title2)
+                    .fontWeight(.regular)
+                    .foregroundStyle(.white.opacity(0.9))
+                    .padding(.top, 32)
+
+                VStack(spacing: 0) {
+                    reviewRow(label: "Hormone", value: selectedType)
+                    reviewRow(label: "Method", value: selectedMethod)
+                    if !selectedEster.isEmpty {
+                        reviewRow(label: "Ester", value: selectedEster)
+                    }
+                    reviewRow(label: "Dose", value: "\(String(format: "%.1f", doseDecimal)) mg")
+                    reviewRow(label: "Frequency", value: "Every \(selectedFrequency) days")
+                    reviewRow(label: "Last dose", value: lastDoseDate.formatted(date: .abbreviated, time: .shortened))
+                    reviewRow(label: "Experience", value: hrtSummary)
+                    if antiAndrogenChoice != "None" {
+                        reviewRow(label: "Other meds", value: antiAndrogenChoice)
+                    }
+                }
+                .background(
+                    RoundedRectangle(cornerRadius: Theme.Radius.md)
+                        .fill(Color.white.opacity(0.12))
+                )
+                .padding(.horizontal, 40)
+
+                VStack(spacing: 12) {
+                    primaryButton("Begin Tracking") { commitOnboarding() }
+                    secondaryButton("Back") { previousStep() }
+                }
+                .padding(.horizontal, 40)
+                .padding(.bottom, 40)
+            }
+        }
+    }
+
+    // MARK: - Card Components
+    private func pathCard(title: String, subtitle: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(title)
+                        .font(.headline)
+                        .fontWeight(.medium)
+                        .foregroundStyle(.white.opacity(0.9))
+                    Spacer()
+                    if isSelected {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.white.opacity(0.9))
+                    }
+                }
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.55))
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                    .fill(isSelected ? Theme.Colors.accent.opacity(0.3) : Color.white.opacity(0.15))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                    .stroke(isSelected ? Color.white.opacity(0.5) : Color.white.opacity(0.3), lineWidth: 1)
+            )
+        }
+    }
+
+    private func choiceCard(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack {
-                Text(label)
+                Text(title)
                     .font(.body)
                     .foregroundStyle(.white.opacity(0.9))
                 Spacer()
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(.white.opacity(0.9))
-                        .transition(.scale.combined(with: .opacity))
                 }
             }
             .padding(.horizontal, 16)
@@ -849,73 +658,199 @@ struct OnboardingView: View {
         }
     }
 
-    /// Maps an AdministrationMethod enum to its global index in AdministrationMethod.allCases.
-    private func globalMethodIndex(for method: MedicationManager.AdministrationMethod) -> Int {
-        MedicationManager.AdministrationMethod.allCases.firstIndex(of: method) ?? 0
-    }
-
-    // MARK: - Navigation Buttons (for steps 2-3)
-    private var navigationButtons: some View {
-        HStack(spacing: 16) {
-            if currentStep > 0 {
-                Button(action: { previousStep() }) {
-                    Text("Back")
+    private func aaCard(title: String, subtitle: String, choice: String) -> some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.2)) { antiAndrogenChoice = choice }
+        } label: {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(title)
                         .font(.body)
-                        .foregroundStyle(.white.opacity(0.7))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
+                        .fontWeight(.medium)
+                        .foregroundStyle(.white.opacity(0.9))
+                    Spacer()
+                    if antiAndrogenChoice == choice {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.white.opacity(0.9))
+                    }
                 }
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.5))
             }
-
-            Button(action: { advanceStep() }) {
-                Text(currentStep == 1 ? "Continue" : "Next")
-                    .font(.headline)
-                    .fontWeight(.medium)
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(
-                        RoundedRectangle(cornerRadius: Theme.Radius.md)
-                            .fill(Theme.Colors.accent.opacity(0.8))
-                    )
-            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                    .fill(antiAndrogenChoice == choice ? Theme.Colors.Bloom.skin.base.opacity(0.25) : Color.white.opacity(0.15))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                    .stroke(antiAndrogenChoice == choice ? Color.white.opacity(0.5) : Color.white.opacity(0.3), lineWidth: 1)
+            )
         }
-        .padding(.horizontal, 40)
-        .padding(.bottom, 40)
     }
 
-    // MARK: - Navigation Functions
-    private func advanceStep() {
-        withAnimation(.easeInOut(duration: 0.3)) {
-            opacity = 0
+    private func reviewRow(label: String, value: String) -> some View {
+        Group {
+            HStack {
+                Text(label)
+                    .font(.subheadline)
+                    .foregroundStyle(.white.opacity(0.55))
+                Spacer()
+                Text(value)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundStyle(.white.opacity(0.9))
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            Divider()
+                .overlay(Color.white.opacity(0.1))
+                .padding(.leading, 16)
         }
-        
+    }
+
+    // MARK: - Buttons
+    private func primaryButton(_ title: String, disabled: Bool = false, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.headline)
+                .fontWeight(.medium)
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(
+                    RoundedRectangle(cornerRadius: Theme.Radius.md)
+                        .fill(disabled ? Theme.Colors.accent.opacity(0.3) : Theme.Colors.accent.opacity(0.8))
+                        .shadow(color: disabled ? .clear : Theme.Colors.accent.opacity(0.3), radius: 12, x: 0, y: 4)
+                )
+        }
+        .disabled(disabled)
+    }
+
+    private func secondaryButton(_ title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.body)
+                .foregroundStyle(.white.opacity(0.7))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+        }
+    }
+
+    private func durationStepper(label: String, value: Binding<Int>, range: ClosedRange<Int>) -> some View {
+        VStack(spacing: 8) {
+            Stepper("", value: value, in: range)
+                .labelsHidden()
+                .tint(.white)
+            Text("\(value.wrappedValue) \(label)\(value.wrappedValue == 1 ? "" : "s")")
+                .font(.system(size: 20, weight: .medium, design: .rounded))
+                .foregroundStyle(.white.opacity(0.9))
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .background(RoundedRectangle(cornerRadius: Theme.Radius.sm).fill(Color.white.opacity(0.15)))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.sm).stroke(Color.white.opacity(0.3), lineWidth: 1))
+    }
+
+    private func photoBtn(_ icon: String, _ label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.title2)
+                    .foregroundStyle(.white.opacity(0.8))
+                Text(label)
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.7))
+            }
+            .frame(width: 70, height: 70)
+            .background(RoundedRectangle(cornerRadius: Theme.Radius.sm).fill(Color.white.opacity(0.15)))
+        }
+    }
+
+    // MARK: - Navigation
+    private func selectType(_ type: String, defaultDose: Double) {
+        selectedType = type
+        doseDecimal = defaultDose
+        doseText = String(format: "%.1f", defaultDose)
+        selectedEster = ""
+        selectedMethod = ""
+    }
+
+    private func frequencyHint(for method: MedicationManager.AdministrationMethod) -> String {
+        switch method {
+        case .injectable: return "Typical cycle: 7 days"
+        case .cream: return "Applied daily"
+        case .oral: return "Taken daily"
+        }
+    }
+
+    private func peakDay(halfLife: Double) -> String {
+        // Under flip-flop kinetics, t_max ≈ 1.44 × t_half for depot esters
+        let tMax = halfLife * 1.44
+        return String(format: "%.0f", tMax)
+    }
+
+    private var hrtSummary: String {
+        if !hasBeenOnHRT { return "Just starting" }
+        var parts: [String] = []
+        if hrtDurationYears > 0 { parts.append("\(hrtDurationYears) yr") }
+        if hrtDurationMonths > 0 { parts.append("\(hrtDurationMonths) mo") }
+        return parts.joined(separator: " ") + " on HRT"
+    }
+
+    private func advanceStep() {
+        withAnimation(.easeInOut(duration: 0.3)) { opacity = 0 }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             currentStep += 1
-            withAnimation(.easeIn(duration: 0.3)) {
-                opacity = 1
-            }
+            withAnimation(.easeIn(duration: 0.3)) { opacity = 1 }
         }
     }
 
     private func previousStep() {
-        withAnimation(.easeInOut(duration: 0.3)) {
-            opacity = 0
-        }
-        
+        withAnimation(.easeInOut(duration: 0.3)) { opacity = 0 }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             currentStep -= 1
-            withAnimation(.easeIn(duration: 0.3)) {
-                opacity = 1
-            }
+            withAnimation(.easeIn(duration: 0.3)) { opacity = 1 }
         }
     }
 
-    private func completeOnboarding() {
-        withAnimation(.easeInOut(duration: 0.4)) {
-            opacity = 0
+    private func commitOnboarding() {
+        let medType = MedicationManager.MedicationType(rawValue: selectedType) ?? .estrogen
+        let medMethod = MedicationManager.AdministrationMethod(rawValue: selectedMethod) ?? .injectable
+
+        // Set HRT start date
+        if hasBeenOnHRT {
+            let cal = Calendar.current
+            let months = hrtDurationYears * 12 + hrtDurationMonths
+            medicationManager.hrtStartDate = cal.date(byAdding: .month, value: -months, to: Date())
         }
 
+        // Set AA flags
+        medicationManager.antiAndrogenInUse = antiAndrogenChoice == "Spiro" || antiAndrogenChoice == "Other AA"
+        medicationManager.spironolactoneInUse = antiAndrogenChoice == "Spiro"
+
+        // Determine ester label
+        var esterLabel = medMethod.rawValue
+        if medMethod == .injectable && !selectedEster.isEmpty {
+            esterLabel = selectedEster
+        }
+
+        // Configure medication
+        medicationManager.updateSelection(type: medType, method: medMethod)
+
+        // Log first dose with actual last dose date
+        medicationManager.addDose(
+            date: lastDoseDate,
+            type: medType.rawValue,
+            ester: esterLabel,
+            method: medMethod.rawValue,
+            doseAmount: doseDecimal
+        )
+
+        withAnimation(.easeInOut(duration: 0.4)) { opacity = 0 }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
             onboardingComplete?()
         }
