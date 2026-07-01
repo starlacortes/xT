@@ -6,6 +6,10 @@
 //  Hero header floats on the system background; sections separated
 //  by hairline dividers instead of stacked colored cards.
 //
+//  Updated: tenure-aware personalization, tappable body system rows
+//  that push to deep-dive detail pages, collapsible changes section
+//  for mature users, and long-term health milestones at 24+ months.
+//
 
 import SwiftUI
 
@@ -13,6 +17,7 @@ struct BloomView: View {
     @Environment(\.medicationManager) private var medicationManager
 
     @State private var adherencePercent: CGFloat = 0
+    @State private var changesExpanded: Bool = false
 
     private var engine: BloomContentEngine {
         let cycleDay: Int = {
@@ -73,21 +78,47 @@ struct BloomView: View {
                             .entrance(delay: 0.10)
                     }
 
-                    bloomDivider()
-                    BloomChangesRow(
-                        changes: engine.unlockedChanges,
-                        intensityDisclaimer: engine.doseIntensityDisclaimer
-                    )
+                    // Changes section — ordered differently by tenure
+                    // Early/established: changes BEFORE body systems
+                    // Mature: changes AFTER body systems (collapsed)
+                    if !engine.changesDefaultCollapsed {
+                        bloomDivider()
+                        BloomChangesRow(
+                            changes: engine.unlockedChanges,
+                            sectionLabel: engine.changesSectionLabel,
+                            summaryBadge: engine.changesSummaryBadge,
+                            intensityDisclaimer: engine.doseIntensityDisclaimer
+                        )
                         .padding(.vertical, 18)
                         .entrance(delay: 0.12)
+                    }
 
+                    // Body systems — tappable rows → detail pages
                     bloomDivider()
-                    BloomBodySection(systems: engine.bodySystems)
+                    BloomBodySection(engine: engine)
+                        .entrance(delay: engine.changesDefaultCollapsed ? 0.12 : 0.16)
+
+                    // Collapsed changes for mature users — after body systems
+                    if engine.changesDefaultCollapsed {
+                        bloomDivider()
+                        CollapsibleChangesRow(
+                            changes: engine.unlockedChanges,
+                            sectionLabel: engine.changesSectionLabel,
+                            summaryBadge: engine.changesSummaryBadge,
+                            intensityDisclaimer: engine.doseIntensityDisclaimer,
+                            isExpanded: $changesExpanded
+                        )
+                        .padding(.vertical, 18)
                         .entrance(delay: 0.16)
+                    }
 
+                    // Milestones — tenure-aware label
                     bloomDivider()
-                    BloomMilestonesSection(milestones: engine.upcomingMilestones)
-                        .entrance(delay: 0.20)
+                    BloomMilestonesSection(
+                        milestones: engine.upcomingMilestones,
+                        sectionLabel: engine.milestonesSectionLabel
+                    )
+                        .entrance(delay: engine.changesDefaultCollapsed ? 0.20 : 0.20)
                         .padding(.bottom, 40)
                 }
             }
@@ -278,10 +309,12 @@ struct BloomHormoneRow: View {
     }
 }
 
-// MARK: - Changes Row (now with dose intensity disclaimer #13)
+// MARK: - Changes Row (tenure-aware label + summary badge)
 
 struct BloomChangesRow: View {
     let changes: [BloomChange]
+    let sectionLabel: String
+    let summaryBadge: String?
     let intensityDisclaimer: String?
 
     private var unlockedCount: Int { changes.filter(\.unlocked).count }
@@ -289,14 +322,16 @@ struct BloomChangesRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("CHANGES UNLOCKED")
+                Text(sectionLabel)
                     .font(Theme.Fonts.caption2)
                     .foregroundStyle(Color.secondary)
                     .tracking(0.5)
                 Spacer()
-                Text("\(unlockedCount) of \(changes.count)")
-                    .font(Theme.Fonts.caption)
-                    .foregroundStyle(Color.secondary)
+                if let badge = summaryBadge {
+                    Text(badge)
+                        .font(Theme.Fonts.caption)
+                        .foregroundStyle(Color.secondary)
+                }
             }
             .padding(.horizontal, 22)
 
@@ -345,10 +380,93 @@ struct BloomChangesRow: View {
     }
 }
 
-// MARK: - Body Systems Section
+// MARK: - Collapsible Changes Row (mature users)
+
+struct CollapsibleChangesRow: View {
+    let changes: [BloomChange]
+    let sectionLabel: String
+    let summaryBadge: String?
+    let intensityDisclaimer: String?
+    @Binding var isExpanded: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Tappable header row
+            Button {
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    isExpanded.toggle()
+                }
+            } label: {
+                HStack {
+                    Text(sectionLabel)
+                        .font(Theme.Fonts.caption2)
+                        .foregroundStyle(Color.secondary)
+                        .tracking(0.5)
+                    Spacer()
+                    if let badge = summaryBadge {
+                        Text(badge)
+                            .font(Theme.Fonts.caption)
+                            .foregroundStyle(Color.secondary)
+                    }
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 10))
+                        .foregroundStyle(Color.secondary.opacity(0.5))
+                        .padding(.leading, 4)
+                }
+                .padding(.horizontal, 22)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            // Expanded content
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 10) {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(changes) { change in
+                                HStack(spacing: 5) {
+                                    Image(systemName: "checkmark")
+                                        .font(.system(size: 10, weight: .medium))
+                                    Text(change.label)
+                                        .font(Theme.Fonts.caption2)
+                                        .fontWeight(.medium)
+                                }
+                                .foregroundStyle(Theme.Colors.Bloom.cycle.base)
+                                .padding(.horizontal, 11)
+                                .padding(.vertical, 7)
+                                .background(Theme.Colors.Bloom.cycle.surface)
+                                .clipShape(Capsule())
+                            }
+                        }
+                        .padding(.horizontal, 22)
+                        .padding(.vertical, 1)
+                    }
+
+                    if let disclaimer = intensityDisclaimer {
+                        HStack(spacing: 6) {
+                            Image(systemName: "info.circle")
+                                .font(.system(size: 10))
+                                .foregroundStyle(Color.secondary.opacity(0.6))
+                            Text(disclaimer)
+                                .font(.system(size: 10))
+                                .foregroundStyle(Color.secondary.opacity(0.7))
+                                .lineLimit(2)
+                        }
+                        .padding(.horizontal, 22)
+                        .padding(.top, 4)
+                    }
+                }
+                .padding(.top, 12)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+    }
+}
+
+// MARK: - Body Systems Section (Tappable Rows)
 
 struct BloomBodySection: View {
-    let systems: [BloomBodySystem]
+    let engine: BloomContentEngine
 
     var body: some View {
         VStack(spacing: 0) {
@@ -362,15 +480,18 @@ struct BloomBodySection: View {
             .padding(.horizontal, 22)
             .padding(.vertical, 18)
 
-            ForEach(Array(systems.enumerated()), id: \.element.id) { index, system in
+            ForEach(Array(engine.bodySystems.enumerated()), id: \.element.id) { index, system in
                 if index > 0 {
                     Divider()
                         .opacity(0.5)
                         .padding(.horizontal, 22)
                 }
-                BloomBodySystemRow(system: system)
-                    .padding(.horizontal, 22)
-                    .padding(.vertical, 14)
+                NavigationLink(destination: BloomBodyDetailView(system: system, engine: engine)) {
+                    BloomBodySystemRow(system: system, tenureTier: engine.tenureTier)
+                        .padding(.horizontal, 22)
+                        .padding(.vertical, 14)
+                }
+                .buttonStyle(.pressable)
             }
         }
     }
@@ -378,8 +499,12 @@ struct BloomBodySection: View {
 
 struct BloomBodySystemRow: View {
     let system: BloomBodySystem
+    let tenureTier: TenureTier
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var fillFraction: CGFloat = 0
+
+    /// Show progress bar only for early/established; mature gets a status dot.
+    private var showProgressBar: Bool { tenureTier != .mature }
 
     var body: some View {
         HStack(spacing: 14) {
@@ -399,6 +524,12 @@ struct BloomBodySystemRow: View {
                         .fontWeight(.medium)
                         .foregroundStyle(.primary)
                     Spacer()
+                    if !showProgressBar {
+                        // Status dot for mature users
+                        Circle()
+                            .fill(system.palette.progress)
+                            .frame(width: 6, height: 6)
+                    }
                     Text(system.progressLabel)
                         .font(Theme.Fonts.caption2)
                         .foregroundStyle(.secondary)
@@ -408,20 +539,28 @@ struct BloomBodySystemRow: View {
                     .font(Theme.Fonts.caption2)
                     .foregroundStyle(.secondary)
 
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(Color.primary.opacity(0.08))
-                            .frame(height: 3)
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(system.palette.progress)
-                            .frame(width: geo.size.width * fillFraction, height: 3)
+                if showProgressBar {
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(Color.primary.opacity(0.08))
+                                .frame(height: 3)
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(system.palette.progress)
+                                .frame(width: geo.size.width * fillFraction, height: 3)
+                        }
                     }
+                    .frame(height: 3)
+                    .padding(.top, 2)
                 }
-                .frame(height: 3)
-                .padding(.top, 2)
             }
+
+            // Chevron
+            Image(systemName: "chevron.right")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(Color.secondary.opacity(0.4))
         }
+        .contentShape(Rectangle())
         .onAppear {
             if reduceMotion {
                 fillFraction = system.progressFraction
@@ -447,15 +586,16 @@ struct BloomBodySystemRow: View {
     }
 }
 
-// MARK: - Milestones Section
+// MARK: - Milestones Section (tenure-aware label)
 
 struct BloomMilestonesSection: View {
     let milestones: [BloomMilestone]
+    let sectionLabel: String
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Text("COMING UP")
+                Text(sectionLabel)
                     .font(Theme.Fonts.caption2)
                     .foregroundStyle(Color.secondary)
                     .tracking(0.5)

@@ -94,6 +94,8 @@ struct FlatGraphView: View {
                             .position(x: px, y: py)
                     }
 
+                    lastDoseMarker(values: values, min: minV, range: range, w: w, h: h)
+
                     levelLabel
                         .padding(.leading, 22)
                         .padding(.top, 14)
@@ -166,6 +168,59 @@ struct FlatGraphView: View {
         base.addLine(to: .init(x: 0, y: h))
         base.closeSubpath()
         return base
+    }
+
+    // MARK: - Last dose marker
+
+    /// Finds the EstimatedPoint closest in time to the last logged dose date
+    /// and returns a visual marker positioned on the curve at that point.
+    /// Returns nil if no last dose date exists or no points match.
+    private func lastDoseMarker(values: [Double], min: Double, range: Double,
+                                w: CGFloat, h: CGFloat) -> some View {
+        guard let lastDose = medicationManager.lastDoseDate else {
+            return AnyView(EmptyView())
+        }
+
+        // Find the point whose date is closest to lastDoseDate
+        var bestIdx = 0
+        var bestDelta = TimeInterval.greatestFiniteMagnitude
+        for (i, pt) in points.enumerated() {
+            let delta = abs(pt.date.timeIntervalSince(lastDose))
+            if delta < bestDelta {
+                bestDelta = delta
+                bestIdx = i
+            }
+        }
+
+        // Only show if we're within a reasonable window (e.g. 3 days)
+        guard bestDelta < 3 * 86400 else {
+            return AnyView(EmptyView())
+        }
+
+        let px = xPos(index: bestIdx, count: values.count, w: w)
+        let py = yPos(value: values[bestIdx], min: min, range: range, h: h)
+
+        return AnyView(
+            ZStack {
+                // Outer glow ring
+                Circle()
+                    .fill(Theme.Colors.accentSecondary.opacity(0.22))
+                    .frame(width: 14, height: 14)
+                    .position(x: px, y: py)
+
+                // Inner filled dot
+                Circle()
+                    .fill(Theme.Colors.accentSecondary)
+                    .frame(width: 5, height: 5)
+                    .position(x: px, y: py)
+
+                // Small label below
+                Text("dose")
+                    .font(.system(size: 8, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.accentSecondary.opacity(0.7))
+                    .position(x: px, y: py + 14)
+            }
+        )
     }
 
     // MARK: - Range word
