@@ -1,0 +1,24 @@
+{
+  "source": "/Users/starlacortes/Documents/xT/xT/Elements/Home/FlatGraphView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Log a dose to see your curve",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 50
+        }
+      },
+      {
+        "comment": "",
+        "key": "·",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 120
+        }
+      }
+    ]
+  },
+  "version": 1
+}

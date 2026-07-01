@@ -7,7 +7,7 @@
         "key": "🌸",
         "location": {
           "startingColumn": 26,
-          "startingLine": 24
+          "startingLine": 25
         }
       },
       {
@@ -15,7 +15,7 @@
         "key": "Today's journal",
         "location": {
           "startingColumn": 30,
-          "startingLine": 28
+          "startingLine": 29
         }
       },
       {
@@ -23,7 +23,7 @@
         "key": "View full entry",
         "location": {
           "startingColumn": 34,
-          "startingLine": 68
+          "startingLine": 69
         }
       }
     ]

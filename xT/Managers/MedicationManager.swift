@@ -57,6 +57,23 @@ class MedicationManager: ObservableObject {
     /// Accounts for CYP3A4 induction → faster E2 clearance.
     private let spiroClearanceFactor: Double = 1.15
 
+    // --- User Preference-Driven Settings (#9, #12, #18) ---
+    /// User-configurable suppression timescale (4/8/12 weeks).
+    @Published var suppressionSpeed: SuppressionSpeed = .fast
+    /// Whether the spironolactone clearance adjustment is opted in.
+    @Published var spironolactoneClearanceEnabled: Bool = false
+    /// Custom dosing interval in days; nil = use method default.
+    @Published var customFrequencyDays: Int? = nil
+
+    // --- Missed Dose Settings (#1) ---
+    /// Grace period in hours after the scheduled dose during which it's still "Due Soon".
+    /// Default 12 hours. After this window, the dose is marked "Missed".
+    @Published var missedDoseGracePeriodHours: Double = 12.0
+
+    /// Predicted trough drop when a dose is missed (pg/mL or ng/dL).
+    /// Computed from the PK model: difference between expected trough with vs. without the missed dose.
+    @Published var predictedTroughDrop: Double? = nil
+
     // MARK: - Blood Test Calibration
     /// History of user‑entered lab results used to calibrate the PK model.
     @Published var bloodTestHistory: [BloodTestRecord] = []
@@ -142,16 +159,19 @@ class MedicationManager: ObservableObject {
         }
         
         /// Pre‑tuned scaling constant F/Vd (arbitrary units) that produces clinically
-        /// expected peak levels for a reference dose. Calibrated from published PK data:
-        ///   - EV 2 mg → peak E2 ~200–300 pg/mL
-        ///   - EC 2 mg → peak E2 ~150–200 pg/mL
-        /// Used in the Bateman biexponential to convert mg → concentration.
+        /// expected peak levels for a reference dose. Calibrated from published PK data
+        /// (Düsterberg et al., Tiong et al.) so that a 2 mg dose yields the clinically
+        /// observed peak E2 concentration. Recalibrated 2026‑06‑30.
+        ///   - EV 2 mg → peak E2 ~250 pg/mL  (S = 3150)
+        ///   - EC 2 mg → peak E2 ~180 pg/mL  (S = 2700)
+        ///   - Oral 2 mg → peak E2 ~60 pg/mL (S = 12000)
+        ///   - TD 1 mg → steady E2 ~50 pg/mL (S = 8000)
         var scalingConstant: Double {
             switch self {
-            case .valerate: return 280.0
-            case .cypionate: return 220.0
-            case .oral: return 180.0
-            case .transdermal: return 120.0
+            case .valerate: return 3150.0
+            case .cypionate: return 2700.0
+            case .oral: return 12000.0
+            case .transdermal: return 8000.0
             }
         }
 
@@ -311,6 +331,23 @@ class MedicationManager: ObservableObject {
         case trough = "Trough"
         case unknown = "Unknown"
     }
+    
+    // MARK: - Therapeutic Targets (User-Configurable)
+    
+    /// Personalized therapeutic target ranges set by the user (or their provider).
+    /// When nil, the model falls back to clinical defaults.
+    struct TherapeuticTarget: Codable, Equatable {
+        var troughMin: Double   // e.g., 150 pg/mL
+        var troughMax: Double   // e.g., 250 pg/mL
+        var peakCeiling: Double // e.g., 600 pg/mL (upper safety limit)
+        
+        static let `default` = TherapeuticTarget(troughMin: 100, troughMax: 200, peakCeiling: 600)
+        
+        static let defaultTestosterone = TherapeuticTarget(troughMin: 400, troughMax: 700, peakCeiling: 1200)
+    }
+    
+    /// User's personal therapeutic target. When nil, clinical defaults are used.
+    @Published var userTherapeuticTarget: TherapeuticTarget? = nil
 
     // MARK: - Configuration & UI Helpers
 
@@ -373,15 +410,26 @@ class MedicationManager: ObservableObject {
         (selectedMedication != nil) != (selectedAdministrationMethod != nil)
     }
 
+    /// Missed-dose detection using configurable grace period (#1).
     var hasMissedDose: Bool {
         guard let next = nextDoseDate else { return false }
-        return Date() > next
+        let graceSeconds = missedDoseGracePeriodHours * 3600
+        return Date() > next.addingTimeInterval(graceSeconds)
+    }
+
+    /// True when the dose window is open but within the grace period (not yet "Missed").
+    var isDoseDueSoon: Bool {
+        guard let next = nextDoseDate else { return false }
+        let graceSeconds = missedDoseGracePeriodHours * 3600
+        return Date() > next && Date() <= next.addingTimeInterval(graceSeconds)
     }
 
     var daysSinceMissedDose: Int? {
         guard hasMissedDose, let next = nextDoseDate else { return nil }
-        let days = Calendar.current.dateComponents([.day], from: next, to: Date()).day ?? 0
-        return max(1, days) // At least 1 day if missed
+        let graceSeconds = missedDoseGracePeriodHours * 3600
+        let effectiveDueDate = next.addingTimeInterval(graceSeconds)
+        let days = Calendar.current.dateComponents([.day], from: effectiveDueDate, to: Date()).day ?? 0
+        return max(1, days) // At least 1 day after grace period expiry
     }
 
     var monthsOnHRT: Int {
@@ -465,6 +513,89 @@ class MedicationManager: ObservableObject {
         doseHistory.first(where: { $0.isActive && $0.medicationType == selectedMedication })
     }
 
+    // MARK: - Concentration & Volume Helpers
+
+    /// Returns the default vial concentration (mg/mL) for the currently selected medication type.
+    /// Reads from the most recent dose's concentration, or falls back to a sensible default.
+    var defaultConcentrationMgPerMl: Double? {
+        // First, check the most recent dose with a recorded concentration
+        if let recent = doseHistory
+            .first(where: { $0.isActive && $0.medicationType == selectedMedication && $0.concentrationMgPerMl != nil })
+        {
+            return recent.concentrationMgPerMl
+        }
+        // Fall back to sensible defaults per medication type
+        if selectedMedication == "Estrogen" {
+            return 40.0   // EV 40 mg/mL is most common
+        } else if selectedMedication == "Testosterone" {
+            return 200.0  // TC 200 mg/mL is most common
+        }
+        return nil
+    }
+
+    /// Common vial concentrations (mg/mL) for a given ester string.
+    /// Returns an array of typical concentrations, plus a sentinel for "Custom".
+    static func commonConcentrations(forEster ester: String) -> [Double] {
+        switch ester {
+        // Estradiol esters
+        case "Valerate (EV)":   return [10, 20, 40, -1]
+        case "Cypionate (EC)":  return [5, 10, -1]
+        // Testosterone esters
+        case "Cypionate (TC)":  return [100, 200, -1]
+        case "Enanthate (TE)":  return [200, 250, -1]
+        case "Propionate (TP)": return [100, -1]
+        case "Undecanoate (TU)": return [250, -1]
+        default:                return [40, -1]
+        }
+    }
+
+    /// Computes injection volume in mL from a dose amount and concentration.
+    static func computedVolume(doseMg: Double, concentrationMgPerMl: Double) -> Double {
+        guard concentrationMgPerMl > 0 else { return 0 }
+        return doseMg / concentrationMgPerMl
+    }
+
+    /// True if the computed injection volume is below the practical measurement threshold.
+    /// Volumes below 0.1 mL are extremely difficult to measure accurately even with
+    /// a 0.3 mL insulin syringe.
+    static func isVolumeTooSmall(_ volumeMl: Double) -> Bool {
+        return volumeMl < 0.1
+    }
+
+    /// True if the volume is large enough to cause injection discomfort for frequent dosing.
+    /// For long-acting esters (TU), volumes up to 4 mL are normal.
+    /// For short/medium-acting esters, > 2-3 mL per injection is impractical.
+    static func isVolumeTooLarge(_ volumeMl: Double, isLongActing: Bool = false) -> Bool {
+        let threshold = isLongActing ? 4.5 : 2.5
+        return volumeMl > threshold
+    }
+
+    /// Recommends a syringe size based on injection volume.
+    static func recommendedSyringe(for volumeMl: Double) -> String {
+        if volumeMl <= 0.3 {
+            return "0.3 mL insulin syringe"
+        } else if volumeMl <= 1.0 {
+            return "1 mL syringe"
+        } else if volumeMl <= 3.0 {
+            return "3 mL syringe"
+        } else {
+            return "5 mL syringe"
+        }
+    }
+
+    /// Generates a warning message (or nil) for a given volume.
+    static func volumeWarning(for volumeMl: Double, ester: String? = nil) -> String? {
+        let isLong = ester == "Undecanoate (TU)"
+        if isVolumeTooSmall(volumeMl) {
+            let syringe = recommendedSyringe(for: volumeMl)
+            return "A volume of \(String(format: "%.3f", volumeMl)) mL can be difficult to measure accurately. Consider a lower-concentration formulation or a \(syringe) with unit markings."
+        }
+        if isVolumeTooLarge(volumeMl, isLongActing: isLong) {
+            return "A volume of \(String(format: "%.1f", volumeMl)) mL is quite large — consider splitting the dose or using multiple injection sites."
+        }
+        return nil
+    }
+
     // MARK: - Initialization
 
     init() {
@@ -499,7 +630,7 @@ class MedicationManager: ObservableObject {
         refreshState()
     }
 
-    /// Records a full dose with amount, ester, method, and optional notes.
+    /// Records a full dose with amount, ester, method, concentration, and optional notes.
     /// This is the primary method for logging doses going forward.
     func addDose(
         date: Date = Date(),
@@ -507,6 +638,7 @@ class MedicationManager: ObservableObject {
         ester: String,
         method: String,
         doseAmount: Double,
+        concentrationMgPerMl: Double? = nil,
         notes: String? = nil
     ) {
         let record = DoseRecord(
@@ -515,6 +647,7 @@ class MedicationManager: ObservableObject {
             ester: ester,
             administrationMethod: method,
             doseAmount: doseAmount,
+            concentrationMgPerMl: concentrationMgPerMl,
             notes: notes
         )
 
@@ -554,10 +687,52 @@ class MedicationManager: ObservableObject {
         refreshState()
     }
 
+    /// Logs an intentionally skipped dose. Does NOT advance `nextDoseDate`;
+    /// the schedule stays anchored to the last *taken* dose. The skipped
+    /// record is persisted so it shows in timelines and affects adherence rate.
+    func skipDose(on date: Date = Date(), reason: String? = nil) {
+        guard let medType = selectedMedication,
+              let medMethod = selectedAdministrationMethod else { return }
+
+        let ester = lastLoggedDose?.ester
+            ?? (medType == "Estrogen" ? "Valerate (EV)" : "Cypionate (TC)")
+        let amount = lastLoggedDose?.doseAmount
+            ?? (medType == "Estrogen" ? 2.0 : 40.0)
+        let concentration = lastLoggedDose?.concentrationMgPerMl
+
+        let record = DoseRecord(
+            doseDate: date,
+            medicationType: medType,
+            ester: ester,
+            administrationMethod: medMethod,
+            doseAmount: amount,
+            concentrationMgPerMl: concentration,
+            doseStatus: .skipped,
+            skipReason: reason
+        )
+
+        guard !doseHistory.contains(where: { $0.id == record.id }) else { return }
+        doseHistory.append(record)
+        modelContext?.insert(record)
+
+        // Do NOT advance lastDoseDate or nextDoseDate for skipped doses
+        try? modelContext?.save()
+        refreshState()
+    }
+
+    /// Calculates the next dose date using the custom frequency if set (#18),
+    /// otherwise falls back to the administration method's default frequency.
     func calculateNextDoseDate(from lastDose: Date) -> Date {
-        guard let methodStr = selectedAdministrationMethod,
-              let method = AdministrationMethod(rawValue: methodStr) else { return Date() }
-        return Calendar.current.date(byAdding: .day, value: method.frequencyDays, to: lastDose) ?? Date()
+        let interval: Int
+        if let custom = customFrequencyDays, custom > 0 {
+            interval = custom
+        } else if let methodStr = selectedAdministrationMethod,
+                  let method = AdministrationMethod(rawValue: methodStr) {
+            interval = method.frequencyDays
+        } else {
+            interval = 7
+        }
+        return Calendar.current.date(byAdding: .day, value: interval, to: lastDose) ?? Date()
     }
 
     // MARK: - Research Engine (Pharmacokinetics)
@@ -565,11 +740,12 @@ class MedicationManager: ObservableObject {
     /// Computes the dynamic endogenous baseline for a given medication type,
     /// accounting for HRT duration, anti‑androgen use, and gonadal suppression.
     /// 
-    /// **Logic:**
-    /// - If no `hrtStartDate` and no `antiAndrogenInUse` → full baseline (gonadal function intact)
-    /// - If `antiAndrogenInUse` → testosterone baseline goes to near‑zero immediately
-    /// - Otherwise, linear taper from full baseline to suppressed value over `hrtSuppressionWeeks`
-    /// - For trans men on T: E2 baseline can be estimated as ~0.2% of current T level (aromatization)
+    /// **Logic (#9, #10):**
+    /// - If `hrtStartDate` is far in the past (e.g. >2 years), immediately return suppressed baseline.
+    /// - If `antiAndrogenInUse` → testosterone baseline goes to near‑zero immediately.
+    /// - Otherwise, saturating exponential taper: `suppressionFactor = 1.0 − exp(−2.5 × progress)`
+    ///   where progress is capped at 1.0. The timescale (4/8/12 weeks) is user-configurable.
+    /// - For trans men on T: E2 baseline can be estimated as ~0.2% of current T level (aromatization).
     ///
     /// - Parameter type: The medication type to compute baseline for.
     /// - Returns: The dynamic baseline level in pg/mL or ng/dL.
@@ -577,7 +753,7 @@ class MedicationManager: ObservableObject {
         let fullBaseline = type.baselineValue
         let suppressedBaseline = type.suppressedBaseline
         
-        // Anti‑androgen overrides: suppress T aggressively
+        // Anti‑androgen overrides: suppress T aggressively (#10)
         if type == .testosterone && antiAndrogenInUse {
             return suppressedBaseline
         }
@@ -589,16 +765,18 @@ class MedicationManager: ObservableObject {
         
         let daysOnHRT = Calendar.current.dateComponents([.day], from: startDate, to: Date()).day ?? 0
         let weeksOnHRT = Double(daysOnHRT) / 7.0
-        let suppressionWeeks = Double(hrtSuppressionWeeks)
         
-        if weeksOnHRT >= suppressionWeeks {
-            // Fully suppressed
+        // Early return: if HRT started >2 years ago, fully suppressed (#9)
+        if weeksOnHRT >= 104 {  // 2 years = 104 weeks
             return suppressedBaseline
-        } else {
-            // Linear taper: fraction = weeksOnHRT / suppressionWeeks
-            let fraction = Double(weeksOnHRT) / suppressionWeeks
-            return fullBaseline + (suppressedBaseline - fullBaseline) * fraction
         }
+        
+        // Saturating exponential taper using user-configurable timescale (#9)
+        let timescaleWeeks = suppressionSpeed.weeks  // 4, 8, or 12 weeks
+        let progress = min(weeksOnHRT / timescaleWeeks, 1.0)
+        let suppressionFactor = 1.0 - exp(-2.5 * progress)  // reaches ~92% at progress=1.0
+        
+        return fullBaseline + (suppressedBaseline - fullBaseline) * suppressionFactor
     }
 
     /// The heart of the reactivity: Recalculates everything and broadcasts changes.
@@ -607,6 +785,9 @@ class MedicationManager: ObservableObject {
         let end = Date()
         let start = Calendar.current.date(byAdding: .day, value: -7, to: end) ?? end
         recentLevels = estimatedLevels(from: start, to: end)
+        recomputeRegimenHistory()
+        recomputeAdherenceRate()
+        recomputeOnTimeStreak()
     }
 
     /// Computes the expected time to peak concentration (in days) for a given ester.
@@ -629,8 +810,15 @@ class MedicationManager: ObservableObject {
         return log(ka / ke) / (ka - ke)
     }
     
-    /// Determines where the user currently sits in their dose cycle.
-    /// Evaluates time since last dose against expected peak and trough windows.
+    /// Determines where the user currently sits in their dose cycle
+    /// using the actual PK curve shape (derivative‑based peak/trough detection).
+    ///
+    /// For injectable routes, the `recentLevels` points array is searched to find
+    /// the true peak (highest value in this cycle) and true trough (lowest value
+    /// just before the next scheduled dose).  The current time is then compared
+    /// against those coordinates, replacing the old ±30% t_max heuristic.
+    ///
+    /// For non‑injectable routes, falls back to `.unknown`.
     var currentCyclePosition: CyclePosition {
         guard let medication = selectedMedication,
               let methodStr = selectedAdministrationMethod,
@@ -643,32 +831,54 @@ class MedicationManager: ObservableObject {
         else {
             return .unknown
         }
-        
-        let daysSinceDose = Date().timeIntervalSince(lastDose.doseDate) / 86400.0
+
+        let now = Date()
+        let daysSinceDose = now.timeIntervalSince(lastDose.doseDate) / 86400.0
         let cycleLength = Double(method.frequencyDays)
-        
-        // Determine expected peak time from ester
-        let tMax: Double
-        if medication == "Estrogen", let ester = MedicationEster(rawValue: lastDose.ester) {
-            tMax = expectedTimeToPeak(for: ester)
-        } else if medication == "Testosterone", let tesEster = TestosteroneEster(rawValue: lastDose.ester) {
-            tMax = expectedTimeToPeak(for: tesEster)
-        } else {
+
+        // Use the actual PK curve if we have enough data points
+        let levels = recentLevels
+        guard levels.count >= 3 else {
+            // Fallback to theoretical t_max when no curve data is available
+            let tMax: Double
+            if medication == "Estrogen", let ester = MedicationEster(rawValue: lastDose.ester) {
+                tMax = expectedTimeToPeak(for: ester)
+            } else if medication == "Testosterone", let tesEster = TestosteroneEster(rawValue: lastDose.ester) {
+                tMax = expectedTimeToPeak(for: tesEster)
+            } else {
+                return .unknown
+            }
+            let peakWindow = tMax * 0.30
+            if abs(daysSinceDose - tMax) <= peakWindow { return .nearPeak }
+            if daysSinceDose >= (cycleLength - 1.0) { return .trough }
+            return .midCycle
+        }
+
+        // Find the true peak: highest value in the curve since last dose
+        let sinceLastDose = levels.filter { $0.date >= lastDose.doseDate }
+        guard let peakPoint = sinceLastDose.max(by: { $0.value < $1.value }),
+              let troughPoint = sinceLastDose.filter({ $0.date >= lastDose.doseDate })
+                  .min(by: { $0.value < $1.value })
+        else {
             return .unknown
         }
-        
-        // Peak window: within ±30% of expected t_max from last dose
-        let peakWindow = tMax * 0.30
-        if abs(daysSinceDose - tMax) <= peakWindow {
+
+        let peakHoursAfterDose = peakPoint.date.timeIntervalSince(lastDose.doseDate) / 3600.0
+        let troughHoursAfterDose = troughPoint.date.timeIntervalSince(lastDose.doseDate) / 3600.0
+
+        // "Near Peak" — within 24 hours after the actual peak
+        let hoursSinceDose = daysSinceDose * 24.0
+        let peakEnd = peakHoursAfterDose + 24.0
+        if hoursSinceDose >= peakHoursAfterDose && hoursSinceDose <= peakEnd {
             return .nearPeak
         }
-        
-        // Trough window: within 24 hours of next scheduled dose
-        if daysSinceDose >= (cycleLength - 1.0) {
+
+        // "Trough" — within the last 24 hours of the cycle OR within 24h of the actual trough
+        if daysSinceDose >= (cycleLength - 1.0) ||
+            (troughHoursAfterDose > 0 && abs(hoursSinceDose - troughHoursAfterDose) <= 24.0) {
             return .trough
         }
-        
-        // Everything else is mid-cycle
+
         return .midCycle
     }
     
@@ -759,96 +969,251 @@ class MedicationManager: ObservableObject {
         bloodTestHistory = allRecords ?? []
     }
     
-    /// Returns optimal range definitions that are context-aware (separate peak vs trough targets).
-    func optimalRangeLabel(for medication: MedicationType, at position: CyclePosition) -> (label: String, min: Double, max: Double) {
-        switch (medication, position) {
-        case (.estrogen, .trough):
-            return ("Optimal (Trough)", 100, 200)
-        case (.estrogen, .nearPeak):
-            return ("Optimal (Peak)", 100, 400)
-        case (.estrogen, .midCycle):
-            return ("Optimal", 100, 300)
-        case (.estrogen, .unknown):
-            return ("Optimal", 100, 200)
-        case (.testosterone, .trough):
-            // Trans men target: 400-700 ng/dL at trough
-            return ("Optimal (Trough)", 400, 700)
-        case (.testosterone, .nearPeak):
-            // Peak should not exceed ~1000-1500
-            return ("Optimal (Peak)", 400, 1000)
-        case (.testosterone, .midCycle):
-            return ("Optimal", 300, 900)
-        case (.testosterone, .unknown):
-            return ("Optimal", 300, 1000)
+    // MARK: - Layer 1: Time-Contextual + Dose-Scaled Targets
+    
+    /// Returns a context-aware target range that accounts for cycle position AND dose intensity.
+    /// When the user has set personal therapeutic targets, those override the clinical defaults.
+    func contextualRange(for medication: MedicationType,
+                         at position: CyclePosition,
+                         doseIntensity: Double) -> (label: String, min: Double, max: Double) {
+        
+        // Base clinical targets (for a "standard" dose, intensity ≈ 1.0)
+        let base: (peakMin: Double, peakMax: Double, troughMin: Double, troughMax: Double)
+        let isEstrogen = medication == .estrogen
+        
+        if isEstrogen {
+            base = (peakMin: 200, peakMax: 600,
+                    troughMin: 100, troughMax: 250)
+        } else {
+            base = (peakMin: 600, peakMax: 1200,
+                    troughMin: 400, troughMax: 700)
+        }
+        
+        // Scale targets by the user's relative dose intensity
+        let scale = max(doseIntensity, 0.25)  // floor at 0.25× to prevent pathological low targets
+        let scaledPeakMin = base.peakMin * scale
+        let scaledPeakMax = base.peakMax * scale
+        // Trough doesn't scale linearly with dose; cap at 1.5×
+        let troughScale = min(scale, 1.5)
+        let scaledTroughMin = base.troughMin * troughScale
+        let scaledTroughMax = base.troughMax * troughScale
+        
+        // If user has set personal therapeutic targets, use those as the trough reference
+        let troughMin: Double
+        let troughMax: Double
+        let peakCeiling: Double
+        let labelPrefix: String
+        
+        if let userTarget = userTherapeuticTarget {
+            troughMin = userTarget.troughMin
+            troughMax = userTarget.troughMax
+            peakCeiling = userTarget.peakCeiling
+            labelPrefix = "Your Target"
+        } else {
+            troughMin = scaledTroughMin
+            troughMax = scaledTroughMax
+            peakCeiling = scaledPeakMax
+            labelPrefix = ""
+        }
+        
+        switch position {
+        case .nearPeak:
+            let label = labelPrefix.isEmpty ? "Expected Peak" : "\(labelPrefix) (Peak)"
+            return (label, scaledPeakMin, peakCeiling)
+        case .trough:
+            let label = labelPrefix.isEmpty ? "Target Trough" : "\(labelPrefix) (Trough)"
+            return (label, troughMin, troughMax)
+        case .midCycle:
+            // Interpolate between trough and peak targets
+            let midMin = (troughMin + scaledPeakMin) / 2
+            let midMax = (troughMax + peakCeiling) / 2
+            let label = labelPrefix.isEmpty ? "Mid-Cycle Range" : "\(labelPrefix) (Mid)"
+            return (label, midMin, midMax)
+        case .unknown:
+            let label = labelPrefix.isEmpty ? "Optimal" : labelPrefix
+            // Fallback: use trough for safety
+            return (label, troughMin, peakCeiling)
         }
     }
-
+    
+    // MARK: - Layer 2: Deviation from Model Prediction
+    
+    /// Compares the actual (calibrated) level to the raw population-model prediction.
+    /// Tells the user whether their body is responding as expected, slower, or faster.
+    func deviationClassification(actual: Double, predicted: Double) -> (label: String, emoji: String) {
+        guard predicted > 1.0 else {
+            return ("Unable to Compare", "·")
+        }
+        let ratio = actual / predicted
+        switch ratio {
+        case 0.0..<0.5:  return ("Critically Below Expected", "⚠️")
+        case 0.5..<0.7:  return ("Below Expected", "⬇️")
+        case 0.7..<1.3:  return ("On Track", "✅")
+        case 1.3..<2.0:  return ("Above Expected", "⬆️")
+        default:          return ("Unusually High", "🛑")
+        }
+    }
+    
+    // MARK: - Layer 4: Clinical Safety & Interaction Flags
+    
+    /// Returns an override label if the level triggers a clinical safety concern.
+    /// These fire AFTER the main classification and take precedence over contextual labels.
+    func safetyOverride(level: Double, medication: MedicationType, contextLabel: String) -> String? {
+        // Estrogen safety ceiling
+        if medication == .estrogen && level > 1000 {
+            return "Very High – Safety Check"
+        }
+        // Testosterone supra-physiological
+        if medication == .testosterone && level > 1500 {
+            return "Supraphysiological"
+        }
+        // E2 < 50 pg/mL at trough is sub-therapeutic (on therapy)
+        if medication == .estrogen && level < 50 && contextLabel.contains("Trough") {
+            return "Sub-Therapeutic (Trough)"
+        }
+        // Spironolactone interaction: E2 < 80 pg/mL may indicate accelerated clearance
+        if medication == .estrogen && spironolactoneInUse && level < 80 && contextLabel.contains("Trough") {
+            return "Low (Spiro May Increase Clearance)"
+        }
+        return nil
+    }
+    
+    // MARK: - Unified Hormone Level Pipeline (All 4 Layers)
+    
+    /// Computes the current hormone level with contextual, dose-aware, deviation-informed,
+    /// and safety-checked classification. Replaces the old static-range lookup.
     func getCurrentHormoneLevel() -> (value: Double, unit: String, range: String, explanation: String)? {
         guard let medication = selectedMedication,
               let _ = selectedAdministrationMethod else { return nil }
-
-        let recent = estimatedLevels(from: Date().addingTimeInterval(-3600), to: Date())
-        guard let latestLevel = recent.last else { return nil }
-
+        
         let medicationEnum = MedicationType(rawValue: medication)
         let unit = medicationEnum == .estrogen ? "pg/mL" : "ng/dL"
+        let now = Date()
+        
+        // 1. Get actual calibrated level (PK model with α applied)
+        let calibratedPoints = estimatedLevels(from: now.addingTimeInterval(-3600), to: now,
+                                                applyCalibration: true)
+        guard let calibratedLevel = calibratedPoints.last else { return nil }
+        let actual = calibratedLevel.value
+        
+        // 2. Get raw predicted level (PK model without α) for deviation analysis
+        let rawPoints = estimatedLevels(from: now.addingTimeInterval(-3600), to: now,
+                                         applyCalibration: false)
+        let predicted = rawPoints.last?.value ?? actual
+        let deviation = deviationClassification(actual: actual, predicted: predicted)
+        
+        // 3. Get cycle context + dose intensity
         let position = currentCyclePosition
-
-        let rangeInfo: HormoneRange
-        if medicationEnum == .estrogen {
-            rangeInfo = estrogenRanges.first { latestLevel.value >= $0.min && latestLevel.value < $0.max }
-                        ?? HormoneRange(label: "Unknown", min: 0, max: 0, colorName: "primary")
+        let intensity = relativeDoseIntensity
+        let (contextLabel, minTarget, maxTarget) = contextualRange(for: medicationEnum ?? .estrogen,
+                                                                    at: position,
+                                                                    doseIntensity: intensity)
+        
+        // 4. Determine where actual sits relative to the contextual target
+        let status: String
+        if actual < minTarget * 0.5 {
+            status = "Critically Low"
+        } else if actual < minTarget * 0.8 {
+            status = "Very Low"
+        } else if actual < minTarget {
+            status = "Slightly Below Target"
+        } else if actual <= maxTarget {
+            status = "On Target"
+        } else if actual <= maxTarget * 1.3 {
+            status = "Slightly Above Target"
         } else {
-            rangeInfo = testosteroneRanges.first { latestLevel.value >= $0.min && latestLevel.value < $0.max }
-                        ?? HormoneRange(label: "Unknown", min: 0, max: 0, colorName: "primary")
+            status = "High"
         }
         
-        // Build context-aware label: append cycle position if known
-        let contextLabel: String
-        if position != .unknown {
-            contextLabel = "\(rangeInfo.label) · \(position.rawValue)"
+        // 5. Safety overrides (take precedence over contextual status)
+        let safetyLabel = safetyOverride(level: actual, medication: medicationEnum ?? .estrogen,
+                                          contextLabel: contextLabel)
+        let positionSuffix = position != .unknown ? " · \(position.rawValue)" : ""
+        let finalLabel: String
+        if let safety = safetyLabel {
+            finalLabel = "\(safety)\(positionSuffix)"
+        } else if deviation.label.contains("Below") || deviation.label.contains("Above") {
+            finalLabel = "\(status) · \(contextLabel) · \(deviation.label)\(positionSuffix)"
         } else {
-            contextLabel = rangeInfo.label
+            finalLabel = "\(status) · \(contextLabel)\(positionSuffix)"
         }
-
-        let explanation: String
-        if medicationEnum == .estrogen {
-            let baseExplanation: String
-            switch rangeInfo.label {
-            case "Very Low": baseExplanation = "At this level, you may experience mood swings and limited physical changes."
-            case "Low": baseExplanation = "You'll notice some emotional and physical changes, but they may be subtle."
-            case "Optimal": baseExplanation = "At this level, you'll feel emotionally stable and notice ongoing skin and body changes."
-            case "High": baseExplanation = "You'll experience significant emotional and physical changes; monitor for side effects."
-            default: baseExplanation = "Levels are outside typical monitoring ranges. Consult your provider."
-            }
-            // Add cycle position context
-            switch position {
-            case .nearPeak:
-                explanation = baseExplanation + " You're near your peak — levels run higher than trough targets."
-            case .trough:
-                explanation = baseExplanation + " You're at trough — this is the standard measurement window."
-            case .midCycle:
-                explanation = baseExplanation
-            case .unknown:
-                explanation = baseExplanation
-            }
-        } else {
-            let baseExplanation = latestLevel.value < 50 
-                ? "Your testosterone is effectively suppressed." 
-                : "This is a low male range."
-            switch position {
-            case .nearPeak:
-                explanation = baseExplanation + " Near peak — expect higher readings."
-            case .trough:
-                explanation = baseExplanation + " At trough — ideal time for lab draws."
-            case .midCycle:
-                explanation = baseExplanation
-            case .unknown:
-                explanation = baseExplanation
-            }
+        
+        // 6. Build rich explanation
+        let explanation = buildExplanation(
+            actual: actual, unit: unit, status: status,
+            contextLabel: contextLabel, minTarget: minTarget, maxTarget: maxTarget,
+            position: position, deviation: deviation,
+            medication: medicationEnum ?? .estrogen
+        )
+        
+        return (actual, unit, finalLabel, explanation)
+    }
+    
+    /// Constructs a plain-language explanation of the user's current hormone status.
+    private func buildExplanation(actual: Double, unit: String, status: String,
+                                   contextLabel: String, minTarget: Double, maxTarget: Double,
+                                   position: CyclePosition, deviation: (label: String, emoji: String),
+                                   medication: MedicationType) -> String {
+        let levelStr = String(format: "%.0f", actual)
+        var parts: [String] = []
+        
+        // Opening: what the level is
+        parts.append("Your level is \(levelStr) \(unit)")
+        
+        // Cycle position context
+        switch position {
+        case .nearPeak:
+            parts.append("near your peak")
+        case .trough:
+            parts.append("at trough")
+        case .midCycle:
+            parts.append("at mid-cycle")
+        case .unknown:
+            break
         }
-
-        return (latestLevel.value, unit, contextLabel, explanation)
+        
+        // Status interpretation
+        switch status {
+        case "Critically Low":
+            parts.append("— far below your target of \(Int(minTarget))–\(Int(maxTarget)) \(unit).")
+            if deviation.label.contains("Below Expected") {
+                parts.append("This is significantly below what the model expects. Consider a dose review or blood test.")
+            } else {
+                parts.append("Consult your provider about a potential dose adjustment.")
+            }
+        case "Very Low", "Slightly Below Target":
+            parts.append("— under your \(contextLabel.lowercased()) of \(Int(minTarget))–\(Int(maxTarget)) \(unit).")
+            if deviation.label.contains("Below Expected") {
+                parts.append("Your body may be clearing faster than average. A blood test could clarify.")
+            } else {
+                parts.append("You may want to discuss a small increase with your provider.")
+            }
+        case "On Target":
+            parts.append("— right within your \(contextLabel.lowercased()) of \(Int(minTarget))–\(Int(maxTarget)) \(unit).")
+            parts.append("Continue your current regimen. \(deviation.emoji)")
+        case "Slightly Above Target":
+            parts.append("— slightly above your \(contextLabel.lowercased()) of \(Int(minTarget))–\(Int(maxTarget)) \(unit).")
+            if position == .nearPeak {
+                parts.append("This is expected near peak — no concern.")
+            } else {
+                parts.append("Monitor for any side effects.")
+            }
+        case "High":
+            parts.append("— well above your \(contextLabel.lowercased()) of \(Int(minTarget))–\(Int(maxTarget)) \(unit).")
+            if position == .nearPeak {
+                parts.append("Peak levels run high; ensure your trough stays in range.")
+            } else if medication == .estrogen && actual > 1000 {
+                parts.append("Levels above 1,000 pg/mL carry an elevated thromboembolic risk. Contact your provider.")
+            } else if medication == .testosterone && actual > 1500 {
+                parts.append("Supraphysiological levels increase polycythemia risk. Consider a dose reduction.")
+            } else {
+                parts.append("Consider a dose review with your provider.")
+            }
+        default:
+            parts.append("— your \(contextLabel.lowercased()) is \(Int(minTarget))–\(Int(maxTarget)) \(unit).")
+        }
+        
+        return parts.joined(separator: " ")
     }
 
     /// Pharmacokinetic model: superposition of individual dose contributions.
@@ -868,7 +1233,8 @@ class MedicationManager: ObservableObject {
     /// and flip‑flop kinetics do not dominate.
     ///
     /// Falls back to estimated dose history if no doses are logged yet.
-    func estimatedLevels(from start: Date, to end: Date, stepDays: Int = 1) -> [EstimatedPoint] {
+    func estimatedLevels(from start: Date, to end: Date, stepDays: Int = 1,
+                         applyCalibration: Bool = true) -> [EstimatedPoint] {
         guard let medication = selectedMedication,
               let methodStr = selectedAdministrationMethod else { return [] }
 
@@ -878,14 +1244,14 @@ class MedicationManager: ObservableObject {
 
         let medicationEnum = MedicationType(rawValue: medication)
         let baseLevel: Double = medicationEnum.map { dynamicBaseline(for: $0) } ?? 100.0
-        let alpha = calibrationFactor ?? 1.0  // user‑specific calibration multiplier
+        let alpha = (applyCalibration ? (calibrationFactor ?? 1.0) : 1.0)  // user‑specific calibration multiplier
         
         // Determine if we should use the Bateman biexponential (injectable) or
         // the simpler single‑exponential (oral/transdermal)
         let isInjectable = AdministrationMethod(rawValue: methodStr) == .injectable
         
-        // Get the most recent dose to determine ester and PK params
-        let recentDose = doseHistory
+        // Get the most recent active dose for logging context
+        _ = doseHistory
             .filter { $0.isActive && $0.medicationType == medication }
             .sorted { $0.doseDate > $1.doseDate }
             .first
@@ -921,8 +1287,9 @@ class MedicationManager: ObservableObject {
             if medication == "Estrogen", let e = MedicationEster(rawValue: ester) {
                 let ka = log(2) / e.halfLifeDays
                 var ke = log(2) / (e.eliminationHalfLifeHours / 24.0)
-                // Spironolactone CYP3A4 induction → ~15% faster E2 clearance
-                if spironolactoneInUse { ke *= spiroClearanceFactor }
+                // Spironolactone CYP3A4 induction → ~15% faster E2 clearance (#12)
+                // Only applied when the user has opted in via settings.
+                if spironolactoneInUse && spironolactoneClearanceEnabled { ke *= spiroClearanceFactor }
                 return (ka, ke, e.scalingConstant)
             } else if medication == "Testosterone", let e = TestosteroneEster(rawValue: ester) {
                 let ka = log(2) / e.halfLifeDays
@@ -939,11 +1306,40 @@ class MedicationManager: ObservableObject {
             
             for dose in activeDoses {
                 let effAmount = dose.doseAmount * dosePotencyFactor(for: dose)
+                let isOralRoute = dose.administrationMethod == "Oral"
+                let isTransdermalRoute = dose.administrationMethod == "Cream"
+                
                 if isInjectable, let pk = pkParams(ester: dose.ester, medication: medication) {
+                    // Depot injectable: full Bateman biexponential
                     doseEvents.append(DoseEvent(date: dose.doseDate, amount: effAmount,
                                                 ka: pk.ka, ke: pk.ke, scaling: pk.scaling))
+                } else if isOralRoute {
+                    // Oral: fast Bateman with ka = 2.5 d⁻¹ (≈1h absorption), ke = 1.386 d⁻¹
+                    // Models the rapid spike ~1‑2h after ingestion followed by fast drop
+                    let oralKa = 2.5
+                    let oralKe = 1.386   // ln(2) / 0.5d elimination half-life
+                    var oralScaling: Double = 12000.0
+                    if medication == "Estrogen", let e = MedicationEster(rawValue: dose.ester) {
+                        oralScaling = e.scalingConstant  // already calibrated for oral
+                    }
+                    doseEvents.append(DoseEvent(date: dose.doseDate, amount: effAmount,
+                                                ka: oralKa, ke: oralKe, scaling: oralScaling))
+                } else if isTransdermalRoute {
+                    // Transdermal: 24h square-wave via hourly micro‑doses
+                    // Each micro‑dose = effAmount / 24, spread over 24 hours from application
+                    let microAmount = effAmount / 24.0
+                    let tdKa = log(2) / 1.5     // 1.5d terminal half-life for transdermal
+                    var tdScaling: Double = 8000.0
+                    if medication == "Estrogen", let e = MedicationEster(rawValue: dose.ester) {
+                        tdScaling = e.scalingConstant
+                    }
+                    for hour in 0..<24 {
+                        let microDate = dose.doseDate.addingTimeInterval(Double(hour) * 3600.0)
+                        doseEvents.append(DoseEvent(date: microDate, amount: microAmount,
+                                                    ka: tdKa, ke: 0.0, scaling: tdScaling))
+                    }
                 } else {
-                    // Non‑injectable: use single‑exponential fallback (ka from half‑life, ke unused)
+                    // Generic fallback: single‑exponential
                     let halfLife: Double
                     if medication == "Estrogen", let e = MedicationEster(rawValue: dose.ester) {
                         halfLife = e.halfLifeDays
@@ -1030,6 +1426,298 @@ class MedicationManager: ObservableObject {
         let end = Date()
         let start = Calendar.current.date(byAdding: .day, value: -days, to: end) ?? end
         return estimatedLevels(from: start, to: end)
+    }
+    
+    // MARK: - Regimen Transition Tracking (#3)
+    
+    /// A contiguous time segment where ester, doseAmount, and administrationMethod
+    /// were all identical. Computed from doseHistory on each refreshState().
+    struct RegimenSegment: Identifiable {
+        let id = UUID()
+        let startDate: Date
+        let endDate: Date?                       // nil = ongoing (most recent segment)
+        let ester: String
+        let doseAmount: Double
+        let administrationMethod: String
+        let concentrationMgPerMl: Double?
+        let previousConcentrationMgPerMl: Double?  // concentration JUST before this segment
+    }
+    
+    /// Regimen transition history, computed by grouping consecutive doses (#3).
+    /// A new segment is created whenever ester, doseAmount, or administrationMethod changes.
+    /// Concentration changes are flagged within the segment.
+    @Published var regimenTransitionHistory: [RegimenSegment] = []
+    
+    /// Recomputes regimenTransitionHistory from doseHistory.
+    /// Called inside refreshState().
+    func recomputeRegimenHistory() {
+        let activeDoses = doseHistory
+            .filter { $0.isActive && $0.medicationType == (selectedMedication ?? "") }
+            .sorted { $0.doseDate < $1.doseDate }
+        
+        guard !activeDoses.isEmpty else {
+            regimenTransitionHistory = []
+            return
+        }
+        
+        var segments: [RegimenSegment] = []
+        var currentStart = activeDoses[0].doseDate
+        var currentEster = activeDoses[0].ester
+        var currentAmount = activeDoses[0].doseAmount
+        var currentMethod = activeDoses[0].administrationMethod
+        var currentConc = activeDoses[0].concentrationMgPerMl
+        var previousConc: Double? = nil
+        
+        for i in 1..<activeDoses.count {
+            let dose = activeDoses[i]
+            let esterChanged = dose.ester != currentEster
+            let amountChanged = abs(dose.doseAmount - currentAmount) > 0.01
+            let methodChanged = dose.administrationMethod != currentMethod
+            
+            if esterChanged || amountChanged || methodChanged {
+                // Close the current segment
+                segments.append(RegimenSegment(
+                    startDate: currentStart,
+                    endDate: activeDoses[i-1].doseDate,
+                    ester: currentEster,
+                    doseAmount: currentAmount,
+                    administrationMethod: currentMethod,
+                    concentrationMgPerMl: currentConc,
+                    previousConcentrationMgPerMl: previousConc
+                ))
+                // Start a new segment
+                previousConc = currentConc
+                currentStart = dose.doseDate
+                currentEster = dose.ester
+                currentAmount = dose.doseAmount
+                currentMethod = dose.administrationMethod
+                currentConc = dose.concentrationMgPerMl
+            } else {
+                // Check for concentration change within same segment
+                if let newConc = dose.concentrationMgPerMl, newConc != currentConc {
+                    // Close segment at concentration change
+                    segments.append(RegimenSegment(
+                        startDate: currentStart,
+                        endDate: activeDoses[i-1].doseDate,
+                        ester: currentEster,
+                        doseAmount: currentAmount,
+                        administrationMethod: currentMethod,
+                        concentrationMgPerMl: currentConc,
+                        previousConcentrationMgPerMl: previousConc
+                    ))
+                    previousConc = currentConc
+                    currentStart = dose.doseDate
+                    currentConc = newConc
+                } else {
+                    currentConc = dose.concentrationMgPerMl ?? currentConc
+                }
+            }
+        }
+        
+        // Final (ongoing) segment
+        segments.append(RegimenSegment(
+            startDate: currentStart,
+            endDate: nil,
+            ester: currentEster,
+            doseAmount: currentAmount,
+            administrationMethod: currentMethod,
+            concentrationMgPerMl: currentConc,
+            previousConcentrationMgPerMl: previousConc
+        ))
+        
+        regimenTransitionHistory = segments
+    }
+    
+    /// Human-readable summary of regimen transitions (e.g., "Jun 1 – Jun 20: EV 2.0 mg | Jun 21 – Present: EC 4.0 mg")
+    var regimenTimelineSummary: String {
+        guard !regimenTransitionHistory.isEmpty else { return "No regimen history yet." }
+        let df = DateFormatter()
+        df.dateFormat = "MMM d"
+        return regimenTransitionHistory.map { segment in
+            let start = df.string(from: segment.startDate)
+            let end = segment.endDate.map { df.string(from: $0) } ?? "Present"
+            let concInfo = segment.concentrationMgPerMl.map { " @ \(String(format: "%.0f", $0)) mg/mL" } ?? ""
+            return "\(start) – \(end): \(segment.ester) \(String(format: "%.1f", segment.doseAmount)) mg\(concInfo)"
+        }.joined(separator: " | ")
+    }
+    
+    // MARK: - Monthly Adherence Rate (#2)
+    
+    /// Monthly adherence rate: taken doses / scheduled doses in the last 30 days.
+    /// Skipped and missed doses count against the numerator; only .taken doses qualify.
+    /// Returns a value between 0.0 and 1.0, or nil if no dosing schedule is configured.
+    @Published var adherenceRate: Double? = nil
+    
+    func recomputeAdherenceRate() {
+        guard selectedMedication != nil, selectedAdministrationMethod != nil else {
+            adherenceRate = nil
+            return
+        }
+        
+        let now = Date()
+        let thirtyDaysAgo = Calendar.current.date(byAdding: .day, value: -30, to: now) ?? now
+        
+        // Count taken doses in the last 30 days
+        let takenDoses = doseHistory
+            .filter { $0.isActive && $0.medicationType == (selectedMedication ?? "") }
+            .filter { $0.doseDate >= thirtyDaysAgo && $0.doseDate <= now }
+            .filter { DoseStatus(rawValue: $0.doseStatus) == .taken }
+            .count
+        
+        // Calculate how many doses SHOULD have been scheduled in the last 30 days
+        let intervalDays: Double = {
+            if let custom = customFrequencyDays, custom > 0 { return Double(custom) }
+            if let methodStr = selectedAdministrationMethod,
+               let method = AdministrationMethod(rawValue: methodStr) {
+                return Double(method.frequencyDays)
+            }
+            return 7
+        }()
+        
+        let scheduledCount = max(1, Int(ceil(30.0 / intervalDays)))
+        let rate = min(1.0, Double(takenDoses) / Double(scheduledCount))
+        adherenceRate = rate
+    }
+    
+    // MARK: - On-Time Streak (#20)
+    
+    /// Consecutive doses taken within the grace period, scanning backwards from now.
+    /// For daily dosing, grace = ±12h; for weekly, grace = ±1 day.
+    @Published var onTimeStreak: Int = 0
+    
+    func recomputeOnTimeStreak() {
+        guard selectedMedication != nil else {
+            onTimeStreak = 0
+            return
+        }
+        
+        let activeDoses = doseHistory
+            .filter { $0.isActive && $0.medicationType == (selectedMedication ?? "") }
+            .filter { DoseStatus(rawValue: $0.doseStatus) == .taken }
+            .sorted { $0.doseDate > $1.doseDate }  // most recent first
+        
+        guard !activeDoses.isEmpty else {
+            onTimeStreak = 0
+            return
+        }
+        
+        // Determine grace window based on dosing frequency
+        let intervalDays: Double = {
+            if let custom = customFrequencyDays, custom > 0 { return Double(custom) }
+            if let methodStr = selectedAdministrationMethod,
+               let method = AdministrationMethod(rawValue: methodStr) {
+                return Double(method.frequencyDays)
+            }
+            return 7
+        }()
+        let graceHours = intervalDays <= 1 ? 12.0 : 24.0  // ±12h for daily, ±1d for weekly+
+        
+        var streak = 1  // most recent dose counts
+        for i in 1..<activeDoses.count {
+            let expectedInterval = activeDoses[i-1].doseDate.timeIntervalSince(activeDoses[i].doseDate)
+            let expectedDays = intervalDays * 86400.0
+            let deviation = abs(expectedInterval - expectedDays) / 3600.0  // in hours
+            
+            if deviation <= graceHours {
+                streak += 1
+            } else {
+                break  // streak broken
+            }
+        }
+        
+        onTimeStreak = streak
+    }
+    
+    // MARK: - Dynamic Blood-Test Scheduling (#14)
+    
+    /// Returns the suggested month for the next blood test based on actual lab history.
+    /// If a test exists within the last 2.5 months, suggests 3 months after that draw.
+    /// Otherwise falls back to the next multiple of 3 months from HRT start.
+    var suggestedBloodTestMonth: Int {
+        let now = Date()
+        let twoAndHalfMonthsAgo = Calendar.current.date(byAdding: .month, value: -3, to: now) ?? now
+        // Actually use 2.5 months = ~75 days ago
+        let cutoff = Calendar.current.date(byAdding: .day, value: -75, to: now) ?? now
+        
+        // Check for a recent blood test
+        if let mostRecentTest = bloodTestHistory
+            .filter({ $0.hormoneType == (selectedMedication ?? "") })
+            .sorted(by: { $0.drawDate > $1.drawDate })
+            .first,
+           mostRecentTest.drawDate >= cutoff {
+            // Suggest 3 months after most recent draw
+            let nextDraw = Calendar.current.date(byAdding: .month, value: 3, to: mostRecentTest.drawDate) ?? now
+            let monthsFromNow = Calendar.current.dateComponents([.month], from: now, to: nextDraw).month ?? 3
+            return max(monthsFromNow, 1)
+        }
+        
+        // Fallback: next multiple of 3 months from HRT start
+        let m = monthsOnHRT
+        return ((m / 3) + 1) * 3
+    }
+    
+    /// Human-readable blood-test scheduling text (#14).
+    var bloodTestSchedulingText: String {
+        let now = Date()
+        let cutoff = Calendar.current.date(byAdding: .day, value: -75, to: now) ?? now
+        
+        if let mostRecentTest = bloodTestHistory
+            .filter({ $0.hormoneType == (selectedMedication ?? "") })
+            .sorted(by: { $0.drawDate > $1.drawDate })
+            .first,
+           mostRecentTest.drawDate >= cutoff {
+            let df = DateFormatter()
+            df.dateFormat = "MMM d, yyyy"
+            let monthsAway = suggestedBloodTestMonth
+            return "Your last test was \(df.string(from: mostRecentTest.drawDate)). Schedule your next one in \(monthsAway) month\(monthsAway == 1 ? "" : "s")."
+        }
+        return "Schedule your next blood test around month \(suggestedBloodTestMonth)."
+    }
+    
+    // MARK: - Dose Intensity Scaling (#13)
+    
+    /// Average dose over the last 3 months, divided by a standard starting dose.
+    /// Used to scale the unlock speed of expected changes.
+    var relativeDoseIntensity: Double {
+        let now = Date()
+        let threeMonthsAgo = Calendar.current.date(byAdding: .month, value: -3, to: now) ?? now
+        
+        let recentDoses = doseHistory
+            .filter { $0.isActive && $0.medicationType == (selectedMedication ?? "") }
+            .filter { $0.doseDate >= threeMonthsAgo && $0.doseDate <= now }
+            .filter { DoseStatus(rawValue: $0.doseStatus) == .taken }
+        
+        guard !recentDoses.isEmpty else { return 1.0 }
+        
+        let avgDose = recentDoses.map(\.doseAmount).reduce(0, +) / Double(recentDoses.count)
+        
+        // Standard starting doses
+        let standardDose: Double = selectedMedication == "Estrogen" ? 2.0 : 50.0
+        guard standardDose > 0 else { return 1.0 }
+        
+        return avgDose / standardDose
+    }
+    
+    /// The progress scaling factor applied to change unlock timelines (#13).
+    /// < 0.5 intensity → 0.8× speed (20% slower)
+    /// > 1.5 intensity → 1.1× speed (10% faster)
+    var doseIntensityProgressScale: Double {
+        let intensity = relativeDoseIntensity
+        if intensity < 0.5 { return 0.8 }
+        if intensity > 1.5 { return 1.1 }
+        return 1.0
+    }
+    
+    /// Disclaimer text shown below the "Changes Unlocked" section (#13).
+    var doseIntensityDisclaimer: String? {
+        let intensity = relativeDoseIntensity
+        if intensity < 0.5 {
+            return "Your dose is lower than the standard starting dose. Changes may develop more gradually."
+        }
+        if intensity > 1.5 {
+            return "Your dose is higher than typical — timelines may accelerate slightly. Monitor for side effects."
+        }
+        return "Timelines are typical for standard doses; individual results vary."
     }
     
     // MARK: - Aromatization Estimator (Trans Men)

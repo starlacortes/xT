@@ -67,6 +67,7 @@ struct MainContentView: View {
 struct FlatQuickActionsRow: View {
     @Environment(\.medicationManager) private var medicationManager
     @State private var showingDoseConfirmation = false
+    @State private var showingQuickDoseSheet = false
 
     private var doseMissed: Bool {
         medicationManager.isFullyConfigured && medicationManager.hasMissedDose
@@ -81,8 +82,7 @@ struct FlatQuickActionsRow: View {
                 iconColor: doseMissed ? Theme.Colors.Bloom.cycle.base : Theme.Colors.Bloom.skin.base,
                 iconBg: doseMissed ? Theme.Colors.Bloom.cycle.surface : Theme.Colors.Bloom.skin.surface
             ) {
-                medicationManager.recordDose(on: Date())
-                showingDoseConfirmation = true
+                showingQuickDoseSheet = true
             }
 
             flatVerticalDivider()
@@ -99,6 +99,10 @@ struct FlatQuickActionsRow: View {
             .buttonStyle(.pressable)
         }
         .padding(.vertical, 18)
+        .sheet(isPresented: $showingQuickDoseSheet) {
+            QuickDoseSheet(isPresented: $showingQuickDoseSheet)
+                .environment(\.medicationManager, medicationManager)
+        }
         .alert("Dose recorded", isPresented: $showingDoseConfirmation) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -159,15 +163,31 @@ struct FlatInsightRow: View {
     @Environment(\.medicationManager) private var medicationManager
 
     private var insightText: String {
-        guard let level = medicationManager.currentHormoneLevel?.value else {
+        guard let level = medicationManager.currentHormoneLevel else {
             return "Log doses to see personalized insights."
         }
-        if level < 100 {
-            return "Your levels look low — consider a check-in with your provider."
-        } else if level < 200 {
-            return "Great! Your hormone levels are in the optimal range. Keep up with your current schedule."
-        } else {
+        
+        let range = level.range
+        let explanation = level.explanation
+        
+        // Use the classification label to drive concise insight text
+        if range.contains("Critically Low") || range.contains("Sub-Therapeutic") {
+            return "Your levels are critically low — a dose review or blood test is recommended."
+        } else if range.contains("Very Low") || range.contains("Below Expected") {
+            return "Your levels are running low. Consider checking in with your provider."
+        } else if range.contains("Slightly Below") {
+            return "You're slightly below your target range. A small adjustment may help."
+        } else if range.contains("On Target") || range.contains("On Track") {
+            return "Great! Your hormone levels are right on target. Keep up your current schedule."
+        } else if range.contains("Slightly Above") {
+            return "You're slightly above your target. Monitor for any side effects."
+        } else if range.contains("Very High") || range.contains("Safety Check") || range.contains("Supraphysiological") {
+            return "Levels are elevated — review with your provider and consider a dose adjustment."
+        } else if range.contains("High") {
             return "Levels are running high. Monitor for symptoms and check in if needed."
+        } else {
+            // Fallback: give the first sentence of the explanation
+            return explanation.components(separatedBy: ". ").first.map { $0.hasSuffix(".") ? $0 : "\($0)." } ?? explanation
         }
     }
 
@@ -307,6 +327,260 @@ struct FlatNextDoseRow: View {
         if days == 0 { return "Today · \(fmt)" }
         if days == 1 { return "Tomorrow · \(fmt)" }
         return "In \(days) days · \(fmt)"
+    }
+}
+
+// MARK: - Quick Dose Sheet (Concentration-Aware)
+
+struct QuickDoseSheet: View {
+    @Environment(\.medicationManager) private var medicationManager
+    @Binding var isPresented: Bool
+
+    @State private var doseUnit: String = "mg"
+    @State private var mgAmount: Double = 2.0
+    @State private var mlAmount: Double = 0.05
+    @State private var concentration: Double = 40.0
+    @State private var doseDate: Date = Date()
+    @State private var showCustomConcentration: Bool = false
+    @State private var customConcentrationText: String = ""
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 16) {
+                // Header
+                Text("Record Dose")
+                    .font(.headline)
+                    .padding(.top, 8)
+
+                // Medication info
+                HStack {
+                    Image(systemName: "pills.fill")
+                        .foregroundStyle(Theme.Colors.accent)
+                    Text(medicationManager.medicationDisplayInfo)
+                        .font(.subheadline)
+                    Spacer()
+                }
+                .padding(.horizontal, 20)
+
+                // mg / mL segmented control
+                Picker("Dose Unit", selection: $doseUnit) {
+                    Text("mg").tag("mg")
+                    Text("mL").tag("mL")
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal, 20)
+
+                // Dose entry
+                if doseUnit == "mg" {
+                    HStack(spacing: 12) {
+                        TextField("mg", value: $mgAmount, format: .number.precision(.fractionLength(1)))
+                            .keyboardType(.decimalPad)
+                            .font(.system(size: 32, weight: .medium, design: .rounded))
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                                    .fill(Color(.secondarySystemBackground))
+                            )
+                        Text("mg")
+                            .font(.title3)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 20)
+
+                    let volume = MedicationManager.computedVolume(doseMg: mgAmount, concentrationMgPerMl: concentration)
+                    Text("= \(String(format: "%.3f", volume)) mL (@ \(String(format: "%.0f", concentration)) mg/mL)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    if let warning = MedicationManager.volumeWarning(for: volume, ester: medicationManager.lastLoggedDose?.ester) {
+                        quickDoseWarning(warning)
+                    }
+                } else {
+                    HStack(spacing: 12) {
+                        TextField("mL", value: $mlAmount, format: .number.precision(.fractionLength(2)))
+                            .keyboardType(.decimalPad)
+                            .font(.system(size: 32, weight: .medium, design: .rounded))
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                                    .fill(Color(.secondarySystemBackground))
+                            )
+                        Text("mL")
+                            .font(.title3)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 20)
+
+                    let computedMg = mlAmount * concentration
+                    Text("= \(String(format: "%.1f", computedMg)) mg (@ \(String(format: "%.0f", concentration)) mg/mL)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    if let warning = MedicationManager.volumeWarning(for: mlAmount, ester: medicationManager.lastLoggedDose?.ester) {
+                        quickDoseWarning(warning)
+                    }
+                }
+
+                // Concentration picker
+                VStack(spacing: 6) {
+                    Text("Vial concentration")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 20)
+
+                    let ester = medicationManager.lastLoggedDose?.ester ?? ""
+                    let concentrations = MedicationManager.commonConcentrations(forEster: ester)
+                        .filter { $0 > 0 }
+
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(concentrations, id: \.self) { conc in
+                                Button {
+                                    withAnimation { concentration = conc; showCustomConcentration = false }
+                                } label: {
+                                    Text("\(String(format: "%.0f", conc))")
+                                        .font(.caption)
+                                        .fontWeight(.medium)
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 6)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 6)
+                                                .fill(concentration == conc && !showCustomConcentration ? Theme.Colors.accent.opacity(0.5) : Color(.tertiarySystemFill))
+                                        )
+                                }
+                            }
+                            Button {
+                                withAnimation { showCustomConcentration = true }
+                            } label: {
+                                Text("Custom")
+                                    .font(.caption)
+                                    .fontWeight(.medium)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 6)
+                                            .fill(showCustomConcentration ? Theme.Colors.accent.opacity(0.5) : Color(.tertiarySystemFill))
+                                    )
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                    }
+                }
+
+                // Date picker
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Dose date & time")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 20)
+
+                    DatePicker("", selection: $doseDate, displayedComponents: [.date, .hourAndMinute])
+                        .datePickerStyle(.compact)
+                        .labelsHidden()
+                        .padding(.horizontal, 20)
+                }
+
+                Spacer()
+
+                // Record button
+                Button {
+                    recordDose()
+                } label: {
+                    Text("Record Dose")
+                        .font(.headline)
+                        .fontWeight(.medium)
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(
+                            RoundedRectangle(cornerRadius: Theme.Radius.md)
+                                .fill(Theme.Colors.accent.opacity(0.8))
+                        )
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 20)
+            }
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { isPresented = false }
+                }
+            }
+            .onAppear {
+                // Pre-fill from saved defaults
+                if let lastDose = medicationManager.lastLoggedDose {
+                    mgAmount = lastDose.doseAmount
+                    if let conc = lastDose.concentrationMgPerMl {
+                        concentration = conc
+                    } else if let defaultConc = medicationManager.defaultConcentrationMgPerMl {
+                        concentration = defaultConc
+                    }
+                    updateMlFromMg()
+                } else if let defaultConc = medicationManager.defaultConcentrationMgPerMl {
+                    concentration = defaultConc
+                    updateMlFromMg()
+                }
+            }
+            .onChange(of: concentration) { _, _ in updateMlFromMg() }
+            .onChange(of: mgAmount) { _, _ in updateMlFromMg() }
+        }
+    }
+
+    private func updateMlFromMg() {
+        guard concentration > 0 else { return }
+        mlAmount = MedicationManager.computedVolume(doseMg: mgAmount, concentrationMgPerMl: concentration)
+    }
+
+    private func recordDose() {
+        let finalMg = doseUnit == "mg" ? mgAmount : mlAmount * concentration
+        let finalConcentration = concentration > 0 ? concentration : nil
+
+        guard let medType = medicationManager.selectedMedication,
+              let medMethod = medicationManager.selectedAdministrationMethod else { return }
+
+        // Determine ester
+        let ester: String
+        if let recentEster = medicationManager.lastLoggedDose?.ester {
+            ester = recentEster
+        } else if medType == "Estrogen" {
+            ester = "Valerate (EV)"
+        } else {
+            ester = "Cypionate (TC)"
+        }
+
+        medicationManager.addDose(
+            date: doseDate,
+            type: medType,
+            ester: ester,
+            method: medMethod,
+            doseAmount: finalMg,
+            concentrationMgPerMl: finalConcentration
+        )
+
+        isPresented = false
+    }
+
+    private func quickDoseWarning(_ message: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.caption2)
+                .foregroundStyle(.yellow)
+            Text(message)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(Color.yellow.opacity(0.1))
+        )
+        .padding(.horizontal, 20)
     }
 }
 

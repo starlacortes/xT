@@ -4,26 +4,42 @@
     "Localizable": [
       {
         "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 70
+        }
+      },
+      {
+        "comment": "",
         "key": "Journal",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 106
+        }
+      },
+      {
+        "comment": "",
+        "key": "1 entry",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 119
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld entries",
+        "location": {
+          "startingColumn": 47,
+          "startingLine": 119
+        }
+      },
+      {
+        "comment": "",
+        "key": "·",
         "location": {
           "startingColumn": 30,
-          "startingLine": 27
-        }
-      },
-      {
-        "comment": "",
-        "key": "Journal",
-        "location": {
-          "startingColumn": 18,
-          "startingLine": 50
-        }
-      },
-      {
-        "comment": "",
-        "key": "%lld days",
-        "location": {
-          "startingColumn": 18,
-          "startingLine": 90
+          "startingLine": 254
         }
       },
       {
@@ -31,7 +47,7 @@
         "key": "No journal entries yet",
         "location": {
           "startingColumn": 18,
-          "startingLine": 295
+          "startingLine": 292
         }
       },
       {
@@ -39,7 +55,7 @@
         "key": "Tap the + button to create your first entry",
         "location": {
           "startingColumn": 18,
-          "startingLine": 299
+          "startingLine": 297
         }
       }
     ]

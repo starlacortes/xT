@@ -4,26 +4,26 @@
     "Localizable": [
       {
         "comment": "",
-        "key": "Good %@",
+        "key": "Hi %@,",
         "location": {
-          "startingColumn": 26,
-          "startingLine": 41
+          "startingColumn": 22,
+          "startingLine": 28
         }
       },
       {
         "comment": "",
-        "key": "Hi %@ ✦",
+        "key": "·",
         "location": {
-          "startingColumn": 26,
+          "startingColumn": 34,
+          "startingLine": 44
+        }
+      },
+      {
+        "comment": "",
+        "key": "Day %lld of %lld",
+        "location": {
+          "startingColumn": 34,
           "startingLine": 46
-        }
-      },
-      {
-        "comment": "",
-        "key": "· Day %lld",
-        "location": {
-          "startingColumn": 38,
-          "startingLine": 61
         }
       }
     ]

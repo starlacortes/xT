@@ -4,10 +4,10 @@
     "Localizable": [
       {
         "comment": "",
-        "key": "Settings",
+        "key": "",
         "location": {
           "startingColumn": 30,
-          "startingLine": 48
+          "startingLine": 57
         }
       },
       {
@@ -15,7 +15,7 @@
         "key": "Notifications disabled",
         "location": {
           "startingColumn": 20,
-          "startingLine": 64
+          "startingLine": 73
         }
       },
       {
@@ -23,7 +23,7 @@
         "key": "Are you sure?",
         "location": {
           "startingColumn": 20,
-          "startingLine": 69
+          "startingLine": 78
         }
       },
       {
@@ -31,7 +31,7 @@
         "key": "OK",
         "location": {
           "startingColumn": 24,
-          "startingLine": 65
+          "startingLine": 74
         }
       },
       {
@@ -39,7 +39,7 @@
         "key": "To receive dose and journal reminders, please enable notifications in System Settings.",
         "location": {
           "startingColumn": 22,
-          "startingLine": 67
+          "startingLine": 76
         }
       },
       {
@@ -47,7 +47,7 @@
         "key": "Cancel",
         "location": {
           "startingColumn": 24,
-          "startingLine": 70
+          "startingLine": 79
         }
       },
       {
@@ -55,7 +55,7 @@
         "key": "Reset",
         "location": {
           "startingColumn": 24,
-          "startingLine": 71
+          "startingLine": 80
         }
       },
       {
@@ -63,7 +63,15 @@
         "key": "xT will close and restart the onboarding process.",
         "location": {
           "startingColumn": 22,
-          "startingLine": 73
+          "startingLine": 82
+        }
+      },
+      {
+        "comment": "",
+        "key": "Edit Profile",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 126
         }
       },
       {
@@ -71,7 +79,39 @@
         "key": "",
         "location": {
           "startingColumn": 24,
-          "startingLine": 247
+          "startingLine": 234
+        }
+      },
+      {
+        "comment": "",
+        "key": "Use personal targets",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 224
+        }
+      },
+      {
+        "comment": "",
+        "key": "These targets replace the clinical defaults. Your classifications will show \"Your Target\" instead of \"Target Trough\" or \"Expected Peak.\"",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 277
+        }
+      },
+      {
+        "comment": "",
+        "key": "0",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 312
+        }
+      },
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 367
         }
       },
       {
@@ -79,7 +119,7 @@
         "key": "Dose reminders",
         "location": {
           "startingColumn": 26,
-          "startingLine": 237
+          "startingLine": 357
         }
       },
       {
@@ -87,7 +127,7 @@
         "key": "",
         "location": {
           "startingColumn": 24,
-          "startingLine": 271
+          "startingLine": 392
         }
       },
       {
@@ -95,7 +135,7 @@
         "key": "Journal reminders",
         "location": {
           "startingColumn": 26,
-          "startingLine": 261
+          "startingLine": 382
         }
       },
       {
@@ -103,7 +143,7 @@
         "key": "1.0.0",
         "location": {
           "startingColumn": 34,
-          "startingLine": 315
+          "startingLine": 437
         }
       }
     ]

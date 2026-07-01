@@ -7,7 +7,7 @@
         "key": "Profile",
         "location": {
           "startingColumn": 30,
-          "startingLine": 72
+          "startingLine": 68
         }
       },
       {
@@ -31,7 +31,7 @@
         "key": "View Full Profile",
         "location": {
           "startingColumn": 34,
-          "startingLine": 58
+          "startingLine": 54
         }
       }
     ]

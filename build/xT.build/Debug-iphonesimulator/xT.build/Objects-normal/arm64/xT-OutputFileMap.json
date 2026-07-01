@@ -56,16 +56,6 @@
     "swift-dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/BloomView.swiftdeps",
     "swiftmodule" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/BloomView~partial.swiftmodule"
   },
-  "/Users/starlacortes/Documents/xT/xT/Elements/Home/Components/DiscoveryRow.swift" : {
-    "const-values" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/DiscoveryRow.swiftconstvalues",
-    "dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/DiscoveryRow.d",
-    "diagnostics" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/DiscoveryRow.dia",
-    "index-unit-output-path" : "/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/DiscoveryRow.o",
-    "llvm-bc" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/DiscoveryRow.bc",
-    "object" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/DiscoveryRow.o",
-    "swift-dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/DiscoveryRow.swiftdeps",
-    "swiftmodule" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/DiscoveryRow~partial.swiftmodule"
-  },
   "/Users/starlacortes/Documents/xT/xT/Elements/Home/Components/DoseStreakCard.swift" : {
     "const-values" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/DoseStreakCard.swiftconstvalues",
     "dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/DoseStreakCard.d",
@@ -75,26 +65,6 @@
     "object" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/DoseStreakCard.o",
     "swift-dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/DoseStreakCard.swiftdeps",
     "swiftmodule" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/DoseStreakCard~partial.swiftmodule"
-  },
-  "/Users/starlacortes/Documents/xT/xT/Elements/Home/Components/HealthInsightCard.swift" : {
-    "const-values" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/HealthInsightCard.swiftconstvalues",
-    "dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/HealthInsightCard.d",
-    "diagnostics" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/HealthInsightCard.dia",
-    "index-unit-output-path" : "/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/HealthInsightCard.o",
-    "llvm-bc" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/HealthInsightCard.bc",
-    "object" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/HealthInsightCard.o",
-    "swift-dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/HealthInsightCard.swiftdeps",
-    "swiftmodule" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/HealthInsightCard~partial.swiftmodule"
-  },
-  "/Users/starlacortes/Documents/xT/xT/Elements/Home/Components/HybridStatusCard.swift" : {
-    "const-values" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/HybridStatusCard.swiftconstvalues",
-    "dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/HybridStatusCard.d",
-    "diagnostics" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/HybridStatusCard.dia",
-    "index-unit-output-path" : "/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/HybridStatusCard.o",
-    "llvm-bc" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/HybridStatusCard.bc",
-    "object" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/HybridStatusCard.o",
-    "swift-dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/HybridStatusCard.swiftdeps",
-    "swiftmodule" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/HybridStatusCard~partial.swiftmodule"
   },
   "/Users/starlacortes/Documents/xT/xT/Elements/Home/Components/LevelTrendCard.swift" : {
     "const-values" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/LevelTrendCard.swiftconstvalues",
@@ -136,26 +106,6 @@
     "swift-dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/MissedDosePrompt.swiftdeps",
     "swiftmodule" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/MissedDosePrompt~partial.swiftmodule"
   },
-  "/Users/starlacortes/Documents/xT/xT/Elements/Home/Components/NextDoseCard.swift" : {
-    "const-values" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/NextDoseCard.swiftconstvalues",
-    "dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/NextDoseCard.d",
-    "diagnostics" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/NextDoseCard.dia",
-    "index-unit-output-path" : "/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/NextDoseCard.o",
-    "llvm-bc" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/NextDoseCard.bc",
-    "object" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/NextDoseCard.o",
-    "swift-dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/NextDoseCard.swiftdeps",
-    "swiftmodule" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/NextDoseCard~partial.swiftmodule"
-  },
-  "/Users/starlacortes/Documents/xT/xT/Elements/Home/Components/QuickActionsCard.swift" : {
-    "const-values" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/QuickActionsCard.swiftconstvalues",
-    "dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/QuickActionsCard.d",
-    "diagnostics" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/QuickActionsCard.dia",
-    "index-unit-output-path" : "/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/QuickActionsCard.o",
-    "llvm-bc" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/QuickActionsCard.bc",
-    "object" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/QuickActionsCard.o",
-    "swift-dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/QuickActionsCard.swiftdeps",
-    "swiftmodule" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/QuickActionsCard~partial.swiftmodule"
-  },
   "/Users/starlacortes/Documents/xT/xT/Elements/Home/Components/TrendCardView.swift" : {
     "const-values" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/TrendCardView.swiftconstvalues",
     "dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/TrendCardView.d",
@@ -165,6 +115,16 @@
     "object" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/TrendCardView.o",
     "swift-dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/TrendCardView.swiftdeps",
     "swiftmodule" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/TrendCardView~partial.swiftmodule"
+  },
+  "/Users/starlacortes/Documents/xT/xT/Elements/Home/FlatGraphView.swift" : {
+    "const-values" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/FlatGraphView.swiftconstvalues",
+    "dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/FlatGraphView.d",
+    "diagnostics" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/FlatGraphView.dia",
+    "index-unit-output-path" : "/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/FlatGraphView.o",
+    "llvm-bc" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/FlatGraphView.bc",
+    "object" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/FlatGraphView.o",
+    "swift-dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/FlatGraphView.swiftdeps",
+    "swiftmodule" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/FlatGraphView~partial.swiftmodule"
   },
   "/Users/starlacortes/Documents/xT/xT/Elements/Home/GraphView.swift" : {
     "const-values" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/GraphView.swiftconstvalues",
@@ -386,6 +346,16 @@
     "swift-dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/SecurityManager.swiftdeps",
     "swiftmodule" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/SecurityManager~partial.swiftmodule"
   },
+  "/Users/starlacortes/Documents/xT/xT/Models/BloodTestRecord.swift" : {
+    "const-values" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/BloodTestRecord.swiftconstvalues",
+    "dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/BloodTestRecord.d",
+    "diagnostics" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/BloodTestRecord.dia",
+    "index-unit-output-path" : "/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/BloodTestRecord.o",
+    "llvm-bc" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/BloodTestRecord.bc",
+    "object" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/BloodTestRecord.o",
+    "swift-dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/BloodTestRecord.swiftdeps",
+    "swiftmodule" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/BloodTestRecord~partial.swiftmodule"
+  },
   "/Users/starlacortes/Documents/xT/xT/Models/BloomContent.swift" : {
     "const-values" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/BloomContent.swiftconstvalues",
     "dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/BloomContent.d",
@@ -495,6 +465,16 @@
     "object" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/JournalTheme.o",
     "swift-dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/JournalTheme.swiftdeps",
     "swiftmodule" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/JournalTheme~partial.swiftmodule"
+  },
+  "/Users/starlacortes/Documents/xT/xT/Theme/Motion.swift" : {
+    "const-values" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/Motion.swiftconstvalues",
+    "dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/Motion.d",
+    "diagnostics" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/Motion.dia",
+    "index-unit-output-path" : "/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/Motion.o",
+    "llvm-bc" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/Motion.bc",
+    "object" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/Motion.o",
+    "swift-dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/Motion.swiftdeps",
+    "swiftmodule" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/Motion~partial.swiftmodule"
   },
   "/Users/starlacortes/Documents/xT/xT/Theme/ScrollBlurModifier.swift" : {
     "const-values" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/ScrollBlurModifier.swiftconstvalues",

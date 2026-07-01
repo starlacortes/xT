@@ -1,0 +1,74 @@
+{
+  "buildCommand" : {
+    "command" : "build",
+    "skipDependencies" : false,
+    "style" : "buildOnly"
+  },
+  "configuredTargets" : [
+    {
+      "guid" : "3bc1a5f571a251fe837f297ba28657c8df0ffffb1715858e6e5f8294616ccce1"
+    }
+  ],
+  "containerPath" : "/Users/starlacortes/Documents/xT/xT.xcodeproj",
+  "continueBuildingAfterErrors" : false,
+  "dependencyScope" : "workspace",
+  "enableIndexBuildArena" : false,
+  "hideShellScriptEnvironment" : false,
+  "parameters" : {
+    "action" : "build",
+    "activeArchitecture" : "arm64",
+    "activeRunDestination" : {
+      "disableOnlyActiveArch" : false,
+      "platform" : "iphonesimulator",
+      "sdk" : "iphonesimulator26.0",
+      "sdkVariant" : "iphonesimulator",
+      "supportedArchitectures" : [
+        "arm64"
+      ],
+      "targetArchitecture" : "arm64"
+    },
+    "arenaInfo" : {
+      "buildIntermediatesPath" : "/Users/starlacortes/Library/Developer/Xcode/DerivedData/xT-duvkctxupdbjrneibkqkgdlkujhq/Build/Intermediates.noindex",
+      "buildProductsPath" : "/Users/starlacortes/Library/Developer/Xcode/DerivedData/xT-duvkctxupdbjrneibkqkgdlkujhq/Build/Products",
+      "derivedDataPath" : "/Users/starlacortes/Library/Developer/Xcode/DerivedData",
+      "indexDataStoreFolderPath" : "/Users/starlacortes/Library/Developer/Xcode/DerivedData/xT-duvkctxupdbjrneibkqkgdlkujhq/Index.noindex/DataStore",
+      "indexEnableDataStore" : true,
+      "indexPCHPath" : "/Users/starlacortes/Library/Developer/Xcode/DerivedData/xT-duvkctxupdbjrneibkqkgdlkujhq/Index.noindex/PrecompiledHeaders",
+      "pchPath" : "/Users/starlacortes/Library/Developer/Xcode/DerivedData/xT-duvkctxupdbjrneibkqkgdlkujhq/Build/Intermediates.noindex/PrecompiledHeaders"
+    },
+    "configurationName" : "Debug",
+    "overrides" : {
+      "commandLine" : {
+        "table" : {
+          "OBJROOT" : "build",
+          "ONLY_ACTIVE_ARCH" : "YES",
+          "SYMROOT" : "build"
+        }
+      },
+      "synthesized" : {
+        "table" : {
+          "ACTION" : "build",
+          "ASSETCATALOG_FILTER_FOR_DEVICE_MODEL" : "iPhone18,3",
+          "ASSETCATALOG_FILTER_FOR_DEVICE_OS_VERSION" : "26.0",
+          "ASSETCATALOG_FILTER_FOR_THINNING_DEVICE_CONFIGURATION" : "iPhone18,3",
+          "BUILD_ACTIVE_RESOURCES_ONLY" : "YES",
+          "CLANG_COVERAGE_MAPPING" : "YES",
+          "CLANG_PROFILE_DATA_DIRECTORY" : "/Users/starlacortes/Library/Developer/Xcode/DerivedData/xT-duvkctxupdbjrneibkqkgdlkujhq/Build/ProfileData",
+          "ENABLE_PREVIEWS" : "NO",
+          "ENABLE_XOJIT_PREVIEWS" : "YES",
+          "ONLY_ACTIVE_ARCH" : "YES",
+          "TARGET_DEVICE_IDENTIFIER" : "9E8642A4-57D1-4502-ADA7-992563E15C7F",
+          "TARGET_DEVICE_MODEL" : "iPhone18,3",
+          "TARGET_DEVICE_OS_VERSION" : "26.0",
+          "TARGET_DEVICE_PLATFORM_NAME" : "iphonesimulator"
+        }
+      }
+    }
+  },
+  "schemeCommand" : "launch",
+  "showNonLoggedProgress" : true,
+  "useDryRun" : false,
+  "useImplicitDependencies" : true,
+  "useLegacyBuildLocations" : false,
+  "useParallelTargets" : true
+}

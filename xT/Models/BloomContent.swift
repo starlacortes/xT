@@ -120,6 +120,17 @@ struct BloomContentEngine {
     let currentLevel: Double?
     let dayOfCycle: Int           // actual day in the current dose cycle
 
+    // --- New signals from MedicationManager (#2, #3, #6, #13, #14, #20) ---
+    let adherenceRate: Double?            // monthly adherence (0–1), nil if unconfigured
+    let cyclePosition: MedicationManager.CyclePosition  // current phase in dose cycle
+    let regimenSegments: [MedicationManager.RegimenSegment]  // transition history
+    let onTimeStreak: Int                 // consecutive on-time doses
+    let relativeDoseIntensity: Double     // avg dose / standard dose
+    let doseIntensityDisclaimer: String?  // disclaimer text for dose scaling
+    let bloodTestSchedulingText: String   // dynamic blood test scheduling text
+    let suggestedBloodTestMonth: Int?     // suggested month for next lab
+    let calibrationContext: String?       // trough/peak info for calibration factor
+
     // MARK: Timeline header
 
     var timelineTitle: String {
@@ -351,13 +362,12 @@ struct BloomContentEngine {
             ))
         }
 
-        let bloodTestMonth = ((months / 3) + 1) * 3
         milestones.append(BloomMilestone(
             title: "Your next blood test",
-            description: "At month \(bloodTestMonth) it's worth checking E2, T, and a full panel with your provider.",
+            description: bloodTestSchedulingText,
             icon: "test-pipe",
             palette: .purple,
-            badge: "Suggested: month \(bloodTestMonth)"
+            badge: suggestedBloodTestMonth.map { "Around month \($0)" }
         ))
 
         return milestones
@@ -387,13 +397,12 @@ struct BloomContentEngine {
             ))
         }
 
-        let bloodTestMonth = ((months / 3) + 1) * 3
         milestones.append(BloomMilestone(
             title: "Your next blood test",
-            description: "At month \(bloodTestMonth) check T, hematocrit, and liver enzymes with your provider.",
+            description: bloodTestSchedulingText,
             icon: "test-pipe",
             palette: .purple,
-            badge: "Suggested: month \(bloodTestMonth)"
+            badge: suggestedBloodTestMonth.map { "Around month \($0)" }
         ))
 
         return milestones

@@ -7,7 +7,7 @@
         "key": "It's okay! Just record your dose or adjust your schedule to get back on track.",
         "location": {
           "startingColumn": 18,
-          "startingLine": 88
+          "startingLine": 86
         }
       },
       {
@@ -23,7 +23,7 @@
         "key": "Your dose was due %lld day%@ ago",
         "location": {
           "startingColumn": 30,
-          "startingLine": 41
+          "startingLine": 42
         }
       },
       {
@@ -31,7 +31,7 @@
         "key": "Record dose now",
         "location": {
           "startingColumn": 26,
-          "startingLine": 56
+          "startingLine": 54
         }
       },
       {
@@ -39,7 +39,7 @@
         "key": "Adjust schedule",
         "location": {
           "startingColumn": 26,
-          "startingLine": 72
+          "startingLine": 70
         }
       },
       {
@@ -47,7 +47,7 @@
         "key": "Record your dose",
         "location": {
           "startingColumn": 22,
-          "startingLine": 121
+          "startingLine": 119
         }
       },
       {
@@ -55,15 +55,15 @@
         "key": "✓ Dose recorded successfully!",
         "location": {
           "startingColumn": 26,
-          "startingLine": 151
+          "startingLine": 152
         }
       },
       {
         "comment": "",
         "key": "When did you take your dose?",
         "location": {
-          "startingColumn": 28,
-          "startingLine": 126
+          "startingColumn": 21,
+          "startingLine": 125
         }
       },
       {
@@ -71,7 +71,7 @@
         "key": "Record dose",
         "location": {
           "startingColumn": 26,
-          "startingLine": 140
+          "startingLine": 139
         }
       },
       {
@@ -79,7 +79,7 @@
         "key": "Done",
         "location": {
           "startingColumn": 28,
-          "startingLine": 162
+          "startingLine": 163
         }
       }
     ]

@@ -25,6 +25,12 @@ struct SettingsView: View {
     @State private var journalReminderMinute = 0
     @State private var showingDoseTimePicker = false
     @State private var showingJournalTimePicker = false
+    
+    // Therapeutic target state
+    @State private var useCustomTargets: Bool = false
+    @State private var targetTroughMin: Double = 100
+    @State private var targetTroughMax: Double = 200
+    @State private var targetPeakCeiling: Double = 600
 
     var body: some View {
         NavigationStack {
@@ -38,6 +44,7 @@ struct SettingsView: View {
 
                     VStack(spacing: 32) {
                         settingsMedicationSection
+                        settingsTherapeuticTargetsSection
                         settingsNotificationsSection
                         settingsPrivacySection
                         settingsAboutSection
@@ -203,6 +210,140 @@ struct SettingsView: View {
             }
             .buttonStyle(.plain)
         }
+    }
+
+    // MARK: - Therapeutic Targets Section
+
+    private var settingsTherapeuticTargetsSection: some View {
+        settingsSection(label: "Therapeutic targets") {
+            // Toggle to enable custom targets
+            HStack(spacing: 14) {
+                settingsIconView(icon: "target", bg: Theme.Colors.Bloom.body.surface, color: Theme.Colors.Bloom.body.base)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Use personal targets")
+                        .font(Theme.Fonts.callout)
+                        .foregroundStyle(.primary)
+                    Text(useCustomTargets ? targetSummary : "Use clinical defaults")
+                        .font(Theme.Fonts.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Toggle("", isOn: $useCustomTargets)
+                    .labelsHidden()
+                    .toggleStyle(SwitchToggleStyle(tint: Theme.Colors.accent))
+                    .onChange(of: useCustomTargets) { _, enabled in
+                        if enabled { saveTherapeuticTargets() } else { clearTherapeuticTargets() }
+                    }
+            }
+            .padding(.horizontal, 22)
+            .padding(.vertical, 16)
+            .contentShape(Rectangle())
+
+            if useCustomTargets {
+                settingsDivider()
+
+                // Trough Min
+                targetValueRow(label: "Trough lower bound",
+                               value: $targetTroughMin,
+                               unit: medicationUnit,
+                               range: 0...9999,
+                               description: "Your target floor at trough time")
+
+                settingsDivider()
+
+                // Trough Max
+                targetValueRow(label: "Trough upper bound",
+                               value: $targetTroughMax,
+                               unit: medicationUnit,
+                               range: (targetTroughMin + 1)...9999,
+                               description: "Your target ceiling at trough time")
+
+                settingsDivider()
+
+                // Peak Ceiling
+                targetValueRow(label: "Peak ceiling",
+                               value: $targetPeakCeiling,
+                               unit: medicationUnit,
+                               range: (targetTroughMax)...9999,
+                               description: "Upper safety limit near peak")
+
+                settingsDivider()
+
+                // Info footer
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("These targets replace the clinical defaults. Your classifications will show \"Your Target\" instead of \"Target Trough\" or \"Expected Peak.\"")
+                        .font(Theme.Fonts.micro)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.horizontal, 22)
+                .padding(.vertical, 12)
+            }
+        }
+    }
+
+    private var targetSummary: String {
+        "Trough \(Int(targetTroughMin))–\(Int(targetTroughMax)) \(medicationUnit) · Peak ceiling \(Int(targetPeakCeiling)) \(medicationUnit)"
+    }
+
+    private var medicationUnit: String {
+        medicationManager.selectedMedication == "Estrogen" ? "pg/mL" : "ng/dL"
+    }
+
+    @ViewBuilder
+    private func targetValueRow(label: String, value: Binding<Double>, unit: String,
+                                 range: ClosedRange<Double>, description: String) -> some View {
+        HStack(spacing: 14) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label)
+                    .font(Theme.Fonts.callout)
+                    .foregroundStyle(.primary)
+                Text(description)
+                    .font(Theme.Fonts.micro)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            HStack(spacing: 4) {
+                TextField("0", value: value, format: .number.precision(.fractionLength(0)))
+                    .keyboardType(.decimalPad)
+                    .font(.system(size: 16, weight: .medium, design: .rounded))
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 60)
+                    .onChange(of: value.wrappedValue) { _, newVal in
+                        // Clamp to range
+                        if newVal < range.lowerBound { value.wrappedValue = range.lowerBound }
+                        if newVal > range.upperBound { value.wrappedValue = range.upperBound }
+                        saveTherapeuticTargets()
+                    }
+
+                Text(unit)
+                    .font(Theme.Fonts.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, 22)
+        .padding(.vertical, 12)
+    }
+
+    private func saveTherapeuticTargets() {
+        guard useCustomTargets else { return }
+        let target = MedicationManager.TherapeuticTarget(
+            troughMin: targetTroughMin,
+            troughMax: targetTroughMax,
+            peakCeiling: targetPeakCeiling
+        )
+        medicationManager.userTherapeuticTarget = target
+        medicationManager.refreshState()
+    }
+
+    private func clearTherapeuticTargets() {
+        medicationManager.userTherapeuticTarget = nil
+        medicationManager.refreshState()
     }
 
     // MARK: - Notifications Section

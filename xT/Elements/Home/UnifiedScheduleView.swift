@@ -232,14 +232,32 @@ struct UnifiedScheduleView: View {
     }
 
     private func recordCurrentDose() {
-        medicationManager.recordDose(on: Date())
+        guard let medType = medicationManager.selectedMedication,
+              let medMethod = medicationManager.selectedAdministrationMethod else { return }
+        let ester = medicationManager.lastLoggedDose?.ester ?? defaultEsterForCurrentType
+        let amount = medicationManager.lastLoggedDose?.doseAmount ?? defaultDoseForCurrentType
+        let concentration = medicationManager.lastLoggedDose?.concentrationMgPerMl ?? medicationManager.defaultConcentrationMgPerMl
+        medicationManager.addDose(date: Date(), type: medType, ester: ester, method: medMethod, doseAmount: amount, concentrationMgPerMl: concentration)
         showConfirmation = true
         selectedDoseDate = Date()
     }
 
     private func recordDose() {
-        medicationManager.recordDose(on: selectedDoseDate)
+        guard let medType = medicationManager.selectedMedication,
+              let medMethod = medicationManager.selectedAdministrationMethod else { return }
+        let ester = medicationManager.lastLoggedDose?.ester ?? defaultEsterForCurrentType
+        let amount = medicationManager.lastLoggedDose?.doseAmount ?? defaultDoseForCurrentType
+        let concentration = medicationManager.lastLoggedDose?.concentrationMgPerMl ?? medicationManager.defaultConcentrationMgPerMl
+        medicationManager.addDose(date: selectedDoseDate, type: medType, ester: ester, method: medMethod, doseAmount: amount, concentrationMgPerMl: concentration)
         showConfirmation = true
+    }
+
+    private var defaultEsterForCurrentType: String {
+        medicationManager.selectedMedication == "Estrogen" ? "Valerate (EV)" : "Cypionate (TC)"
+    }
+
+    private var defaultDoseForCurrentType: Double {
+        medicationManager.selectedMedication == "Estrogen" ? 2.0 : 40.0
     }
 }
 

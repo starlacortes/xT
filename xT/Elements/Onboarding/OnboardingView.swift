@@ -3,7 +3,7 @@
 //  xT
 //
 //  Redesigned by Cline on 6/30/2026.
-//  8-step progressive onboarding with one decision per screen.
+//  9-step progressive onboarding with concentration-aware dose logging.
 //
 
 import SwiftUI
@@ -34,26 +34,34 @@ struct OnboardingView: View {
     @State private var hrtDurationMonths: Int = 1
     @State private var hrtDurationYears: Int = 0
     
-    // Step 4 — method + ester
+    // Step 4 — method + ester + frequency
     @State private var selectedMethod: String = ""
     @State private var selectedEster: String = ""
     @State private var selectedFrequency: Int = 7
+
+    // Step 5 — vial concentration (NEW)
+    @State private var selectedConcentration: Double = 40.0
+    @State private var customConcentrationText: String = ""
+    @State private var showCustomConcentration: Bool = false
     
-    // Step 5 — dose + timing
+    // Step 6 — dose + timing (enhanced with mg/mL toggle)
+    @State private var doseUnit: String = "mg"
     @State private var doseDecimal: Double = 2.0
     @State private var doseText: String = "2.0"
+    @State private var mlAmount: Double = 0.05
+    @State private var mlText: String = "0.05"
     @State private var lastDoseDate: Date = Date()
     @FocusState private var doseFieldFocused: Bool
     
-    // Step 6 — anti-androgens
+    // Step 7 — anti-androgens
     @State private var antiAndrogenChoice: String = "None"
     
-    // Step 7 — profile
+    // Step 8 — profile
     @State private var profileName: String = ""
     @State private var showImagePicker: Bool = false
     @State private var showCamera: Bool = false
 
-    private let totalSteps = 8
+    private let totalSteps = 9
     
     // MARK: - Body
     var body: some View {
@@ -74,10 +82,11 @@ struct OnboardingView: View {
                         case 1: pathStep
                         case 2: experienceStep
                         case 3: medicationStep
-                        case 4: doseStep
-                        case 5: antiAndrogenStep
-                        case 6: profileStep
-                        case 7: reviewStep
+                        case 4: concentrationStep
+                        case 5: doseStep
+                        case 6: antiAndrogenStep
+                        case 7: profileStep
+                        case 8: reviewStep
                         default: EmptyView()
                         }
                     }
@@ -88,6 +97,16 @@ struct OnboardingView: View {
         }
         .onAppear {
             withAnimation(.easeIn(duration: 0.4)) { opacity = 1.0 }
+        }
+        .onChange(of: selectedEster) { _, newEster in
+            // Auto-select default concentration when ester changes
+            autoSelectConcentration(for: newEster)
+        }
+        .onChange(of: selectedConcentration) { _, _ in
+            updateMlFromMg()
+        }
+        .onChange(of: doseDecimal) { _, _ in
+            updateMlFromMg()
         }
     }
 
@@ -261,6 +280,10 @@ struct OnboardingView: View {
                 HStack(spacing: 16) {
                     secondaryButton("Back") { previousStep() }
                     primaryButton("Continue", disabled: selectedMethod.isEmpty || (selectedMethod == "Injectable" && selectedEster.isEmpty)) {
+                        // Auto-select default concentration before advancing
+                        if selectedConcentration <= 0 {
+                            autoSelectConcentration(for: selectedEster)
+                        }
                         advanceStep()
                     }
                 }
@@ -270,96 +293,150 @@ struct OnboardingView: View {
         }
     }
 
-    private func methodCard(_ method: MedicationManager.AdministrationMethod) -> some View {
-        Button {
+    // MARK: - Step 5: Concentration Selection (NEW)
+    private var concentrationStep: some View {
+        VStack(spacing: 24) {
+            Spacer()
+            Text("What's your vial concentration?")
+                .font(.title2)
+                .fontWeight(.regular)
+                .foregroundStyle(.white.opacity(0.9))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+
+            Text("Look for a number followed by 'mg/mL' on your vial or box.\nFor example, a 200 mg/5 mL vial is 40 mg/mL.")
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.55))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+
+            concentrationPickerList
+                .padding(.horizontal, 40)
+
+            Spacer()
+            HStack(spacing: 16) {
+                secondaryButton("Back") { previousStep() }
+                primaryButton("Continue", disabled: selectedConcentration <= 0) { advanceStep() }
+            }
+            .padding(.horizontal, 40)
+            .padding(.bottom, 40)
+        }
+    }
+
+    private var concentrationPickerList: some View {
+        VStack(spacing: 12) {
+            let concentrations = MedicationManager.commonConcentrations(forEster: selectedEster)
+            ForEach(concentrations.filter { $0 > 0 }, id: \.self) { conc in
+                concentrationRow(conc)
+            }
+            customConcentrationRow
+            if showCustomConcentration {
+                customConcentrationField
+            }
+        }
+    }
+
+    private func concentrationRow(_ conc: Double) -> some View {
+        let isSelected = selectedConcentration == conc && !showCustomConcentration
+        return Button {
             withAnimation(.easeInOut(duration: 0.2)) {
-                selectedMethod = method.rawValue
-                selectedFrequency = method.frequencyDays
-                if method != .injectable { selectedEster = "" }
-                if method == .injectable && selectedType == "Estrogen" && selectedEster.isEmpty {
-                    selectedEster = "Valerate (EV)"
-                } else if method == .injectable && selectedType == "Testosterone" && selectedEster.isEmpty {
-                    selectedEster = "Cypionate (TC)"
-                }
+                selectedConcentration = conc
+                showCustomConcentration = false
             }
         } label: {
             HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(method.rawValue)
-                        .font(.body)
-                        .foregroundStyle(.white.opacity(0.9))
-                    Text(frequencyHint(for: method))
+                Text("\(String(format: "%.0f", conc)) mg/mL")
+                    .font(.body)
+                    .foregroundStyle(.white.opacity(0.9))
+                if isMostCommonConcentration(conc) {
+                    Text("· most common")
                         .font(.caption)
-                        .foregroundStyle(.white.opacity(0.5))
+                        .foregroundStyle(.white.opacity(0.4))
                 }
                 Spacer()
-                if selectedMethod == method.rawValue {
+                if isSelected {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(.white.opacity(0.9))
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 14)
+            .padding(.vertical, 12)
             .background(
                 RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                    .fill(selectedMethod == method.rawValue ? Theme.Colors.accent.opacity(0.3) : Color.white.opacity(0.15))
+                    .fill(isSelected ? Theme.Colors.accent.opacity(0.3) : Color.white.opacity(0.15))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                    .stroke(selectedMethod == method.rawValue ? Color.white.opacity(0.5) : Color.white.opacity(0.3), lineWidth: 1)
+                    .stroke(isSelected ? Color.white.opacity(0.5) : Color.white.opacity(0.3), lineWidth: 1)
             )
         }
     }
 
-    private var esterList: some View {
-        let items: [(name: String, tHalf: Double)] = {
-            if selectedType == "Estrogen" {
-                return MedicationManager.MedicationEster.allCases
-                    .filter { $0 != .oral && $0 != .transdermal }
-                    .map { ($0.rawValue, $0.halfLifeDays) }
-            } else {
-                return MedicationManager.TestosteroneEster.allCases.map { ($0.rawValue, $0.halfLifeDays) }
+    private var customConcentrationRow: some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                showCustomConcentration = true
+                customConcentrationText = ""
             }
-        }()
-
-        return VStack(spacing: 10) {
-            ForEach(items, id: \.name) { item in
-                Button {
-                    withAnimation(.easeInOut(duration: 0.2)) { selectedEster = item.name }
-                } label: {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(item.name)
-                                .font(.body)
-                                .foregroundStyle(.white.opacity(0.9))
-                            Text("Half‑life ~\(String(format: "%.1f", item.tHalf)) days · Peaks day \(peakDay(halfLife: item.tHalf))")
-                                .font(.caption)
-                                .foregroundStyle(.white.opacity(0.5))
-                        }
-                        Spacer()
-                        if selectedEster == item.name {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.white.opacity(0.9))
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .background(
-                        RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                            .fill(selectedEster == item.name ? Theme.Colors.accentSecondary.opacity(0.3) : Color.white.opacity(0.15))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                            .stroke(selectedEster == item.name ? Color.white.opacity(0.5) : Color.white.opacity(0.3), lineWidth: 1)
-                    )
+        } label: {
+            HStack {
+                Text("Custom")
+                    .font(.body)
+                    .foregroundStyle(.white.opacity(0.9))
+                Spacer()
+                if showCustomConcentration {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.white.opacity(0.9))
                 }
             }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(
+                RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                    .fill(showCustomConcentration ? Theme.Colors.accentSecondary.opacity(0.3) : Color.white.opacity(0.15))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                    .stroke(showCustomConcentration ? Color.white.opacity(0.5) : Color.white.opacity(0.3), lineWidth: 1)
+            )
         }
     }
 
-    // MARK: - Step 5: Dose & Timing
+    private var customConcentrationField: some View {
+        HStack {
+            TextField("mg/mL", text: $customConcentrationText)
+                .keyboardType(.decimalPad)
+                .font(.system(size: 22, weight: .medium, design: .rounded))
+                .foregroundStyle(.white.opacity(0.9))
+                .multilineTextAlignment(.center)
+                .padding(.vertical, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                        .fill(Color.white.opacity(0.15))
+                )
+                .onChange(of: customConcentrationText) { _, new in
+                    if let val = Double(new), val > 0 {
+                        selectedConcentration = val
+                    }
+                }
+            Text("mg/mL")
+                .font(.body)
+                .foregroundStyle(.white.opacity(0.6))
+        }
+    }
+
+    private func isMostCommonConcentration(_ conc: Double) -> Bool {
+        switch selectedEster {
+        case "Valerate (EV)": return conc == 40
+        case "Cypionate (EC)": return conc == 5
+        case "Cypionate (TC)", "Enanthate (TE)": return conc == 200
+        default: return false
+        }
+    }
+
+    // MARK: - Step 6: Dose & Timing (Enhanced with mg/mL toggle)
     private var doseStep: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 20) {
             Spacer()
             Text("What's your dose?")
                 .font(.title2)
@@ -367,45 +444,138 @@ struct OnboardingView: View {
                 .foregroundStyle(.white.opacity(0.9))
                 .padding(.horizontal, 40)
 
-            VStack(spacing: 12) {
-                HStack(spacing: 12) {
-                    Stepper("", value: $doseDecimal, in: 0.5...500, step: 0.5)
-                        .labelsHidden()
-                        .tint(Theme.Colors.accent)
+            // mg / mL segmented control
+            Picker("Dose Unit", selection: $doseUnit) {
+                Text("mg").tag("mg")
+                Text("mL").tag("mL")
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal, 40)
 
-                    TextField("", text: $doseText)
-                        .keyboardType(.decimalPad)
-                        .font(.system(size: 28, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.9))
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(
-                            RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                                .fill(Color.white.opacity(0.15))
-                        )
-                        .focused($doseFieldFocused)
-                        .onChange(of: doseText) { _, new in
-                            if let val = Double(new) { doseDecimal = val }
-                        }
-                        .onChange(of: doseDecimal) { _, new in
-                            doseText = String(format: "%.1f", new)
-                        }
-                        .toolbar {
-                            ToolbarItemGroup(placement: .keyboard) {
-                                Spacer()
-                                Button("Done") { doseFieldFocused = false }
+            // Dose entry
+            VStack(spacing: 10) {
+                if doseUnit == "mg" {
+                    // mg mode
+                    HStack(spacing: 12) {
+                        Stepper("", value: $doseDecimal, in: 0.1...500, step: 0.1)
+                            .labelsHidden()
+                            .tint(Theme.Colors.accent)
+
+                        TextField("", text: $doseText)
+                            .keyboardType(.decimalPad)
+                            .font(.system(size: 28, weight: .medium, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.9))
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                                    .fill(Color.white.opacity(0.15))
+                            )
+                            .focused($doseFieldFocused)
+                            .onChange(of: doseText) { _, new in
+                                if let val = Double(new) { doseDecimal = val }
                             }
-                        }
+                            .onChange(of: doseDecimal) { _, new in
+                                if doseUnit == "mg" { doseText = String(format: "%.1f", new) }
+                            }
+                            .toolbar {
+                                ToolbarItemGroup(placement: .keyboard) {
+                                    Spacer()
+                                    Button("Done") { doseFieldFocused = false }
+                                }
+                            }
 
-                    Text("mg")
-                        .font(.title3)
-                        .foregroundStyle(.white.opacity(0.6))
+                        Text("mg")
+                            .font(.title3)
+                            .foregroundStyle(.white.opacity(0.6))
+                    }
+                    .padding(.horizontal, 40)
+
+                    // Computed volume display
+                    let volume = MedicationManager.computedVolume(doseMg: doseDecimal, concentrationMgPerMl: selectedConcentration)
+                    Text("= \(String(format: "%.3f", volume)) mL (@ \(String(format: "%.0f", selectedConcentration)) mg/mL)")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.5))
+                        .padding(.horizontal, 40)
+
+                    // Volume warning
+                    if let warning = MedicationManager.volumeWarning(for: volume, ester: selectedEster) {
+                        volumeWarningBanner(warning)
+                            .padding(.horizontal, 40)
+                    }
+
+                } else {
+                    // mL mode
+                    HStack(spacing: 12) {
+                        Stepper("", value: $mlAmount, in: 0.01...10, step: 0.01)
+                            .labelsHidden()
+                            .tint(Theme.Colors.accentSecondary)
+
+                        TextField("", text: $mlText)
+                            .keyboardType(.decimalPad)
+                            .font(.system(size: 28, weight: .medium, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.9))
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                                    .fill(Color.white.opacity(0.15))
+                            )
+                            .focused($doseFieldFocused)
+                            .onChange(of: mlText) { _, new in
+                                if let val = Double(new) { mlAmount = val }
+                            }
+                            .onChange(of: mlAmount) { _, new in
+                                if doseUnit == "mL" {
+                                    mlText = String(format: "%.2f", new)
+                                    doseDecimal = new * selectedConcentration
+                                    doseText = String(format: "%.1f", doseDecimal)
+                                }
+                            }
+                            .toolbar {
+                                ToolbarItemGroup(placement: .keyboard) {
+                                    Spacer()
+                                    Button("Done") { doseFieldFocused = false }
+                                }
+                            }
+
+                        Text("mL")
+                            .font(.title3)
+                            .foregroundStyle(.white.opacity(0.6))
+                    }
+                    .padding(.horizontal, 40)
+
+                    // Computed mg display
+                    let computedMg = mlAmount * selectedConcentration
+                    Text("= \(String(format: "%.1f", computedMg)) mg (@ \(String(format: "%.0f", selectedConcentration)) mg/mL)")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.5))
+                        .padding(.horizontal, 40)
+
+                    // Volume warning
+                    if let warning = MedicationManager.volumeWarning(for: mlAmount, ester: selectedEster) {
+                        volumeWarningBanner(warning)
+                            .padding(.horizontal, 40)
+                    }
                 }
-                .padding(.horizontal, 40)
 
                 // Quick dose chips
                 quickDoseChips
+                    .padding(.horizontal, 40)
+                    .padding(.top, 8)
+            }
+
+            // Concentration adjustment (inline)
+            VStack(spacing: 6) {
+                Text("Vial concentration")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.5))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 40)
+
+                concentrationQuickPicker
                     .padding(.horizontal, 40)
             }
 
@@ -433,43 +603,142 @@ struct OnboardingView: View {
             .padding(.horizontal, 40)
             .padding(.bottom, 40)
         }
+        .onAppear {
+            updateMlFromMg()
+        }
     }
 
-    private var quickDoseChips: some View {
-        let doses: [Double] = selectedType == "Estrogen"
-            ? [0.5, 1, 2, 4, 6]
-            : [20, 40, 60, 80, 100]
+    private var concentrationQuickPicker: some View {
+        let concentrations = MedicationManager.commonConcentrations(forEster: selectedEster)
+            .filter { $0 > 0 }
 
         return ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                ForEach(doses, id: \.self) { dose in
+                ForEach(concentrations, id: \.self) { conc in
                     Button {
                         withAnimation(.easeInOut(duration: 0.15)) {
-                            doseDecimal = dose
-                            doseText = String(format: "%.0f", dose)
+                            selectedConcentration = conc
+                            showCustomConcentration = false
+                            updateMlFromMg()
                         }
                     } label: {
-                        Text(String(format: "%.0f", dose))
-                            .font(.caption)
+                        Text("\(String(format: "%.0f", conc))")
+                            .font(.caption2)
                             .fontWeight(.medium)
                             .foregroundStyle(.white.opacity(0.9))
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 8)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
                             .background(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(doseDecimal == dose ? Theme.Colors.accent.opacity(0.5) : Color.white.opacity(0.15))
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(selectedConcentration == conc && !showCustomConcentration ? Theme.Colors.accentSecondary.opacity(0.5) : Color.white.opacity(0.15))
                             )
                             .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(doseDecimal == dose ? Color.white.opacity(0.5) : Color.white.opacity(0.2), lineWidth: 1)
+                                RoundedRectangle(cornerRadius: 6)
+                                    .stroke(selectedConcentration == conc && !showCustomConcentration ? Color.white.opacity(0.5) : Color.white.opacity(0.2), lineWidth: 1)
                             )
                     }
+                }
+                // Custom chip
+                Button {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        showCustomConcentration = true
+                    }
+                } label: {
+                    Text("Custom")
+                        .font(.caption2)
+                        .fontWeight(.medium)
+                        .foregroundStyle(.white.opacity(0.9))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(showCustomConcentration ? Theme.Colors.accent.opacity(0.5) : Color.white.opacity(0.15))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6)
+                                .stroke(showCustomConcentration ? Color.white.opacity(0.5) : Color.white.opacity(0.2), lineWidth: 1)
+                        )
                 }
             }
         }
     }
 
-    // MARK: - Step 6: Anti-Androgens
+    private func volumeWarningBanner(_ message: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.caption)
+                .foregroundStyle(.yellow)
+            Text(message)
+                .font(.caption2)
+                .foregroundStyle(.white.opacity(0.8))
+                .lineLimit(3)
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                .fill(Color.yellow.opacity(0.15))
+                .overlay(
+                    RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                        .stroke(Color.yellow.opacity(0.3), lineWidth: 1)
+                )
+        )
+    }
+
+    private var quickDoseChips: some View {
+        let doses: [Double] = {
+            if doseUnit == "mg" {
+                return selectedType == "Estrogen" ? [0.5, 1, 2, 4, 6] : [20, 40, 60, 80, 100]
+            } else {
+                return selectedType == "Estrogen" ? [0.05, 0.1, 0.15, 0.2, 0.3] : [0.1, 0.2, 0.3, 0.4, 0.5]
+            }
+        }()
+
+        return ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(doses, id: \.self) { dose in
+                    quickDoseChip(dose)
+                }
+            }
+        }
+    }
+
+    private func quickDoseChip(_ dose: Double) -> some View {
+        let isSelected = doseUnit == "mg" ? (doseDecimal == dose) : (mlAmount == dose)
+        let label = doseUnit == "mg" ? String(format: "%.0f", dose) : String(format: "%.2f", dose)
+
+        return Button {
+            withAnimation(.easeInOut(duration: 0.15)) {
+                if doseUnit == "mg" {
+                    doseDecimal = dose
+                    doseText = String(format: "%.1f", dose)
+                } else {
+                    mlAmount = dose
+                    mlText = String(format: "%.2f", dose)
+                    doseDecimal = dose * selectedConcentration
+                    doseText = String(format: "%.1f", doseDecimal)
+                }
+            }
+        } label: {
+            Text(label)
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundStyle(.white.opacity(0.9))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(isSelected ? Theme.Colors.accent.opacity(0.5) : Color.white.opacity(0.15))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(isSelected ? Color.white.opacity(0.5) : Color.white.opacity(0.2), lineWidth: 1)
+                )
+        }
+    }
+
+    // MARK: - Step 7: Anti-Androgens
     private var antiAndrogenStep: some View {
         VStack(spacing: 28) {
             Spacer()
@@ -498,7 +767,7 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: - Step 7: Profile
+    // MARK: - Step 8: Profile
     private var profileStep: some View {
         VStack(spacing: 28) {
             Spacer()
@@ -560,7 +829,7 @@ struct OnboardingView: View {
         .onChange(of: profileManager.selectedPhotoItem) { _, _ in profileManager.handlePhotoSelection() }
     }
 
-    // MARK: - Step 8: Review & Start
+    // MARK: - Step 9: Review & Start
     private var reviewStep: some View {
         ScrollView {
             VStack(spacing: 24) {
@@ -576,7 +845,8 @@ struct OnboardingView: View {
                     if !selectedEster.isEmpty {
                         reviewRow(label: "Ester", value: selectedEster)
                     }
-                    reviewRow(label: "Dose", value: "\(String(format: "%.1f", doseDecimal)) mg")
+                    let vol = MedicationManager.computedVolume(doseMg: doseDecimal, concentrationMgPerMl: selectedConcentration)
+                    reviewRow(label: "Dose", value: "\(String(format: "%.1f", doseDecimal)) mg (\(String(format: "%.3f", vol)) mL @ \(String(format: "%.0f", selectedConcentration)) mg/mL)")
                     reviewRow(label: "Frequency", value: "Every \(selectedFrequency) days")
                     reviewRow(label: "Last dose", value: lastDoseDate.formatted(date: .abbreviated, time: .shortened))
                     reviewRow(label: "Experience", value: hrtSummary)
@@ -770,13 +1040,124 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: - Navigation
+    // MARK: - Methods
+    private func methodCard(_ method: MedicationManager.AdministrationMethod) -> some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                selectedMethod = method.rawValue
+                selectedFrequency = method.frequencyDays
+                if method != .injectable { selectedEster = "" }
+                if method == .injectable && selectedType == "Estrogen" && selectedEster.isEmpty {
+                    selectedEster = "Valerate (EV)"
+                    autoSelectConcentration(for: "Valerate (EV)")
+                } else if method == .injectable && selectedType == "Testosterone" && selectedEster.isEmpty {
+                    selectedEster = "Cypionate (TC)"
+                    autoSelectConcentration(for: "Cypionate (TC)")
+                }
+            }
+        } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(method.rawValue)
+                        .font(.body)
+                        .foregroundStyle(.white.opacity(0.9))
+                    Text(frequencyHint(for: method))
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.5))
+                }
+                Spacer()
+                if selectedMethod == method.rawValue {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.white.opacity(0.9))
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(
+                RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                    .fill(selectedMethod == method.rawValue ? Theme.Colors.accent.opacity(0.3) : Color.white.opacity(0.15))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                    .stroke(selectedMethod == method.rawValue ? Color.white.opacity(0.5) : Color.white.opacity(0.3), lineWidth: 1)
+            )
+        }
+    }
+
+    private var esterList: some View {
+        let items: [(name: String, tHalf: Double)] = {
+            if selectedType == "Estrogen" {
+                return MedicationManager.MedicationEster.allCases
+                    .filter { $0 != .oral && $0 != .transdermal }
+                    .map { ($0.rawValue, $0.halfLifeDays) }
+            } else {
+                return MedicationManager.TestosteroneEster.allCases.map { ($0.rawValue, $0.halfLifeDays) }
+            }
+        }()
+
+        return VStack(spacing: 10) {
+            ForEach(items, id: \.name) { item in
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        selectedEster = item.name
+                        autoSelectConcentration(for: item.name)
+                    }
+                } label: {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(item.name)
+                                .font(.body)
+                                .foregroundStyle(.white.opacity(0.9))
+                            Text("Half‑life ~\(String(format: "%.1f", item.tHalf)) days · Peaks day \(peakDay(halfLife: item.tHalf))")
+                                .font(.caption)
+                                .foregroundStyle(.white.opacity(0.5))
+                        }
+                        Spacer()
+                        if selectedEster == item.name {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.white.opacity(0.9))
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                            .fill(selectedEster == item.name ? Theme.Colors.accentSecondary.opacity(0.3) : Color.white.opacity(0.15))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                            .stroke(selectedEster == item.name ? Color.white.opacity(0.5) : Color.white.opacity(0.3), lineWidth: 1)
+                    )
+                }
+            }
+        }
+    }
+
+    // MARK: - Navigation Helpers
     private func selectType(_ type: String, defaultDose: Double) {
         selectedType = type
         doseDecimal = defaultDose
         doseText = String(format: "%.1f", defaultDose)
         selectedEster = ""
         selectedMethod = ""
+        showCustomConcentration = false
+    }
+
+    private func autoSelectConcentration(for ester: String) {
+        let defaults = MedicationManager.commonConcentrations(forEster: ester)
+        if let defaultConc = defaults.first(where: { $0 > 0 }) {
+            selectedConcentration = defaultConc
+        }
+        showCustomConcentration = false
+        customConcentrationText = ""
+        updateMlFromMg()
+    }
+
+    private func updateMlFromMg() {
+        guard selectedConcentration > 0 else { return }
+        let vol = MedicationManager.computedVolume(doseMg: doseDecimal, concentrationMgPerMl: selectedConcentration)
+        mlAmount = vol
+        mlText = String(format: "%.2f", vol)
     }
 
     private func frequencyHint(for method: MedicationManager.AdministrationMethod) -> String {
@@ -788,7 +1169,6 @@ struct OnboardingView: View {
     }
 
     private func peakDay(halfLife: Double) -> String {
-        // Under flip-flop kinetics, t_max ≈ 1.44 × t_half for depot esters
         let tMax = halfLife * 1.44
         return String(format: "%.0f", tMax)
     }
@@ -841,14 +1221,38 @@ struct OnboardingView: View {
         // Configure medication
         medicationManager.updateSelection(type: medType, method: medMethod)
 
-        // Log first dose with actual last dose date
+        // Determine final dose in mg (already computed correctly from whichever mode)
+        let finalMg = doseDecimal
+        
+        // Determine concentration to store (nil for non-injectable or if not set)
+        let finalConcentration: Double? = (medMethod == .injectable && selectedConcentration > 0) ? selectedConcentration : nil
+
+        // Log first dose with concentration
         medicationManager.addDose(
             date: lastDoseDate,
             type: medType.rawValue,
             ester: esterLabel,
             method: medMethod.rawValue,
-            doseAmount: doseDecimal
+            doseAmount: finalMg,
+            concentrationMgPerMl: finalConcentration
         )
+
+        // Save default concentration to UserPreferences for pre-fill on future doses
+        if let context = medicationManager.modelContext {
+            let prefs = UserPreferences(
+                medicationRow: 0,
+                medicationColumn: 0,
+                lastDoseDate: lastDoseDate,
+                nextDoseDate: medicationManager.nextDoseDate
+            )
+            if selectedType == "Estrogen" {
+                prefs.defaultEstrogenConcentration = finalConcentration
+            } else {
+                prefs.defaultTestosteroneConcentration = finalConcentration
+            }
+            context.insert(prefs)
+            try? context.save()
+        }
 
         withAnimation(.easeInOut(duration: 0.4)) { opacity = 0 }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {

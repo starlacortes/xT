@@ -1,5 +1,192 @@
 {
   "source": "/Users/starlacortes/Documents/xT/xT/Elements/Home/Components/MainContentView.swift",
-  "tables": {},
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Dose recorded",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 106
+        }
+      },
+      {
+        "comment": "",
+        "key": "OK",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 107
+        }
+      },
+      {
+        "comment": "",
+        "key": "Your dose has been logged for today.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 109
+        }
+      },
+      {
+        "comment": "",
+        "key": "INSIGHT",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 196
+        }
+      },
+      {
+        "comment": "",
+        "key": "new entry…",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 257
+        }
+      },
+      {
+        "comment": "",
+        "key": "NEXT DOSE",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 299
+        }
+      },
+      {
+        "comment": "",
+        "key": "Record Dose",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 351
+        }
+      },
+      {
+        "comment": "",
+        "key": "= %@ mL (@ %@ mg/mL)",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 393
+        }
+      },
+      {
+        "comment": "",
+        "key": "= %@ mg (@ %@ mg/mL)",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 419
+        }
+      },
+      {
+        "comment": "",
+        "key": "Dose Unit",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 366
+        }
+      },
+      {
+        "comment": "",
+        "key": "mg",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 367
+        }
+      },
+      {
+        "comment": "",
+        "key": "mL",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 368
+        }
+      },
+      {
+        "comment": "",
+        "key": "mg",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 386
+        }
+      },
+      {
+        "comment": "",
+        "key": "mg",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 376
+        }
+      },
+      {
+        "comment": "",
+        "key": "mL",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 412
+        }
+      },
+      {
+        "comment": "",
+        "key": "mL",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 402
+        }
+      },
+      {
+        "comment": "",
+        "key": "Vial concentration",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 430
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 446
+        }
+      },
+      {
+        "comment": "",
+        "key": "Custom",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 460
+        }
+      },
+      {
+        "comment": "",
+        "key": "Dose date & time",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 477
+        }
+      },
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 482
+        }
+      },
+      {
+        "comment": "",
+        "key": "Record Dose",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 494
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 510
+        }
+      }
+    ]
+  },
   "version": 1
 }

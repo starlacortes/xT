@@ -12,6 +12,8 @@ import SwiftUI
 struct BloomView: View {
     @Environment(\.medicationManager) private var medicationManager
 
+    @State private var adherencePercent: CGFloat = 0
+
     private var engine: BloomContentEngine {
         let cycleDay: Int = {
             guard let last = medicationManager.lastDoseDate,
@@ -25,7 +27,16 @@ struct BloomView: View {
             method: medicationManager.selectedAdministrationMethod ?? "Injectable",
             months: medicationManager.monthsOnHRT,
             currentLevel: medicationManager.estimatedRecentLevels(days: 1).last?.value,
-            dayOfCycle: cycleDay
+            dayOfCycle: cycleDay,
+            adherenceRate: medicationManager.adherenceRate,
+            cyclePosition: medicationManager.currentCyclePosition,
+            regimenSegments: medicationManager.regimenTransitionHistory,
+            onTimeStreak: medicationManager.onTimeStreak,
+            relativeDoseIntensity: medicationManager.relativeDoseIntensity,
+            doseIntensityDisclaimer: medicationManager.doseIntensityDisclaimer,
+            bloodTestSchedulingText: medicationManager.bloodTestSchedulingText,
+            suggestedBloodTestMonth: medicationManager.suggestedBloodTestMonth,
+            calibrationContext: nil  // populated when blood tests exist
         )
     }
 
@@ -33,22 +44,40 @@ struct BloomView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 0) {
-                    BloomHeroHeader(engine: engine)
+                    // Hero header (now includes adherence ring + cycle compass inline)
+                    BloomHeroHeader(engine: engine, adherencePercent: $adherencePercent)
                         .padding(.horizontal, 22)
                         .padding(.top, 20)
                         .padding(.bottom, 10)
                         .entrance(delay: 0)
+                        .onAppear {
+                            withAnimation(.easeOut(duration: 1.0).delay(0.3)) {
+                                adherencePercent = engine.adherenceRate ?? 0
+                            }
+                        }
 
                     if let insight = engine.hormoneInsight {
                         bloomDivider()
-                        BloomHormoneRow(insight: insight, medication: engine.medication)
+                        BloomHormoneRow(insight: insight, medication: engine.medication, cyclePosition: engine.cyclePosition)
                             .padding(.horizontal, 22)
                             .padding(.vertical, 18)
                             .entrance(delay: 0.08)
                     }
 
+                    // Regimen Timeline Card (#3)
+                    if !engine.regimenSegments.isEmpty && engine.regimenSegments.count > 1 {
+                        bloomDivider()
+                        BloomRegimenTimelineRow(segments: engine.regimenSegments)
+                            .padding(.horizontal, 22)
+                            .padding(.vertical, 18)
+                            .entrance(delay: 0.10)
+                    }
+
                     bloomDivider()
-                    BloomChangesRow(changes: engine.unlockedChanges)
+                    BloomChangesRow(
+                        changes: engine.unlockedChanges,
+                        intensityDisclaimer: engine.doseIntensityDisclaimer
+                    )
                         .padding(.vertical, 18)
                         .entrance(delay: 0.12)
 
@@ -72,10 +101,11 @@ struct BloomView: View {
     }
 }
 
-// MARK: - Hero Header
+// MARK: - Hero Header (now with adherence ring #2 + cycle compass #6)
 
 struct BloomHeroHeader: View {
     let engine: BloomContentEngine
+    @Binding var adherencePercent: CGFloat
 
     private var cleanTitle: String {
         engine.timelineTitle
@@ -83,41 +113,122 @@ struct BloomHeroHeader: View {
             .replacingOccurrences(of: "✦", with: "")
     }
 
+    /// Color for the cycle compass ring based on level range (#6).
+    private var cycleCompassColor: Color {
+        guard let level = engine.currentLevel else { return Color.secondary.opacity(0.3) }
+        if engine.medication == "Estrogen" {
+            if level >= 100 && level <= 400 { return .green }
+            if level >= 50 && level < 100 { return .yellow }
+            if level > 400 && level <= 500 { return .yellow }
+            return .red.opacity(0.6)
+        } else {
+            if level >= 300 && level <= 1000 { return .green }
+            if level >= 100 && level < 300 { return .yellow }
+            return .red.opacity(0.6)
+        }
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(engine.timelineSubtitle)
-                .font(Theme.Fonts.subheadline)
-                .foregroundStyle(Color.secondary)
+        HStack(alignment: .top, spacing: 16) {
+            // Left: Title block
+            VStack(alignment: .leading, spacing: 4) {
+                Text(engine.timelineSubtitle)
+                    .font(Theme.Fonts.subheadline)
+                    .foregroundStyle(Color.secondary)
 
-            Text(cleanTitle)
-                .font(.system(size: 40, weight: .bold))
-                .tracking(-1.0)
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: Theme.Gradients.brandColors,
-                        startPoint: .leading,
-                        endPoint: .trailing
+                Text(cleanTitle)
+                    .font(.system(size: 34, weight: .bold))
+                    .tracking(-1.0)
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: Theme.Gradients.brandColors,
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
                     )
-                )
 
-            HStack(spacing: 6) {
-                Text(engine.medication)
-                Text("·")
-                    .foregroundStyle(Color.secondary.opacity(0.5))
-                Text(engine.method)
+                HStack(spacing: 6) {
+                    Text(engine.medication)
+                    Text("·")
+                        .foregroundStyle(Color.secondary.opacity(0.5))
+                    Text(engine.method)
+                }
+                .font(Theme.Fonts.footnote)
+                .foregroundStyle(Color.secondary)
             }
-            .font(Theme.Fonts.footnote)
-            .foregroundStyle(Color.secondary)
+
+            Spacer()
+
+            // Right: Adherence ring + cycle compass stack
+            VStack(spacing: 10) {
+                // Adherence Ring (#2)
+                if let rate = engine.adherenceRate {
+                    ZStack {
+                        Circle()
+                            .stroke(Color.primary.opacity(0.1), lineWidth: 5)
+                            .frame(width: 56, height: 56)
+                        Circle()
+                            .trim(from: 0, to: adherencePercent)
+                            .stroke(
+                                rate >= 0.8 ? Color.green : rate >= 0.5 ? Color.yellow : Color.red.opacity(0.7),
+                                style: StrokeStyle(lineWidth: 5, lineCap: .round)
+                            )
+                            .frame(width: 56, height: 56)
+                            .rotationEffect(.degrees(-90))
+                            .animation(.easeOut(duration: 1.0), value: adherencePercent)
+                        Text("\(Int(rate * 100))%")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(Color.primary)
+                    }
+                    Text("Adherence")
+                        .font(.system(size: 9))
+                        .foregroundStyle(Color.secondary)
+                }
+
+                // Cycle Compass (#6) — dot color reflects optimal range
+                VStack(spacing: 2) {
+                    ZStack {
+                        Circle()
+                            .fill(cycleCompassColor.opacity(0.15))
+                            .frame(width: 32, height: 32)
+                        Circle()
+                            .fill(cycleCompassColor)
+                            .frame(width: 12, height: 12)
+                    }
+                    Text(cyclePositionLabel)
+                        .font(.system(size: 9))
+                        .foregroundStyle(Color.secondary)
+                }
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
+
+    private var cyclePositionLabel: String {
+        switch engine.cyclePosition {
+        case .nearPeak: return "Near Peak"
+        case .midCycle: return "Mid-Cycle"
+        case .trough:   return "Trough"
+        case .unknown:  return ""
+        }
+    }
 }
 
-// MARK: - Hormone Row
+// MARK: - Hormone Row (now with cycle position context #11)
 
 struct BloomHormoneRow: View {
     let insight: BloomHormoneInsight
     let medication: String
+    let cyclePosition: MedicationManager.CyclePosition
+
+    private var positionBadge: String? {
+        switch cyclePosition {
+        case .nearPeak: return "Peak"
+        case .midCycle: return "Mid"
+        case .trough:   return "Trough"
+        case .unknown:  return nil
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -127,14 +238,25 @@ struct BloomHormoneRow: View {
                     .foregroundStyle(Theme.Colors.accent)
                     .tracking(0.8)
                 Spacer()
-                Text(insight.rangeLabel)
-                    .font(Theme.Fonts.caption2)
-                    .fontWeight(.medium)
-                    .foregroundStyle(insight.rangePalette.accent)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(insight.rangePalette.surface)
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                HStack(spacing: 6) {
+                    Text(insight.rangeLabel)
+                        .font(Theme.Fonts.caption2)
+                        .fontWeight(.medium)
+                        .foregroundStyle(insight.rangePalette.accent)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(insight.rangePalette.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                    if let pos = positionBadge {
+                        Text(pos)
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundStyle(Color.secondary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color(.tertiarySystemFill))
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                    }
+                }
             }
 
             HStack(alignment: .firstTextBaseline, spacing: 5) {
@@ -156,10 +278,11 @@ struct BloomHormoneRow: View {
     }
 }
 
-// MARK: - Changes Row
+// MARK: - Changes Row (now with dose intensity disclaimer #13)
 
 struct BloomChangesRow: View {
     let changes: [BloomChange]
+    let intensityDisclaimer: String?
 
     private var unlockedCount: Int { changes.filter(\.unlocked).count }
 
@@ -202,6 +325,21 @@ struct BloomChangesRow: View {
                 }
                 .padding(.horizontal, 22)
                 .padding(.vertical, 1)
+            }
+
+            // Dose intensity disclaimer (#13)
+            if let disclaimer = intensityDisclaimer {
+                HStack(spacing: 6) {
+                    Image(systemName: "info.circle")
+                        .font(.system(size: 10))
+                        .foregroundStyle(Color.secondary.opacity(0.6))
+                    Text(disclaimer)
+                        .font(.system(size: 10))
+                        .foregroundStyle(Color.secondary.opacity(0.7))
+                        .lineLimit(2)
+                }
+                .padding(.horizontal, 22)
+                .padding(.top, 4)
             }
         }
     }
@@ -392,6 +530,58 @@ struct BloomMilestoneRow: View {
         case "test-pipe": return "flask"
         default:          return "star"
         }
+    }
+}
+
+// MARK: - Regimen Timeline Card (#3)
+
+struct BloomRegimenTimelineRow: View {
+    let segments: [MedicationManager.RegimenSegment]
+
+    private var summaryText: String {
+        let df = DateFormatter()
+        df.dateFormat = "MMM d"
+        return segments.map { segment in
+            let start = df.string(from: segment.startDate)
+            let end = segment.endDate.map { df.string(from: $0) } ?? "Present"
+            let concInfo = segment.concentrationMgPerMl.map { " @ \(String(format: "%.0f", $0)) mg/mL" } ?? ""
+            var line = "\(start) – \(end): \(segment.ester) \(String(format: "%.1f", segment.doseAmount)) mg\(concInfo)"
+            // Flag concentration changes
+            if let prev = segment.previousConcentrationMgPerMl, let curr = segment.concentrationMgPerMl {
+                line += "\n  Concentration changed: \(String(format: "%.0f", prev)) → \(String(format: "%.0f", curr)) mg/mL"
+            }
+            return line
+        }.joined(separator: "\n")
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("REGIMEN TIMELINE")
+                    .font(Theme.Fonts.caption2)
+                    .foregroundStyle(Color.secondary)
+                    .tracking(0.5)
+                Spacer()
+                Image(systemName: "arrow.triangle.branch")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.secondary)
+            }
+
+            Text(summaryText)
+                .font(Theme.Fonts.caption)
+                .foregroundStyle(Color.primary.opacity(0.8))
+                .lineSpacing(3)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(Theme.Spacing.card)
+        .background(
+            RoundedRectangle(cornerRadius: Theme.Radius.md)
+                .fill(Color(.secondarySystemBackground).opacity(0.5))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.Radius.md)
+                .stroke(Color(UIColor.separator).opacity(0.3), lineWidth: 0.5)
+        )
     }
 }
 

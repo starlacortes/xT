@@ -1,1 +1,0 @@
-/Users/starlacortes/Library/Developer/Xcode/DerivedData/xT-duvkctxupdbjrneibkqkgdlkujhq/Build/Products/Debug-iphonesimulator/xT.app

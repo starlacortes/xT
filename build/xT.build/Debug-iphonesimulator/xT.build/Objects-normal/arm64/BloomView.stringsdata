@@ -4,58 +4,74 @@
     "Localizable": [
       {
         "comment": "",
-        "key": "Bloom",
-        "location": {
-          "startingColumn": 30,
-          "startingLine": 55
-        }
-      },
-      {
-        "comment": "",
-        "key": "Bloom",
-        "location": {
-          "startingColumn": 30,
-          "startingLine": 60
-        }
-      },
-      {
-        "comment": "",
-        "key": "Your body, your journey ✦",
-        "location": {
-          "startingColumn": 30,
-          "startingLine": 63
-        }
-      },
-      {
-        "comment": "",
-        "key": "Changes unlocked so far",
-        "location": {
-          "startingColumn": 18,
-          "startingLine": 128
-        }
-      },
-      {
-        "comment": "",
         "key": "·",
         "location": {
           "startingColumn": 26,
-          "startingLine": 115
+          "startingLine": 152
         }
       },
       {
         "comment": "",
-        "key": "Your %@ right now",
-        "location": {
-          "startingColumn": 22,
-          "startingLine": 195
-        }
-      },
-      {
-        "comment": "",
-        "key": "%lld",
+        "key": "Adherence",
         "location": {
           "startingColumn": 26,
-          "startingLine": 200
+          "startingLine": 183
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld%%",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 179
+        }
+      },
+      {
+        "comment": "",
+        "key": "HORMONE LEVELS",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 236
+        }
+      },
+      {
+        "comment": "",
+        "key": "CHANGES UNLOCKED",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 292
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld of %lld",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 297
+        }
+      },
+      {
+        "comment": "",
+        "key": "YOUR BODY",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 356
+        }
+      },
+      {
+        "comment": "",
+        "key": "COMING UP",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 458
+        }
+      },
+      {
+        "comment": "",
+        "key": "REGIMEN TIMELINE",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 560
         }
       }
     ]

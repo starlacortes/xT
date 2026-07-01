@@ -7,7 +7,7 @@
         "key": "xT",
         "location": {
           "startingColumn": 18,
-          "startingLine": 106
+          "startingLine": 133
         }
       },
       {
@@ -15,175 +15,327 @@
         "key": "Welcome to your journey",
         "location": {
           "startingColumn": 18,
-          "startingLine": 111
+          "startingLine": 136
         }
       },
       {
         "comment": "",
-        "key": "Begin",
+        "key": "What hormone are you taking?",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 152
+        }
+      },
+      {
+        "comment": "",
+        "key": "How long have you been on HRT?",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 188
+        }
+      },
+      {
+        "comment": "",
+        "key": "How do you take it?",
         "location": {
           "startingColumn": 22,
-          "startingLine": 121
+          "startingLine": 229
         }
       },
       {
         "comment": "",
-        "key": "This is your space",
-        "location": {
-          "startingColumn": 22,
-          "startingLine": 181
-        }
-      },
-      {
-        "comment": "",
-        "key": "Tap to add photo",
-        "location": {
-          "startingColumn": 22,
-          "startingLine": 202
-        }
-      },
-      {
-        "comment": "",
-        "key": "Your name",
-        "location": {
-          "startingColumn": 31,
-          "startingLine": 208
-        }
-      },
-      {
-        "comment": "",
-        "key": "Back",
+        "key": "Which ester?",
         "location": {
           "startingColumn": 30,
-          "startingLine": 239
+          "startingLine": 248
         }
       },
       {
         "comment": "",
-        "key": "Continue",
+        "key": "Dosing frequency",
         "location": {
           "startingColumn": 30,
-          "startingLine": 252
+          "startingLine": 264
         }
       },
       {
         "comment": "",
-        "key": "Let's set up your tracking",
+        "key": "Every %lld days",
+        "location": {
+          "startingColumn": 37,
+          "startingLine": 271
+        }
+      },
+      {
+        "comment": "",
+        "key": "What's your vial concentration?",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 300
+        }
+      },
+      {
+        "comment": "",
+        "key": "Look for a number followed by 'mg/mL' on your vial or box.\nFor example, a 200 mg/5 mL vial is 40 mg/mL.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 307
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@ mg/mL",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 348
+        }
+      },
+      {
+        "comment": "",
+        "key": "· most common",
         "location": {
           "startingColumn": 26,
-          "startingLine": 314
+          "startingLine": 352
         }
       },
       {
         "comment": "",
-        "key": "Medication type",
+        "key": "Custom",
         "location": {
-          "startingColumn": 30,
-          "startingLine": 324
+          "startingColumn": 22,
+          "startingLine": 383
         }
       },
       {
         "comment": "",
-        "key": "Administration method",
+        "key": "mg/mL",
         "location": {
-          "startingColumn": 34,
-          "startingLine": 342
+          "startingColumn": 18,
+          "startingLine": 422
         }
       },
       {
         "comment": "",
-        "key": "Ester",
+        "key": "mg/mL",
         "location": {
-          "startingColumn": 34,
-          "startingLine": 369
+          "startingColumn": 23,
+          "startingLine": 407
         }
       },
       {
         "comment": "",
-        "key": "Dose amount",
+        "key": "What's your dose?",
         "location": {
-          "startingColumn": 34,
-          "startingLine": 384
+          "startingColumn": 18,
+          "startingLine": 441
+        }
+      },
+      {
+        "comment": "",
+        "key": "Dose Unit",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 448
         }
       },
       {
         "comment": "",
         "key": "mg",
         "location": {
-          "startingColumn": 38,
-          "startingLine": 445
+          "startingColumn": 22,
+          "startingLine": 449
+        }
+      },
+      {
+        "comment": "",
+        "key": "mL",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 450
+        }
+      },
+      {
+        "comment": "",
+        "key": "= %@ mL (@ %@ mg/mL)",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 497
+        }
+      },
+      {
+        "comment": "",
+        "key": "= %@ mg (@ %@ mg/mL)",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 552
+        }
+      },
+      {
+        "comment": "",
+        "key": "mg",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 489
         }
       },
       {
         "comment": "",
         "key": "",
         "location": {
-          "startingColumn": 41,
-          "startingLine": 391
+          "startingColumn": 33,
+          "startingLine": 460
         }
       },
       {
         "comment": "",
         "key": "",
         "location": {
-          "startingColumn": 43,
-          "startingLine": 406
+          "startingColumn": 35,
+          "startingLine": 464
         }
       },
       {
         "comment": "",
         "key": "Done",
         "location": {
-          "startingColumn": 52,
-          "startingLine": 438
+          "startingColumn": 44,
+          "startingLine": 485
         }
       },
       {
         "comment": "",
-        "key": "Back",
+        "key": "mL",
         "location": {
-          "startingColumn": 38,
-          "startingLine": 465
+          "startingColumn": 30,
+          "startingLine": 544
         }
       },
       {
         "comment": "",
-        "key": "You're all set",
+        "key": "",
         "location": {
-          "startingColumn": 38,
-          "startingLine": 517
+          "startingColumn": 33,
+          "startingLine": 511
         }
       },
       {
         "comment": "",
-        "key": "Back",
+        "key": "",
         "location": {
-          "startingColumn": 34,
-          "startingLine": 535
+          "startingColumn": 35,
+          "startingLine": 515
         }
       },
       {
         "comment": "",
-        "key": "Back",
+        "key": "Done",
+        "location": {
+          "startingColumn": 44,
+          "startingLine": 540
+        }
+      },
+      {
+        "comment": "",
+        "key": "Vial concentration",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 572
+        }
+      },
+      {
+        "comment": "",
+        "key": "When was your last dose?",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 584
+        }
+      },
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 590
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 625
+        }
+      },
+      {
+        "comment": "",
+        "key": "Custom",
         "location": {
           "startingColumn": 26,
-          "startingLine": 762
+          "startingLine": 647
         }
       },
       {
         "comment": "",
-        "key": "Continue",
+        "key": "Are you taking any other medications?",
         "location": {
-          "startingColumn": 41,
-          "startingLine": 771
+          "startingColumn": 18,
+          "startingLine": 745
         }
       },
       {
         "comment": "",
-        "key": "Next",
+        "key": "Personalize your space",
         "location": {
-          "startingColumn": 54,
-          "startingLine": 771
+          "startingColumn": 18,
+          "startingLine": 774
+        }
+      },
+      {
+        "comment": "",
+        "key": "Tap to add photo",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 790
+        }
+      },
+      {
+        "comment": "",
+        "key": "Your name",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 795
+        }
+      },
+      {
+        "comment": "",
+        "key": "Here's your setup",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 836
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld %@%@",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 1018
+        }
+      },
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 21,
+          "startingLine": 1015
+        }
+      },
+      {
+        "comment": "",
+        "key": "Half‑life ~%@ days · Peaks day %@",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 1111
         }
       }
     ]
