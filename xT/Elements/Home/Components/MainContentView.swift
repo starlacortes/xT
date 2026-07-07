@@ -159,6 +159,10 @@ struct FlatQuickActionsRow: View {
 
 // MARK: - Flat Insight Row
 
+/// Status-tinted "dash of color" — a soft background wash and accent bar
+/// whose color reflects how the current level reads (on target / low /
+/// high / critical), so the color itself carries information rather than
+/// being purely decorative.
 struct FlatInsightRow: View {
     @Environment(\.medicationManager) private var medicationManager
 
@@ -191,19 +195,50 @@ struct FlatInsightRow: View {
         }
     }
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("INSIGHT")
-                .font(Theme.Fonts.caption2)
-                .foregroundStyle(Theme.Colors.accent)
-                .tracking(0.8)
-
-            Text(insightText)
-                .font(Theme.Fonts.footnote)
-                .foregroundStyle(Color.secondary)
-                .lineSpacing(3)
-                .fixedSize(horizontal: false, vertical: true)
+    /// Color the wash and accent bar take on, based on the same
+    /// classification used for `insightText` — critical reads as error red,
+    /// low/high extremes as warning amber, on-target as success green, and
+    /// everything else falls back to the brand accent.
+    private var statusColor: Color {
+        guard let level = medicationManager.currentHormoneLevel else {
+            return Theme.Colors.accent
         }
+        let range = level.range
+        if range.contains("Critically") || range.contains("Safety Check") || range.contains("Sub-Therapeutic") {
+            return Theme.Colors.error
+        } else if range.contains("Very Low") || range.contains("Very High") || range.contains("Supraphysiological") {
+            return Theme.Colors.warning
+        } else if range.contains("On Target") || range.contains("On Track") {
+            return Theme.Colors.success
+        } else {
+            return Theme.Colors.accent
+        }
+    }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(statusColor.opacity(0.6))
+                .frame(width: 3)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("INSIGHT")
+                    .font(Theme.Fonts.caption2)
+                    .foregroundStyle(statusColor)
+                    .tracking(0.8)
+
+                Text(insightText)
+                    .font(Theme.Fonts.footnote)
+                    .foregroundStyle(Color.secondary)
+                    .lineSpacing(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(.vertical, 10)
+        .padding(.horizontal, 12)
+        .background(statusColor.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
+        .animation(.easeInOut(duration: 0.3), value: statusColor)
     }
 }
 

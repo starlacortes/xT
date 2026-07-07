@@ -13,6 +13,13 @@
     "object" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/HeroView.o",
     "swift-dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/HeroView.swiftdeps"
   },
+  "/Users/starlacortes/Documents/xT/xT/Elements/Home/HomeColorBackdrop.swift" : {
+    "const-values" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/HomeColorBackdrop.swiftconstvalues",
+    "dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/HomeColorBackdrop.d",
+    "diagnostics" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/HomeColorBackdrop.dia",
+    "object" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/HomeColorBackdrop.o",
+    "swift-dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/HomeColorBackdrop.swiftdeps"
+  },
   "/Users/starlacortes/Documents/xT/xT/Elements/Home/HomeView.swift" : {
     "const-values" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/HomeView.swiftconstvalues",
     "dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/HomeView.d",

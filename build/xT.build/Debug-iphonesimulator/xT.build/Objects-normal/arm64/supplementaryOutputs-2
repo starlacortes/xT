@@ -1,10 +1,24 @@
 {
+  "/Users/starlacortes/Documents/xT/xT/Elements/Home/AdherenceView.swift" : {
+    "const-values" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/AdherenceView.swiftconstvalues",
+    "dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/AdherenceView.d",
+    "diagnostics" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/AdherenceView.dia",
+    "object" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/AdherenceView.o",
+    "swift-dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/AdherenceView.swiftdeps"
+  },
   "/Users/starlacortes/Documents/xT/xT/Elements/Home/AnimatedMeshGradient.swift" : {
     "const-values" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/AnimatedMeshGradient.swiftconstvalues",
     "dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/AnimatedMeshGradient.d",
     "diagnostics" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/AnimatedMeshGradient.dia",
     "object" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/AnimatedMeshGradient.o",
     "swift-dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/AnimatedMeshGradient.swiftdeps"
+  },
+  "/Users/starlacortes/Documents/xT/xT/Elements/Home/BloomBodyDetailView.swift" : {
+    "const-values" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/BloomBodyDetailView.swiftconstvalues",
+    "dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/BloomBodyDetailView.d",
+    "diagnostics" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/BloomBodyDetailView.dia",
+    "object" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/BloomBodyDetailView.o",
+    "swift-dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/BloomBodyDetailView.swiftdeps"
   },
   "/Users/starlacortes/Documents/xT/xT/Elements/Home/BloomEffect.swift" : {
     "const-values" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/BloomEffect.swiftconstvalues",
@@ -19,13 +33,6 @@
     "diagnostics" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/BloomView.dia",
     "object" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/BloomView.o",
     "swift-dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/BloomView.swiftdeps"
-  },
-  "/Users/starlacortes/Documents/xT/xT/Elements/Home/Components/TrendCardView.swift" : {
-    "const-values" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/TrendCardView.swiftconstvalues",
-    "dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/TrendCardView.d",
-    "diagnostics" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/TrendCardView.dia",
-    "object" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/TrendCardView.o",
-    "swift-dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/TrendCardView.swiftdeps"
   },
   "/Users/starlacortes/Documents/xT/xT/Elements/Home/FlatGraphView.swift" : {
     "const-values" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/FlatGraphView.swiftconstvalues",

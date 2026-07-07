@@ -7,7 +7,7 @@
         "key": "·",
         "location": {
           "startingColumn": 26,
-          "startingLine": 152
+          "startingLine": 183
         }
       },
       {
@@ -15,7 +15,7 @@
         "key": "Adherence",
         "location": {
           "startingColumn": 26,
-          "startingLine": 183
+          "startingLine": 214
         }
       },
       {
@@ -23,7 +23,7 @@
         "key": "%lld%%",
         "location": {
           "startingColumn": 30,
-          "startingLine": 179
+          "startingLine": 210
         }
       },
       {
@@ -31,23 +31,7 @@
         "key": "HORMONE LEVELS",
         "location": {
           "startingColumn": 22,
-          "startingLine": 236
-        }
-      },
-      {
-        "comment": "",
-        "key": "CHANGES UNLOCKED",
-        "location": {
-          "startingColumn": 22,
-          "startingLine": 292
-        }
-      },
-      {
-        "comment": "",
-        "key": "%lld of %lld",
-        "location": {
-          "startingColumn": 22,
-          "startingLine": 297
+          "startingLine": 267
         }
       },
       {
@@ -55,15 +39,7 @@
         "key": "YOUR BODY",
         "location": {
           "startingColumn": 22,
-          "startingLine": 356
-        }
-      },
-      {
-        "comment": "",
-        "key": "COMING UP",
-        "location": {
-          "startingColumn": 22,
-          "startingLine": 458
+          "startingLine": 474
         }
       },
       {
@@ -71,7 +47,7 @@
         "key": "REGIMEN TIMELINE",
         "location": {
           "startingColumn": 22,
-          "startingLine": 560
+          "startingLine": 700
         }
       }
     ]

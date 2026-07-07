@@ -2,8 +2,11 @@
 //  FlatGraphView.swift
 //  xT
 //
-//  Edge-to-edge hormone level graph. Accent-rose gradient fill under the
-//  curve, no card container — sits flush on the home background.
+//  Edge-to-edge hormone level graph. The curve's color drifts along a
+//  rose→lavender ramp keyed to the current level (deeper rose = lower,
+//  lighter lavender = higher), giving a subtle at-a-glance read on where
+//  today sits relative to the rest of the week — no card container, sits
+//  flush on the home background.
 //
 
 import SwiftUI
@@ -24,6 +27,19 @@ struct FlatGraphView: View {
         medicationManager.currentHormoneLevel?.unit ?? "pg/mL"
     }
 
+    /// Rose→lavender tint driven by the current level relative to a typical
+    /// clinical ceiling for the selected medication. Deeper rose reads as
+    /// "lower", lighter lavender as "higher" — a soft, non-alarming gradient
+    /// rather than a strict red/green status color.
+    private var levelTint: Color {
+        guard let level = currentLevel, let medication = medicationManager.selectedMedication else {
+            return Theme.Colors.accent
+        }
+        let ceiling: Double = medication == "Testosterone" ? 1200 : 600
+        let t = min(max(level / ceiling, 0), 1)
+        return Color.lerp(Theme.Colors.levelLow, Theme.Colors.levelHigh, t)
+    }
+
     var body: some View {
         ZStack(alignment: .trailing) {
             graphBody
@@ -32,11 +48,12 @@ struct FlatGraphView: View {
             Button(action: { showingGraphDetail = true }) {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Theme.Colors.accent.opacity(0.35))
+                    .foregroundStyle(levelTint.opacity(0.4))
             }
             .frame(width: 44, height: 200)
             .contentShape(Rectangle())
         }
+        .animation(.easeInOut(duration: 0.6), value: currentLevel)
     }
 
     // MARK: - Graph body
@@ -65,8 +82,8 @@ struct FlatGraphView: View {
                         .fill(
                             LinearGradient(
                                 stops: [
-                                    .init(color: Theme.Colors.accent.opacity(0.42), location: 0),
-                                    .init(color: Theme.Colors.accent.opacity(0.0), location: 1),
+                                    .init(color: levelTint.opacity(0.42), location: 0),
+                                    .init(color: levelTint.opacity(0.0), location: 1),
                                 ],
                                 startPoint: .top,
                                 endPoint: .bottom
@@ -75,7 +92,7 @@ struct FlatGraphView: View {
 
                     curvePath(values: values, min: minV, range: range, w: w, h: h)
                         .stroke(
-                            Theme.Colors.accent,
+                            levelTint,
                             style: StrokeStyle(lineWidth: 1.8, lineCap: .round, lineJoin: .round)
                         )
 
@@ -84,12 +101,12 @@ struct FlatGraphView: View {
                         let py = yPos(value: values[peakIdx], min: minV, range: range, h: h)
 
                         Circle()
-                            .fill(Theme.Colors.accent.opacity(0.22))
+                            .fill(levelTint.opacity(0.22))
                             .frame(width: 14, height: 14)
                             .position(x: px, y: py)
 
                         Circle()
-                            .fill(Theme.Colors.accent)
+                            .fill(levelTint)
                             .frame(width: 6, height: 6)
                             .position(x: px, y: py)
                     }

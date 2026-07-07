@@ -4,12 +4,15 @@
 /Users/starlacortes/Documents/xT/xT/Elements/Home/Components/MiniTrendGraph.swift
 /Users/starlacortes/Documents/xT/xT/Elements/Home/Components/MissedDosePrompt.swift
 /Users/starlacortes/Documents/xT/xT/Elements/Home/Components/TrendCardView.swift
+/Users/starlacortes/Documents/xT/xT/Elements/Home/AdherenceView.swift
 /Users/starlacortes/Documents/xT/xT/Elements/Home/AnimatedMeshGradient.swift
+/Users/starlacortes/Documents/xT/xT/Elements/Home/BloomBodyDetailView.swift
 /Users/starlacortes/Documents/xT/xT/Elements/Home/BloomEffect.swift
 /Users/starlacortes/Documents/xT/xT/Elements/Home/BloomView.swift
 /Users/starlacortes/Documents/xT/xT/Elements/Home/FlatGraphView.swift
 /Users/starlacortes/Documents/xT/xT/Elements/Home/GraphView.swift
 /Users/starlacortes/Documents/xT/xT/Elements/Home/HeroView.swift
+/Users/starlacortes/Documents/xT/xT/Elements/Home/HomeColorBackdrop.swift
 /Users/starlacortes/Documents/xT/xT/Elements/Home/HomeView.swift
 /Users/starlacortes/Documents/xT/xT/Elements/Home/MainTabView.swift
 /Users/starlacortes/Documents/xT/xT/Elements/Home/UnifiedScheduleView.swift
@@ -23,6 +26,7 @@
 /Users/starlacortes/Documents/xT/xT/Elements/Profile/ProfileEditorView.swift
 /Users/starlacortes/Documents/xT/xT/Elements/Profile/ProfileView.swift
 /Users/starlacortes/Documents/xT/xT/Elements/Settings/AppLockSettingsView.swift
+/Users/starlacortes/Documents/xT/xT/Elements/Settings/DataExportView.swift
 /Users/starlacortes/Documents/xT/xT/Elements/Settings/SettingsView.swift
 /Users/starlacortes/Documents/xT/xT/Managers/AuthenticationManager.swift
 /Users/starlacortes/Documents/xT/xT/Managers/JournalManager.swift
@@ -39,6 +43,8 @@
 /Users/starlacortes/Documents/xT/xT/Shared/Components/PhotoPicker.swift
 /Users/starlacortes/Documents/xT/xT/Shared/Components/StatusBarView.swift
 /Users/starlacortes/Documents/xT/xT/Shared/Components/TimePickerSheet.swift
+/Users/starlacortes/Documents/xT/xT/Shared/DataExporter.swift
+/Users/starlacortes/Documents/xT/xT/Shared/SpoofProfile.swift
 /Users/starlacortes/Documents/xT/xT/Tests/JournalLayoutTest.swift
 /Users/starlacortes/Documents/xT/xT/Theme/ColorExtensions.swift
 /Users/starlacortes/Documents/xT/xT/Theme/JournalTheme.swift

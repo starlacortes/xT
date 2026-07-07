@@ -4,12 +4,15 @@
 /Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/MiniTrendGraph.o
 /Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/MissedDosePrompt.o
 /Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/TrendCardView.o
+/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/AdherenceView.o
 /Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/AnimatedMeshGradient.o
+/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/BloomBodyDetailView.o
 /Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/BloomEffect.o
 /Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/BloomView.o
 /Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/FlatGraphView.o
 /Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/GraphView.o
 /Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/HeroView.o
+/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/HomeColorBackdrop.o
 /Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/HomeView.o
 /Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/MainTabView.o
 /Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/UnifiedScheduleView.o
@@ -23,6 +26,7 @@
 /Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/ProfileEditorView.o
 /Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/ProfileView.o
 /Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/AppLockSettingsView.o
+/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/DataExportView.o
 /Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/SettingsView.o
 /Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/AuthenticationManager.o
 /Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/JournalManager.o
@@ -39,6 +43,8 @@
 /Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/PhotoPicker.o
 /Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/StatusBarView.o
 /Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/TimePickerSheet.o
+/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/DataExporter.o
+/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/SpoofProfile.o
 /Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/JournalLayoutTest.o
 /Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/ColorExtensions.o
 /Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/JournalTheme.o

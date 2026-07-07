@@ -42,4 +42,27 @@ extension Color {
     init(lightHex: String, darkHex: String) {
         self.init(light: Color(hex: lightHex), dark: Color(hex: darkHex))
     }
+
+    /// Linearly interpolates between two colors in RGBA space using CGColor
+    /// components. `t = 0` returns `from`, `t = 1` returns `to`.
+    /// Values outside 0...1 are clamped.
+    ///
+    /// Used to drive the hormone-level color ramp (deeper rose → lighter lavender)
+    /// on the home graph without needing a lookup table of discrete states.
+    static func lerp(_ from: Color, _ to: Color, _ t: Double) -> Color {
+        let clamped = min(max(t, 0), 1)
+        let fromCG = UIColor(from).cgColor
+        let toCG = UIColor(to).cgColor
+        guard
+            let fc = fromCG.components, let tc = toCG.components,
+            fc.count >= 4, tc.count >= 4
+        else { return from }
+        let c = CGFloat(clamped)
+        return Color(
+            red:   Double(fc[0] + (tc[0] - fc[0]) * c),
+            green: Double(fc[1] + (tc[1] - fc[1]) * c),
+            blue:  Double(fc[2] + (tc[2] - fc[2]) * c),
+            opacity: Double(fc[3] + (tc[3] - fc[3]) * c)
+        )
+    }
 }

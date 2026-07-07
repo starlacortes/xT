@@ -7,7 +7,7 @@
         "key": "Log a dose to see your curve",
         "location": {
           "startingColumn": 26,
-          "startingLine": 50
+          "startingLine": 67
         }
       },
       {
@@ -15,7 +15,15 @@
         "key": "·",
         "location": {
           "startingColumn": 26,
-          "startingLine": 120
+          "startingLine": 139
+        }
+      },
+      {
+        "comment": "",
+        "key": "dose",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 235
         }
       }
     ]

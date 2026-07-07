@@ -33,5 +33,12 @@
     "diagnostics" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/JournalView.dia",
     "object" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/JournalView.o",
     "swift-dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/JournalView.swiftdeps"
+  },
+  "/Users/starlacortes/Documents/xT/xT/Elements/Onboarding/OnboardingView.swift" : {
+    "const-values" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/OnboardingView.swiftconstvalues",
+    "dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/OnboardingView.d",
+    "diagnostics" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/OnboardingView.dia",
+    "object" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/OnboardingView.o",
+    "swift-dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/OnboardingView.swiftdeps"
   }
 }

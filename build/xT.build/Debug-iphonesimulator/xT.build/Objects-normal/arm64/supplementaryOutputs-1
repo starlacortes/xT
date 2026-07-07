@@ -33,5 +33,12 @@
     "diagnostics" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/MissedDosePrompt.dia",
     "object" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/MissedDosePrompt.o",
     "swift-dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/MissedDosePrompt.swiftdeps"
+  },
+  "/Users/starlacortes/Documents/xT/xT/Elements/Home/Components/TrendCardView.swift" : {
+    "const-values" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/TrendCardView.swiftconstvalues",
+    "dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/TrendCardView.d",
+    "diagnostics" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/TrendCardView.dia",
+    "object" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/TrendCardView.o",
+    "swift-dependencies" : "/Users/starlacortes/Documents/xT/build/xT.build/Debug-iphonesimulator/xT.build/Objects-normal/arm64/TrendCardView.swiftdeps"
   }
 }

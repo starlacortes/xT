@@ -50,6 +50,7 @@ extension EnvironmentValues {
 struct xTApp: App {
     
     // Configured container — shared across the app and injected into managers.
+    // Uses CloudKit for seamless iCloud sync across devices.
     static let modelContainer: ModelContainer = {
         let schema = Schema([
             UserPreferences.self,
@@ -57,7 +58,12 @@ struct xTApp: App {
             JournalEntry.self,
             BloodTestRecord.self,
         ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+        let modelConfiguration = ModelConfiguration(
+            "xT",
+            schema: schema,
+            isStoredInMemoryOnly: false,
+            cloudKitDatabase: .automatic
+        )
         
         do {
             return try ModelContainer(for: schema, configurations: [modelConfiguration])
@@ -94,6 +100,11 @@ struct xTApp: App {
         // Set up notification categories and schedule any pending reminders.
         NotificationManager.shared.setupNotificationCategories()
         NotificationManager.shared.scheduleAllReminders()
+
+#if DEBUG
+        // Auto-apply comprehensive spoof profile "Jan" so all views render with populated data.
+        SpoofProfile.applyIfNeeded()
+#endif
     }
     
     @Environment(\.scenePhase) private var scenePhase

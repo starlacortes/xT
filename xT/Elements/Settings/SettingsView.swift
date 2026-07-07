@@ -196,6 +196,20 @@ struct SettingsView: View {
 
             settingsDivider()
 
+            NavigationLink(destination: AdherenceView()) {
+                settingsRowContent(
+                    icon: "chart.line.uptrend.xyaxis",
+                    iconBg: Theme.Colors.Bloom.body.surface,
+                    iconColor: Theme.Colors.Bloom.body.base,
+                    title: "Adherence & history",
+                    subtitle: adherenceSubtitle,
+                    trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(.secondary) }
+                )
+            }
+            .buttonStyle(.plain)
+
+            settingsDivider()
+
             Button(action: {
                 medicationManager.recordDose(on: Date())
             }) {
@@ -421,6 +435,20 @@ struct SettingsView: View {
                 )
             }
             .buttonStyle(.plain)
+
+            settingsDivider()
+
+            NavigationLink(destination: DataExportView()) {
+                settingsRowContent(
+                    icon: "square.and.arrow.up",
+                    iconBg: Theme.Colors.Bloom.cycle.surface,
+                    iconColor: Theme.Colors.Bloom.cycle.base,
+                    title: "Export data",
+                    subtitle: "CSV or JSON — dose history, journal, blood tests",
+                    trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(.secondary) }
+                )
+            }
+            .buttonStyle(.plain)
         }
     }
 
@@ -569,6 +597,15 @@ struct SettingsView: View {
             return "Last: \(formatDate(last))"
         }
         return "No doses recorded"
+    }
+
+    private var adherenceSubtitle: String {
+        guard medicationManager.isFullyConfigured else { return "Configure medication first" }
+        if let rate = medicationManager.adherenceRate {
+            let pct = Int(rate * 100)
+            return "\(pct)% adherence · \(medicationManager.onTimeStreak) streak · regimen timeline"
+        }
+        return "Regimen history & dose intensity"
     }
 
     private var formatDoseReminderSubtitle: String {

@@ -35,6 +35,10 @@ struct Theme {
         static let error            = Color.red
         static let info             = Color.blue
 
+        // Graph level ramp — deep rose (low) → light lavender (high)
+        static let levelLow         = Color(lightHex: "#99345A", darkHex: "#C2557E")
+        static let levelHigh        = Color(lightHex: "#8875D4", darkHex: "#B0A4EA")
+
         // MARK: Bloom category palettes
 
         struct BloomPalette {

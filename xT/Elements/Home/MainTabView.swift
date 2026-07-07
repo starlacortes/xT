@@ -28,11 +28,17 @@ struct MainTabView: View {
                 }
                 .tag(2)
 
+            InsightsDashboardView()
+                .tabItem {
+                    Label("Insights", systemImage: "chart.xyaxis.line")
+                }
+                .tag(3)
+
             SettingsView()
                 .tabItem {
                     Label("Settings", systemImage: "gearshape")
                 }
-                .tag(3)
+                .tag(4)
         }
         .tint(Theme.Colors.accent)
         .tabViewStyle(.automatic)
