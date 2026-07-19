@@ -82,6 +82,7 @@ struct UnifiedScheduleView: View {
         .onAppear {
             authManager.recordActivity()
             selectedDoseDate = medicationManager.lastDoseDate ?? Date()
+            medicationManager.refreshState()
         }
         .alert("Dose Recorded", isPresented: $showConfirmation) {
             Button("OK", role: .cancel) { }
@@ -147,7 +148,7 @@ struct UnifiedScheduleView: View {
                 scheduleCard(
                     title: "Last Dose",
                     value: "\(last.formatted(date: .abbreviated, time: .omitted))",
-                    color: Theme.Colors.Bloom.mind.base,
+                    color: Theme.Colors.Time.mind.base,
                     icon: "checkmark.circle"
                 )
             } else {
@@ -234,8 +235,12 @@ struct UnifiedScheduleView: View {
     private func recordCurrentDose() {
         guard let medType = medicationManager.selectedMedication,
               let medMethod = medicationManager.selectedAdministrationMethod else { return }
-        let ester = medicationManager.lastLoggedDose?.ester ?? defaultEsterForCurrentType
-        let amount = medicationManager.lastLoggedDose?.doseAmount ?? defaultDoseForCurrentType
+        let ester = medicationManager.selectedEster
+            ?? medicationManager.lastLoggedDose?.ester
+            ?? defaultEsterForCurrentType
+        let amount = medicationManager.defaultDoseAmount
+            ?? medicationManager.lastLoggedDose?.doseAmount
+            ?? defaultDoseForCurrentType
         let concentration = medicationManager.lastLoggedDose?.concentrationMgPerMl ?? medicationManager.defaultConcentrationMgPerMl
         medicationManager.addDose(date: Date(), type: medType, ester: ester, method: medMethod, doseAmount: amount, concentrationMgPerMl: concentration)
         showConfirmation = true
@@ -245,8 +250,12 @@ struct UnifiedScheduleView: View {
     private func recordDose() {
         guard let medType = medicationManager.selectedMedication,
               let medMethod = medicationManager.selectedAdministrationMethod else { return }
-        let ester = medicationManager.lastLoggedDose?.ester ?? defaultEsterForCurrentType
-        let amount = medicationManager.lastLoggedDose?.doseAmount ?? defaultDoseForCurrentType
+        let ester = medicationManager.selectedEster
+            ?? medicationManager.lastLoggedDose?.ester
+            ?? defaultEsterForCurrentType
+        let amount = medicationManager.defaultDoseAmount
+            ?? medicationManager.lastLoggedDose?.doseAmount
+            ?? defaultDoseForCurrentType
         let concentration = medicationManager.lastLoggedDose?.concentrationMgPerMl ?? medicationManager.defaultConcentrationMgPerMl
         medicationManager.addDose(date: selectedDoseDate, type: medType, ester: ester, method: medMethod, doseAmount: amount, concentrationMgPerMl: concentration)
         showConfirmation = true

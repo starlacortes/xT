@@ -215,8 +215,8 @@ struct RangeIndicatorsView: View {
                 .fontWeight(.medium)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 4)
-                .background(Theme.Colors.Bloom.body.surface)
-                .foregroundStyle(Theme.Colors.Bloom.body.base)
+                .background(Theme.Colors.Time.body.surface)
+                .foregroundStyle(Theme.Colors.Time.body.base)
                 .cornerRadius(Theme.Radius.sm)
 
             // High range
@@ -225,8 +225,8 @@ struct RangeIndicatorsView: View {
                 .fontWeight(.medium)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 4)
-                .background(Theme.Colors.Bloom.cycle.surface)
-                .foregroundStyle(Theme.Colors.Bloom.cycle.base)
+                .background(Theme.Colors.Time.cycle.surface)
+                .foregroundStyle(Theme.Colors.Time.cycle.base)
                 .cornerRadius(Theme.Radius.sm)
         }
     }
@@ -323,12 +323,14 @@ struct ChartAreaView: View {
                     .frame(width: 6, height: 6)
                     .position(x: selectedX, y: selectedY)
                     .animation(.easeInOut(duration: 0.2), value: selectedDay)
+
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture { location in
+                        handleChartTap(location: location, chartWidth: geometry.size.width)
+                    }
             }
             .frame(height: 180)
-            .contentShape(Rectangle())
-            .onTapGesture { location in
-                handleChartTap(location: location)
-            }
 
             // Tooltip
             if showingTooltip {
@@ -372,11 +374,10 @@ struct ChartAreaView: View {
         return height - CGFloat(normalizedValue) * height
     }
 
-    private func handleChartTap(location: CGPoint) {
-        // Convert tap location to day index
-        // Using widthPerDay consistent with updateTooltip
-        let widthPerDay = 1000.0 / CGFloat(levels.count - 1)
-        let tappedDay = Int(location.x / widthPerDay)
+    private func handleChartTap(location: CGPoint, chartWidth: CGFloat) {
+        guard levels.count > 1, chartWidth > 0 else { return }
+        let widthPerDay = chartWidth / CGFloat(levels.count - 1)
+        let tappedDay = Int(round(location.x / widthPerDay))
         selectedDay = max(0, min(levels.count - 1, tappedDay))
     }
 }
@@ -394,9 +395,9 @@ struct TooltipView: View {
     }
 
     private func getRangeColor(for value: Double) -> Color {
-        if value < 100 { return Theme.Colors.Bloom.body.base }
+        if value < 100 { return Theme.Colors.Time.body.base }
         else if value < 200 { return Theme.Colors.success }
-        else { return Theme.Colors.Bloom.cycle.base }
+        else { return Theme.Colors.Time.cycle.base }
     }
 
     var body: some View {
@@ -435,9 +436,9 @@ struct StatsRowView: View {
     }
 
     private func getRangeColor(for value: Double) -> Color {
-        if value < 100 { return Theme.Colors.Bloom.body.base }
+        if value < 100 { return Theme.Colors.Time.body.base }
         else if value < 200 { return Theme.Colors.success }
-        else { return Theme.Colors.Bloom.cycle.base }
+        else { return Theme.Colors.Time.cycle.base }
     }
 
     var body: some View {

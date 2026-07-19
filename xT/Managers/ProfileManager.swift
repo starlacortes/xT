@@ -21,6 +21,11 @@ class ProfileManager: ObservableObject {
     @Published var profileImage: UIImage?
     @Published var profileImageData: Data?
 
+    /// Date of birth — used to compute age at HRT start for milestone branching
+    /// (e.g. bone/cardio guidance differs at 20 vs 45). Stored unencrypted in
+    /// UserDefaults (plan §4.3).
+    @Published var dateOfBirth: Date?
+
     // Computed properties for consistent display
     var profileDisplayName: String {
         profileName.isEmpty ? "Your Profile" : profileName
@@ -128,6 +133,9 @@ internal extension ProfileManager {
             profileName = ""
         }
 
+        // Load date of birth
+        dateOfBirth = defaults.object(forKey: "profileDateOfBirth") as? Date
+
         // Load profile image data with validation and decryption
         if let encryptedImageData = defaults.data(forKey: "encryptedProfileImageData"),
            let decryptedImageData = try? securityManager.decryptData(encryptedImageData) {
@@ -184,6 +192,13 @@ internal extension ProfileManager {
     func persistProfile() {
         let defaults = UserDefaults.standard
         let securityManager = SecurityManager.shared
+
+        // Save date of birth
+        if let dob = dateOfBirth {
+            defaults.set(dob, forKey: "profileDateOfBirth")
+        } else {
+            defaults.removeObject(forKey: "profileDateOfBirth")
+        }
 
         // Save profile name with validation and encryption
         let trimmedName = profileName.trimmingCharacters(in: .whitespacesAndNewlines)

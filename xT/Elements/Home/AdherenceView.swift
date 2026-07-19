@@ -196,7 +196,7 @@ struct AdherenceView: View {
 
                 statCard(
                     icon: "clock.arrow.circlepath",
-                    iconColor: Theme.Colors.Bloom.mind.base,
+                    iconColor: Theme.Colors.Time.mind.base,
                     value: "\(medicationManager.monthsOnHRT)",
                     label: "Months on HRT",
                     subtitle: "Since start date"
@@ -204,7 +204,7 @@ struct AdherenceView: View {
 
                 statCard(
                     icon: "syringe.fill",
-                    iconColor: Theme.Colors.Bloom.body.base,
+                    iconColor: Theme.Colors.Time.body.base,
                     value: "\(medicationManager.doseHistory.filter { $0.isActive && DoseStatus(rawValue: $0.doseStatus) == .taken }.count)",
                     label: "Total doses",
                     subtitle: "Lifetime recorded"
@@ -449,7 +449,7 @@ struct AdherenceView: View {
     }
 
     private func intensityColor(_ intensity: Double) -> Color {
-        if intensity < 0.5 { return Theme.Colors.Bloom.mind.base }
+        if intensity < 0.5 { return Theme.Colors.Time.mind.base }
         if intensity > 1.5 { return Theme.Colors.warning }
         return Theme.Colors.success
     }

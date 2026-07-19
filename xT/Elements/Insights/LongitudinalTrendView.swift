@@ -20,7 +20,7 @@ struct LongitudinalTrendView: View {
 
     private let systemOptions = ["Skin & Hair", "Body Shape", "Mind & Mood", "Cycle & Flow"]
 
-    /// Bloom milestone annotations keyed to system name.
+    /// Time milestone annotations keyed to system name.
     private let milestones: [String: [(label: String, months: Double)]] = [
         "Skin & Hair": [
             ("Softer skin begins", 1.5),
@@ -188,10 +188,10 @@ struct LongitudinalTrendView: View {
 
     private func systemColor(for system: String) -> Color {
         switch system {
-        case "Skin & Hair": return Theme.Colors.Bloom.skin.base
-        case "Body Shape":  return Theme.Colors.Bloom.body.base
-        case "Mind & Mood": return Theme.Colors.Bloom.mind.base
-        case "Cycle & Flow": return Theme.Colors.Bloom.cycle.base
+        case "Skin & Hair": return Theme.Colors.Time.skin.base
+        case "Body Shape":  return Theme.Colors.Time.body.base
+        case "Mind & Mood": return Theme.Colors.Time.mind.base
+        case "Cycle & Flow": return Theme.Colors.Time.cycle.base
         default:            return Theme.Colors.accent
         }
     }
@@ -251,7 +251,7 @@ struct LongitudinalTrendView: View {
         let journalEntries = journalManager.entries
         let hrtStart = medicationManager.hrtStartDate ?? medicationManager.doseHistory.first?.doseDate ?? Date()
 
-        var bloomProgress: [String: Double] = [
+        var timeProgress: [String: Double] = [
             "Skin & Hair": 5.0,
             "Body Shape": 5.0,
             "Mind & Mood": 5.0,
@@ -262,7 +262,7 @@ struct LongitudinalTrendView: View {
         var allSeries = insightsManager.buildLongitudinalTrends(
             journalEntries: journalEntries,
             hrtStartDate: hrtStart,
-            bloomProgress: bloomProgress
+            timeProgress: timeProgress
         )
 
         // Filter to selected system

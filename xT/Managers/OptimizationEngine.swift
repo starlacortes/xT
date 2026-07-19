@@ -110,8 +110,7 @@ final class OptimizationEngine: ObservableObject {
         // 3. Dose trend analysis
         let takenDoses = doses
             .filter { DoseStatus(rawValue: $0.doseStatus) == .taken }
-            .sorted { $0.doseDate < $1.date }
-
+            .sorted(by: { $0.doseDate < $1.doseDate }) // Fixed: use `by:` and correct property to `.doseDate`
         if takenDoses.count >= 6 {
             let recent3Doses = Array(takenDoses.suffix(3))
             let earlier3Doses = Array(takenDoses.prefix(3))

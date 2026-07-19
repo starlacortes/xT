@@ -30,12 +30,12 @@ struct DoseStreakCard: View {
                 if onTrack {
                     Text("On track")
                         .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(Theme.Colors.Bloom.mind.base)
+                        .foregroundStyle(Theme.Colors.Time.mind.base)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 4)
-                        .background(Theme.Colors.Bloom.mind.surface)
+                        .background(Theme.Colors.Time.mind.surface)
                         .overlay(
-                            Capsule().stroke(Theme.Colors.Bloom.mind.border, lineWidth: 0.5)
+                            Capsule().stroke(Theme.Colors.Time.mind.border, lineWidth: 0.5)
                         )
                         .clipShape(Capsule())
                 }
@@ -48,7 +48,7 @@ struct DoseStreakCard: View {
                         .fill(index < completedDays ? Theme.Colors.accent : Color(UIColor.systemGray5))
                         .overlay(
                             Circle().stroke(
-                                index < completedDays ? Theme.Colors.Bloom.cycle.border : Color(UIColor.systemGray4),
+                                index < completedDays ? Theme.Colors.Time.cycle.border : Color(UIColor.systemGray4),
                                 lineWidth: 0.5
                             )
                         )

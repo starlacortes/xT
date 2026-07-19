@@ -14,6 +14,8 @@ import SwiftUI
 struct FlatGraphView: View {
     @Environment(\.medicationManager) private var medicationManager
     @Binding var showingGraphDetail: Bool
+    var compactHeight: Bool = false
+    var graphHeight: CGFloat? = nil
 
     private var points: [MedicationManager.EstimatedPoint] {
         medicationManager.recentLevels
@@ -40,20 +42,27 @@ struct FlatGraphView: View {
         return Color.lerp(Theme.Colors.levelLow, Theme.Colors.levelHigh, t)
     }
 
+    private var resolvedGraphHeight: CGFloat {
+        graphHeight ?? (compactHeight ? 170 : 200)
+    }
+
     var body: some View {
         ZStack(alignment: .trailing) {
             graphBody
-                .frame(height: 200)
+                .frame(height: resolvedGraphHeight)
 
             Button(action: { showingGraphDetail = true }) {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(levelTint.opacity(0.4))
             }
-            .frame(width: 44, height: 200)
+            .frame(width: 44, height: resolvedGraphHeight)
             .contentShape(Rectangle())
         }
         .animation(.easeInOut(duration: 0.6), value: currentLevel)
+        .onAppear {
+            medicationManager.refreshState()
+        }
     }
 
     // MARK: - Graph body
@@ -97,7 +106,7 @@ struct FlatGraphView: View {
                         )
 
                     if let peakIdx = values.indices.min(by: { values[$0] > values[$1] }) {
-                        let px = xPos(index: peakIdx, count: values.count, w: w)
+                        let px = markerX(index: peakIdx, count: values.count, w: w)
                         let py = yPos(value: values[peakIdx], min: minV, range: range, h: h)
 
                         Circle()
@@ -151,6 +160,12 @@ struct FlatGraphView: View {
     private func xPos(index: Int, count: Int, w: CGFloat) -> CGFloat {
         guard count > 1 else { return w / 2 }
         return CGFloat(index) / CGFloat(count - 1) * w
+    }
+
+    /// Marker positions are clamped away from the edges so dots and labels
+    /// centered on the first/last curve points don't get clipped off-screen.
+    private func markerX(index: Int, count: Int, w: CGFloat) -> CGFloat {
+        min(max(xPos(index: index, count: count, w: w), 8), w - 8)
     }
 
     private func yPos(value: Double, min: Double, range: Double, h: CGFloat) -> CGFloat {
@@ -214,7 +229,7 @@ struct FlatGraphView: View {
             return AnyView(EmptyView())
         }
 
-        let px = xPos(index: bestIdx, count: values.count, w: w)
+        let px = markerX(index: bestIdx, count: values.count, w: w)
         let py = yPos(value: values[bestIdx], min: min, range: range, h: h)
 
         return AnyView(

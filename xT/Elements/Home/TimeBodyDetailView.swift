@@ -1,20 +1,20 @@
 //
-//  BloomBodyDetailView.swift
+//  TimeBodyDetailView.swift
 //  xT
 //
 //  Deep-dive detail page for each body system. Pushed via NavigationLink
-//  from the Bloom tab's "YOUR BODY" section. Content is tenure-aware:
+//  from the Time tab's "YOUR BODY" section. Content is tenure-aware:
 //  early users see timeline projections, established users see stabilizing
 //  notes, and mature users see maintenance guidance.
 //
 
 import SwiftUI
 
-struct BloomBodyDetailView: View {
-    let system: BloomBodySystem
-    let engine: BloomContentEngine
+struct TimeBodyDetailView: View {
+    let system: TimeBodySystem
+    let engine: TimeContentEngine
 
-    private var detail: BloomBodySystemDetail {
+    private var detail: TimeBodySystemDetail {
         engine.bodySystemDetail(for: system.systemKey)
     }
 
@@ -64,16 +64,18 @@ struct BloomBodyDetailView: View {
                 )
 
                 // Conditional sections
-                if let establishedNote = detail.establishedNote, tier == .established {
+                // Deepening tier (T4) — formerly "established"
+                if let deepeningNote = detail.deepeningNote, tier == .t4Deepening {
                     detailDivider()
                     detailSection(
                         title: "Where you are now",
                         icon: "checkmark.seal.fill",
-                        content: establishedNote
+                        content: deepeningNote
                     )
                 }
 
-                if let maintenanceNote = detail.maintenanceNote, tier == .mature {
+                // Settled and beyond (T5+) — maintenance/long-term health
+                if let maintenanceNote = detail.maintenanceNote, tier >= .t5Settled {
                     detailDivider()
                     detailSection(
                         title: "Maintenance",
@@ -134,9 +136,11 @@ struct BloomBodyDetailView: View {
 
     private var tierBadgeColor: Color {
         switch tier {
-        case .early:       return .blue
-        case .established: return .green
-        case .mature:      return .purple
+        case .t1Beginning, .t2Emerging, .t3InMotion: return .blue
+        case .t4Deepening: return .green
+        case .t5Settled: return .purple
+        case .t6Rooted: return .indigo
+        case .t7Veteran: return .orange
         }
     }
 
@@ -173,18 +177,26 @@ struct BloomBodyDetailView: View {
 
     private var tenureBannerTitle: String {
         switch tier {
-        case .early:       return "Body is actively adapting"
-        case .established: return "Changes are stabilising"
-        case .mature:      return "Your body is established"
+        case .t1Beginning: return "Body is actively adapting"
+        case .t2Emerging:  return "First visible changes emerging"
+        case .t3InMotion:  return "Changes stacking rapidly"
+        case .t4Deepening: return "Changes are deepening"
+        case .t5Settled:   return "Changes largely settled"
+        case .t6Rooted:    return "Long-term maintenance phase"
+        case .t7Veteran:   return "Veteran — health monitoring is key"
         }
     }
 
     private var tenureBannerSubtitle: String {
         let monthStr = "\(engine.months) month\(engine.months == 1 ? "" : "s") on HRT"
         switch tier {
-        case .early:       return "\(tier.statusEmoji) \(monthStr) — early changes are in progress."
-        case .established: return "\(tier.statusEmoji) \(monthStr) — you're in the sweet spot."
-        case .mature:      return "\(tier.statusEmoji) \(monthStr) — deep into your journey."
+        case .t1Beginning: return "\(tier.statusEmoji) \(monthStr) — body is reacting, not yet adapting."
+        case .t2Emerging:  return "\(tier.statusEmoji) \(monthStr) — first physical changes appearing."
+        case .t3InMotion:  return "\(tier.statusEmoji) \(monthStr) — most rapid visible shift."
+        case .t4Deepening: return "\(tier.statusEmoji) \(monthStr) — still changing, not established."
+        case .t5Settled:   return "\(tier.statusEmoji) \(monthStr) — shift from 'what's changing' to 'maintain + screen'."
+        case .t6Rooted:    return "\(tier.statusEmoji) \(monthStr) — 5–10 years; established maintenance, richer surveillance."
+        case .t7Veteran:   return "\(tier.statusEmoji) \(monthStr) — 10+ years; long-term health is the whole story."
         }
     }
 
@@ -221,22 +233,25 @@ struct BloomBodyDetailView: View {
 
 #Preview {
     NavigationStack {
-        BloomBodyDetailView(
-            system: BloomBodySystem(
+        TimeBodyDetailView(
+            system: TimeBodySystem(
                 title: "Mood & mind",
                 subtitle: "How estrogen shapes your emotions",
                 icon: "brain",
                 palette: .purple,
-                progressFraction: 0.67,
                 progressLabel: "Stabilising",
                 systemKey: .moodAndMind
             ),
-            engine: BloomContentEngine(
+            engine: TimeContentEngine(
                 medication: "Estrogen",
                 method: "Injectable",
                 months: 8,
                 currentLevel: 185,
                 dayOfCycle: 3,
+                activeMonthsOnHRT: 8,
+                ageAtStart: nil,
+                screeningLog: nil,
+                showDoseIntensity: false,
                 adherenceRate: 0.92,
                 cyclePosition: .midCycle,
                 regimenSegments: [],

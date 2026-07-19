@@ -47,7 +47,7 @@ struct JournalCardView: View {
                 }
                 .padding(.vertical, 10)
                 .padding(.horizontal, 14)
-                .background(showBackground ? Theme.Colors.Bloom.skin.surface.opacity(0.2) : Color.clear)
+                .background(showBackground ? Theme.Colors.Time.skin.surface.opacity(0.2) : Color.clear)
                 .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.lg))
             }
             .buttonStyle(.plain)

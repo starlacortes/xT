@@ -107,11 +107,11 @@ struct JournalComposerView: View {
                                 .frame(minHeight: 80)
                                 .padding(Theme.Spacing.md)
                         }
-                        .background(Theme.Colors.Bloom.cycle.surface)
+                        .background(Theme.Colors.Time.cycle.surface)
                         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md))
                         .overlay(
                             RoundedRectangle(cornerRadius: Theme.Radius.md)
-                                .stroke(Theme.Colors.Bloom.cycle.border, lineWidth: 0.5)
+                                .stroke(Theme.Colors.Time.cycle.border, lineWidth: 0.5)
                         )
                         .padding(.horizontal, Theme.Spacing.card)
 
@@ -185,17 +185,17 @@ struct MoodChip: View {
 
                 Text(mood.rawValue)
                     .font(Theme.Fonts.micro)
-                    .foregroundStyle(isSelected ? Theme.Colors.Bloom.cycle.base : .secondary)
+                    .foregroundStyle(isSelected ? Theme.Colors.Time.cycle.base : .secondary)
             }
             .frame(minWidth: 52)
             .padding(.vertical, 10)
             .padding(.horizontal, Theme.Spacing.sm)
-            .background(isSelected ? Theme.Colors.Bloom.cycle.surface : Color(UIColor.secondarySystemBackground))
+            .background(isSelected ? Theme.Colors.Time.cycle.surface : Color(UIColor.secondarySystemBackground))
             .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md))
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.Radius.md)
                     .stroke(
-                        isSelected ? Theme.Colors.Bloom.cycle.border : Color(UIColor.separator).opacity(0.4),
+                        isSelected ? Theme.Colors.Time.cycle.border : Color(UIColor.separator).opacity(0.4),
                         lineWidth: 0.5
                     )
             )
@@ -215,15 +215,15 @@ struct SymptomTag: View {
         Button(action: action) {
             Text(symptom.name)
                 .font(Theme.Fonts.caption)
-                .foregroundStyle(isSelected ? Theme.Colors.Bloom.cycle.base : .secondary)
+                .foregroundStyle(isSelected ? Theme.Colors.Time.cycle.base : .secondary)
                 .padding(.horizontal, Theme.Spacing.md)
                 .padding(.vertical, 7)
-                .background(isSelected ? Theme.Colors.Bloom.cycle.surface : Color(UIColor.secondarySystemBackground))
+                .background(isSelected ? Theme.Colors.Time.cycle.surface : Color(UIColor.secondarySystemBackground))
                 .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.lg))
                 .overlay(
                     RoundedRectangle(cornerRadius: Theme.Radius.lg)
                         .stroke(
-                            isSelected ? Theme.Colors.Bloom.cycle.border : Color(UIColor.separator).opacity(0.3),
+                            isSelected ? Theme.Colors.Time.cycle.border : Color(UIColor.separator).opacity(0.3),
                             lineWidth: 0.5
                         )
                 )
@@ -260,16 +260,16 @@ struct HormoneInsightCard: View {
     private var rangeColor: Color {
         switch rangeName {
         case "Optimal", "Suppressed": return Theme.Colors.success
-        case "Low", "Low male":       return Theme.Colors.Bloom.body.base
-        default:                       return Theme.Colors.Bloom.cycle.base
+        case "Low", "Low male":       return Theme.Colors.Time.body.base
+        default:                       return Theme.Colors.Time.cycle.base
         }
     }
 
     private var rangeBg: Color {
         switch rangeName {
         case "Optimal", "Suppressed": return Theme.Colors.success.opacity(0.12)
-        case "Low", "Low male":       return Theme.Colors.Bloom.body.surface
-        default:                       return Theme.Colors.Bloom.cycle.surface
+        case "Low", "Low male":       return Theme.Colors.Time.body.surface
+        default:                       return Theme.Colors.Time.cycle.surface
         }
     }
 
@@ -281,15 +281,15 @@ struct HormoneInsightCard: View {
         HStack(spacing: 10) {
             Image(systemName: "chart.line.uptrend.xyaxis")
                 .font(.system(size: 18))
-                .foregroundStyle(Theme.Colors.Bloom.mind.base)
+                .foregroundStyle(Theme.Colors.Time.mind.base)
                 .frame(width: 36, height: 36)
-                .background(Theme.Colors.Bloom.mind.surface)
+                .background(Theme.Colors.Time.mind.surface)
                 .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("Today's level")
                     .font(Theme.Fonts.caption2)
-                    .foregroundStyle(Theme.Colors.Bloom.mind.base)
+                    .foregroundStyle(Theme.Colors.Time.mind.base)
 
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text("\(Int(level)) \(unit)")
@@ -311,11 +311,11 @@ struct HormoneInsightCard: View {
             Spacer()
         }
         .padding(10)
-        .background(Theme.Colors.Bloom.mind.surface)
+        .background(Theme.Colors.Time.mind.surface)
         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
         .overlay(
             RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                .stroke(Theme.Colors.Bloom.mind.border, lineWidth: 0.5)
+                .stroke(Theme.Colors.Time.mind.border, lineWidth: 0.5)
         )
     }
 }

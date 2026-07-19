@@ -22,17 +22,21 @@ struct MainTabView: View {
                 }
                 .tag(1)
 
-            BloomView()
+            TimeView()
                 .tabItem {
                     Label("Time", systemImage: "wand.and.stars")
                 }
                 .tag(2)
 
-            InsightsDashboardView()
-                .tabItem {
-                    Label("Insights", systemImage: "chart.xyaxis.line")
-                }
-                .tag(3)
+            // Research tab — only when enabled via Settings → Developer.
+            // In RELEASE the flag is hardwired false, so the tab never appears.
+            if DeveloperSettings.shared.researchTabVisible {
+                InsightsDashboardView()
+                    .tabItem {
+                        Label("Insights", systemImage: "chart.xyaxis.line")
+                    }
+                    .tag(3)
+            }
 
             SettingsView()
                 .tabItem {

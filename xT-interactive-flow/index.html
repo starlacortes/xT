@@ -350,7 +350,7 @@
           { id: 'launch-app', x: 100, y: 100, icon: '🚀', title: 'App Launch', desc: 'User opens xT app' },
           { id: 'check-onboard', x: 100, y: 220, icon: '📋', title: 'Check Onboarding', desc: 'AppStorage flag: hasCompletedOnboarding' },
           { id: 'show-onboard', x: 420, y: 160, icon: '✨', title: 'Show Onboarding', desc: '4-step flow if not completed' },
-          { id: 'show-main', x: 420, y: 340, icon: '🏠', title: 'Show Main UI', desc: 'Home / Journal / Bloom / Settings' },
+          { id: 'show-main', x: 420, y: 340, icon: '🏠', title: 'Show Main UI', desc: 'Home / Journal / Time / Settings' },
           { id: 'app-lock', x: 100, y: 460, icon: '🔒', title: 'App Lock', desc: 'Scene phase → inactive triggers auth' },
           { id: 'biometric', x: 100, y: 580, icon: '👆', title: 'Biometric Auth', desc: 'Face ID / Touch ID / Passcode' },
         ]
@@ -395,7 +395,7 @@
       },
       {
         id: 'bloom',
-        title: 'Bloom / Time Tab',
+        title: 'Time Tab',
         color: '#7caef7',
         glow: 'rgba(124,174,247,0.3)',
         nodes: [
@@ -496,7 +496,7 @@
       { from: 'journal-compose', to: 'journal-save' },
       { from: 'journal-save', to: 'journal-detail' },
       
-      // Bloom tab
+      // Time tab
       { from: 'journal-detail', to: 'bloom-hormones' },
       { from: 'bloom-hormones', to: 'bloom-changes' },
       { from: 'bloom-changes', to: 'bloom-body' },
@@ -553,7 +553,7 @@
       'ob-features': {
         title: '🎯 Features Tour (Step 2/4)',
         desc: 'Swipeable cards showcasing core features of xT.',
-        steps: ['Card 1: Cycle tracking with 4 hormone phases', 'Card 2: Journal with mood & symptom logging', 'Card 3: Bloom view for hormone visualization', 'Card 4: Smart notifications & dose reminders', 'Horizontal swipe navigation between cards']
+        steps: ['Card 1: Cycle tracking with 4 hormone phases', 'Card 2: Journal with mood & symptom logging', 'Card 3: Time view for hormone visualization', 'Card 4: Smart notifications & dose reminders', 'Horizontal swipe navigation between cards']
       },
       'ob-profile': {
         title: '👤 Profile Setup (Step 3/4)',

@@ -20,11 +20,11 @@ struct MissedDosePrompt: View {
                 // Warning icon
                 ZStack {
                     Circle()
-                        .fill(Theme.Colors.Bloom.cycle.surface)
+                        .fill(Theme.Colors.Time.cycle.surface)
                         .frame(width: 40, height: 40)
                         .overlay(
                             Circle()
-                                .stroke(Theme.Colors.Bloom.cycle.border, lineWidth: 0.5)
+                                .stroke(Theme.Colors.Time.cycle.border, lineWidth: 0.5)
                         )
 
                     Image(systemName: "exclamationmark.triangle.fill")
@@ -54,14 +54,17 @@ struct MissedDosePrompt: View {
                     Text("Record dose now")
                         .font(Theme.Fonts.footnote)
                         .fontWeight(.medium)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                         .foregroundStyle(Self.cycleText)
-                        .padding(.horizontal, Theme.Spacing.lg)
+                        .padding(.horizontal, Theme.Spacing.sm)
                         .padding(.vertical, Theme.Spacing.sm)
-                        .background(Theme.Colors.Bloom.cycle.surface)
+                        .frame(maxWidth: .infinity)
+                        .background(Theme.Colors.Time.cycle.surface)
                         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
                         .overlay(
                             RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                                .stroke(Theme.Colors.Bloom.cycle.border, lineWidth: 0.5)
+                                .stroke(Theme.Colors.Time.cycle.border, lineWidth: 0.5)
                         )
                 }
                 .buttonStyle(.plain)
@@ -70,14 +73,17 @@ struct MissedDosePrompt: View {
                     Text("Adjust schedule")
                         .font(Theme.Fonts.footnote)
                         .fontWeight(.medium)
-                        .foregroundStyle(Theme.Colors.Bloom.mind.base)
-                        .padding(.horizontal, Theme.Spacing.lg)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                        .foregroundStyle(Theme.Colors.Time.mind.base)
+                        .padding(.horizontal, Theme.Spacing.sm)
                         .padding(.vertical, Theme.Spacing.sm)
-                        .background(Theme.Colors.Bloom.mind.surface)
+                        .frame(maxWidth: .infinity)
+                        .background(Theme.Colors.Time.mind.surface)
                         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
                         .overlay(
                             RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                                .stroke(Theme.Colors.Bloom.mind.border, lineWidth: 0.5)
+                                .stroke(Theme.Colors.Time.mind.border, lineWidth: 0.5)
                         )
                 }
                 .buttonStyle(.plain)
@@ -94,7 +100,7 @@ struct MissedDosePrompt: View {
         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md))
         .overlay(
             RoundedRectangle(cornerRadius: Theme.Radius.md)
-                .stroke(Theme.Colors.Bloom.cycle.border, lineWidth: 1.0)
+                .stroke(Theme.Colors.Time.cycle.border, lineWidth: 1.0)
         )
         .sheet(isPresented: $showingRecordDose) {
             RecordDoseView()

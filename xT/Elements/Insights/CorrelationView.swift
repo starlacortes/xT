@@ -178,14 +178,14 @@ struct CorrelationView: View {
         let streak = medicationManager.onTimeStreak
         let intensity = medicationManager.relativeDoseIntensity
 
-        // Bloom progress — pulled from MedicationManager or BloomContent
-        var bloomProgress: [String: Double] = [:]
+        // Time progress — pulled from MedicationManager or TimeContent
+        var timeProgress: [String: Double] = [:]
         if let mgr = medicationManager as? MedicationManager {
             // Use available progress metrics
-            bloomProgress["Skin & Hair"] = 5.0
-            bloomProgress["Body Shape"] = 5.0
-            bloomProgress["Mind & Mood"] = 5.0
-            bloomProgress["Cycle & Flow"] = 5.0
+            timeProgress["Skin & Hair"] = 5.0
+            timeProgress["Body Shape"] = 5.0
+            timeProgress["Mind & Mood"] = 5.0
+            timeProgress["Cycle & Flow"] = 5.0
         }
 
         result = insightsManager.computeCorrelation(
@@ -199,7 +199,7 @@ struct CorrelationView: View {
             currentLevel: currentLevel,
             onTimeStreak: streak,
             relativeDoseIntensity: intensity,
-            bloomProgress: bloomProgress
+            timeProgress: timeProgress
         )
     }
 

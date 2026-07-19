@@ -39,31 +39,31 @@ struct Theme {
         static let levelLow         = Color(lightHex: "#99345A", darkHex: "#C2557E")
         static let levelHigh        = Color(lightHex: "#8875D4", darkHex: "#B0A4EA")
 
-        // MARK: Bloom category palettes
+        // MARK: Time category palettes
 
-        struct BloomPalette {
+        struct TimePalette {
             let base: Color     // icon / progress fill
             let surface: Color  // card background
             let border: Color   // card stroke
         }
 
-        struct Bloom {
-            static let mind = BloomPalette(
+        struct Time {
+            static let mind = TimePalette(
                 base:    Color(lightHex: "#534AB7", darkHex: "#7E74D8"),
                 surface: Color(lightHex: "#EEEDFE", darkHex: "#1E1C3A"),
                 border:  Color(lightHex: "#CECBF6", darkHex: "#3D3880")
             )
-            static let skin = BloomPalette(
+            static let skin = TimePalette(
                 base:    Color(lightHex: "#0F6E56", darkHex: "#2DB88E"),
                 surface: Color(lightHex: "#E1F5EE", darkHex: "#0C2420"),
                 border:  Color(lightHex: "#9FE1CB", darkHex: "#1A5C46")
             )
-            static let body = BloomPalette(
+            static let body = TimePalette(
                 base:    Color(lightHex: "#854F0B", darkHex: "#D4862B"),
                 surface: Color(lightHex: "#FAEEDA", darkHex: "#2E1C05"),
                 border:  Color(lightHex: "#FAC775", darkHex: "#6B3D08")
             )
-            static let cycle = BloomPalette(
+            static let cycle = TimePalette(
                 base:    Color(lightHex: "#D4537E", darkHex: "#E8709A"),
                 surface: Color(lightHex: "#FBEAF0", darkHex: "#2E1018"),
                 border:  Color(lightHex: "#F4C0D1", darkHex: "#7A2846")
@@ -161,9 +161,9 @@ struct GlassCardModifier: ViewModifier {
     }
 }
 
-/// Opaque pastel card — for Bloom category cards and Journal mood cards.
-struct BloomCardModifier: ViewModifier {
-    let palette: Theme.Colors.BloomPalette
+/// Opaque pastel card — for Time category cards and Journal mood cards.
+struct TimeCardModifier: ViewModifier {
+    let palette: Theme.Colors.TimePalette
 
     func body(content: Content) -> some View {
         content
@@ -197,9 +197,9 @@ extension View {
         modifier(GlassCardModifier())
     }
 
-    /// Apply an opaque pastel surface keyed to a Bloom category palette.
-    func bloomCard(_ palette: Theme.Colors.BloomPalette) -> some View {
-        modifier(BloomCardModifier(palette: palette))
+    /// Apply an opaque pastel surface keyed to a Time category palette.
+    func timeCard(_ palette: Theme.Colors.TimePalette) -> some View {
+        modifier(TimeCardModifier(palette: palette))
     }
 
     /// Style as a full-width rose accent button.

@@ -50,6 +50,17 @@ final class UserPreferences {
     /// Custom dosing interval in days; when nil, falls back to AdministrationMethod.frequencyDays.
     var customFrequencyDays: Int?
 
+    // --- Default Dose Settings ---
+    /// Default dose amount in mg (pre-fills dose recording UI).
+    var defaultDoseAmount: Double?
+    /// Default injection time of day (pre-fills dose recording UI).
+    var defaultInjectionTime: Date?
+
+    // --- Dose-Intensity Toggle (plan §4.4) ---
+    /// When true, the Time tab surfaces relativeDoseIntensity-derived copy.
+    /// T5+ users default this to off. Not exposed in onboarding.
+    var showDoseIntensityInsights: Bool
+
     init(
         medicationRow: Int = -1,
         medicationColumn: Int = -1,
@@ -59,7 +70,10 @@ final class UserPreferences {
         defaultTestosteroneConcentration: Double? = nil,
         suppressionSpeed: SuppressionSpeed = .fast,
         spironolactoneClearanceEnabled: Bool = false,
-        customFrequencyDays: Int? = nil
+        customFrequencyDays: Int? = nil,
+        defaultDoseAmount: Double? = nil,
+        defaultInjectionTime: Date? = nil,
+        showDoseIntensityInsights: Bool = false
     ) {
         self.medicationRow = medicationRow
         self.medicationColumn = medicationColumn
@@ -70,6 +84,9 @@ final class UserPreferences {
         self.suppressionSpeed = suppressionSpeed.rawValue
         self.spironolactoneClearanceEnabled = spironolactoneClearanceEnabled
         self.customFrequencyDays = customFrequencyDays
+        self.defaultDoseAmount = defaultDoseAmount
+        self.defaultInjectionTime = defaultInjectionTime
+        self.showDoseIntensityInsights = showDoseIntensityInsights
     }
 }
 

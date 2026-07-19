@@ -38,12 +38,12 @@ struct LevelTrendCard: View {
                     // Icon badge
                     ZStack {
                         Circle()
-                            .fill(Theme.Colors.Bloom.cycle.surface)
-                            .frame(width: 36, height: 79)
+                            .fill(Theme.Colors.Time.cycle.surface)
+                            .frame(width: 36, height: 36)
 
                         Image(systemName: "chart.line.uptrend.xyaxis")
                             .font(.system(size: 18))
-                            .foregroundStyle(Theme.Colors.Bloom.cycle.base)
+                            .foregroundStyle(Theme.Colors.Time.cycle.base)
                     }
 
                     // Level info
@@ -104,9 +104,9 @@ struct LevelTrendCard: View {
     }
 
     private func getHormoneRangeColor(level: Double) -> Color {
-        if level < 100 { return Theme.Colors.Bloom.body.base }
+        if level < 100 { return Theme.Colors.Time.body.base }
         else if level < 200 { return Theme.Colors.success }
-        else { return Theme.Colors.Bloom.cycle.base }
+        else { return Theme.Colors.Time.cycle.base }
     }
 }
 

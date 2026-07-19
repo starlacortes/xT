@@ -79,8 +79,8 @@ struct FlatQuickActionsRow: View {
             flatAction(
                 icon: "checkmark.circle.fill",
                 label: "Record dose",
-                iconColor: doseMissed ? Theme.Colors.Bloom.cycle.base : Theme.Colors.Bloom.skin.base,
-                iconBg: doseMissed ? Theme.Colors.Bloom.cycle.surface : Theme.Colors.Bloom.skin.surface
+                iconColor: doseMissed ? Theme.Colors.Time.cycle.base : Theme.Colors.Time.skin.base,
+                iconBg: doseMissed ? Theme.Colors.Time.cycle.surface : Theme.Colors.Time.skin.surface
             ) {
                 showingQuickDoseSheet = true
             }
@@ -92,8 +92,8 @@ struct FlatQuickActionsRow: View {
                 flatActionContent(
                     icon: "calendar",
                     label: "Schedule",
-                    iconColor: Theme.Colors.Bloom.mind.base,
-                    iconBg: Theme.Colors.Bloom.mind.surface
+                    iconColor: Theme.Colors.Time.mind.base,
+                    iconBg: Theme.Colors.Time.mind.surface
                 )
             }
             .buttonStyle(.pressable)
@@ -277,7 +277,7 @@ struct JournalHomeRow: View {
                     }
                     .buttonStyle(.plain)
                 }
-                .background(Theme.Colors.Bloom.skin.surface.opacity(0.2))
+                .background(Theme.Colors.Time.skin.surface.opacity(0.2))
                 .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.lg))
             } else {
                 // Full-width new entry button
@@ -297,7 +297,7 @@ struct JournalHomeRow: View {
                     }
                     .padding(.vertical, 10)
                     .padding(.horizontal, 14)
-                    .background(Theme.Colors.Bloom.skin.surface.opacity(0.2))
+                    .background(Theme.Colors.Time.skin.surface.opacity(0.2))
                     .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.lg))
                 }
                 .buttonStyle(.plain)

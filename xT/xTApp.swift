@@ -57,6 +57,7 @@ struct xTApp: App {
             DoseRecord.self,
             JournalEntry.self,
             BloodTestRecord.self,
+            ScreeningRecord.self,
         ])
         let modelConfiguration = ModelConfiguration(
             "xT",
@@ -102,8 +103,18 @@ struct xTApp: App {
         NotificationManager.shared.scheduleAllReminders()
 
 #if DEBUG
-        // Auto-apply comprehensive spoof profile "Jan" so all views render with populated data.
-        SpoofProfile.applyIfNeeded()
+        // Developer Area (Settings → Developer): the "Jan" sample profile is
+        // strictly opt-in. When the Sample toggle is enabled, Jan was already
+        // applied before the enabling launch quit; this guard only re-seeds if
+        // that apply was interrupted. The user's real data is preserved by
+        // ProfileSnapshot and restored when the toggle turns off.
+        if DeveloperSettings.shared.sampleProfileEnabled {
+            SpoofProfile.applyIfNeeded()
+        }
+#else
+        // A RELEASE install over a DEBUG build must never inherit developer
+        // state (stale dev.* flags or snapshot files) — scrub it.
+        DeveloperSettings.scrubStaleReleaseState()
 #endif
     }
     

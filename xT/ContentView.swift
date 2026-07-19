@@ -11,28 +11,34 @@ struct ContentView: View {
     @Environment(\.medicationManager) private var medicationManager
     @Environment(\.profileManager) private var profileManager
     @Environment(\.authenticationManager) private var authManager
-    @State private var navigationPath = NavigationPath()
+    @State private var showOnboarding = false
 
     var body: some View {
         ZStack {
             Theme.Gradients.brand
                 .ignoresSafeArea()
 
-            NavigationStack(path: $navigationPath) {
-                if hasCompletedOnboarding {
-                    MainTabView()
-                } else {
-                    onboardingWithCompletion
-                }
+            if hasCompletedOnboarding {
+                MainTabView()
+            } else {
+                Color.clear
             }
-            .onAppear {
-                let defaults = UserDefaults.standard
-                let hasMedicationData = defaults.string(forKey: "selectedMedication") != nil
+        }
+        .onAppear {
+            let defaults = UserDefaults.standard
+            let hasMedicationData = defaults.string(forKey: "selectedMedication") != nil
 
-                if !hasCompletedOnboarding && hasMedicationData {
-                    hasCompletedOnboarding = true
-                }
+            if !hasCompletedOnboarding && hasMedicationData {
+                hasCompletedOnboarding = true
+            } else if !hasCompletedOnboarding {
+                showOnboarding = true
             }
+        }
+        .fullScreenCover(isPresented: $showOnboarding) {
+            OnboardingView(onboardingComplete: {
+                hasCompletedOnboarding = true
+                showOnboarding = false
+            })
         }
         // Full-screen lock overlay — shown whenever the manager requires auth.
         // interactiveDismissDisabled prevents any gesture from bypassing the lock.
@@ -42,18 +48,6 @@ struct ContentView: View {
         )) {
             AuthenticationView(reason: "Access your health data")
                 .interactiveDismissDisabled(true)
-        }
-    }
-
-    private var onboardingWithCompletion: some View {
-        OnboardingView(onboardingComplete: {
-            navigationPath.removeLast(navigationPath.count)
-            hasCompletedOnboarding = true
-        })
-        .onDisappear {
-            if !hasCompletedOnboarding {
-                hasCompletedOnboarding = true
-            }
         }
     }
 }

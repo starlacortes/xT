@@ -1,8 +1,8 @@
 //
-//  BloomView.swift
+//  TimeView.swift
 //  xT
 //
-//  Flat Bloom layout — mirrors the home screen design language.
+//  Flat Time layout — mirrors the home screen design language.
 //  Hero header floats on the system background; sections separated
 //  by hairline dividers instead of stacked colored cards.
 //
@@ -13,13 +13,24 @@
 
 import SwiftUI
 
-struct BloomView: View {
+struct TimeView: View {
     @Environment(\.medicationManager) private var medicationManager
 
     @State private var adherencePercent: CGFloat = 0
     @State private var changesExpanded: Bool = false
+    @State private var hasAnimatedAdherence = false
+    @State private var cachedEngine: TimeContentEngine?
 
-    private var engine: BloomContentEngine {
+    // Lightweight view-model: rebuilds only when observed dependencies change.
+    // Reads from MedicationManager (which is @Observable-compatible via custom
+    // EnvironmentKey) and caches the derived engine to avoid PK math on every body.
+    private var engine: TimeContentEngine {
+        if let cached = cachedEngine, cached.months == medicationManager.monthsOnHRT,
+           cached.adherenceRate == medicationManager.adherenceRate,
+           cached.currentLevel == medicationManager.estimatedRecentLevels(days: 1).last?.value,
+           cached.cyclePosition == medicationManager.currentCyclePosition {
+            return cached
+        }
         let cycleDay: Int = {
             guard let last = medicationManager.lastDoseDate,
                   let methodStr = medicationManager.selectedAdministrationMethod,
@@ -27,12 +38,16 @@ struct BloomView: View {
             let elapsed = Calendar.current.dateComponents([.day], from: last, to: Date()).day ?? 0
             return (elapsed % adm.frequencyDays) + 1
         }()
-        return BloomContentEngine(
+        let newEngine = TimeContentEngine(
             medication: medicationManager.selectedMedication ?? "Estrogen",
             method: medicationManager.selectedAdministrationMethod ?? "Injectable",
             months: medicationManager.monthsOnHRT,
             currentLevel: medicationManager.estimatedRecentLevels(days: 1).last?.value,
             dayOfCycle: cycleDay,
+            activeMonthsOnHRT: medicationManager.activeMonthsOnHRT,
+            ageAtStart: medicationManager.ageAtHRTStart,
+            screeningLog: medicationManager.screeningLog,
+            showDoseIntensity: medicationManager.showDoseIntensityInsights,
             adherenceRate: medicationManager.adherenceRate,
             cyclePosition: medicationManager.currentCyclePosition,
             regimenSegments: medicationManager.regimenTransitionHistory,
@@ -41,8 +56,10 @@ struct BloomView: View {
             doseIntensityDisclaimer: medicationManager.doseIntensityDisclaimer,
             bloodTestSchedulingText: medicationManager.bloodTestSchedulingText,
             suggestedBloodTestMonth: medicationManager.suggestedBloodTestMonth,
-            calibrationContext: nil  // populated when blood tests exist
+            calibrationContext: nil
         )
+        cachedEngine = newEngine
+        return newEngine
     }
 
     var body: some View {
@@ -50,20 +67,22 @@ struct BloomView: View {
             ScrollView {
                 VStack(spacing: 0) {
                     // Hero header (now includes adherence ring + cycle compass inline)
-                    BloomHeroHeader(engine: engine, adherencePercent: $adherencePercent)
+                    TimeHeroHeader(engine: engine, adherencePercent: $adherencePercent)
                         .padding(.horizontal, 22)
                         .padding(.top, 20)
                         .padding(.bottom, 10)
                         .entrance(delay: 0)
                         .onAppear {
+                            guard !hasAnimatedAdherence else { return }
+                            hasAnimatedAdherence = true
                             withAnimation(.easeOut(duration: 1.0).delay(0.3)) {
                                 adherencePercent = engine.adherenceRate ?? 0
                             }
                         }
 
                     if let insight = engine.hormoneInsight {
-                        bloomDivider()
-                        BloomHormoneRow(insight: insight, medication: engine.medication, cyclePosition: engine.cyclePosition)
+                        timeDivider()
+                        TimeHormoneRow(insight: insight, medication: engine.medication, cyclePosition: engine.cyclePosition)
                             .padding(.horizontal, 22)
                             .padding(.vertical, 18)
                             .entrance(delay: 0.08)
@@ -71,8 +90,12 @@ struct BloomView: View {
 
                     // Regimen Timeline Card (#3)
                     if !engine.regimenSegments.isEmpty && engine.regimenSegments.count > 1 {
-                        bloomDivider()
-                        BloomRegimenTimelineRow(segments: engine.regimenSegments)
+                        timeDivider()
+                        TimeRegimenTimelineRow(
+                            segments: engine.regimenSegments,
+                            tenureTier: engine.tenureTier,
+                            months: engine.months
+                        )
                             .padding(.horizontal, 22)
                             .padding(.vertical, 18)
                             .entrance(delay: 0.10)
@@ -82,8 +105,8 @@ struct BloomView: View {
                     // Early/established: changes BEFORE body systems
                     // Mature: changes AFTER body systems (collapsed)
                     if !engine.changesDefaultCollapsed {
-                        bloomDivider()
-                        BloomChangesRow(
+                        timeDivider()
+                        TimeChangesRow(
                             changes: engine.unlockedChanges,
                             sectionLabel: engine.changesSectionLabel,
                             summaryBadge: engine.changesSummaryBadge,
@@ -94,13 +117,13 @@ struct BloomView: View {
                     }
 
                     // Body systems — tappable rows → detail pages
-                    bloomDivider()
-                    BloomBodySection(engine: engine)
+                    timeDivider()
+                    TimeBodySection(engine: engine)
                         .entrance(delay: engine.changesDefaultCollapsed ? 0.12 : 0.16)
 
                     // Collapsed changes for mature users — after body systems
                     if engine.changesDefaultCollapsed {
-                        bloomDivider()
+                        timeDivider()
                         CollapsibleChangesRow(
                             changes: engine.unlockedChanges,
                             sectionLabel: engine.changesSectionLabel,
@@ -113,8 +136,8 @@ struct BloomView: View {
                     }
 
                     // Milestones — tenure-aware label
-                    bloomDivider()
-                    BloomMilestonesSection(
+                    timeDivider()
+                    TimeMilestonesSection(
                         milestones: engine.upcomingMilestones,
                         sectionLabel: engine.milestonesSectionLabel
                     )
@@ -127,15 +150,15 @@ struct BloomView: View {
         }
     }
 
-    private func bloomDivider() -> some View {
+    private func timeDivider() -> some View {
         Divider().opacity(0.5)
     }
 }
 
 // MARK: - Hero Header (now with adherence ring #2 + cycle compass #6)
 
-struct BloomHeroHeader: View {
-    let engine: BloomContentEngine
+struct TimeHeroHeader: View {
+    let engine: TimeContentEngine
     @Binding var adherencePercent: CGFloat
 
     private var cleanTitle: String {
@@ -170,6 +193,8 @@ struct BloomHeroHeader: View {
                 Text(cleanTitle)
                     .font(.system(size: 34, weight: .bold))
                     .tracking(-1.0)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
                     .foregroundStyle(
                         LinearGradient(
                             colors: Theme.Gradients.brandColors,
@@ -186,6 +211,18 @@ struct BloomHeroHeader: View {
                 }
                 .font(Theme.Fonts.footnote)
                 .foregroundStyle(Color.secondary)
+
+                // Anniversary marker for 10+ year veterans (plan §6.3)
+                if engine.tenureTier >= .t7Veteran {
+                    HStack(spacing: 4) {
+                        Image(systemName: "sparkle")
+                            .font(.system(size: 10))
+                        Text("A decade and counting")
+                            .font(Theme.Fonts.caption2)
+                    }
+                    .foregroundStyle(Theme.Colors.Time.cycle.base)
+                    .padding(.top, 2)
+                }
             }
 
             Spacer()
@@ -207,11 +244,11 @@ struct BloomHeroHeader: View {
                             .frame(width: 56, height: 56)
                             .rotationEffect(.degrees(-90))
                             .animation(.easeOut(duration: 1.0), value: adherencePercent)
-                        Text("\(Int(rate * 100))%")
+                        Text(adherenceLabelText(rate: rate, tier: engine.tenureTier, streak: engine.onTimeStreak))
                             .font(.system(size: 13, weight: .bold))
                             .foregroundStyle(Color.primary)
                     }
-                    Text("Adherence")
+                    Text(adherenceSubtitleLabel(tier: engine.tenureTier))
                         .font(.system(size: 9))
                         .foregroundStyle(Color.secondary)
                 }
@@ -243,12 +280,32 @@ struct BloomHeroHeader: View {
         case .unknown:  return ""
         }
     }
+
+    /// Tier-aware text inside the adherence ring (plan §6.2).
+    /// T1–T4: raw percent. T5+: streak count when available.
+    private func adherenceLabelText(rate: Double, tier: TenureTier, streak: Int) -> String {
+        if tier >= .t5Settled && streak > 0 {
+            return "\(streak)mo"
+        }
+        return "\(Int(rate * 100))%"
+    }
+
+    /// Tier-aware label under the adherence ring.
+    private func adherenceSubtitleLabel(tier: TenureTier) -> String {
+        if tier >= .t7Veteran {
+            return "Consistent"
+        } else if tier >= .t5Settled {
+            return "Streak"
+        } else {
+            return "Adherence"
+        }
+    }
 }
 
 // MARK: - Hormone Row (now with cycle position context #11)
 
-struct BloomHormoneRow: View {
-    let insight: BloomHormoneInsight
+struct TimeHormoneRow: View {
+    let insight: TimeHormoneInsight
     let medication: String
     let cyclePosition: MedicationManager.CyclePosition
 
@@ -311,8 +368,8 @@ struct BloomHormoneRow: View {
 
 // MARK: - Changes Row (tenure-aware label + summary badge)
 
-struct BloomChangesRow: View {
-    let changes: [BloomChange]
+struct TimeChangesRow: View {
+    let changes: [TimeChange]
     let sectionLabel: String
     let summaryBadge: String?
     let intensityDisclaimer: String?
@@ -346,13 +403,13 @@ struct BloomChangesRow: View {
                                 .fontWeight(.medium)
                         }
                         .foregroundStyle(
-                            change.unlocked ? Theme.Colors.Bloom.cycle.base : Color.secondary
+                            change.unlocked ? Theme.Colors.Time.cycle.base : Color.secondary
                         )
                         .padding(.horizontal, 11)
                         .padding(.vertical, 7)
                         .background(
                             change.unlocked
-                                ? Theme.Colors.Bloom.cycle.surface
+                                ? Theme.Colors.Time.cycle.surface
                                 : Color(.secondarySystemBackground)
                         )
                         .clipShape(Capsule())
@@ -383,7 +440,7 @@ struct BloomChangesRow: View {
 // MARK: - Collapsible Changes Row (mature users)
 
 struct CollapsibleChangesRow: View {
-    let changes: [BloomChange]
+    let changes: [TimeChange]
     let sectionLabel: String
     let summaryBadge: String?
     let intensityDisclaimer: String?
@@ -431,10 +488,10 @@ struct CollapsibleChangesRow: View {
                                         .font(Theme.Fonts.caption2)
                                         .fontWeight(.medium)
                                 }
-                                .foregroundStyle(Theme.Colors.Bloom.cycle.base)
+                                .foregroundStyle(Theme.Colors.Time.cycle.base)
                                 .padding(.horizontal, 11)
                                 .padding(.vertical, 7)
-                                .background(Theme.Colors.Bloom.cycle.surface)
+                                .background(Theme.Colors.Time.cycle.surface)
                                 .clipShape(Capsule())
                             }
                         }
@@ -465,8 +522,8 @@ struct CollapsibleChangesRow: View {
 
 // MARK: - Body Systems Section (Tappable Rows)
 
-struct BloomBodySection: View {
-    let engine: BloomContentEngine
+struct TimeBodySection: View {
+    let engine: TimeContentEngine
 
     var body: some View {
         VStack(spacing: 0) {
@@ -480,31 +537,32 @@ struct BloomBodySection: View {
             .padding(.horizontal, 22)
             .padding(.vertical, 18)
 
-            ForEach(Array(engine.bodySystems.enumerated()), id: \.element.id) { index, system in
-                if index > 0 {
-                    Divider()
-                        .opacity(0.5)
-                        .padding(.horizontal, 22)
-                }
-                NavigationLink(destination: BloomBodyDetailView(system: system, engine: engine)) {
-                    BloomBodySystemRow(system: system, tenureTier: engine.tenureTier)
+            ForEach(engine.bodySystems) { system in
+                NavigationLink(value: system.systemKey) {
+                    TimeBodySystemRow(system: system, tenureTier: engine.tenureTier)
                         .padding(.horizontal, 22)
                         .padding(.vertical, 14)
                 }
                 .buttonStyle(.pressable)
+                if system.id != engine.bodySystems.last?.id {
+                    Divider()
+                        .opacity(0.5)
+                        .padding(.horizontal, 22)
+                }
+            }
+        }
+        // Value-based navigation destination — maps BodySystemKey to detail view
+        .navigationDestination(for: BodySystemKey.self) { key in
+            if let system = engine.bodySystems.first(where: { $0.systemKey == key }) {
+                TimeBodyDetailView(system: system, engine: engine)
             }
         }
     }
 }
 
-struct BloomBodySystemRow: View {
-    let system: BloomBodySystem
+struct TimeBodySystemRow: View {
+    let system: TimeBodySystem
     let tenureTier: TenureTier
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var fillFraction: CGFloat = 0
-
-    /// Show progress bar only for early/established; mature gets a status dot.
-    private var showProgressBar: Bool { tenureTier != .mature }
 
     var body: some View {
         HStack(spacing: 14) {
@@ -524,12 +582,10 @@ struct BloomBodySystemRow: View {
                         .fontWeight(.medium)
                         .foregroundStyle(.primary)
                     Spacer()
-                    if !showProgressBar {
-                        // Status dot for mature users
-                        Circle()
-                            .fill(system.palette.progress)
-                            .frame(width: 6, height: 6)
-                    }
+                    // Status dot for ALL tiers (spec §3.4: progress bar removed entirely)
+                    Circle()
+                        .fill(system.palette.progress)
+                        .frame(width: 6, height: 6)
                     Text(system.progressLabel)
                         .font(Theme.Fonts.caption2)
                         .foregroundStyle(.secondary)
@@ -538,21 +594,6 @@ struct BloomBodySystemRow: View {
                 Text(system.subtitle)
                     .font(Theme.Fonts.caption2)
                     .foregroundStyle(.secondary)
-
-                if showProgressBar {
-                    GeometryReader { geo in
-                        ZStack(alignment: .leading) {
-                            RoundedRectangle(cornerRadius: 2)
-                                .fill(Color.primary.opacity(0.08))
-                                .frame(height: 3)
-                            RoundedRectangle(cornerRadius: 2)
-                                .fill(system.palette.progress)
-                                .frame(width: geo.size.width * fillFraction, height: 3)
-                        }
-                    }
-                    .frame(height: 3)
-                    .padding(.top, 2)
-                }
             }
 
             // Chevron
@@ -561,15 +602,6 @@ struct BloomBodySystemRow: View {
                 .foregroundStyle(Color.secondary.opacity(0.4))
         }
         .contentShape(Rectangle())
-        .onAppear {
-            if reduceMotion {
-                fillFraction = system.progressFraction
-            } else {
-                withAnimation(.easeOut(duration: 0.9).delay(0.25)) {
-                    fillFraction = system.progressFraction
-                }
-            }
-        }
     }
 
     private func sfSymbol(for name: String) -> String {
@@ -588,8 +620,8 @@ struct BloomBodySystemRow: View {
 
 // MARK: - Milestones Section (tenure-aware label)
 
-struct BloomMilestonesSection: View {
-    let milestones: [BloomMilestone]
+struct TimeMilestonesSection: View {
+    let milestones: [TimeMilestone]
     let sectionLabel: String
 
     var body: some View {
@@ -606,7 +638,7 @@ struct BloomMilestonesSection: View {
 
             VStack(spacing: 10) {
                 ForEach(Array(milestones.enumerated()), id: \.element.id) { index, milestone in
-                    BloomMilestoneRow(milestone: milestone)
+                    TimeMilestoneRow(milestone: milestone)
                         .entrance(index: index)
                 }
             }
@@ -615,8 +647,8 @@ struct BloomMilestonesSection: View {
     }
 }
 
-struct BloomMilestoneRow: View {
-    let milestone: BloomMilestone
+struct TimeMilestoneRow: View {
+    let milestone: TimeMilestone
 
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
@@ -675,18 +707,35 @@ struct BloomMilestoneRow: View {
 
 // MARK: - Regimen Timeline Card (#3)
 
-struct BloomRegimenTimelineRow: View {
-    let segments: [MedicationManager.RegimenSegment]
+/// Static date formatter to avoid allocation on every render.
+private let regimenDateFormatter: DateFormatter = {
+    let df = DateFormatter()
+    df.dateFormat = "MMM d"
+    return df
+}()
 
-    private var summaryText: String {
-        let df = DateFormatter()
-        df.dateFormat = "MMM d"
+struct TimeRegimenTimelineRow: View {
+    let segments: [MedicationManager.RegimenSegment]
+    let tenureTier: TenureTier
+    let months: Int
+
+    @State private var isExpanded = false
+
+    /// T5+ get a compact summary; T1–T4 get the full list (plan §6.1).
+    private var isCompacted: Bool { tenureTier >= .t5Settled }
+
+    private var compactSummary: String {
+        let segmentCount = segments.count
+        let years = max(1, months / 12)
+        return "\(segmentCount) regimen change\(segmentCount == 1 ? "" : "s") over \(years) year\(years == 1 ? "" : "s")"
+    }
+
+    private var fullText: String {
         return segments.map { segment in
-            let start = df.string(from: segment.startDate)
-            let end = segment.endDate.map { df.string(from: $0) } ?? "Present"
+            let start = regimenDateFormatter.string(from: segment.startDate)
+            let end = segment.endDate.map { regimenDateFormatter.string(from: $0) } ?? "Present"
             let concInfo = segment.concentrationMgPerMl.map { " @ \(String(format: "%.0f", $0)) mg/mL" } ?? ""
             var line = "\(start) – \(end): \(segment.ester) \(String(format: "%.1f", segment.doseAmount)) mg\(concInfo)"
-            // Flag concentration changes
             if let prev = segment.previousConcentrationMgPerMl, let curr = segment.concentrationMgPerMl {
                 line += "\n  Concentration changed: \(String(format: "%.0f", prev)) → \(String(format: "%.0f", curr)) mg/mL"
             }
@@ -702,16 +751,38 @@ struct BloomRegimenTimelineRow: View {
                     .foregroundStyle(Color.secondary)
                     .tracking(0.5)
                 Spacer()
-                Image(systemName: "arrow.triangle.branch")
-                    .font(.system(size: 12))
-                    .foregroundStyle(Color.secondary)
+                if isCompacted {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            isExpanded.toggle()
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text(isExpanded ? "Less" : "Details")
+                                .font(Theme.Fonts.caption2)
+                            Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                                .font(.system(size: 10))
+                        }
+                        .foregroundStyle(Theme.Colors.accent)
+                    }
+                } else {
+                    Image(systemName: "arrow.triangle.branch")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color.secondary)
+                }
             }
 
-            Text(summaryText)
-                .font(Theme.Fonts.caption)
-                .foregroundStyle(Color.primary.opacity(0.8))
-                .lineSpacing(3)
-                .fixedSize(horizontal: false, vertical: true)
+            if isCompacted && !isExpanded {
+                Text(compactSummary)
+                    .font(Theme.Fonts.caption)
+                    .foregroundStyle(Color.primary.opacity(0.8))
+            } else {
+                Text(fullText)
+                    .font(Theme.Fonts.caption)
+                    .foregroundStyle(Color.primary.opacity(0.8))
+                    .lineSpacing(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .padding(Theme.Spacing.card)
         .background(
@@ -728,6 +799,6 @@ struct BloomRegimenTimelineRow: View {
 // MARK: - Preview
 
 #Preview {
-    BloomView()
+    TimeView()
         .environment(\.medicationManager, MedicationManager.shared)
 }

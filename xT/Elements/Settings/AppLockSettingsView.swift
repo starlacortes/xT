@@ -114,11 +114,11 @@ struct AppLockSettingsView: View {
         VStack(spacing: 12) {
             ZStack {
                 Circle()
-                    .fill(Theme.Colors.Bloom.mind.surface.opacity(0.3))
+                    .fill(Theme.Colors.Time.mind.surface.opacity(0.3))
                     .frame(width: 64, height: 64)
                 Image(systemName: "faceid")
                     .font(.system(size: 32))
-                    .foregroundStyle(Theme.Colors.Bloom.mind.base)
+                    .foregroundStyle(Theme.Colors.Time.mind.base)
             }
             
             Text("Require Face ID")
@@ -151,11 +151,11 @@ struct AppLockSettingsView: View {
         VStack(spacing: 12) {
             ZStack {
                 Circle()
-                    .fill(Theme.Colors.Bloom.mind.surface.opacity(0.3))
+                    .fill(Theme.Colors.Time.mind.surface.opacity(0.3))
                     .frame(width: 64, height: 64)
                 Image(systemName: biometricType.iconName)
                     .font(.system(size: 32))
-                    .foregroundStyle(Theme.Colors.Bloom.mind.base)
+                    .foregroundStyle(Theme.Colors.Time.mind.base)
             }
             
             Text("Require \(biometricType.description)")
@@ -297,7 +297,7 @@ struct TestBiometricSheet: View {
         VStack(spacing: 16) {
             Image(systemName: authManager.biometricType().iconName)
                 .font(.system(size: 64))
-                .foregroundStyle(Theme.Colors.Bloom.mind.base)
+                .foregroundStyle(Theme.Colors.Time.mind.base)
             Text("Test your biometric authentication")
                 .font(.title2)
                 .fontWeight(.medium)

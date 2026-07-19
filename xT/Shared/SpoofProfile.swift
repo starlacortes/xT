@@ -3,8 +3,10 @@
 //  xT
 //
 //  DEBUG-only comprehensive spoof profile named "Jan".
-//  Auto-applies on every DEBUG launch to populate all singleton managers
-//  with realistic data so every preview and view in the app renders content.
+//  Applied only when the Developer Area's Sample toggle is enabled
+//  (Settings → Developer). Populates all singleton managers with realistic
+//  data so every preview and view in the app renders content. The user's
+//  real data is snapshotted/restored around it by ProfileSnapshot.
 //
 
 #if DEBUG
@@ -68,6 +70,7 @@ enum SpoofProfile {
         pm.profileName = ""
         pm.profileImage = nil
         pm.profileImageData = nil
+        pm.dateOfBirth = nil
 
         // --- Medication: manually clear all @Published state ---
         mm.selectedMedication = nil
@@ -84,6 +87,7 @@ enum SpoofProfile {
         mm.spironolactoneClearanceEnabled = false
         mm.suppressionSpeed = .fast
         mm.customFrequencyDays = nil
+        mm.showDoseIntensityInsights = false
         mm.missedDoseGracePeriodHours = 12.0
         mm.predictedTroughDrop = nil
         mm.userTherapeuticTarget = nil
@@ -101,6 +105,8 @@ enum SpoofProfile {
                 for d in doses { ctx.delete(d) }
                 let tests = try ctx.fetch(FetchDescriptor<BloodTestRecord>())
                 for t in tests { ctx.delete(t) }
+                let screenings = try ctx.fetch(FetchDescriptor<ScreeningRecord>())
+                for s in screenings { ctx.delete(s) }
                 try ctx.save()
             } catch {
                 print("[SpoofProfile] reset SwiftData error: \(error)")

@@ -50,6 +50,8 @@ struct HomeColorBackdrop: View {
             .frame(width: Self.lavenderBlobSize, height: Self.lavenderBlobSize)
             .offset(x: 190, y: -70)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .clipped()
         .offset(y: parallaxOffset)
         .allowsHitTesting(false)
         .ignoresSafeArea()

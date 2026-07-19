@@ -17,6 +17,8 @@ struct SettingsView: View {
     @Environment(\.authenticationManager) private var authManager
     @State private var showingResetAlert = false
     @State private var showingAuthRequest = false
+    @State private var showingTypeMethodSheet = false
+    @State private var showingDoseScheduleSheet = false
     @State private var doseRemindersEnabled = true
     @State private var journalRemindersEnabled = false
     @State private var doseReminderHour = 9
@@ -31,6 +33,12 @@ struct SettingsView: View {
     @State private var targetTroughMin: Double = 100
     @State private var targetTroughMax: Double = 200
     @State private var targetPeakCeiling: Double = 600
+
+#if DEBUG
+    // Developer Area state (plan §2.6)
+    @State private var showingDeveloperModeAlert = false
+    @State private var showingSampleProfileAlert = false
+#endif
 
     var body: some View {
         NavigationStack {
@@ -48,6 +56,9 @@ struct SettingsView: View {
                         settingsNotificationsSection
                         settingsPrivacySection
                         settingsAboutSection
+#if DEBUG
+                        settingsDeveloperSection
+#endif
                     }
                     .padding(.top, 24)
                     .padding(.bottom, 48)
@@ -62,6 +73,12 @@ struct SettingsView: View {
             }
             .sheet(isPresented: $showingJournalTimePicker) {
                 TimePickerSheet(title: "Journal reminder time", hour: $journalReminderHour, minute: $journalReminderMinute, isPresented: $showingJournalTimePicker)
+            }
+            .sheet(isPresented: $showingTypeMethodSheet) {
+                TypeMethodSettingsView()
+            }
+            .sheet(isPresented: $showingDoseScheduleSheet) {
+                DoseScheduleSettingsView()
             }
             .onAppear { loadSettings() }
             .onChange(of: doseRemindersEnabled) { _, newValue in onDoseReminderToggle(newValue) }
@@ -166,41 +183,43 @@ struct SettingsView: View {
 
     private var settingsMedicationSection: some View {
         settingsSection(label: "Medication") {
-            settingsRow(
-                icon: "pills.fill",
-                iconBg: Theme.Colors.Bloom.cycle.surface,
-                iconColor: Theme.Colors.Bloom.cycle.base,
-                title: "Type & method",
-                subtitle: medicationManager.medicationDisplayInfo
-            ) {
-                NavigationLink(destination: UnifiedScheduleView(isFromSettings: true)) {
-                    EmptyView()
-                }
-                .opacity(0)
+            Button {
+                showingTypeMethodSheet = true
+            } label: {
+                settingsRowContent(
+                    icon: "pills.fill",
+                    iconBg: Theme.Colors.Time.cycle.surface,
+                    iconColor: Theme.Colors.Time.cycle.base,
+                    title: "Type & method",
+                    subtitle: medicationManager.medicationDisplayInfo,
+                    trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(.secondary) }
+                )
             }
+            .buttonStyle(.plain)
 
             settingsDivider()
 
-            settingsRow(
-                icon: "calendar",
-                iconBg: Theme.Colors.Bloom.mind.surface,
-                iconColor: Theme.Colors.Bloom.mind.base,
-                title: "Dose schedule",
-                subtitle: nextDoseSubtitle
-            ) {
-                NavigationLink(destination: UnifiedScheduleView(isFromSettings: true)) {
-                    EmptyView()
-                }
-                .opacity(0)
+            Button {
+                showingDoseScheduleSheet = true
+            } label: {
+                settingsRowContent(
+                    icon: "flask",
+                    iconBg: Theme.Colors.Time.mind.surface,
+                    iconColor: Theme.Colors.Time.mind.base,
+                    title: "Dose & Frequency",
+                    subtitle: nextDoseSubtitle,
+                    trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(.secondary) }
+                )
             }
+            .buttonStyle(.plain)
 
             settingsDivider()
 
             NavigationLink(destination: AdherenceView()) {
                 settingsRowContent(
                     icon: "chart.line.uptrend.xyaxis",
-                    iconBg: Theme.Colors.Bloom.body.surface,
-                    iconColor: Theme.Colors.Bloom.body.base,
+                    iconBg: Theme.Colors.Time.body.surface,
+                    iconColor: Theme.Colors.Time.body.base,
                     title: "Adherence & history",
                     subtitle: adherenceSubtitle,
                     trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(.secondary) }
@@ -210,19 +229,39 @@ struct SettingsView: View {
 
             settingsDivider()
 
-            Button(action: {
-                medicationManager.recordDose(on: Date())
-            }) {
-                settingsRowContent(
-                    icon: "checkmark",
-                    iconBg: Theme.Colors.Bloom.skin.surface,
-                    iconColor: Theme.Colors.Bloom.skin.base,
-                    title: "Record a dose",
-                    subtitle: lastDoseSubtitle,
-                    trailing: { Image(systemName: "checkmark.circle").font(.system(size: 16)).foregroundStyle(Theme.Colors.Bloom.skin.base) }
-                )
+            // Dose-intensity insights toggle (plan §4.4)
+            HStack(spacing: 14) {
+                settingsIconView(icon: "gauge.with.dots.needle.33percent",
+                                 bg: Theme.Colors.Time.mind.surface,
+                                 color: Theme.Colors.Time.mind.base)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Dose intensity insights")
+                        .font(Theme.Fonts.callout)
+                        .foregroundStyle(.primary)
+                    Text(medicationManager.showDoseIntensityInsights ? "On — personalised dose intensity shown" : "Off — use clinical defaults")
+                        .font(Theme.Fonts.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Toggle("", isOn: Binding(
+                    get: { medicationManager.showDoseIntensityInsights },
+                    set: {
+                        medicationManager.showDoseIntensityInsights = $0
+                        medicationManager.persistUserPreferences()
+                        medicationManager.refreshState()
+                    }
+                ))
+                .labelsHidden()
+                .toggleStyle(SwitchToggleStyle(tint: Theme.Colors.accent))
             }
-            .buttonStyle(.plain)
+            .padding(.horizontal, 22)
+            .padding(.vertical, 16)
+            .contentShape(Rectangle())
+
+
         }
     }
 
@@ -232,7 +271,7 @@ struct SettingsView: View {
         settingsSection(label: "Therapeutic targets") {
             // Toggle to enable custom targets
             HStack(spacing: 14) {
-                settingsIconView(icon: "target", bg: Theme.Colors.Bloom.body.surface, color: Theme.Colors.Bloom.body.base)
+                settingsIconView(icon: "target", bg: Theme.Colors.Time.body.surface, color: Theme.Colors.Time.body.base)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Use personal targets")
@@ -365,7 +404,7 @@ struct SettingsView: View {
     private var settingsNotificationsSection: some View {
         settingsSection(label: "Notifications") {
             HStack(spacing: 14) {
-                settingsIconView(icon: "bell.fill", bg: Theme.Colors.Bloom.body.surface, color: Theme.Colors.Bloom.body.base)
+                settingsIconView(icon: "bell.fill", bg: Theme.Colors.Time.body.surface, color: Theme.Colors.Time.body.base)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Dose reminders")
@@ -390,7 +429,7 @@ struct SettingsView: View {
             settingsDivider()
 
             HStack(spacing: 14) {
-                settingsIconView(icon: "book.fill", bg: Theme.Colors.Bloom.cycle.surface, color: Theme.Colors.accent)
+                settingsIconView(icon: "book.fill", bg: Theme.Colors.Time.cycle.surface, color: Theme.Colors.accent)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Journal reminders")
@@ -441,8 +480,8 @@ struct SettingsView: View {
             NavigationLink(destination: DataExportView()) {
                 settingsRowContent(
                     icon: "square.and.arrow.up",
-                    iconBg: Theme.Colors.Bloom.cycle.surface,
-                    iconColor: Theme.Colors.Bloom.cycle.base,
+                    iconBg: Theme.Colors.Time.cycle.surface,
+                    iconColor: Theme.Colors.Time.cycle.base,
                     title: "Export data",
                     subtitle: "CSV or JSON — dose history, journal, blood tests",
                     trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(.secondary) }
@@ -462,7 +501,7 @@ struct SettingsView: View {
                 iconColor: .secondary,
                 title: "Version",
                 subtitle: nil,
-                trailing: { Text("1.0.0").font(.system(size: 13)).foregroundStyle(.secondary) }
+                trailing: { Text("0.8.0").font(.system(size: 13)).foregroundStyle(.secondary) }
             )
 
             settingsDivider()
@@ -480,6 +519,164 @@ struct SettingsView: View {
             .buttonStyle(.plain)
         }
     }
+
+    // MARK: - Developer Section (DEBUG only)
+
+#if DEBUG
+    @ViewBuilder
+    private var settingsDeveloperSection: some View {
+        let dev = DeveloperSettings.shared
+
+        settingsSection(label: "Developer") {
+            // Master gate.
+            HStack(spacing: 14) {
+                settingsIconView(
+                    icon: "wrench.and.screwdriver",
+                    bg: Color(.systemGray6),
+                    color: .secondary
+                )
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Developer mode")
+                        .font(Theme.Fonts.callout)
+                        .foregroundStyle(.primary)
+                    Text(dev.developerModeEnabled ? "On" : "Off")
+                        .font(Theme.Fonts.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Toggle("", isOn: Binding(
+                    get: { dev.developerModeEnabled },
+                    set: { newValue in
+                        if newValue {
+                            showingDeveloperModeAlert = true
+                        } else {
+                            onDeveloperModeDisabled()
+                        }
+                    }
+                ))
+                .labelsHidden()
+                .toggleStyle(SwitchToggleStyle(tint: Theme.Colors.accent))
+            }
+            .padding(.horizontal, 22)
+            .padding(.vertical, 16)
+            .contentShape(Rectangle())
+
+            settingsDivider()
+
+            // Sample (Jan) — greyed out unless developer mode is on.
+            HStack(spacing: 14) {
+                settingsIconView(
+                    icon: "person.crop.circle.badge",
+                    bg: Theme.Colors.Time.cycle.surface,
+                    color: Theme.Colors.Time.cycle.base
+                )
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Sample (Jan)")
+                        .font(Theme.Fonts.callout)
+                        .foregroundStyle(.primary)
+                    Text(dev.sampleProfileEnabled ? "Jan test profile active" : "Load Jan test profile")
+                        .font(Theme.Fonts.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Toggle("", isOn: Binding(
+                    get: { dev.sampleProfileEnabled },
+                    set: { newValue in
+                        if newValue {
+                            showingSampleProfileAlert = true
+                        } else {
+                            onSampleProfileDisabled()
+                        }
+                    }
+                ))
+                .labelsHidden()
+                .toggleStyle(SwitchToggleStyle(tint: Theme.Colors.accent))
+            }
+            .padding(.horizontal, 22)
+            .padding(.vertical, 16)
+            .contentShape(Rectangle())
+            .disabled(!dev.developerModeEnabled)
+            .opacity(dev.developerModeEnabled ? 1 : 0.4)
+
+            settingsDivider()
+
+            // Research (Insights tab) — greyed out unless developer mode is on.
+            HStack(spacing: 14) {
+                settingsIconView(
+                    icon: "chart.xyaxis.line",
+                    bg: Theme.Colors.Time.body.surface,
+                    color: Theme.Colors.Time.body.base
+                )
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Research")
+                        .font(Theme.Fonts.callout)
+                        .foregroundStyle(.primary)
+                    Text(dev.researchTabVisible ? "Insights tab visible" : "Show Insights tab")
+                        .font(Theme.Fonts.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Toggle("", isOn: Binding(
+                    get: { dev.researchTabVisible },
+                    set: { dev.researchTabVisible = $0 }
+                ))
+                .labelsHidden()
+                .toggleStyle(SwitchToggleStyle(tint: Theme.Colors.accent))
+            }
+            .padding(.horizontal, 22)
+            .padding(.vertical, 16)
+            .contentShape(Rectangle())
+            .disabled(!dev.developerModeEnabled)
+            .opacity(dev.developerModeEnabled ? 1 : 0.4)
+        }
+        .alert("Enable developer mode?", isPresented: $showingDeveloperModeAlert) {
+            Button("Cancel", role: .cancel) {}
+            Button("Enable") { DeveloperSettings.shared.developerModeEnabled = true }
+        } message: {
+            Text("Developer mode unlocks test-only tools. Leave this off for normal use.")
+        }
+        .alert("Switch to the Jan test profile?", isPresented: $showingSampleProfileAlert) {
+            Button("Cancel", role: .cancel) {}
+            Button("Quit & Switch") { onSampleProfileEnabled() }
+        } message: {
+            Text("Your data is preserved and will be restored when you turn this off. The app will quit.")
+        }
+    }
+
+    private func onDeveloperModeDisabled() {
+        // Turning the master gate off also disables the child toggles.
+        // If Sample was active, restore the user's data first.
+        if DeveloperSettings.shared.sampleProfileEnabled {
+            onSampleProfileDisabled()
+        }
+        DeveloperSettings.shared.researchTabVisible = false
+        DeveloperSettings.shared.developerModeEnabled = false
+    }
+
+    private func onSampleProfileEnabled() {
+        // Preserve the user's real data, mark Sample active, seed Jan, then quit
+        // so the next launch comes up cleanly on the Jan dataset (plan §2.4).
+        ProfileSnapshot.snapshotIfNeeded()
+        DeveloperSettings.shared.sampleProfileEnabled = true
+        SpoofProfile.forceApply()
+        exit(0)
+    }
+
+    private func onSampleProfileDisabled() {
+        // Restore the user's snapshot over Jan's data and rehydrate in place.
+        ProfileSnapshot.restore()
+        DeveloperSettings.shared.sampleProfileEnabled = false
+    }
+#endif
 
     // MARK: - Layout helpers
 
@@ -590,13 +787,6 @@ struct SettingsView: View {
             return "Next: \(formatDate(next))"
         }
         return "No schedule set"
-    }
-
-    private var lastDoseSubtitle: String {
-        if let last = medicationManager.lastDoseDate {
-            return "Last: \(formatDate(last))"
-        }
-        return "No doses recorded"
     }
 
     private var adherenceSubtitle: String {

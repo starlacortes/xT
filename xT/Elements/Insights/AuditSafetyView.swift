@@ -170,7 +170,7 @@ struct AuditSafetyView: View {
         return HStack(spacing: 12) {
             statPill(
                 icon: "calendar.badge.clock",
-                color: Theme.Colors.Bloom.mind.base,
+                color: Theme.Colors.Time.mind.base,
                 value: "\(String(format: "%.0f", overallRate * 100))%",
                 label: "Overall 12-month adherence"
             )

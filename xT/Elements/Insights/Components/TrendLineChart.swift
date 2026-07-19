@@ -42,29 +42,26 @@ struct TrendLineChart: View {
                 let h = geo.size.height - padding * 2
 
                 let allPoints = series.flatMap(\.points)
-                guard !allPoints.isEmpty else {
-                    return AnyView(
-                        Rectangle()
-                            .fill(Color.primary.opacity(0.03))
-                            .overlay(
-                                Text("No trend data available")
-                                    .font(Theme.Fonts.caption)
-                                    .foregroundStyle(.secondary)
-                            )
-                    )
-                }
 
-                let monthsValues = allPoints.map(\.monthsOnHRT)
-                let dataValues = allPoints.map(\.value)
-                let minMonth = (monthsValues.min() ?? 0)
-                let maxMonth = max((monthsValues.max() ?? 1), 1)
-                let monthRange = max(maxMonth - minMonth, 0.001)
+                if allPoints.isEmpty {
+                    Rectangle()
+                        .fill(Color.primary.opacity(0.03))
+                        .overlay(
+                            Text("No trend data available")
+                                .font(Theme.Fonts.caption)
+                                .foregroundStyle(.secondary)
+                        )
+                } else {
+                    let monthsValues = allPoints.map(\.monthsOnHRT)
+                    let dataValues = allPoints.map(\.value)
+                    let minMonth = (monthsValues.min() ?? 0)
+                    let maxMonth = max((monthsValues.max() ?? 1), 1)
+                    let monthRange = max(maxMonth - minMonth, 0.001)
 
-                let minVal = (dataValues.min() ?? 0) * 0.9
-                let maxVal = (dataValues.max() ?? 1) * 1.1
-                let valRange = max(maxVal - minVal, 0.001)
+                    let minVal = (dataValues.min() ?? 0) * 0.9
+                    let maxVal = (dataValues.max() ?? 1) * 1.1
+                    let valRange = max(maxVal - minVal, 0.001)
 
-                return AnyView(
                     ZStack {
                         // Grid lines
                         gridLines(w: w, h: h)
@@ -99,7 +96,7 @@ struct TrendLineChart: View {
                                    minVal: minVal, maxVal: maxVal, valRange: valRange)
                     }
                     .padding(padding)
-                )
+                }
             }
             .frame(height: 220)
 
@@ -152,18 +149,19 @@ struct TrendLineChart: View {
     private func milestoneLines(w: CGFloat, h: CGFloat, minMonth: Double, monthRange: Double) -> some View {
         ForEach(milestones, id: \.label) { m in
             let px = (m.months - minMonth) / monthRange * w
-            guard px >= 0, px <= w else { return }
-            Rectangle()
-                .fill(Theme.Colors.accent.opacity(0.3))
-                .frame(width: 1)
-                .overlay(alignment: .top) {
-                    Text(m.label)
-                        .font(.system(size: 8))
-                        .foregroundStyle(Theme.Colors.accent.opacity(0.6))
-                        .fixedSize()
-                        .offset(y: -14)
-                }
-                .position(x: px, y: h / 2)
+            if px >= 0, px <= w {
+                Rectangle()
+                    .fill(Theme.Colors.accent.opacity(0.3))
+                    .frame(width: 1)
+                    .overlay(alignment: .top) {
+                        Text(m.label)
+                            .font(.system(size: 8))
+                            .foregroundStyle(Theme.Colors.accent.opacity(0.6))
+                            .fixedSize()
+                            .offset(y: -14)
+                    }
+                    .position(x: px, y: h / 2)
+            }
         }
     }
 
@@ -232,7 +230,7 @@ struct TrendLineChart: View {
                     TrendPoint(date: Date(), value: 6, label: nil, monthsOnHRT: 6),
                     TrendPoint(date: Date(), value: 8, label: nil, monthsOnHRT: 9),
                 ],
-                color: Theme.Colors.Bloom.skin.base,
+                color: Theme.Colors.Time.skin.base,
                 unit: "/10"
             ),
             TrendSeries(
@@ -243,7 +241,7 @@ struct TrendLineChart: View {
                     TrendPoint(date: Date(), value: 5, label: nil, monthsOnHRT: 6),
                     TrendPoint(date: Date(), value: 7, label: nil, monthsOnHRT: 9),
                 ],
-                color: Theme.Colors.Bloom.body.base,
+                color: Theme.Colors.Time.body.base,
                 unit: "/10"
             ),
         ],

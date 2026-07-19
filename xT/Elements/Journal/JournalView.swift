@@ -313,20 +313,20 @@ struct StreakPill: View {
         HStack(spacing: 6) {
             Image(systemName: "flame.fill")
                 .font(.system(size: 14))
-                .foregroundStyle(Theme.Colors.Bloom.body.base)
+                .foregroundStyle(Theme.Colors.Time.body.base)
 
             AnimatedCounter(value: Double(days), format: { "\(Int($0.rounded())) days" })
                 .font(Theme.Fonts.caption)
                 .fontWeight(.semibold)
-                .foregroundStyle(Theme.Colors.Bloom.body.base)
+                .foregroundStyle(Theme.Colors.Time.body.base)
         }
         .padding(.horizontal, Theme.Spacing.md)
         .padding(.vertical, 5)
-        .background(Theme.Colors.Bloom.body.surface)
+        .background(Theme.Colors.Time.body.surface)
         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
         .overlay(
             RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                .stroke(Theme.Colors.Bloom.body.border, lineWidth: 0.5)
+                .stroke(Theme.Colors.Time.body.border, lineWidth: 0.5)
         )
     }
 }

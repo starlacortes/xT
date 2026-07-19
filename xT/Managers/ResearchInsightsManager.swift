@@ -223,7 +223,7 @@ final class ResearchInsightsManager: ObservableObject {
         currentLevel: Double?,
         onTimeStreak: Int,
         relativeDoseIntensity: Double,
-        bloomProgress: [String: Double]  // body system → 1-10 progress
+        timeProgress: [String: Double]  // body system → 1-10 progress
     ) -> [(date: Date, value: Double)] {
         switch variable {
         case .monthsOnHRT:
@@ -267,25 +267,25 @@ final class ResearchInsightsManager: ObservableObject {
 
         case .skinProgress:
             return journalEntries.compactMap { entry in
-                guard let progress = bloomProgress["Skin & Hair"] else { return nil }
+                guard let progress = timeProgress["Skin & Hair"] else { return nil }
                 return (entry.date, progress)
             }.sorted { $0.date < $1.date }
 
         case .bodyProgress:
             return journalEntries.compactMap { entry in
-                guard let progress = bloomProgress["Body Shape"] else { return nil }
+                guard let progress = timeProgress["Body Shape"] else { return nil }
                 return (entry.date, progress)
             }.sorted { $0.date < $1.date }
 
         case .mindProgress:
             return journalEntries.compactMap { entry in
-                guard let progress = bloomProgress["Mind & Mood"] else { return nil }
+                guard let progress = timeProgress["Mind & Mood"] else { return nil }
                 return (entry.date, progress)
             }.sorted { $0.date < $1.date }
 
         case .cycleProgress:
             return journalEntries.compactMap { entry in
-                guard let progress = bloomProgress["Cycle & Flow"] else { return nil }
+                guard let progress = timeProgress["Cycle & Flow"] else { return nil }
                 return (entry.date, progress)
             }.sorted { $0.date < $1.date }
 
@@ -319,18 +319,18 @@ final class ResearchInsightsManager: ObservableObject {
         currentLevel: Double?,
         onTimeStreak: Int,
         relativeDoseIntensity: Double,
-        bloomProgress: [String: Double]
+        timeProgress: [String: Double]
     ) -> CorrelationResult? {
         let valuesA = extractValues(for: varA, doses: doses, journalEntries: journalEntries,
                                      bloodTests: bloodTests, hrtStartDate: hrtStartDate,
                                      adherenceRate: adherenceRate, currentLevel: currentLevel,
                                      onTimeStreak: onTimeStreak, relativeDoseIntensity: relativeDoseIntensity,
-                                     bloomProgress: bloomProgress)
+                                     timeProgress: timeProgress)
         let valuesB = extractValues(for: varB, doses: doses, journalEntries: journalEntries,
                                      bloodTests: bloodTests, hrtStartDate: hrtStartDate,
                                      adherenceRate: adherenceRate, currentLevel: currentLevel,
                                      onTimeStreak: onTimeStreak, relativeDoseIntensity: relativeDoseIntensity,
-                                     bloomProgress: bloomProgress)
+                                     timeProgress: timeProgress)
 
         // Pair values by nearest date within a 3-day window
         var paired: [(Double, Double, String?)] = []
@@ -405,13 +405,13 @@ final class ResearchInsightsManager: ObservableObject {
     func buildLongitudinalTrends(
         journalEntries: [JournalEntry],
         hrtStartDate: Date,
-        bloomProgress: [String: Double]
+        timeProgress: [String: Double]
     ) -> [TrendSeries] {
         let systems: [(String, Color)] = [
-            ("Skin & Hair",     Theme.Colors.Bloom.skin.base),
-            ("Body Shape",      Theme.Colors.Bloom.body.base),
-            ("Mind & Mood",     Theme.Colors.Bloom.mind.base),
-            ("Cycle & Flow",    Theme.Colors.Bloom.cycle.base),
+            ("Skin & Hair",     Theme.Colors.Time.skin.base),
+            ("Body Shape",      Theme.Colors.Time.body.base),
+            ("Mind & Mood",     Theme.Colors.Time.mind.base),
+            ("Cycle & Flow",    Theme.Colors.Time.cycle.base),
         ]
 
         // For now, use journal entries as time markers paired with bloom progress.
@@ -419,7 +419,7 @@ final class ResearchInsightsManager: ObservableObject {
         var series: [TrendSeries] = []
 
         for (system, color) in systems {
-            guard let currentProgress = bloomProgress[system] else { continue }
+            guard let currentProgress = timeProgress[system] else { continue }
 
             let sortedEntries = journalEntries.sorted { $0.date < $1.date }
             // Simulate a gradual trend from entry dates to current progress

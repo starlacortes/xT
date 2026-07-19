@@ -13,6 +13,7 @@ struct MainContentView: View {
     @Environment(\.medicationManager) private var medicationManager
     @Environment(\.journalManager) private var journalManager
     @Binding var showingGraphDetail: Bool
+    var isWide: Bool = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -30,21 +31,36 @@ struct MainContentView: View {
 
             flatDivider()
 
-            // Contextual health insight
-            if medicationManager.isFullyConfigured {
-                FlatInsightRow()
+            if isWide && medicationManager.isFullyConfigured {
+                // Wide layouts: insight and journal sit side by side
+                HStack(alignment: .top, spacing: 24) {
+                    FlatInsightRow()
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
+
+                    JournalHomeRow()
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                }
+                .padding(.vertical, 18)
+                .entrance(index: 2)
+
+                flatDivider()
+            } else {
+                // Contextual health insight
+                if medicationManager.isFullyConfigured {
+                    FlatInsightRow()
+                        .padding(.vertical, 18)
+                        .entrance(index: 2)
+
+                    flatDivider()
+                }
+
+                // Journal row — always present (empty state or today's entry)
+                JournalHomeRow()
                     .padding(.vertical, 18)
-                    .entrance(index: 2)
+                    .entrance(index: 3)
 
                 flatDivider()
             }
-
-            // Journal row — always present (empty state or today's entry)
-            JournalHomeRow()
-                .padding(.vertical, 18)
-                .entrance(index: 3)
-
-            flatDivider()
 
             // Next dose dot-tracker
             if medicationManager.isFullyConfigured {
@@ -79,8 +95,8 @@ struct FlatQuickActionsRow: View {
             flatAction(
                 icon: "checkmark.circle.fill",
                 label: "Record dose",
-                iconColor: doseMissed ? Theme.Colors.Bloom.cycle.base : Theme.Colors.Bloom.skin.base,
-                iconBg: doseMissed ? Theme.Colors.Bloom.cycle.surface : Theme.Colors.Bloom.skin.surface
+                iconColor: doseMissed ? Theme.Colors.Time.cycle.base : Theme.Colors.Time.skin.base,
+                iconBg: doseMissed ? Theme.Colors.Time.cycle.surface : Theme.Colors.Time.skin.surface
             ) {
                 showingQuickDoseSheet = true
             }
@@ -92,8 +108,8 @@ struct FlatQuickActionsRow: View {
                 flatActionContent(
                     icon: "calendar",
                     label: "Schedule",
-                    iconColor: Theme.Colors.Bloom.mind.base,
-                    iconBg: Theme.Colors.Bloom.mind.surface
+                    iconColor: Theme.Colors.Time.mind.base,
+                    iconBg: Theme.Colors.Time.mind.surface
                 )
             }
             .buttonStyle(.pressable)
@@ -277,7 +293,7 @@ struct JournalHomeRow: View {
                     }
                     .buttonStyle(.plain)
                 }
-                .background(Theme.Colors.Bloom.skin.surface.opacity(0.2))
+                .background(Theme.Colors.Time.skin.surface.opacity(0.2))
                 .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.lg))
             } else {
                 // Full-width new entry button
@@ -297,7 +313,7 @@ struct JournalHomeRow: View {
                     }
                     .padding(.vertical, 10)
                     .padding(.horizontal, 14)
-                    .background(Theme.Colors.Bloom.skin.surface.opacity(0.2))
+                    .background(Theme.Colors.Time.skin.surface.opacity(0.2))
                     .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.lg))
                 }
                 .buttonStyle(.plain)
@@ -349,9 +365,10 @@ struct FlatNextDoseRow: View {
                 ForEach(0..<cycleDays, id: \.self) { i in
                     RoundedRectangle(cornerRadius: 2)
                         .fill(i < completedDays ? Theme.Colors.accent : Color.primary.opacity(0.12))
-                        .frame(width: 22, height: 4)
+                        .frame(height: 4)
+                        .frame(maxWidth: 22)
                 }
-                Spacer()
+                Spacer(minLength: 0)
             }
         }
     }

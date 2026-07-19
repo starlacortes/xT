@@ -12,7 +12,21 @@ struct HeroView: View {
     @Environment(\.profileManager) private var profileManager
     @Environment(\.medicationManager) private var medicationManager
 
-    private let baseHeight: CGFloat = 155
+    var compactHeight: Bool = false
+    var isWide: Bool = false
+    var horizontalPadding: CGFloat = 22
+
+    @ScaledMetric(relativeTo: .largeTitle) private var nameFontSize: CGFloat = 52
+
+    private var displayFontSize: CGFloat {
+        let base = compactHeight ? nameFontSize * 0.85 : nameFontSize
+        return min(isWide ? base * 1.15 : base, 72)
+    }
+
+    private var baseHeight: CGFloat {
+        let base: CGFloat = compactHeight ? 135 : 155
+        return base + max(0, displayFontSize - 52)
+    }
 
     var body: some View {
         GeometryReader { geo in
@@ -25,9 +39,11 @@ struct HeroView: View {
                     .foregroundStyle(Color.secondary)
                     .entrance(delay: 0.04)
 
-                Text("Hi \(profileManager.profileDisplayName),")
-                    .font(.system(size: 52, weight: .bold))
+                Text((profileManager.profileDisplayName))
+                    .font(.system(size: displayFontSize, weight: .bold))
                     .tracking(-1.2)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.4)
                     .foregroundStyle(
                         LinearGradient(
                             colors: Theme.Gradients.brandColors,
@@ -48,11 +64,13 @@ struct HeroView: View {
                     }
                     .font(Theme.Fonts.subheadline)
                     .foregroundStyle(Color.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
                     .entrance(delay: 0.17)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 22)
+            .padding(.horizontal, horizontalPadding)
             .padding(.top, 20)
             .padding(.bottom, 10)
             .offset(y: -scrolledUp * 0.35)
@@ -66,9 +84,9 @@ struct HeroView: View {
     private var timeOfDayGreeting: String {
         let hour = Calendar.current.component(.hour, from: Date())
         switch hour {
-        case 0..<12: return "Good morning"
-        case 12..<17: return "Good afternoon"
-        default: return "Good evening"
+        case 0..<12: return "good morning"
+        case 12..<17: return "good afternoon"
+        default: return "good evening"
         }
     }
 

@@ -953,7 +953,7 @@ struct OnboardingView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                    .fill(antiAndrogenChoice == choice ? Theme.Colors.Bloom.skin.base.opacity(0.25) : Color.white.opacity(0.15))
+                    .fill(antiAndrogenChoice == choice ? Theme.Colors.Time.skin.base.opacity(0.25) : Color.white.opacity(0.15))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.Radius.sm)

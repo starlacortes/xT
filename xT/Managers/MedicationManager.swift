@@ -10,6 +10,18 @@ import SwiftUI
 import SwiftData
 import CryptoKit
 
+/// Equatable replacement for the non-Equatable tuple previously used in
+/// `@Published var currentHormoneLevel`. Tuples are not Equatable, so every
+/// assignment triggered a publish even when values were identical. This struct
+/// enables SwiftUI's Equatable-based change filtering (and works seamlessly
+/// with a future @Observable migration).
+struct HormoneLevel: Equatable {
+    let value: Double
+    let unit: String
+    let range: String
+    let explanation: String
+}
+
 /// MedicationManager with a Reactive Data Pipeline to ensure UI synchronization.
 /// This class acts as the Single Source of Truth for all hormone-related state.
 @MainActor
@@ -23,14 +35,17 @@ class MedicationManager: ObservableObject {
     // MARK: - Core State
     @Published var selectedMedication: String?
     @Published var selectedAdministrationMethod: String?
+    @Published var selectedEster: String?
     @Published var lastDoseDate: Date?
     @Published var nextDoseDate: Date?
+    @Published var defaultDoseAmount: Double?
+    @Published var defaultInjectionTime: Date?
     /// When the user actually began HRT (may predate app install). Drives monthsOnHRT.
     @Published var hrtStartDate: Date?
 
     // MARK: - Reactive Research Properties (The "Signals" for SwiftUI)
     /// Provides the current level summary, including unit, range, and plain-language explanation.
-    @Published var currentHormoneLevel: (value: Double, unit: String, range: String, explanation: String)?
+    @Published var currentHormoneLevel: HormoneLevel? = nil
     /// Provides the historical data points used to drive the 7-day and long-term charts.
     @Published var recentLevels: [EstimatedPoint] = []
 
@@ -65,6 +80,10 @@ class MedicationManager: ObservableObject {
     /// Custom dosing interval in days; nil = use method default.
     @Published var customFrequencyDays: Int? = nil
 
+    /// When true, the Time tab surfaces relativeDoseIntensity-derived copy.
+    /// T5+ users default to off. Persisted via UserPreferences (plan §4.4).
+    @Published var showDoseIntensityInsights: Bool = false
+
     // --- Missed Dose Settings (#1) ---
     /// Grace period in hours after the scheduled dose during which it's still "Due Soon".
     /// Default 12 hours. After this window, the dose is marked "Missed".
@@ -77,6 +96,10 @@ class MedicationManager: ObservableObject {
     // MARK: - Blood Test Calibration
     /// History of user‑entered lab results used to calibrate the PK model.
     @Published var bloodTestHistory: [BloodTestRecord] = []
+
+    /// Health screening log (DEXA, breast, cardio, liver, CBC, etc.).
+    /// Drives milestone completion tracking for long-term tenure tiers (plan §4.1).
+    @Published var screeningRecords: [ScreeningRecord] = []
     
     /// The current calibration factor derived from the most recent blood test.
     /// α = measured / predicted. Applied as a multiplier to all model outputs.
@@ -439,6 +462,35 @@ class MedicationManager: ObservableObject {
         return max(0, months)
     }
 
+    /// Gap-aware months on HRT for tiering and content (plan §4.2).
+    /// Counts calendar months that contain at least one active (taken, non-deleted)
+    /// dose record. This means a user who paused for 6 months is correctly tiered
+    /// based on active therapy time, not calendar span.
+    var activeMonthsOnHRT: Int {
+        let referenceDate = hrtStartDate ?? lastDoseDate
+        guard let first = referenceDate else { return 0 }
+        let activeDoses = doseHistory.filter { $0.doseStatus == DoseStatus.taken.rawValue && !$0.isDeleted }
+        guard !activeDoses.isEmpty else { return monthsOnHRT }
+        guard let earliestDose = activeDoses.map(\.doseDate).min() else { return monthsOnHRT }
+        let start = min(first, earliestDose)
+        let calendar = Calendar.current
+        var monthSet = Set<String>()
+        for dose in activeDoses where dose.doseDate >= start {
+            let comps = calendar.dateComponents([.year, .month], from: dose.doseDate)
+            monthSet.insert("\(comps.year ?? 0)-\(comps.month ?? 0)")
+        }
+        return max(0, monthSet.count)
+    }
+
+    /// Age at HRT start, derived from ProfileManager.dateOfBirth and hrtStartDate.
+    /// Returns nil when either date is unavailable (plan §4.3).
+    var ageAtHRTStart: Int? {
+        guard let dob = ProfileManager.shared.dateOfBirth,
+              let start = hrtStartDate else { return nil }
+        let age = Calendar.current.dateComponents([.year], from: dob, to: start).year
+        return age
+    }
+
     var currentStreakDays: Int? {
         guard let last = lastDoseDate else { return nil }
         let days = Calendar.current.dateComponents([.day], from: last, to: Date()).day ?? 0
@@ -603,6 +655,7 @@ class MedicationManager: ObservableObject {
         loadDoseDates()
         loadDoseHistory()
         loadBloodTestHistory()
+        loadScreeningHistory()
         migrateToEncryptedStorage()
         refreshState() // Initialize reactive state
         recomputeCalibrationFactors()  // re-derive α from loaded blood tests
@@ -968,6 +1021,44 @@ class MedicationManager: ObservableObject {
         let allRecords = try? context.fetch(fetchDescriptor)
         bloodTestHistory = allRecords ?? []
     }
+
+    // MARK: - Screening Log (plan §4.1)
+
+    /// Loads screening records from SwiftData.
+    func loadScreeningHistory() {
+        guard let context = modelContext else { return }
+        let descriptor = SortDescriptor<ScreeningRecord>(\ScreeningRecord.date, order: .reverse)
+        let fetchDescriptor = FetchDescriptor<ScreeningRecord>(sortBy: [descriptor])
+        let allRecords = try? context.fetch(fetchDescriptor)
+        screeningRecords = allRecords ?? []
+    }
+
+    /// Returns the most recent screening date for the given type, or nil if none exists.
+    func lastScreening(_ type: ScreeningType) -> Date? {
+        screeningRecords.first(where: { $0.type == type })?.date
+    }
+
+    /// Compact lookup table: last-done date for each screening type that has one.
+    /// Passed to `TimeContentEngine` so it can flip milestone badges.
+    var screeningLog: [ScreeningType: Date] {
+        var dict: [ScreeningType: Date] = [:]
+        for record in screeningRecords {
+            let existing = dict[record.type]
+            if existing == nil || record.date > existing! {
+                dict[record.type] = record.date
+            }
+        }
+        return dict
+    }
+
+    /// Adds a screening record and persists to SwiftData.
+    func addScreening(date: Date, type: ScreeningType, notes: String? = nil) {
+        let record = ScreeningRecord(date: date, type: type, notes: notes)
+        guard !screeningRecords.contains(where: { $0.id == record.id }) else { return }
+        screeningRecords.insert(record, at: 0)
+        modelContext?.insert(record)
+        try? modelContext?.save()
+    }
     
     // MARK: - Layer 1: Time-Contextual + Dose-Scaled Targets
     
@@ -1082,7 +1173,7 @@ class MedicationManager: ObservableObject {
     
     /// Computes the current hormone level with contextual, dose-aware, deviation-informed,
     /// and safety-checked classification. Replaces the old static-range lookup.
-    func getCurrentHormoneLevel() -> (value: Double, unit: String, range: String, explanation: String)? {
+    func getCurrentHormoneLevel() -> HormoneLevel? {
         guard let medication = selectedMedication,
               let _ = selectedAdministrationMethod else { return nil }
         
@@ -1146,7 +1237,12 @@ class MedicationManager: ObservableObject {
             medication: medicationEnum ?? .estrogen
         )
         
-        return (actual, unit, finalLabel, explanation)
+        return HormoneLevel(
+            value: actual,
+            unit: unit,
+            range: finalLabel,
+            explanation: explanation
+        )
     }
     
     /// Constructs a plain-language explanation of the user's current hormone status.
@@ -1766,23 +1862,55 @@ class MedicationManager: ObservableObject {
            let decrypted = try? security.decryptData(data),
            let str = String(data: decrypted, encoding: .utf8) {
             let parts = str.components(separatedBy: "|")
-            if parts.count == 2 {
+            if parts.count >= 2 {
                 selectedMedication = parts[0].isEmpty ? nil : parts[0]
                 selectedAdministrationMethod = parts[1].isEmpty ? nil : parts[1]
+                selectedEster = parts.count >= 3 ? (parts[2].isEmpty ? nil : parts[2]) : nil
             }
         } else {
             selectedMedication = defaults.string(forKey: "selectedMedication")
             selectedAdministrationMethod = defaults.string(forKey: "selectedAdministrationMethod")
         }
+        loadUserPreferences()
     }
 
     func persistSelection() {
         let defaults = UserDefaults.standard
         let security = SecurityManager.shared
-        let str = "\(selectedMedication ?? "")|\(selectedAdministrationMethod ?? "")"
+        let str = "\(selectedMedication ?? "")|\(selectedAdministrationMethod ?? "")|\(selectedEster ?? "")"
         if let data = str.data(using: .utf8), let encrypted = try? security.encryptData(data) {
             defaults.set(encrypted, forKey: "encryptedMedicationSelection")
         }
+    }
+
+    func loadUserPreferences() {
+        guard let context = modelContext else { return }
+        let descriptor = FetchDescriptor<UserPreferences>()
+        let prefs = try? context.fetch(descriptor).first
+        customFrequencyDays = prefs?.customFrequencyDays
+        defaultDoseAmount = prefs?.defaultDoseAmount
+        defaultInjectionTime = prefs?.defaultInjectionTime
+        showDoseIntensityInsights = prefs?.showDoseIntensityInsights ?? false
+    }
+
+    func persistUserPreferences() {
+        guard let context = modelContext else { return }
+        let descriptor = FetchDescriptor<UserPreferences>()
+        if let existing = try? context.fetch(descriptor).first {
+            existing.customFrequencyDays = customFrequencyDays
+            existing.defaultDoseAmount = defaultDoseAmount
+            existing.defaultInjectionTime = defaultInjectionTime
+            existing.showDoseIntensityInsights = showDoseIntensityInsights
+        } else {
+            let prefs = UserPreferences(
+                customFrequencyDays: customFrequencyDays,
+                defaultDoseAmount: defaultDoseAmount,
+                defaultInjectionTime: defaultInjectionTime,
+                showDoseIntensityInsights: showDoseIntensityInsights
+            )
+            context.insert(prefs)
+        }
+        try? context.save()
     }
 
     func loadDoseDates() {
