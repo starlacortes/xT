@@ -19,6 +19,10 @@ struct HomeView: View {
     @State private var showingGraphDetail = false
     @State private var scrollOffset: CGFloat = 0
 
+    // -- Celebration iris state --
+    @State private var celebrateDose: Bool = false
+    @State private var lastRecordedCount: Int = 0
+
     // -- Scalable metrics (grow with Dynamic Type, capped for accessibility) --
     @ScaledMetric private var minHorizontalPad: CGFloat = 18
     @ScaledMetric private var maxHorizontalPad: CGFloat = 60
@@ -63,6 +67,31 @@ struct HomeView: View {
                         .frame(maxWidth: .infinity)
                         .readScrollOffset(in: "homeScroll", binding: $scrollOffset)
                     }
+
+                    // Celebration iris overlay — expands from center on dose recorded
+                    if celebrateDose {
+                        Color.clear
+                            .phaseAnimator(
+                                IrisPhase.allCases,
+                                trigger: celebrateDose
+                            ) { _, phase in
+                                Circle()
+                                    .stroke(Color.primary.opacity(phase.ringOpacity),
+                                            lineWidth: phase.ringWidth)
+                                    .frame(width: phase.diameter, height: phase.diameter)
+                                    .blur(radius: phase.blur)
+                            } animation: { phase in
+                                switch phase {
+                                case .appear:
+                                    return nil  // snapshot current state
+                                case .expand:
+                                    return .spring(response: 0.5, dampingFraction: 0.65)
+                                case .vanish:
+                                    return .easeOut(duration: 0.35)
+                                }
+                            }
+                            .allowsHitTesting(false)  // don't block taps
+                    }
                 }
                 .frame(width: geo.size.width, height: geo.size.height)
                 .coordinateSpace(.named("homeScroll"))
@@ -75,6 +104,57 @@ struct HomeView: View {
         }
         .onAppear {
             medicationManager.refreshState()
+            lastRecordedCount = medicationManager.doseRecordedCount
+        }
+        // Reactive refresh: fire when a new dose is recorded anywhere
+        .onChange(of: medicationManager.doseRecordedCount) { newCount in
+            guard newCount > lastRecordedCount else { return }
+            lastRecordedCount = newCount
+            medicationManager.refreshState()
+            // Trigger celebration iris
+            celebrateDose = true
+            // Reset after animation completes (~1s)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
+                celebrateDose = false
+            }
+        }
+    }
+}
+
+// MARK: - Iris Celebration Phases
+
+private enum IrisPhase: CaseIterable, Equatable {
+    case appear, expand, vanish
+
+    var diameter: CGFloat {
+        switch self {
+        case .appear: return 10
+        case .expand:  return 280
+        case .vanish:  return 340
+        }
+    }
+
+    var ringWidth: CGFloat {
+        switch self {
+        case .appear: return 1.5
+        case .expand:  return 0.8
+        case .vanish:  return 0.3
+        }
+    }
+
+    var ringOpacity: CGFloat {
+        switch self {
+        case .appear: return 0.25
+        case .expand:  return 0.12
+        case .vanish:  return 0
+        }
+    }
+
+    var blur: CGFloat {
+        switch self {
+        case .appear: return 0
+        case .expand:  return 4
+        case .vanish:  return 8
         }
     }
 }

@@ -51,6 +51,14 @@ enum ProfileSnapshot {
         // Reminders
         "doseReminderEnabled", "doseReminderHour", "doseReminderMinute",
         "journalReminderEnabled", "journalReminderHour", "journalReminderMinute",
+        // Transient MedicationManager preferences (persisted via didSet)
+        "mm.antiAndrogenInUse",
+        "mm.spironolactoneInUse",
+        "mm.spironolactoneClearanceEnabled",
+        "mm.suppressionSpeed",
+        "mm.customFrequencyDays",
+        "mm.missedDoseGracePeriodHours",
+        "mm.userTherapeuticTarget",
         // SpoofProfile "applied" marker — absent for a real user, so restore
         // clears it and a later Sample re-enable can re-apply Jan.
         "com.xt.spoofProfile_jan_v1",
@@ -192,6 +200,7 @@ enum ProfileSnapshot {
 
         // --- Medication ---
         let mm = MedicationManager.shared
+        // Reset all state to cold-launch condition to clear Jan's in-memory data.
         mm.selectedMedication = nil
         mm.selectedAdministrationMethod = nil
         mm.selectedEster = nil
@@ -204,16 +213,9 @@ enum ProfileSnapshot {
         mm.bloodTestHistory = []
         mm.screeningRecords = []
         mm.predictedTroughDrop = nil
-        // Not persisted anywhere — reset to the same defaults a fresh app
-        // launch would produce.
-        mm.antiAndrogenInUse = false
-        mm.spironolactoneInUse = false
-        mm.spironolactoneClearanceEnabled = false
-        mm.suppressionSpeed = .fast
-        mm.customFrequencyDays = nil
-        mm.showDoseIntensityInsights = false
-        mm.missedDoseGracePeriodHours = 12.0
-        mm.userTherapeuticTarget = nil
+        // Transient properties: reset then reload from UserDefaults (step 1 of
+        // restore() already wrote the user's snapshotted values back).
+        mm.loadTransientPreferences()
 
         mm.loadSelection()
         mm.loadDoseDates()

@@ -20,6 +20,7 @@ struct TimeView: View {
     @State private var changesExpanded: Bool = false
     @State private var hasAnimatedAdherence = false
     @State private var cachedEngine: TimeContentEngine?
+    @State private var lastDoseCount: Int = 0
 
     // Lightweight view-model: rebuilds only when observed dependencies change.
     // Reads from MedicationManager (which is @Observable-compatible via custom
@@ -27,7 +28,7 @@ struct TimeView: View {
     private var engine: TimeContentEngine {
         if let cached = cachedEngine, cached.months == medicationManager.monthsOnHRT,
            cached.adherenceRate == medicationManager.adherenceRate,
-           cached.currentLevel == medicationManager.estimatedRecentLevels(days: 1).last?.value,
+           cached.currentLevel == medicationManager.currentHormoneLevel?.value,
            cached.cyclePosition == medicationManager.currentCyclePosition {
             return cached
         }
@@ -42,7 +43,7 @@ struct TimeView: View {
             medication: medicationManager.selectedMedication ?? "Estrogen",
             method: medicationManager.selectedAdministrationMethod ?? "Injectable",
             months: medicationManager.monthsOnHRT,
-            currentLevel: medicationManager.estimatedRecentLevels(days: 1).last?.value,
+            currentLevel: medicationManager.currentHormoneLevel?.value,
             dayOfCycle: cycleDay,
             activeMonthsOnHRT: medicationManager.activeMonthsOnHRT,
             ageAtStart: medicationManager.ageAtHRTStart,
@@ -147,6 +148,20 @@ struct TimeView: View {
             }
             .toolbar(.hidden, for: .navigationBar)
             .background(Color(.systemBackground).ignoresSafeArea())
+            .onAppear {
+                lastDoseCount = medicationManager.doseRecordedCount
+                medicationManager.refreshState()
+            }
+        }
+        .onChange(of: medicationManager.doseRecordedCount) { newCount in
+            guard newCount > lastDoseCount else { return }
+            lastDoseCount = newCount
+            cachedEngine = nil  // force engine recompute
+            medicationManager.refreshState()
+            // Re-animate adherence ring
+            withAnimation(.easeOut(duration: 1.0).delay(0.3)) {
+                adherencePercent = engine.adherenceRate ?? 0
+            }
         }
     }
 

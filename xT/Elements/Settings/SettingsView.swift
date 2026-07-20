@@ -799,7 +799,12 @@ struct SettingsView: View {
     }
 
     private var formatDoseReminderSubtitle: String {
-        String(format: "Daily at %02d:%02d", doseReminderHour, doseReminderMinute)
+        let freq = notificationManager.doseFrequencyDays
+        if freq <= 1 {
+            return String(format: "Daily at %02d:%02d", doseReminderHour, doseReminderMinute)
+        } else {
+            return String(format: "Every %d days at %02d:%02d", freq, doseReminderHour, doseReminderMinute)
+        }
     }
 
     private var formatJournalReminderSubtitle: String {

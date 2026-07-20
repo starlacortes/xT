@@ -28,6 +28,19 @@ struct HormoneLevel: Equatable {
 class MedicationManager: ObservableObject {
     static let shared = MedicationManager()
 
+    // MARK: - UserDefaults Keys for Transient Properties
+    // These properties are persisted to UserDefaults via didSet so the
+    // snapshot/restore cycle (ProfileSnapshot) can capture and restore them.
+    private enum Keys {
+        static let antiAndrogenInUse = "mm.antiAndrogenInUse"
+        static let spironolactoneInUse = "mm.spironolactoneInUse"
+        static let spironolactoneClearanceEnabled = "mm.spironolactoneClearanceEnabled"
+        static let suppressionSpeed = "mm.suppressionSpeed"
+        static let customFrequencyDays = "mm.customFrequencyDays"
+        static let missedDoseGracePeriodHours = "mm.missedDoseGracePeriodHours"
+        static let userTherapeuticTarget = "mm.userTherapeuticTarget"
+    }
+
     // MARK: - SwiftData
     /// Injected from the app container so this singleton can query SwiftData.
     var modelContext: ModelContext?
@@ -53,32 +66,52 @@ class MedicationManager: ObservableObject {
     /// Full log of all logged doses — the backbone of the PK model.
     @Published var doseHistory: [DoseRecord] = []
 
+    /// Incremented each time a dose is successfully recorded. Drives celebration
+    /// animations and reactive refresh hooks across the UI.
+    @Published var doseRecordedCount: Int = 0
+
     // MARK: - Endogenous Suppression Settings
     /// Whether the user takes an anti‑androgen (spironolactone, cyproterone, GnRH agonist).
     /// When true, endogenous testosterone baseline is aggressively suppressed to near‑zero.
-    @Published var antiAndrogenInUse: Bool = false
-    
+    @Published var antiAndrogenInUse: Bool = false {
+        didSet { UserDefaults.standard.set(antiAndrogenInUse, forKey: Keys.antiAndrogenInUse) }
+    }
+
     /// Number of weeks after HRT start for endogenous production to reach suppressed levels.
     /// Clinical consensus: 4–6 weeks for gonadal suppression.
     let hrtSuppressionWeeks: Int = 4
-    
+
     /// Spironolactone is a known enzyme inducer (CYP3A4) that can modestly increase
     /// estradiol clearance. When the user is on spiro, we apply a small multiplier to ke
     /// to reflect this interaction. Typical estimates: 10‑20% faster clearance.
     /// Set to false if the user is on other AAs (cyproterone, GnRH agonists).
-    @Published var spironolactoneInUse: Bool = false
-    
+    @Published var spironolactoneInUse: Bool = false {
+        didSet { UserDefaults.standard.set(spironolactoneInUse, forKey: Keys.spironolactoneInUse) }
+    }
+
     /// Multiplier applied to elimination rate (ke) when spironolactone is in use.
     /// Accounts for CYP3A4 induction → faster E2 clearance.
     private let spiroClearanceFactor: Double = 1.15
 
     // --- User Preference-Driven Settings (#9, #12, #18) ---
     /// User-configurable suppression timescale (4/8/12 weeks).
-    @Published var suppressionSpeed: SuppressionSpeed = .fast
+    @Published var suppressionSpeed: SuppressionSpeed = .fast {
+        didSet { UserDefaults.standard.set(suppressionSpeed.rawValue, forKey: Keys.suppressionSpeed) }
+    }
     /// Whether the spironolactone clearance adjustment is opted in.
-    @Published var spironolactoneClearanceEnabled: Bool = false
+    @Published var spironolactoneClearanceEnabled: Bool = false {
+        didSet { UserDefaults.standard.set(spironolactoneClearanceEnabled, forKey: Keys.spironolactoneClearanceEnabled) }
+    }
     /// Custom dosing interval in days; nil = use method default.
-    @Published var customFrequencyDays: Int? = nil
+    @Published var customFrequencyDays: Int? = nil {
+        didSet {
+            if let val = customFrequencyDays {
+                UserDefaults.standard.set(val, forKey: Keys.customFrequencyDays)
+            } else {
+                UserDefaults.standard.removeObject(forKey: Keys.customFrequencyDays)
+            }
+        }
+    }
 
     /// When true, the Time tab surfaces relativeDoseIntensity-derived copy.
     /// T5+ users default to off. Persisted via UserPreferences (plan §4.4).
@@ -87,7 +120,9 @@ class MedicationManager: ObservableObject {
     // --- Missed Dose Settings (#1) ---
     /// Grace period in hours after the scheduled dose during which it's still "Due Soon".
     /// Default 12 hours. After this window, the dose is marked "Missed".
-    @Published var missedDoseGracePeriodHours: Double = 12.0
+    @Published var missedDoseGracePeriodHours: Double = 12.0 {
+        didSet { UserDefaults.standard.set(missedDoseGracePeriodHours, forKey: Keys.missedDoseGracePeriodHours) }
+    }
 
     /// Predicted trough drop when a dose is missed (pg/mL or ng/dL).
     /// Computed from the PK model: difference between expected trough with vs. without the missed dose.
@@ -370,7 +405,15 @@ class MedicationManager: ObservableObject {
     }
     
     /// User's personal therapeutic target. When nil, clinical defaults are used.
-    @Published var userTherapeuticTarget: TherapeuticTarget? = nil
+    @Published var userTherapeuticTarget: TherapeuticTarget? = nil {
+        didSet {
+            if let target = userTherapeuticTarget, let data = try? JSONEncoder().encode(target) {
+                UserDefaults.standard.set(data, forKey: Keys.userTherapeuticTarget)
+            } else {
+                UserDefaults.standard.removeObject(forKey: Keys.userTherapeuticTarget)
+            }
+        }
+    }
 
     // MARK: - Configuration & UI Helpers
 
@@ -651,6 +694,7 @@ class MedicationManager: ObservableObject {
     // MARK: - Initialization
 
     init() {
+        loadTransientPreferences()
         loadSelection()
         loadDoseDates()
         loadDoseHistory()
@@ -720,6 +764,14 @@ class MedicationManager: ObservableObject {
         try? modelContext?.save()
         persistDoseDates()
         refreshState()
+
+        // Bump celebration counter so UI can react
+        doseRecordedCount += 1
+
+        // Reschedule dose reminder to next dose date (frequency-aware)
+        if let next = nextDoseDate {
+            NotificationManager.shared.rescheduleAfterDose(nextDoseDate: next)
+        }
     }
 
     /// Removes a dose (soft delete — keeps it in history for audit purposes).
@@ -738,6 +790,11 @@ class MedicationManager: ObservableObject {
         }
         persistDoseDates()
         refreshState()
+
+        // Reschedule dose reminder to next dose date (frequency-aware)
+        if let next = nextDoseDate {
+            NotificationManager.shared.rescheduleAfterDose(nextDoseDate: next)
+        }
     }
 
     /// Logs an intentionally skipped dose. Does NOT advance `nextDoseDate`;
@@ -1853,6 +1910,28 @@ class MedicationManager: ObservableObject {
         lastDoseDate = last
         nextDoseDate = next
         persistDoseDates()
+    }
+
+    /// Loads transient preferences from UserDefaults that are persisted via didSet.
+    /// Called during init() and rehydrateManagers() to restore snapshotted state.
+    func loadTransientPreferences() {
+        let defaults = UserDefaults.standard
+        antiAndrogenInUse = defaults.bool(forKey: Keys.antiAndrogenInUse)
+        spironolactoneInUse = defaults.bool(forKey: Keys.spironolactoneInUse)
+        spironolactoneClearanceEnabled = defaults.bool(forKey: Keys.spironolactoneClearanceEnabled)
+        if let raw = defaults.string(forKey: Keys.suppressionSpeed) {
+            suppressionSpeed = SuppressionSpeed(rawValue: raw) ?? .fast
+        }
+        if defaults.object(forKey: Keys.customFrequencyDays) != nil {
+            customFrequencyDays = defaults.integer(forKey: Keys.customFrequencyDays)
+        }
+        if defaults.object(forKey: Keys.missedDoseGracePeriodHours) != nil {
+            missedDoseGracePeriodHours = defaults.double(forKey: Keys.missedDoseGracePeriodHours)
+        }
+        if let data = defaults.data(forKey: Keys.userTherapeuticTarget),
+           let target = try? JSONDecoder().decode(TherapeuticTarget.self, from: data) {
+            userTherapeuticTarget = target
+        }
     }
 
     func loadSelection() {

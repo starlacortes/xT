@@ -84,6 +84,8 @@ struct FlatQuickActionsRow: View {
     @Environment(\.medicationManager) private var medicationManager
     @State private var showingDoseConfirmation = false
     @State private var showingQuickDoseSheet = false
+    /// Tracks when a dose was just recorded so the alert fires on sheet dismiss
+    @State private var doseJustRecorded = false
 
     private var doseMissed: Bool {
         medicationManager.isFullyConfigured && medicationManager.hasMissedDose
@@ -604,6 +606,10 @@ struct QuickDoseSheet: View {
             ester = "Cypionate (TC)"
         }
 
+        // Haptic: soft impact to acknowledge the action
+        let impact = UIImpactFeedbackGenerator(style: .soft)
+        impact.impactOccurred()
+
         medicationManager.addDose(
             date: doseDate,
             type: medType,
@@ -612,6 +618,11 @@ struct QuickDoseSheet: View {
             doseAmount: finalMg,
             concentrationMgPerMl: finalConcentration
         )
+
+        // Secondary haptic after the model commits
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        }
 
         isPresented = false
     }

@@ -31,6 +31,20 @@ class NotificationManager: ObservableObject {
     @Published var journalReminderHour = UserDefaults.standard.integer(forKey: "journalReminderHour")
     @Published var journalReminderMinute = UserDefaults.standard.integer(forKey: "journalReminderMinute")
 
+    /// The dosing frequency in days, derived from MedicationManager.
+    /// Drives whether the dose reminder is daily or on specific days.
+    var doseFrequencyDays: Int {
+        let mgr = MedicationManager.shared
+        if let custom = mgr.customFrequencyDays, custom > 0 {
+            return custom
+        }
+        if let methodStr = mgr.selectedAdministrationMethod,
+           let method = MedicationManager.AdministrationMethod(rawValue: methodStr) {
+            return method.frequencyDays
+        }
+        return 1 // default to daily if unconfigured
+    }
+
     private let doseNotificationRequestKey = "dose_reminder_request"
     private let journalNotificationRequestKey = "journal_reminder_request"
 
@@ -99,43 +113,124 @@ class NotificationManager: ObservableObject {
         print("[NotificationManager] Scheduled \(activeRemindersCount) active reminders")
     }
 
-    /// Schedule a single dose reminder at the configured time.
+    /// Schedule a dose reminder based on the user's dosing frequency.
+    ///
+    /// - For daily users (frequencyDays == 1): uses a repeating daily trigger.
+    /// - For non-daily users (frequencyDays > 1): schedules a **single** non-repeating
+    ///   notification for the next scheduled dose date. Each logged dose re-triggers
+    ///   `rescheduleAfterDose(nextDoseDate:)` to keep the chain alive.
     private func scheduleDoseReminder() {
         let center = UNUserNotificationCenter.current()
 
-        // Capture values before closure (Sendable callback can't access @MainActor props)
+        // Remove any existing dose reminder before scheduling a new one
+        center.removePendingNotificationRequests(withIdentifiers: [doseNotificationRequestKey])
+
         let hour = doseReminderHour
         let minute = doseReminderMinute
+        let freq = doseFrequencyDays
 
-        // Schedule a daily repeating notification at the configured time
-        var dateComponents = DateComponents()
-        dateComponents.hour = hour
-        dateComponents.minute = minute
-        dateComponents.second = 0
+        let trigger: UNNotificationTrigger
 
-        let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
-
-        // Get medication info for the notification content
-        let content = UNMutableNotificationContent()
-        content.title = "Time for your dose"
-        content.body = "Tap to log your dose in xT"
-        content.sound = .default
-        content.categoryIdentifier = NotificationType.doseReminder.rawValue
-
-        // Get medication type if available for better context
-        if let medInfo = getMedicationContext() {
-            content.body = "Time for your \(medInfo) dose"
+        if freq <= 1 {
+            // Daily user — repeating trigger at the chosen time every day
+            var dateComponents = DateComponents()
+            dateComponents.hour = hour
+            dateComponents.minute = minute
+            dateComponents.second = 0
+            trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
+        } else {
+            // Non-daily user — one-time notification for the next scheduled dose
+            trigger = oneTimeTrigger(forNextDoseFrom: Date(), frequencyDays: freq)
         }
 
+        let content = doseNotificationContent()
         let request = UNNotificationRequest(identifier: doseNotificationRequestKey, content: content, trigger: trigger)
 
         center.add(request) { error in
             if let error = error {
                 print("[NotificationManager] Error scheduling dose reminder: \(error.localizedDescription)")
             } else {
-                print("[NotificationManager] Dose reminder scheduled at \(hour):\(String(format: "%02d", minute))")
+                let freqLabel = freq <= 1 ? "daily" : "every \(freq) days"
+                print("[NotificationManager] Dose reminder scheduled (\(freqLabel)) at \(hour):\(String(format: "%02d", minute))")
             }
         }
+    }
+
+    /// Reschedule the dose reminder to fire on a specific next dose date.
+    ///
+    /// Called by MedicationManager after a dose is logged so the reminder
+    /// always points to the next upcoming dose.
+    func rescheduleAfterDose(nextDoseDate: Date) {
+        guard doseReminderEnabled else { return }
+
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: [doseNotificationRequestKey])
+
+        // For daily users, just use the repeating daily trigger (simpler and more reliable)
+        let freq = doseFrequencyDays
+        let trigger: UNNotificationTrigger
+
+        if freq <= 1 {
+            var dateComponents = DateComponents()
+            dateComponents.hour = doseReminderHour
+            dateComponents.minute = doseReminderMinute
+            dateComponents.second = 0
+            trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
+        } else {
+            trigger = oneTimeTrigger(forNextDoseFrom: nextDoseDate, frequencyDays: freq)
+        }
+
+        let content = doseNotificationContent()
+        let request = UNNotificationRequest(identifier: doseNotificationRequestKey, content: content, trigger: trigger)
+
+        center.add(request) { error in
+            if let error = error {
+                print("[NotificationManager] Error rescheduling dose reminder: \(error.localizedDescription)")
+            } else {
+                let formatter = DateFormatter()
+                formatter.dateFormat = "MMM d 'at' h:mm a"
+                print("[NotificationManager] Dose reminder rescheduled for \(formatter.string(from: nextDoseDate))")
+            }
+        }
+    }
+
+    /// Creates a one-time notification trigger for a specific dose date.
+    private func oneTimeTrigger(forNextDoseFrom referenceDate: Date, frequencyDays: Int) -> UNCalendarNotificationTrigger {
+        let calendar = Calendar.current
+
+        // Find the next dose date that is in the future and matches the reminder time
+        var candidate = referenceDate
+        if candidate <= Date() {
+            // If the reference date is in the past, advance to the next dose date
+            candidate = calendar.date(byAdding: .day, value: frequencyDays, to: referenceDate) ?? referenceDate
+        }
+
+        // Ensure candidate is in the future
+        while candidate <= Date() {
+            candidate = calendar.date(byAdding: .day, value: frequencyDays, to: candidate) ?? candidate
+        }
+
+        var components = calendar.dateComponents([.year, .month, .day], from: candidate)
+        components.hour = doseReminderHour
+        components.minute = doseReminderMinute
+        components.second = 0
+
+        return UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+    }
+
+    /// Builds the notification content for dose reminders.
+    private func doseNotificationContent() -> UNMutableNotificationContent {
+        let content = UNMutableNotificationContent()
+        content.title = "Time for your dose"
+        content.body = "Tap to log your dose in xT"
+        content.sound = .default
+        content.categoryIdentifier = NotificationType.doseReminder.rawValue
+
+        if let medInfo = getMedicationContext() {
+            content.body = "Time for your \(medInfo) dose"
+        }
+
+        return content
     }
 
     /// Schedule a daily journal reminder at the configured time.

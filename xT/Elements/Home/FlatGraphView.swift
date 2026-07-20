@@ -17,6 +17,10 @@ struct FlatGraphView: View {
     var compactHeight: Bool = false
     var graphHeight: CGFloat? = nil
 
+    /// Offset for the latest dose marker dot — slides in from right
+    @State private var latestDoseDotOffset: CGFloat = 60
+    @State private var lastGraphDoseCount: Int = 0
+
     private var points: [MedicationManager.EstimatedPoint] {
         medicationManager.recentLevels
     }
@@ -59,9 +63,20 @@ struct FlatGraphView: View {
             .frame(width: 44, height: resolvedGraphHeight)
             .contentShape(Rectangle())
         }
-        .animation(.easeInOut(duration: 0.6), value: currentLevel)
+        .animation(.spring(response: 0.55, dampingFraction: 0.75), value: currentLevel)
+        .animation(.spring(response: 0.55, dampingFraction: 0.75), value: points.map(\.value))
         .onAppear {
             medicationManager.refreshState()
+            lastGraphDoseCount = medicationManager.doseRecordedCount
+        }
+        .onChange(of: medicationManager.doseRecordedCount) { newCount in
+            guard newCount > lastGraphDoseCount else { return }
+            lastGraphDoseCount = newCount
+            // Slide the dose dot in from the right
+            latestDoseDotOffset = 60
+            withAnimation(.spring(response: 0.55, dampingFraction: 0.7).delay(0.18)) {
+                latestDoseDotOffset = 0
+            }
         }
     }
 
@@ -234,23 +249,23 @@ struct FlatGraphView: View {
 
         return AnyView(
             ZStack {
-                // Outer glow ring
+                // Outer glow ring — slides in from the right when a new dose is recorded
                 Circle()
                     .fill(Theme.Colors.accentSecondary.opacity(0.22))
                     .frame(width: 14, height: 14)
-                    .position(x: px, y: py)
+                    .position(x: px + latestDoseDotOffset, y: py)
 
                 // Inner filled dot
                 Circle()
                     .fill(Theme.Colors.accentSecondary)
                     .frame(width: 5, height: 5)
-                    .position(x: px, y: py)
+                    .position(x: px + latestDoseDotOffset, y: py)
 
                 // Small label below
                 Text("dose")
                     .font(.system(size: 8, weight: .semibold))
                     .foregroundStyle(Theme.Colors.accentSecondary.opacity(0.7))
-                    .position(x: px, y: py + 14)
+                    .position(x: px + latestDoseDotOffset, y: py + 14)
             }
         )
     }

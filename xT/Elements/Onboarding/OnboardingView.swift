@@ -1237,6 +1237,9 @@ struct OnboardingView: View {
             concentrationMgPerMl: finalConcentration
         )
 
+        // Save custom frequency from onboarding stepper
+        medicationManager.customFrequencyDays = selectedFrequency
+
         // Save default concentration to UserPreferences for pre-fill on future doses
         if let context = medicationManager.modelContext {
             let prefs = UserPreferences(
@@ -1245,6 +1248,7 @@ struct OnboardingView: View {
                 lastDoseDate: lastDoseDate,
                 nextDoseDate: medicationManager.nextDoseDate
             )
+            prefs.customFrequencyDays = selectedFrequency
             if selectedType == "Estrogen" {
                 prefs.defaultEstrogenConcentration = finalConcentration
             } else {
@@ -1253,6 +1257,15 @@ struct OnboardingView: View {
             context.insert(prefs)
             try? context.save()
         }
+
+        // Configure dose reminders with the selected frequency and default time (9:00 AM)
+        let reminderHour = 9
+        let reminderMinute = 0
+        NotificationManager.shared.configureDoseReminder(
+            enabled: true,
+            hour: reminderHour,
+            minute: reminderMinute
+        )
 
         withAnimation(.easeInOut(duration: 0.4)) { opacity = 0 }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
