@@ -125,7 +125,7 @@ struct TimeBodyDetailView: View {
     }
 
     private var tierBadge: some View {
-        Text(tier.rawValue)
+        Text(tier.timeBandLabel)
             .font(.system(size: 10, weight: .medium))
             .foregroundStyle(tierBadgeColor)
             .padding(.horizontal, 8)
@@ -176,14 +176,15 @@ struct TimeBodyDetailView: View {
     }
 
     private var tenureBannerTitle: String {
+        let monthStr = "\(engine.months) month\(engine.months == 1 ? "" : "s")"
         switch tier {
-        case .t1Beginning: return "Body is actively adapting"
-        case .t2Emerging:  return "First visible changes emerging"
-        case .t3InMotion:  return "Changes stacking rapidly"
-        case .t4Deepening: return "Changes are deepening"
-        case .t5Settled:   return "Changes largely settled"
-        case .t6Rooted:    return "Long-term maintenance phase"
-        case .t7Veteran:   return "Veteran — health monitoring is key"
+        case .t1Beginning: return "Body is actively adapting — \(monthStr)"
+        case .t2Emerging:  return "First visible changes emerging — \(monthStr)"
+        case .t3InMotion:  return "Changes stacking rapidly — \(monthStr)"
+        case .t4Deepening: return "Changes are deepening — \(monthStr)"
+        case .t5Settled:   return "Changes largely settled — \(monthStr)"
+        case .t6Rooted:    return "Long-term maintenance — \(monthStr)"
+        case .t7Veteran:   return "Health monitoring is key — \(monthStr)"
         }
     }
 
@@ -195,7 +196,7 @@ struct TimeBodyDetailView: View {
         case .t3InMotion:  return "\(tier.statusEmoji) \(monthStr) — most rapid visible shift."
         case .t4Deepening: return "\(tier.statusEmoji) \(monthStr) — still changing, not established."
         case .t5Settled:   return "\(tier.statusEmoji) \(monthStr) — shift from 'what's changing' to 'maintain + screen'."
-        case .t6Rooted:    return "\(tier.statusEmoji) \(monthStr) — 5–10 years; established maintenance, richer surveillance."
+        case .t6Rooted:    return "\(tier.statusEmoji) \(monthStr) — 5–10 years; maintenance, richer health surveillance."
         case .t7Veteran:   return "\(tier.statusEmoji) \(monthStr) — 10+ years; long-term health is the whole story."
         }
     }

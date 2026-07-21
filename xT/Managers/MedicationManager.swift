@@ -892,9 +892,37 @@ class MedicationManager: ObservableObject {
     /// The heart of the reactivity: Recalculates everything and broadcasts changes.
     func refreshState() {
         currentHormoneLevel = getCurrentHormoneLevel()
-        let end = Date()
-        let start = Calendar.current.date(byAdding: .day, value: -7, to: end) ?? end
-        recentLevels = estimatedLevels(from: start, to: end)
+        let now = Date()
+        let activeDoses = doseHistory.filter { $0.isActive && $0.medicationType == selectedMedication }
+
+        var start: Date
+        var end: Date
+
+        if activeDoses.count <= 1, let last = lastDoseDate {
+            let freqDays: Int = {
+                if let custom = customFrequencyDays, custom > 0 { return custom }
+                if let methodStr = selectedAdministrationMethod,
+                   let method = AdministrationMethod(rawValue: methodStr) { return method.frequencyDays }
+                return 7
+            }()
+            start = Calendar.current.date(byAdding: .day, value: -max(3, Int(Double(freqDays) * 0.5)), to: last) ?? now
+            end = max(now, Calendar.current.date(byAdding: .day, value: Int(Double(freqDays) * 1.5), to: last) ?? now)
+        } else {
+            end = now
+            start = Calendar.current.date(byAdding: .day, value: -7, to: end) ?? end
+        }
+
+        let isInjectable = AdministrationMethod(rawValue: selectedAdministrationMethod ?? "") == .injectable
+        if isInjectable {
+            end = now
+            start = Calendar.current.date(byAdding: .day, value: -1, to: end) ?? end
+            end = Calendar.current.date(byAdding: .day, value: 2, to: end) ?? end
+            let halfLife = currentEster?.halfLifeDays ?? 5.0
+            let step = max(2.0 / 24.0, halfLife / 30.0)
+            recentLevels = estimatedLevels(from: start, to: end, stepDays: step)
+        } else {
+            recentLevels = estimatedLevels(from: start, to: end)
+        }
         recomputeRegimenHistory()
         recomputeAdherenceRate()
         recomputeOnTimeStreak()
@@ -1386,7 +1414,7 @@ class MedicationManager: ObservableObject {
     /// and flip‑flop kinetics do not dominate.
     ///
     /// Falls back to estimated dose history if no doses are logged yet.
-    func estimatedLevels(from start: Date, to end: Date, stepDays: Int = 1,
+    func estimatedLevels(from start: Date, to end: Date, stepDays: Double = 1.0,
                          applyCalibration: Bool = true) -> [EstimatedPoint] {
         guard let medication = selectedMedication,
               let methodStr = selectedAdministrationMethod else { return [] }
@@ -1506,6 +1534,57 @@ class MedicationManager: ObservableObject {
                                                 ka: ka, ke: 0.0, scaling: 1.0))
                 }
             }
+
+            // When dose history is sparse (1 active dose — fresh onboarding),
+            // generate synthetic backward and forward doses so the graph shows
+            // a smooth, continuous curve centered on the user's last dose.
+            if activeDoses.count == 1 {
+                let freqDays: Int = {
+                    if let custom = customFrequencyDays, custom > 0 { return custom }
+                    if let methodStr = selectedAdministrationMethod,
+                       let method = AdministrationMethod(rawValue: methodStr) { return method.frequencyDays }
+                    return 7
+                }()
+                let earliestReal = activeDoses.map(\.doseDate).min() ?? start
+                let latestReal = activeDoses.map(\.doseDate).max() ?? start
+                let refDose = activeDoses.first
+                let effAmount = refDose.map { $0.doseAmount * dosePotencyFactor(for: $0) } ?? (baseLevel * 0.5)
+                let refEster = refDose?.ester ?? defaultEsterName
+
+                let lookbackLimit = calendar.date(byAdding: .day, value: -90, to: start) ?? start
+                var cursor = calendar.date(byAdding: .day, value: -freqDays, to: earliestReal) ?? earliestReal
+                while cursor >= lookbackLimit {
+                    if !doseEvents.contains(where: { abs($0.date.timeIntervalSince(cursor)) < 3600 }) {
+                        if isInjectable, let pk = pkParams(ester: refEster, medication: medication) {
+                            doseEvents.append(DoseEvent(date: cursor, amount: effAmount,
+                                                        ka: pk.ka, ke: pk.ke, scaling: pk.scaling))
+                        } else {
+                            let lam = log(2) / defaultHalfLife
+                            doseEvents.append(DoseEvent(date: cursor, amount: effAmount,
+                                                        ka: lam, ke: 0.0, scaling: 1.0))
+                        }
+                    }
+                    guard let prev = calendar.date(byAdding: .day, value: -freqDays, to: cursor) else { break }
+                    cursor = prev
+                }
+
+                let lookaheadLimit = calendar.date(byAdding: .day, value: 90, to: end) ?? end
+                cursor = calendar.date(byAdding: .day, value: freqDays, to: latestReal) ?? latestReal
+                while cursor <= lookaheadLimit {
+                    if !doseEvents.contains(where: { abs($0.date.timeIntervalSince(cursor)) < 3600 }) {
+                        if isInjectable, let pk = pkParams(ester: refEster, medication: medication) {
+                            doseEvents.append(DoseEvent(date: cursor, amount: effAmount,
+                                                        ka: pk.ka, ke: pk.ke, scaling: pk.scaling))
+                        } else {
+                            let lam = log(2) / defaultHalfLife
+                            doseEvents.append(DoseEvent(date: cursor, amount: effAmount,
+                                                        ka: lam, ke: 0.0, scaling: 1.0))
+                        }
+                    }
+                    guard let next = calendar.date(byAdding: .day, value: freqDays, to: cursor) else { break }
+                    cursor = next
+                }
+            }
         } else {
             // Fallback: estimate doses from lastDoseDate using frequency
             if let last = lastDoseDate {
@@ -1560,7 +1639,7 @@ class MedicationManager: ObservableObject {
             let calibratedValue = rawValue * alpha
             points.append(EstimatedPoint(date: cursor, value: calibratedValue,
                                          medication: medication, method: methodStr))
-            cursor = calendar.date(byAdding: .day, value: stepDays, to: cursor) ?? cursor
+            cursor = cursor.addingTimeInterval(stepDays * 86400.0)
         }
         return points
     }

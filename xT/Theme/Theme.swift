@@ -29,15 +29,45 @@ struct Theme {
         static let glassSurface     = Color(.systemBackground).opacity(0.6)
         static let border           = Color.white.opacity(0.2)
 
+        // Glass tint — deep purple-black in dark mode, subtle white in light mode
+        static let glassTint        = Color(lightHex: "#F0ECF8", darkHex: "#0A0814")
+
         // Semantic
         static let success          = Color.green
         static let warning          = Color.orange
         static let error            = Color.red
         static let info             = Color.blue
+        static let successBrand     = Color(lightHex: "#3B8C6E", darkHex: "#64DC9E")
 
         // Graph level ramp — deep rose (low) → light lavender (high)
         static let levelLow         = Color(lightHex: "#99345A", darkHex: "#C2557E")
         static let levelHigh        = Color(lightHex: "#8875D4", darkHex: "#B0A4EA")
+
+        // Graph background — adaptive canvas rendering constants
+        struct Graph {
+            static let baseDark          = Color(lightHex: "#F2EDF8", darkHex: "#08060F")
+            static let baseMid           = Color(lightHex: "#EBE2F4", darkHex: "#0F0B1C")
+            static let baseTop           = Color(lightHex: "#E4D8F0", darkHex: "#1A0D1A")
+            static let topGlow           = Color(lightHex: "#E898B2", darkHex: "#C0306A")
+            static let rightGlow         = Color(lightHex: "#9B8FE0", darkHex: "#7060D0")
+            static let gridLine          = Color(light: .black.opacity(0.05), dark: .white.opacity(0.035))
+            static let yAxisLabel        = Color(light: .black.opacity(0.10), dark: .white.opacity(0.15))
+            static let curveRose         = Color(lightHex: "#C0486E", darkHex: "#D4537E")
+            static let curveMid          = Color(lightHex: "#9B50B8", darkHex: "#B060C0")
+            static let curveLavender     = Color(lightHex: "#6B58C8", darkHex: "#8875D4")
+            static let dotRose           = Color(lightHex: "#C0486E", darkHex: "#D4537E")
+            static let dotMagenta        = Color(lightHex: "#A838A2", darkHex: "#B446B4")
+            static let dotPurple         = Color(lightHex: "#8D40B8", darkHex: "#A050C8")
+            static let dotDeepPurple     = Color(lightHex: "#7F48C4", darkHex: "#9458D4")
+            static let dotLavenderLight  = Color(lightHex: "#6E48C0", darkHex: "#8C5CDA")
+
+            // Level overlay text (adaptive)
+            static let levelText         = Color(light: .black, dark: .white)
+            static let levelTextSecondary = Color(light: .black.opacity(0.55), dark: .white.opacity(0.55))
+
+            // Unfilled dot track color (adaptive)
+            static let dotUnfilled       = Color(light: .black.opacity(0.08), dark: .white.opacity(0.12))
+        }
 
         // MARK: Time category palettes
 
@@ -149,15 +179,25 @@ struct Theme {
 // MARK: - View Modifiers
 
 /// Translucent glass card — for Home cards and any surface floating over a gradient.
+/// Uses iOS 26 Liquid Glass on iOS 26+, falls back to ultraThinMaterial on older iOS.
 struct GlassCardModifier: ViewModifier {
+    var tint: Color = Theme.Colors.glassTint
+    var tintOpacity: CGFloat = 0.55
+    var cornerRadius: CGFloat = Theme.Radius.lg
+
     func body(content: Content) -> some View {
-        content
-            .background(.ultraThinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.lg))
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.Radius.lg)
-                    .stroke(Theme.Colors.border, lineWidth: 0.5)
-            )
+        if #available(iOS 26.0, *) {
+            content
+                .glassEffect(.regular.tint(tint.opacity(tintOpacity)), in: .rect(cornerRadius: cornerRadius))
+        } else {
+            content
+                .background(.ultraThinMaterial)
+                .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+                .overlay(
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .stroke(Theme.Colors.border, lineWidth: 0.5)
+                )
+        }
     }
 }
 
@@ -193,8 +233,9 @@ struct AccentButtonModifier: ViewModifier {
 
 extension View {
     /// Apply a translucent glass surface with a hairline border.
-    func asGlassCard() -> some View {
-        modifier(GlassCardModifier())
+    /// Uses iOS 26 Liquid Glass with fallback to ultraThinMaterial on older iOS.
+    func asGlassCard(tint: Color = Theme.Colors.glassTint, tintOpacity: CGFloat = 0.55, cornerRadius: CGFloat = Theme.Radius.lg) -> some View {
+        modifier(GlassCardModifier(tint: tint, tintOpacity: tintOpacity, cornerRadius: cornerRadius))
     }
 
     /// Apply an opaque pastel surface keyed to a Time category palette.

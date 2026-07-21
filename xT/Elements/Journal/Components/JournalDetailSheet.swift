@@ -82,7 +82,7 @@ struct JournalDetailSheet: View {
                                 .tracking(0.5)
 
                             FlowLayout(spacing: 7) {
-                                ForEach(Array(entry.symptoms), id: \.id) { symptom in
+                                ForEach(entry.symptoms, id: \.id) { symptom in
                                     HStack(spacing: 5) {
                                         Image(systemName: symptom.icon)
                                             .font(.system(size: 11))
@@ -126,7 +126,7 @@ struct JournalDetailSheet: View {
         date: Date(),
         mood: .happy,
         text: "Skin has been really soft this week. Noticed my mood staying really level throughout the day too.",
-        symptoms: Set(Symptom.commonSymptoms.prefix(2))
+        symptoms: Array(Symptom.commonSymptoms.prefix(2))
     ))
     .environment(\.journalManager, JournalManager.shared)
 }

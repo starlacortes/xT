@@ -11,7 +11,6 @@ import SwiftUI
 struct HeaderView: View {
     @Environment(\.profileManager) private var profileManager
     @Environment(\.medicationManager) private var medicationManager
-    @Binding var showingGraphDetail: Bool
 
     var body: some View {
         VStack(spacing: 12) {
@@ -58,7 +57,7 @@ struct HeaderView: View {
 }
 
 #Preview {
-    HeaderView(showingGraphDetail: .constant(false))
+    HeaderView()
         .environment(\.profileManager, ProfileManager.shared)
         .environment(\.medicationManager, MedicationManager.shared)
 }

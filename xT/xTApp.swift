@@ -73,12 +73,14 @@ struct xTApp: App {
             print("[xTApp] Deleting corrupted store and retrying...")
             
             let supportDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-            let storeURL = supportDir.appendingPathComponent("default.store")
+            let storeURL = supportDir.appendingPathComponent("xT.store")
+            let shmURL   = URL(fileURLWithPath: storeURL.path + "-shm")
+            let walURL   = URL(fileURLWithPath: storeURL.path + "-wal")
             
             do {
                 try FileManager.default.removeItem(at: storeURL)
-                try? FileManager.default.removeItem(at: storeURL.appendingPathComponent("sqlite-shm"))
-                try? FileManager.default.removeItem(at: storeURL.appendingPathComponent("sqlite-wal"))
+                try? FileManager.default.removeItem(at: shmURL)
+                try? FileManager.default.removeItem(at: walURL)
             } catch {
                 print("[xTApp] Could not remove store: \(error)")
             }

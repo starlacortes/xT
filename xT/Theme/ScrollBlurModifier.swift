@@ -28,12 +28,7 @@ struct ScrollBlurModifier: ViewModifier {
                 }
             }
             .overlay(
-                Rectangle()
-                    .fill(.ultraThinMaterial)
-                    .opacity(scrollOffset < -20 ? 1 : 0)
-                    .frame(height: scrollOffset < -20 ? 80 : 0)
-                    .clipped()
-                    .ignoresSafeArea(),
+                GlassBlurOverlay(scrollOffset: scrollOffset),
                 alignment: .top
             )
     }
@@ -82,5 +77,30 @@ struct ScrollOffsetReader: ViewModifier {
 extension View {
     func readScrollOffset(in coordinateSpace: String, binding: Binding<CGFloat>) -> some View {
         modifier(ScrollOffsetReader(coordinateSpace: coordinateSpace, offset: binding))
+    }
+}
+
+// MARK: - Glass Blur Overlay (iOS 26 Liquid Glass with fallback)
+
+private struct GlassBlurOverlay: View {
+    let scrollOffset: CGFloat
+    
+    var body: some View {
+        if #available(iOS 26.0, *) {
+            Rectangle()
+                .fill(.clear)
+                .glassEffect(.regular.tint(.black.opacity(0.3)), in: .rect())
+                .opacity(scrollOffset < -20 ? 1 : 0)
+                .frame(height: scrollOffset < -20 ? 80 : 0)
+                .clipped()
+                .ignoresSafeArea()
+        } else {
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .opacity(scrollOffset < -20 ? 1 : 0)
+                .frame(height: scrollOffset < -20 ? 80 : 0)
+                .clipped()
+                .ignoresSafeArea()
+        }
     }
 }

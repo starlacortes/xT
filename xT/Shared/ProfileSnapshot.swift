@@ -69,8 +69,10 @@ enum ProfileSnapshot {
     /// Captures the user's current state unless a snapshot already exists.
     /// Idempotent by design: enabling Sample twice must never overwrite the
     /// real snapshot with Jan's data (implementation plan §2.3).
-    static func snapshotIfNeeded() {
-        guard !exists else { return }
+    /// Returns true if a snapshot was either created or already existed.
+    @discardableResult
+    static func snapshotIfNeeded() -> Bool {
+        guard !exists else { return true }
 
         // UserDefaults — captured as a binary plist so heterogeneous value
         // types (Data/String/Bool/Int/Date) round-trip losslessly.
@@ -83,7 +85,7 @@ enum ProfileSnapshot {
             fromPropertyList: captured, format: .binary, options: 0
         ) else {
             print("[ProfileSnapshot] failed to serialize UserDefaults — aborting snapshot")
-            return
+            return false
         }
 
         // SwiftData records → Codable payloads.
@@ -122,8 +124,10 @@ enum ProfileSnapshot {
             )
             try data.write(to: snapshotURL, options: .atomic)
             print("[ProfileSnapshot] captured user data (\(doses.count) doses, \(bloodTests.count) blood tests, \(journalEntries.count) journal entries)")
+            return true
         } catch {
             print("[ProfileSnapshot] snapshot write failed: \(error)")
+            return false
         }
     }
 
@@ -364,11 +368,11 @@ enum ProfileSnapshot {
             date = entry.date
             mood = entry.mood
             text = entry.text
-            symptoms = Array(entry.symptoms)
+            symptoms = entry.symptoms
         }
 
         var record: JournalEntry {
-            JournalEntry(id: id, date: date, mood: mood, text: text, symptoms: Set(symptoms))
+            JournalEntry(id: id, date: date, mood: mood, text: text, symptoms: symptoms)
         }
     }
 

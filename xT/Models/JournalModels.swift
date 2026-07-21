@@ -16,14 +16,38 @@ class JournalEntry: Identifiable {
     var date: Date
     var mood: Mood
     var text: String
-    var symptoms: Set<Symptom>
 
-    init(id: UUID = UUID(), date: Date, mood: Mood, text: String, symptoms: Set<Symptom>) {
+    private var symptomsJSON: String = "[]"
+
+    var symptoms: [Symptom] {
+        get {
+            guard let data = symptomsJSON.data(using: .utf8),
+                  let decoded = try? JSONDecoder().decode([Symptom].self, from: data) else {
+                return []
+            }
+            return decoded
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue),
+               let json = String(data: data, encoding: .utf8) {
+                symptomsJSON = json
+            } else {
+                symptomsJSON = "[]"
+            }
+        }
+    }
+
+    init(id: UUID = UUID(), date: Date, mood: Mood, text: String, symptoms: [Symptom]) {
         self.id = id
         self.date = date
         self.mood = mood
         self.text = text
-        self.symptoms = symptoms
+        let encoded = { () -> String in
+            guard let data = try? JSONEncoder().encode(symptoms),
+                  let json = String(data: data, encoding: .utf8) else { return "[]" }
+            return json
+        }()
+        self.symptomsJSON = encoded
     }
 
     var previewText: String {

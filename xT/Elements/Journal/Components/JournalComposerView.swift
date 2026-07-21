@@ -14,7 +14,7 @@ struct JournalComposerView: View {
 
     @State private var text: String = ""
     @State private var selectedMood: Mood = .neutral
-    @State private var selectedSymptoms: Set<Symptom> = []
+    @State private var selectedSymptoms: [Symptom] = []
     @FocusState private var textFocused: Bool
 
     private var canSave: Bool {
@@ -125,13 +125,13 @@ struct JournalComposerView: View {
 
                         FlowLayout(spacing: 6) {
                             ForEach(Symptom.commonSymptoms) { symptom in
-                                let isSelected = selectedSymptoms.contains { $0.id == symptom.id }
+                                let isSelected = selectedSymptoms.contains(where: { $0.id == symptom.id })
                                 SymptomTag(symptom: symptom, isSelected: isSelected) {
                                     withAnimation(.easeInOut(duration: 0.12)) {
                                         if isSelected {
-                                            selectedSymptoms = selectedSymptoms.filter { $0.id != symptom.id }
+                                            selectedSymptoms.removeAll(where: { $0.id == symptom.id })
                                         } else {
-                                            selectedSymptoms.insert(symptom)
+                                            selectedSymptoms.append(symptom)
                                         }
                                     }
                                 }

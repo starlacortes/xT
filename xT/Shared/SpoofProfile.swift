@@ -345,20 +345,24 @@ enum SpoofProfile {
             let (daysAgo, mood, symptomNames, text) = template
             guard let entryDate = calendar.date(byAdding: .day, value: -daysAgo, to: today) else { continue }
 
-            let symptomSet = Set(symptomNames.compactMap { symptomMap[$0] })
+            let symptomList = symptomNames.compactMap { symptomMap[$0] }
 
             let entry = JournalEntry(
                 id: UUID(),
                 date: entryDate,
                 mood: mood,
                 text: text,
-                symptoms: symptomSet
+                symptoms: symptomList
             )
             ctx.insert(entry)
         }
 
-        try? ctx.save()
-        jm.loadEntries()
+        do {
+            try ctx.save()
+            jm.loadEntries()
+        } catch {
+            print("[SpoofProfile] populateJournal save failed: \(error)")
+        }
     }
 
     // MARK: - Notifications Population

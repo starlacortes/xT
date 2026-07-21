@@ -23,20 +23,25 @@ class JournalManager {
 
     var entries: [JournalEntry] = []
     var currentMood: Mood = .neutral
-    var currentSymptoms: Set<Symptom> = []
+    var currentSymptoms: [Symptom] = []
 
     // CRUD operations
     func addEntry(_ entry: JournalEntry) {
         entries.insert(entry, at: 0)
-        modelContext?.insert(entry)
-        try? modelContext?.save()
+        guard let context = modelContext else { return }
+        context.insert(entry)
+        do {
+            try context.save()
+        } catch {
+            print("[JournalManager] Failed to save entry: \(error)")
+        }
     }
 
     func updateCurrentMood(_ mood: Mood) {
         currentMood = mood
     }
 
-    func updateCurrentSymptoms(_ symptoms: Set<Symptom>) {
+    func updateCurrentSymptoms(_ symptoms: [Symptom]) {
         currentSymptoms = symptoms
     }
 
@@ -60,8 +65,13 @@ class JournalManager {
     // Loads journal entries from SwiftData.
     func loadEntries() {
         guard let context = modelContext else { return }
-        let allEntries = try? context.fetch(FetchDescriptor<JournalEntry>())
-        entries = allEntries?.sorted { $0.date > $1.date } ?? [] // newest first
+        do {
+            let allEntries = try context.fetch(FetchDescriptor<JournalEntry>())
+            entries = allEntries.sorted { $0.date > $1.date } // newest first
+        } catch {
+            print("[JournalManager] Failed to load entries: \(error)")
+            entries = []
+        }
 
         if entries.isEmpty {
             currentMood = .neutral
@@ -93,7 +103,7 @@ class JournalManager {
             date: Date(),
             mood: .happy,
             text: "Skin has been so soft this week. Noticed my mood staying really level throughout the day too.",
-            symptoms: Set([Symptom.commonSymptoms[0], Symptom.commonSymptoms[4]]) // skin changes, energy boost
+            symptoms: [Symptom.commonSymptoms[0], Symptom.commonSymptoms[4]] // skin changes, energy boost
         )
 
         // Yesterday's entry
@@ -102,7 +112,7 @@ class JournalManager {
             date: yesterday,
             mood: .calm,
             text: "A bit tired after work but overall okay. Hot flash in the afternoon that was a bit uncomfortable.",
-            symptoms: Set([Symptom.commonSymptoms[1], Symptom.commonSymptoms[2]]) // hot flashes, fatigue
+            symptoms: [Symptom.commonSymptoms[1], Symptom.commonSymptoms[2]] // hot flashes, fatigue
         )
 
         // Entry from 2 days ago
@@ -111,7 +121,7 @@ class JournalManager {
             date: twoDaysAgo,
             mood: .energetic,
             text: "Woke up feeling genuinely good. Dose day — remembered on time!",
-            symptoms: Set([Symptom.commonSymptoms[4]]) // energy boost
+            symptoms: [Symptom.commonSymptoms[4]] // energy boost
         )
 
         // Entry from 5 days ago
@@ -120,7 +130,7 @@ class JournalManager {
             date: fiveDaysAgo,
             mood: .neutral,
             text: "Quiet day, not much to report. Mood was stable throughout.",
-            symptoms: Set([])
+            symptoms: []
         )
 
         // Entry from 6 days ago
@@ -129,7 +139,7 @@ class JournalManager {
             date: sixDaysAgo,
             mood: .happy,
             text: "Really good energy today, went for a walk and enjoyed the sunshine.",
-            symptoms: Set([Symptom.commonSymptoms[4]]) // energy boost
+            symptoms: [Symptom.commonSymptoms[4]] // energy boost
         )
 
         // Add entries in reverse chronological order

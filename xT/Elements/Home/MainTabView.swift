@@ -50,8 +50,36 @@ struct MainTabView: View {
     }
 }
 
+// MARK: - Preview
+
+private struct MainTabPreview<Content: View>: View {
+    @State private var configured = false
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        content()
+            .onAppear {
+                guard !configured else { return }
+                configured = true
+
+                let mgr = MedicationManager.shared
+                mgr.selectedMedication = MedicationManager.MedicationType.estrogen.rawValue
+                mgr.selectedAdministrationMethod = MedicationManager.AdministrationMethod.injectable.rawValue
+                mgr.refreshState()
+
+                DeveloperSettings.shared.researchTabVisible = true
+            }
+    }
+}
+
 #Preview {
-    MainTabView()
-        .environment(\.profileManager, ProfileManager.shared)
-        .environment(\.medicationManager, MedicationManager.shared)
+    MainTabPreview {
+        MainTabView()
+            .environment(\.medicationManager, MedicationManager.shared)
+            .environment(\.profileManager, ProfileManager.shared)
+            .environment(\.journalManager, JournalManager.shared)
+            .environment(\.notificationManager, NotificationManager.shared)
+            .environment(\.authenticationManager, AuthenticationManager.shared)
+            .environment(\.researchInsightsManager, ResearchInsightsManager.shared)
+    }
 }

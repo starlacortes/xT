@@ -3,7 +3,7 @@
 //  xT
 //
 //  Created by Starla Cortes on 6/10/26.
-//  Journal card component
+//  Journal card component - uses iOS 26 Liquid Glass
 //
 
 import SwiftUI
@@ -47,8 +47,6 @@ struct JournalCardView: View {
                 }
                 .padding(.vertical, 10)
                 .padding(.horizontal, 14)
-                .background(showBackground ? Theme.Colors.Time.skin.surface.opacity(0.2) : Color.clear)
-                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.lg))
             }
             .buttonStyle(.plain)
 
@@ -79,6 +77,7 @@ struct JournalCardView: View {
             }
         }
         .animation(.easeInOut(duration: 0.3), value: isExpanded)
+        .asGlassCard(tint: Theme.Colors.Time.skin.surface, tintOpacity: 0.3, cornerRadius: Theme.Radius.lg)
     }
 }
 

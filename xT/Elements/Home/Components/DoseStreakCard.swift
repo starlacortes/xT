@@ -62,12 +62,7 @@ struct DoseStreakCard: View {
             }
         }
         .padding(14)
-        .background(.ultraThinMaterial)
-        .cornerRadius(Theme.Radius.lg)
-        .overlay(
-            RoundedRectangle(cornerRadius: Theme.Radius.lg)
-                .stroke(Theme.Colors.border, lineWidth: 0.5)
-        )
+        .asGlassCard(tintOpacity: 0.55, cornerRadius: Theme.Radius.lg)
     }
 
     private var cycleDays: Int {

@@ -279,21 +279,11 @@ struct TimeContentEngine {
     // MARK: Timeline header
 
     var timelineTitle: String {
-        switch tenureTier {
-        case .t1Beginning: return months < 1 ? "Day one — welcome ✦" : "Early days ✦"
-        case .t2Emerging:  return "You are shifting. ✦"
-        case .t3InMotion:  return "You're in full swing ✦"
-        case .t4Deepening: return "Changes are deepening ✦"
-        case .t5Settled:   return "Deeper Changes ✦"
-        case .t6Rooted:    return "Maturity approaching ✦"
-        case .t7Veteran:   return "Matured. ✦"
-        }
+        tenureTier.timeBandLabel
     }
 
     var timelineSubtitle: String {
-        // Spec §3.1: greyed time-band parenthetical for continuous context.
-        // Visual subordination handled by the view (`.secondary` opacity).
-        return "Month \(months) on HRT · \(tenureTier.statusEmoji) \(tenureTier.rawValue) (\(tenureTier.timeBandLabel))"
+        "\(medication) · \(method) · Month \(months) on HRT"
     }
 
     // MARK: Changes
@@ -679,8 +669,8 @@ struct TimeContentEngine {
             return months < 6 ? "Settling in" : "Stabilising"
         case .t4Deepening:       return "Well-established"
         case .t5Settled:         return "Stable"
-        case .t6Rooted:          return "Long-term equilibrium"
-        case .t7Veteran:         return "Veteran baseline"
+        case .t6Rooted:          return "Stable · Year 5+"
+        case .t7Veteran:         return "Stable · 10+ years"
         }
     }
     private func estrogenMoodSubtitle(tier: TenureTier) -> String {
@@ -688,9 +678,9 @@ struct TimeContentEngine {
         case .t1Beginning, .t2Emerging, .t3InMotion:
             return "How estrogen shapes your emotions"
         case .t4Deepening:       return "Emotional patterns are settling"
-        case .t5Settled:         return "Long-term emotional equilibrium"
-        case .t6Rooted:          return "Emotional patterns deeply rooted"
-        case .t7Veteran:         return "A decade of emotional wisdom"
+        case .t5Settled:         return "Long-term emotional baseline"
+        case .t6Rooted:          return "Emotional baseline at 5+ years"
+        case .t7Veteran:         return "Emotional baseline at 10+ years"
         }
     }
     private func estrogenSkinLabel(tier: TenureTier, months: Int) -> String {
@@ -701,8 +691,8 @@ struct TimeContentEngine {
             return "Well underway"
         case .t4Deepening:       return "Ongoing"
         case .t5Settled:         return "Maintained"
-        case .t6Rooted:          return "Long-term maintenance"
-        case .t7Veteran:         return "Veteran maintenance"
+        case .t6Rooted:          return "Maintained · Year 5+"
+        case .t7Veteran:         return "Maintained · 10+ years"
         }
     }
     private func estrogenSkinSubtitle(tier: TenureTier) -> String {
@@ -711,8 +701,8 @@ struct TimeContentEngine {
             return "What's changing and why"
         case .t4Deepening:       return "Your skin has fully adapted"
         case .t5Settled:         return "Long-term dermal health"
-        case .t6Rooted:          return "Preserving dermal health for decades"
-        case .t7Veteran:         return "Aging gracefully with estrogen"
+        case .t6Rooted:          return "Dermal health at 5+ years"
+        case .t7Veteran:         return "Dermal health at 10+ years"
         }
     }
     private func estrogenBodyLabel(tier: TenureTier, months: Int) -> String {
@@ -721,8 +711,8 @@ struct TimeContentEngine {
             return months < 6 ? "Early changes" : "Still in progress"
         case .t4Deepening:       return "Near complete"
         case .t5Settled:         return "Mature changes"
-        case .t6Rooted:          return "Sustained form"
-        case .t7Veteran:         return "Enduring shape"
+        case .t6Rooted:          return "Mature · Year 5+"
+        case .t7Veteran:         return "Mature · 10+ years"
         }
     }
     private func estrogenBodySubtitle(tier: TenureTier) -> String {
@@ -731,8 +721,8 @@ struct TimeContentEngine {
             return "Fat, curves & what to expect"
         case .t4Deepening:       return "Curves have largely settled"
         case .t5Settled:         return "Your body's established form"
-        case .t6Rooted:          return "Bone & metabolic health focus"
-        case .t7Veteran:         return "A decade of estrogen-dominant physiology"
+        case .t6Rooted:          return "Body composition at 5+ years"
+        case .t7Veteran:         return "Body composition at 10+ years"
         }
     }
 
@@ -746,8 +736,8 @@ struct TimeContentEngine {
             return "Still shifting"
         case .t4Deepening:       return "Near final"
         case .t5Settled:         return "Settled"
-        case .t6Rooted:          return "Permanent range"
-        case .t7Veteran:         return "Lifetime voice"
+        case .t6Rooted:          return "Settled · Year 5+"
+        case .t7Veteran:         return "Settled · 10+ years"
         }
     }
     private func testosteroneVoiceSubtitle(tier: TenureTier) -> String {
@@ -756,8 +746,8 @@ struct TimeContentEngine {
             return "Deepening timeline"
         case .t4Deepening:       return "Voice has largely settled"
         case .t5Settled:         return "Permanent depth"
-        case .t6Rooted:          return "A decade of settled pitch"
-        case .t7Veteran:         return "Voice is legacy"
+        case .t6Rooted:          return "Voice at 5+ years"
+        case .t7Veteran:         return "Voice at 10+ years"
         }
     }
     private func testosteroneSkinLabel(tier: TenureTier, months: Int) -> String {
@@ -766,8 +756,8 @@ struct TimeContentEngine {
             return "Just starting"
         case .t4Deepening:       return "Ongoing"
         case .t5Settled:         return "Maintained"
-        case .t6Rooted:          return "Long-term maintenance"
-        case .t7Veteran:         return "Veteran maintenance"
+        case .t6Rooted:          return "Maintained · Year 5+"
+        case .t7Veteran:         return "Maintained · 10+ years"
         }
     }
     private func testosteroneSkinSubtitle(tier: TenureTier) -> String {
@@ -776,8 +766,8 @@ struct TimeContentEngine {
             return "Oil, texture & growth"
         case .t4Deepening:       return "Skin & hair patterns stabilised"
         case .t5Settled:         return "Long-term texture & growth"
-        case .t6Rooted:          return "Hair & skin in the long run"
-        case .t7Veteran:         return "A decade of androgen-dominant skin"
+        case .t6Rooted:          return "Skin & hair at 5+ years"
+        case .t7Veteran:         return "Skin & hair at 10+ years"
         }
     }
     private func testosteroneMuscleLabel(tier: TenureTier, months: Int) -> String {
@@ -786,8 +776,8 @@ struct TimeContentEngine {
             return months < 6 ? "Building" : "Growing"
         case .t4Deepening:       return "Peak growth phase"
         case .t5Settled:         return "Stable"
-        case .t6Rooted:          return "Maintained baseline"
-        case .t7Veteran:         return "Veteran baseline"
+        case .t6Rooted:          return "Stable · Year 5+"
+        case .t7Veteran:         return "Stable · 10+ years"
         }
     }
     private func testosteroneMuscleSubtitle(tier: TenureTier) -> String {
@@ -796,8 +786,8 @@ struct TimeContentEngine {
             return "What T does to your body"
         case .t4Deepening:       return "Strength is well established"
         case .t5Settled:         return "Sustained muscle profile"
-        case .t6Rooted:          return "Decade-scale muscle maintenance"
-        case .t7Veteran:         return "Lifetime lean mass stewardship"
+        case .t6Rooted:          return "Muscle profile at 5+ years"
+        case .t7Veteran:         return "Muscle profile at 10+ years"
         }
     }
 

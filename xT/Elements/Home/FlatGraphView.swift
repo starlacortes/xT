@@ -2,43 +2,56 @@
 //  FlatGraphView.swift
 //  xT
 //
-//  Edge-to-edge hormone level graph. The curve's color drifts along a
-//  rose→lavender ramp keyed to the current level (deeper rose = lower,
-//  lighter lavender = higher), giving a subtle at-a-glance read on where
-//  today sits relative to the rest of the week — no card container, sits
-//  flush on the home background.
+//  Full-bleed hormone level graph rendered with cubic-bezier curves.
+//  The curve's color drifts along a rose → lavender ramp keyed to the
+//  current level. Grid lines, Y-axis labels, and peak/trough reference
+//  lines use the user's therapeutic targets from Settings.
+//
+//  Designed as a non-interactive background layer — sits behind the
+//  home-screen glass card with `allowsHitTesting(false)`.
 //
 
 import SwiftUI
 
 struct FlatGraphView: View {
     @Environment(\.medicationManager) private var medicationManager
-    @Binding var showingGraphDetail: Bool
-    var compactHeight: Bool = false
-    var graphHeight: CGFloat? = nil
 
-    /// Offset for the latest dose marker dot — slides in from right
-    @State private var latestDoseDotOffset: CGFloat = 60
-    @State private var lastGraphDoseCount: Int = 0
+    /// Fraction of total height that the data curve occupies.
+    /// 0.55 keeps the curve above the glass card on the home screen.
+    var dataRegionFraction: CGFloat = 0.55
+
+    /// Animated data vector for smooth curve morphing between data sets.
+    /// Falls back to live data via `effectiveValues` until first animation cycle.
+    @State private var animatedValues: AnimatableVector = .zero
+
+    // MARK: - Scrub state (bound from HomeView)
+
+    @Binding var scrubFraction: CGFloat?
+    @Binding var scrubValue: Double?
+    @Binding var scrubDate: Date?
+
+    /// Pharmacokinetically-aware dense interpolation points for smooth scrubbing.
+    @State private var densePoints: [(date: Date, value: Double, xFraction: CGFloat)] = []
 
     private var points: [MedicationManager.EstimatedPoint] {
         medicationManager.recentLevels
+    }
+
+    /// Safe read: uses animated values when available, falls back to raw points.
+    private var effectiveValues: [Double] {
+        let v = animatedValues.values
+        return v.isEmpty ? points.map(\.value) : v
     }
 
     private var currentLevel: Double? {
         medicationManager.currentHormoneLevel?.value
     }
 
-    private var unit: String {
-        medicationManager.currentHormoneLevel?.unit ?? "pg/mL"
-    }
-
-    /// Rose→lavender tint driven by the current level relative to a typical
-    /// clinical ceiling for the selected medication. Deeper rose reads as
-    /// "lower", lighter lavender as "higher" — a soft, non-alarming gradient
-    /// rather than a strict red/green status color.
+    /// Rose → lavender tint driven by the current level relative to the
+    /// therapeutic ceiling for the selected medication.
     private var levelTint: Color {
-        guard let level = currentLevel, let medication = medicationManager.selectedMedication else {
+        guard let level = currentLevel,
+              let medication = medicationManager.selectedMedication else {
             return Theme.Colors.accent
         }
         let ceiling: Double = medication == "Testosterone" ? 1200 : 600
@@ -46,255 +59,392 @@ struct FlatGraphView: View {
         return Color.lerp(Theme.Colors.levelLow, Theme.Colors.levelHigh, t)
     }
 
-    private var resolvedGraphHeight: CGFloat {
-        graphHeight ?? (compactHeight ? 170 : 200)
+    // MARK: - Therapeutic targets
+
+    private var target: MedicationManager.TherapeuticTarget? {
+        medicationManager.userTherapeuticTarget
     }
+
+    private var effectiveTroughMin: Double {
+        guard let t = target else {
+            return medicationManager.selectedMedication == "Testosterone"
+                ? MedicationManager.TherapeuticTarget.defaultTestosterone.troughMin
+                : MedicationManager.TherapeuticTarget.default.troughMin
+        }
+        return t.troughMin
+    }
+
+    private var effectiveTroughMax: Double {
+        guard let t = target else {
+            return medicationManager.selectedMedication == "Testosterone"
+                ? MedicationManager.TherapeuticTarget.defaultTestosterone.troughMax
+                : MedicationManager.TherapeuticTarget.default.troughMax
+        }
+        return t.troughMax
+    }
+
+    private var effectivePeakCeiling: Double {
+        guard let t = target else {
+            return medicationManager.selectedMedication == "Testosterone"
+                ? MedicationManager.TherapeuticTarget.defaultTestosterone.peakCeiling
+                : MedicationManager.TherapeuticTarget.default.peakCeiling
+        }
+        return t.peakCeiling
+    }
+
+    // MARK: - Body
 
     var body: some View {
-        ZStack(alignment: .trailing) {
-            graphBody
-                .frame(height: resolvedGraphHeight)
+        GeometryReader { geo in
+            let w = geo.size.width
+            let h = geo.size.height
+            let values = effectiveValues
+            let bounds = CurveLayout.valueBounds(values)
+            ZStack(alignment: .topLeading) {
+                if points.isEmpty {
+                    emptyState(w: w, h: h)
+                } else {
+                    curveLayer(values: values, bounds: bounds, w: w, h: h)
 
-            Button(action: { showingGraphDetail = true }) {
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(levelTint.opacity(0.4))
+                    gridLayer(values: values, bounds: bounds, w: w, h: h)
+
+                    therapeuticReferenceLines(bounds: bounds, w: w, h: h)
+
+                    peakMarker(bounds: bounds, w: w, h: h)
+
+                    doseMarkers(bounds: bounds, w: w, h: h)
+
+                    scrubIndicatorLine(w: w, h: h)
+                }
             }
-            .frame(width: 44, height: resolvedGraphHeight)
-            .contentShape(Rectangle())
-        }
-        .animation(.spring(response: 0.55, dampingFraction: 0.75), value: currentLevel)
-        .animation(.spring(response: 0.55, dampingFraction: 0.75), value: points.map(\.value))
-        .onAppear {
-            medicationManager.refreshState()
-            lastGraphDoseCount = medicationManager.doseRecordedCount
-        }
-        .onChange(of: medicationManager.doseRecordedCount) { newCount in
-            guard newCount > lastGraphDoseCount else { return }
-            lastGraphDoseCount = newCount
-            // Slide the dose dot in from the right
-            latestDoseDotOffset = 60
-            withAnimation(.spring(response: 0.55, dampingFraction: 0.7).delay(0.18)) {
-                latestDoseDotOffset = 0
+            .overlay {
+                if !points.isEmpty {
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .gesture(scrubGesture(in: geo))
+                }
             }
+            .task {
+                if animatedValues.values.isEmpty {
+                    animatedValues = AnimatableVector(values: points.map(\.value))
+                }
+                generateDensePoints()
+            }
+            .onChange(of: points.map(\.value)) { _, newValues in
+                withAnimation(.spring(response: 0.55, dampingFraction: 0.75)) {
+                    animatedValues = AnimatableVector(values: newValues)
+                }
+                generateDensePoints()
+            }
+            .onChange(of: medicationManager.userTherapeuticTarget?.peakCeiling) { _, _ in }
         }
     }
 
-    // MARK: - Graph body
+    // MARK: - Empty state
+
+    private func emptyState(w: CGFloat, h: CGFloat) -> some View {
+        Rectangle()
+            .fill(Theme.Colors.accent.opacity(0.05))
+            .frame(width: w, height: h)
+            .overlay(
+                Text("Log a dose to see your curve")
+                    .font(Theme.Fonts.caption)
+                    .foregroundStyle(Theme.Colors.accent.opacity(0.4))
+            )
+    }
+
+    // MARK: - Dense scrub points
+
+    private func generateDensePoints() {
+        let recent = medicationManager.recentLevels
+        guard let first = recent.first?.date,
+              let last = recent.last?.date else {
+            densePoints = []
+            return
+        }
+        let method = medicationManager.selectedAdministrationMethod ?? "Injectable"
+        let stepDays: Double
+        switch method {
+        case "Oral":
+            stepDays = 15.0 / (24.0 * 60.0)
+        case "Cream":
+            stepDays = 1.0 / 24.0
+        case "Injectable":
+            let halfLife = medicationManager.currentEster?.halfLifeDays ?? 5.0
+            stepDays = max(1.0 / 24.0, halfLife / 40.0)
+        default:
+            stepDays = 2.0 / 24.0
+        }
+        let dense = medicationManager.estimatedLevels(from: first, to: last, stepDays: stepDays)
+        guard dense.count > 1 else { return }
+        densePoints = dense.enumerated().map { i, pt in
+            (date: pt.date, value: pt.value,
+             xFraction: CGFloat(i) / CGFloat(dense.count - 1))
+        }
+    }
+
+    // MARK: - Scrub indicator line
 
     @ViewBuilder
-    private var graphBody: some View {
-        if points.isEmpty {
+    private func scrubIndicatorLine(w: CGFloat, h: CGFloat) -> some View {
+        if let fraction = scrubFraction, !densePoints.isEmpty {
+            let x = fraction * w
             Rectangle()
-                .fill(Theme.Colors.accent.opacity(0.05))
-                .overlay(
-                    Text("Log a dose to see your curve")
-                        .font(Theme.Fonts.caption)
-                        .foregroundStyle(Theme.Colors.accent.opacity(0.4))
-                )
-        } else {
-            GeometryReader { geo in
+                .fill(Theme.Colors.Graph.levelText.opacity(0.5))
+                .frame(width: 2)
+                .position(x: x, y: h / 2)
+                .frame(height: h)
+        }
+    }
+
+    // MARK: - Scrub gesture
+
+    private func scrubGesture(in geo: GeometryProxy) -> some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { value in
                 let w = geo.size.width
-                let h = geo.size.height
-                let values = points.map(\.value)
-                let minV = (values.min() ?? 0) * 0.85
-                let maxV = (values.max() ?? 1) * 1.1
-                let range = maxV - minV
-
-                ZStack(alignment: .topLeading) {
-                    curveFillPath(values: values, min: minV, range: range, w: w, h: h)
-                        .fill(
-                            LinearGradient(
-                                stops: [
-                                    .init(color: levelTint.opacity(0.42), location: 0),
-                                    .init(color: levelTint.opacity(0.0), location: 1),
-                                ],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-
-                    curvePath(values: values, min: minV, range: range, w: w, h: h)
-                        .stroke(
-                            levelTint,
-                            style: StrokeStyle(lineWidth: 1.8, lineCap: .round, lineJoin: .round)
-                        )
-
-                    if let peakIdx = values.indices.min(by: { values[$0] > values[$1] }) {
-                        let px = markerX(index: peakIdx, count: values.count, w: w)
-                        let py = yPos(value: values[peakIdx], min: minV, range: range, h: h)
-
-                        Circle()
-                            .fill(levelTint.opacity(0.22))
-                            .frame(width: 14, height: 14)
-                            .position(x: px, y: py)
-
-                        Circle()
-                            .fill(levelTint)
-                            .frame(width: 6, height: 6)
-                            .position(x: px, y: py)
-                    }
-
-                    lastDoseMarker(values: values, min: minV, range: range, w: w, h: h)
-
-                    levelLabel
-                        .padding(.leading, 22)
-                        .padding(.top, 14)
+                let fraction = max(0, min(1, value.location.x / w))
+                guard !densePoints.isEmpty else { return }
+                if let nearest = densePoints.min(by: {
+                    abs($0.xFraction - fraction) < abs($1.xFraction - fraction)
+                }) {
+                    scrubFraction = fraction
+                    scrubValue = nearest.value
+                    scrubDate = nearest.date
                 }
             }
-        }
-    }
-
-    // MARK: - Level label
-
-    private var levelLabel: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 5) {
-            if let level = currentLevel {
-                AnimatedCounter(value: level)
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundStyle(Color.primary)
-                    .contentTransition(.numericText())
-
-                Text(unit)
-                    .font(Theme.Fonts.caption)
-                    .foregroundStyle(Color.secondary)
-
-                if let word = rangeWord(for: level) {
-                    Text("·")
-                        .foregroundStyle(Color.secondary.opacity(0.5))
-                    Text(word)
-                        .font(Theme.Fonts.caption)
-                        .foregroundStyle(Color.secondary)
+            .onEnded { _ in
+                withAnimation(.easeOut(duration: 0.15)) {
+                    scrubFraction = nil
+                    scrubValue = nil
+                    scrubDate = nil
                 }
             }
-        }
     }
 
-    // MARK: - Path helpers
+    // MARK: - Curve layer
 
-    private func xPos(index: Int, count: Int, w: CGFloat) -> CGFloat {
-        guard count > 1 else { return w / 2 }
-        return CGFloat(index) / CGFloat(count - 1) * w
-    }
+    private func curveLayer(values: [Double],
+                            bounds: (min: Double, max: Double, range: Double),
+                            w: CGFloat, h: CGFloat) -> some View {
+        let (minV, _, range) = bounds
+        let useAnim = !animatedValues.values.isEmpty
 
-    /// Marker positions are clamped away from the edges so dots and labels
-    /// centered on the first/last curve points don't get clipped off-screen.
-    private func markerX(index: Int, count: Int, w: CGFloat) -> CGFloat {
-        min(max(xPos(index: index, count: count, w: w), 8), w - 8)
-    }
+        let fillPath: Path = useAnim
+            ? AnimatableFillShape(values: animatedValues, minV: minV, range: range, dataFraction: dataRegionFraction).path(in: CGRect(x: 0, y: 0, width: w, height: h))
+            : CurveLayout.curveFillPath(values: values, min: minV, range: range, width: w, height: h, dataFraction: dataRegionFraction)
 
-    private func yPos(value: Double, min: Double, range: Double, h: CGFloat) -> CGFloat {
-        guard range > 0 else { return h / 2 }
-        let norm = (value - min) / range
-        return h - CGFloat(norm) * h * 0.85 - h * 0.07
-    }
+        let strokePath: Path = useAnim
+            ? AnimatableCurveShape(values: animatedValues, minV: minV, range: range, dataFraction: dataRegionFraction).path(in: CGRect(x: 0, y: 0, width: w, height: h))
+            : CurveLayout.curvePath(values: values, min: minV, range: range, width: w, height: h, dataFraction: dataRegionFraction)
 
-    private func curvePath(values: [Double], min: Double, range: Double, w: CGFloat, h: CGFloat) -> Path {
-        Path { path in
-            for (i, v) in values.enumerated() {
-                let x = xPos(index: i, count: values.count, w: w)
-                let y = yPos(value: v, min: min, range: range, h: h)
-                if i == 0 {
-                    path.move(to: .init(x: x, y: y))
-                } else {
-                    let prev = CGPoint(
-                        x: xPos(index: i - 1, count: values.count, w: w),
-                        y: yPos(value: values[i - 1], min: min, range: range, h: h)
+        return ZStack {
+            if useAnim {
+                AnimatableFillShape(values: animatedValues, minV: minV, range: range, dataFraction: dataRegionFraction)
+                    .fill(
+                        LinearGradient(
+                            stops: [
+                                .init(color: levelTint.opacity(0.42), location: 0),
+                                .init(color: levelTint.opacity(0.0), location: 1),
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
                     )
-                    let ctrl1 = CGPoint(x: prev.x + (x - prev.x) * 0.5, y: prev.y)
-                    let ctrl2 = CGPoint(x: prev.x + (x - prev.x) * 0.5, y: y)
-                    path.addCurve(to: .init(x: x, y: y), control1: ctrl1, control2: ctrl2)
-                }
+                AnimatableCurveShape(values: animatedValues, minV: minV, range: range, dataFraction: dataRegionFraction)
+                    .stroke(
+                        levelTint,
+                        style: StrokeStyle(lineWidth: 1.8, lineCap: .round, lineJoin: .round)
+                    )
+            } else {
+                fillPath
+                    .fill(
+                        LinearGradient(
+                            stops: [
+                                .init(color: levelTint.opacity(0.42), location: 0),
+                                .init(color: levelTint.opacity(0.0), location: 1),
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                strokePath
+                    .stroke(
+                        levelTint,
+                        style: StrokeStyle(lineWidth: 1.8, lineCap: .round, lineJoin: .round)
+                    )
             }
         }
     }
 
-    private func curveFillPath(values: [Double], min: Double, range: Double, w: CGFloat, h: CGFloat) -> Path {
-        var base = curvePath(values: values, min: min, range: range, w: w, h: h)
-        base.addLine(to: .init(x: w, y: h))
-        base.addLine(to: .init(x: 0, y: h))
-        base.closeSubpath()
-        return base
+    // MARK: - Grid layer
+
+    private func gridLayer(values: [Double],
+                           bounds: (min: Double, max: Double, range: Double),
+                           w: CGFloat, h: CGFloat) -> some View {
+        let (minV, maxV, range) = bounds
+        let ticks = CurveLayout.niceTicks(min: minV, max: maxV * 1.1, count: 3)
+        let color = Theme.Colors.Graph.gridLine
+
+        return ZStack {
+            ForEach(ticks.indices, id: \.self) { i in
+                let y = CurveLayout.yPos(value: ticks[i], min: minV, range: range,
+                                          height: h, dataFraction: dataRegionFraction)
+                Path { p in
+                    p.move(to: CGPoint(x: 0, y: y))
+                    p.addLine(to: CGPoint(x: w, y: y))
+                }
+                .stroke(color, lineWidth: 0.5)
+
+                Text("\(Int(ticks[i]))")
+                    .font(.system(size: 9))
+                    .foregroundStyle(Theme.Colors.Graph.yAxisLabel)
+                    .position(x: w - 20, y: y)
+            }
+        }
     }
 
-    // MARK: - Last dose marker
+    // MARK: - Therapeutic reference lines
 
-    /// Finds the EstimatedPoint closest in time to the last logged dose date
-    /// and returns a visual marker positioned on the curve at that point.
-    /// Returns nil if no last dose date exists or no points match.
-    private func lastDoseMarker(values: [Double], min: Double, range: Double,
-                                w: CGFloat, h: CGFloat) -> some View {
-        guard let lastDose = medicationManager.lastDoseDate else {
+    private func therapeuticReferenceLines(bounds: (min: Double, max: Double, range: Double),
+                                           w: CGFloat, h: CGFloat) -> some View {
+        let (minV, _, range) = bounds
+        let lineColor = Theme.Colors.successBrand.opacity(0.14)
+
+        return ZStack {
+            let peakY = CurveLayout.yPos(value: effectivePeakCeiling, min: minV, range: range,
+                                          height: h, dataFraction: dataRegionFraction)
+            dashedLine(at: peakY, w: w, color: lineColor)
+            Text("Peak ceiling \(Int(effectivePeakCeiling))")
+                .font(.system(size: 8))
+                .foregroundStyle(Theme.Colors.successBrand.opacity(0.38))
+                .position(x: 8, y: peakY - 8)
+                .fixedSize()
+
+            let troughMinY = CurveLayout.yPos(value: effectiveTroughMin, min: minV, range: range,
+                                               height: h, dataFraction: dataRegionFraction)
+            let troughMaxY = CurveLayout.yPos(value: effectiveTroughMax, min: minV, range: range,
+                                               height: h, dataFraction: dataRegionFraction)
+
+            dashedLine(at: troughMinY, w: w, color: lineColor)
+            dashedLine(at: troughMaxY, w: w, color: lineColor)
+
+            Text("Trough \(Int(effectiveTroughMin))–\(Int(effectiveTroughMax))")
+                .font(.system(size: 8))
+                .foregroundStyle(Theme.Colors.successBrand.opacity(0.38))
+                .position(x: 8, y: troughMaxY + 8)
+                .fixedSize()
+        }
+    }
+
+    private func dashedLine(at y: CGFloat, w: CGFloat, color: Color) -> some View {
+        Path { p in
+            p.move(to: CGPoint(x: 0, y: y))
+            p.addLine(to: CGPoint(x: w, y: y))
+        }
+        .stroke(color, style: StrokeStyle(lineWidth: 0.5, dash: [3, 5]))
+    }
+
+    // MARK: - Peak marker
+
+    private func peakMarker(bounds: (min: Double, max: Double, range: Double),
+                            w: CGFloat, h: CGFloat) -> some View {
+        let (minV, _, range) = bounds
+        guard let peakPt = points.max(by: { $0.value < $1.value }) else {
             return AnyView(EmptyView())
         }
+        let peakIdx = points.firstIndex(where: { $0.date == peakPt.date }) ?? 0
 
-        // Find the point whose date is closest to lastDoseDate
+        let px = CurveLayout.markerX(index: peakIdx, count: points.count, width: w)
+        let py = CurveLayout.yPos(value: peakPt.value, min: minV, range: range,
+                                    height: h, dataFraction: dataRegionFraction)
+
+        return AnyView(
+            ZStack {
+                Circle()
+                    .fill(levelTint.opacity(0.22))
+                    .frame(width: 14, height: 14)
+                    .position(x: px, y: py)
+                Circle()
+                    .fill(levelTint)
+                    .frame(width: 6, height: 6)
+                    .position(x: px, y: py)
+                Text("peak")
+                    .font(.system(size: 8, weight: .semibold))
+                    .foregroundStyle(levelTint.opacity(0.7))
+                    .position(x: px, y: py + 14)
+            }
+        )
+    }
+
+    // MARK: - Dose markers
+
+    private func doseMarkers(bounds: (min: Double, max: Double, range: Double),
+                             w: CGFloat, h: CGFloat) -> some View {
+        let (minV, _, range) = bounds
+        let activeDoses = medicationManager.doseHistory.filter {
+            $0.doseStatus == DoseStatus.taken.rawValue && !$0.isDeleted
+        }
+        guard !activeDoses.isEmpty, !points.isEmpty else {
+            return AnyView(EmptyView())
+        }
+        let visibleStart = points.first!.date.addingTimeInterval(-12 * 3600)
+        let visibleEnd = points.last!.date.addingTimeInterval(12 * 3600)
+        let visibleDoses = activeDoses.filter {
+            $0.doseDate >= visibleStart && $0.doseDate <= visibleEnd
+        }
+        guard !visibleDoses.isEmpty else { return AnyView(EmptyView()) }
+
+        return AnyView(
+            ZStack {
+                ForEach(visibleDoses, id: \.id) { dose in
+                    doseDot(for: dose, minV: minV, range: range, w: w, h: h)
+                }
+            }
+        )
+    }
+
+    private func doseDot(for dose: DoseRecord,
+                         minV: Double, range: Double,
+                         w: CGFloat, h: CGFloat) -> some View {
         var bestIdx = 0
         var bestDelta = TimeInterval.greatestFiniteMagnitude
         for (i, pt) in points.enumerated() {
-            let delta = abs(pt.date.timeIntervalSince(lastDose))
+            let delta = abs(pt.date.timeIntervalSince(dose.doseDate))
             if delta < bestDelta {
                 bestDelta = delta
                 bestIdx = i
             }
         }
+        guard bestDelta < 7 * 86400 else { return AnyView(EmptyView()) }
 
-        // Only show if we're within a reasonable window (e.g. 3 days)
-        guard bestDelta < 3 * 86400 else {
-            return AnyView(EmptyView())
-        }
-
-        let px = markerX(index: bestIdx, count: values.count, w: w)
-        let py = yPos(value: values[bestIdx], min: min, range: range, h: h)
+        let px = CurveLayout.markerX(index: bestIdx, count: points.count, width: w)
+        let py = CurveLayout.yPos(value: points[bestIdx].value, min: minV, range: range,
+                                    height: h, dataFraction: dataRegionFraction)
 
         return AnyView(
             ZStack {
-                // Outer glow ring — slides in from the right when a new dose is recorded
                 Circle()
                     .fill(Theme.Colors.accentSecondary.opacity(0.22))
-                    .frame(width: 14, height: 14)
-                    .position(x: px + latestDoseDotOffset, y: py)
-
-                // Inner filled dot
+                    .frame(width: 12, height: 12)
+                    .position(x: px, y: py)
                 Circle()
                     .fill(Theme.Colors.accentSecondary)
-                    .frame(width: 5, height: 5)
-                    .position(x: px + latestDoseDotOffset, y: py)
-
-                // Small label below
+                    .frame(width: 4, height: 4)
+                    .position(x: px, y: py)
                 Text("dose")
-                    .font(.system(size: 8, weight: .semibold))
-                    .foregroundStyle(Theme.Colors.accentSecondary.opacity(0.7))
-                    .position(x: px + latestDoseDotOffset, y: py + 14)
+                    .font(.system(size: 7, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.accentSecondary.opacity(0.6))
+                    .position(x: px, y: py + 12)
             }
         )
     }
 
-    // MARK: - Range word
-
-    private func rangeWord(for level: Double) -> String? {
-        guard let med = medicationManager.selectedMedication else { return nil }
-        if med == "Estrogen" {
-            switch level {
-            case ..<50:  return "very low"
-            case ..<100: return "low"
-            case ..<200: return "optimal"
-            case ..<500: return "high"
-            default:     return "very high"
-            }
-        } else {
-            switch level {
-            case ..<50:  return "suppressed"
-            case ..<200: return "low"
-            case ..<800: return "in range"
-            default:     return "high"
-            }
-        }
-    }
 }
 
 #Preview {
-    FlatGraphView(showingGraphDetail: .constant(false))
+    FlatGraphView(scrubFraction: .constant(nil), scrubValue: .constant(nil), scrubDate: .constant(nil))
         .background(Color(.systemBackground))
         .environment(\.medicationManager, MedicationManager.shared)
+        .frame(height: 400)
 }

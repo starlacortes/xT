@@ -147,7 +147,7 @@ private func engine(
 func engineMonth0() {
     let e = engine(months: 0)
     #expect(e.tenureTier == TenureTier.t1Beginning)
-    #expect(e.timelineTitle.contains("Day one"))
+    #expect(e.timelineTitle.contains("Month 0"))
     #expect(e.timelineSubtitle.contains("Month 0"))
 }
 
@@ -155,28 +155,28 @@ func engineMonth0() {
 func engineMonth5() {
     let e = engine(months: 5)
     #expect(e.tenureTier == TenureTier.t2Emerging)
-    #expect(e.timelineTitle.contains("You are shifting"))
+    #expect(e.timelineTitle.contains("Month 3"))
 }
 
 @Test("Engine at 9 months -> T3 InMotion")
 func engineMonth9() {
     let e = engine(months: 9)
     #expect(e.tenureTier == TenureTier.t3InMotion)
-    #expect(e.timelineTitle.contains("full swing"))
+    #expect(e.timelineTitle.contains("Month 6"))
 }
 
 @Test("Engine at 18 months -> T4 Deepening")
 func engineMonth18() {
     let e = engine(months: 18)
     #expect(e.tenureTier == TenureTier.t4Deepening)
-    #expect(e.timelineTitle.contains("deepening"))
+    #expect(e.timelineTitle.contains("Year 1"))
 }
 
 @Test("Engine at 42 months -> T5 Settled")
 func engineMonth42() {
     let e = engine(months: 42)
     #expect(e.tenureTier == TenureTier.t5Settled)
-    #expect(e.timelineTitle.contains("Deeper Changes"))
+    #expect(e.timelineTitle.contains("Year 2"))
     #expect(e.milestonesSectionLabel == "LONG-TERM HEALTH")
 }
 
@@ -184,14 +184,14 @@ func engineMonth42() {
 func engineMonth70() {
     let e = engine(months: 70)
     #expect(e.tenureTier == TenureTier.t6Rooted)
-    #expect(e.timelineTitle.contains("Maturity approaching"))
+    #expect(e.timelineTitle.contains("Year 5"))
 }
 
 @Test("Engine at 130 months -> T7 Veteran")
 func engineMonth130() {
     let e = engine(months: 130)
     #expect(e.tenureTier == TenureTier.t7Veteran)
-    #expect(e.timelineTitle.contains("Matured"))
+    #expect(e.timelineTitle.contains("10+ years"))
 }
 
 // --- Gap-aware tiering ---
@@ -204,14 +204,13 @@ func gapAwareTiering() {
 
 // --- Subtitle formatting ---
 
-@Test("Subtitle contains month, emoji, tier name, and time band")
+@Test("Subtitle contains medication, method, and month count")
 func subtitleFormatting() {
     let e = engine(months: 18)
     let sub = e.timelineSubtitle
+    #expect(sub.contains("Estrogen"))
+    #expect(sub.contains("Injectable"))
     #expect(sub.contains("Month 18"))
-    #expect(sub.contains("🌾"))
-    #expect(sub.contains("Deepening"))
-    #expect(sub.contains("Year 1–2"))
 }
 
 // --- Changes section ---

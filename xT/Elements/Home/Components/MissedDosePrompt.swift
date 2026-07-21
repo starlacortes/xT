@@ -89,11 +89,8 @@ struct MissedDosePrompt: View {
                 .buttonStyle(.plain)
             }
 
-            Text("It's okay! Just record your dose or adjust your schedule to get back on track.")
-                .font(Theme.Fonts.caption2)
-                .foregroundStyle(Theme.Colors.textTertiary)
-                .multilineTextAlignment(.leading)
-                .frame(maxWidth: .infinity, alignment: .leading)
+
+
         }
         .padding(Theme.Spacing.card)
         .background(Color.clear)

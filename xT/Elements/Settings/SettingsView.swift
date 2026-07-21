@@ -665,9 +665,22 @@ struct SettingsView: View {
     private func onSampleProfileEnabled() {
         // Preserve the user's real data, mark Sample active, seed Jan, then quit
         // so the next launch comes up cleanly on the Jan dataset (plan §2.4).
-        ProfileSnapshot.snapshotIfNeeded()
+        guard ProfileSnapshot.snapshotIfNeeded() else {
+            print("[SettingsView] snapshot failed — aborting sample profile switch")
+            return
+        }
         DeveloperSettings.shared.sampleProfileEnabled = true
         SpoofProfile.forceApply()
+
+        // Explicitly flush all SwiftData contexts to disk before hard exit.
+        // exit(0) does not give CoreData a chance to tear down gracefully;
+        // a synchronous save here ensures the WAL contains every pending write.
+        try? JournalManager.shared.modelContext?.save()
+        MedicationManager.shared.saveContext()
+
+        // Sync UserDefaults so the spfKey marker and sampleProfileEnabled
+        // flag survive process termination.
+        UserDefaults.standard.synchronize()
         exit(0)
     }
 
