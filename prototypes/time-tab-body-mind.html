@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>xT Time Tab — Body & Mind Prototype</title>
+<style>
+  /* ============================================================
+     Theme tokens — from xT/Theme/Theme.swift
+     ============================================================ */
+  :root {
+    --graph-baseTop:   #E4D8F0;
+    --graph-baseMid:   #EBE2F4;
+    --graph-baseDark:  #F2EDF8;
+    --graph-topGlow:   #E898B2;
+    --graph-rightGlow: #9B8FE0;
+
+    --brand-rose:     #D4537E;
+    --brand-lavender: #8875D4;
+
+    --glass-bg:       rgba(255,255,255,0.80);
+    --glass-border:   rgba(255,255,255,0.20);
+    --separator:      rgba(0,0,0,0.08);
+    --dm-separator:   rgba(255,255,255,0.06);
+
+    --text-primary:   #1C1C1E;
+    --text-secondary: #6B6B7A;
+    --text-tertiary:  #A0A0B0;
+
+    /* Time palettes */
+    --mind-base:    #534AB7; --mind-base2: #7E74D8; --mind-surface: #EEEDFE; --mind-border: #CECBF6;
+    --skin-base:    #0F6E56; --skin-base2: #2DB88E; --skin-surface: #E1F5EE;
+    --body-base:    #854F0B; --body-base2: #D4862B; --body-surface: #FAEEDA; --body-border: #FAC775;
+    --cycle-base:   #D4537E; --cycle-surface: #FBEAF0;
+
+    --success: #3B8C6E;
+    --warning: #E8982E;
+    --error:   #C0333A;
+
+    --radius-sm: 12px; --radius-md: 16px; --radius-lg: 20px; --radius-xl: 24px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --graph-baseTop:   #1A0D1A;
+      --graph-baseMid:   #0F0B1C;
+      --graph-baseDark:  #08060F;
+      --graph-topGlow:   #C0306A;
+      --graph-rightGlow: #7060D0;
+
+      --glass-bg:       rgba(15,11,28,0.80);
+      --glass-border:   rgba(255,255,255,0.12);
+
+      --text-primary:   #F0EEFA;
+      --text-secondary: #8E8CA0;
+      --text-tertiary:  #605E78;
+
+      --mind-base: #7E74D8; --mind-base2: #A098EC; --mind-surface: #1E1C3A; --mind-border: #3D3880;
+      --skin-base: #2DB88E; --skin-surface: #0C2420;
+      --body-base: #D4862B; --body-base2: #EFA94D; --body-surface: #2E1C05; --body-border: #6B3D08;
+      --cycle-base: #E8709A; --cycle-surface: #2E1018;
+
+      --success: #64DC9E;
+      --warning: #F0B840;
+      --error:   #E85050;
+    }
+  }
+
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  html { -webkit-font-smoothing: antialiased; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+    color: var(--text-primary);
+    display: flex; justify-content: center; min-height: 100vh; overflow-x: hidden;
+    background:
+      linear-gradient(180deg, var(--graph-topGlow) 0%, transparent 50%) no-repeat,
+      linear-gradient(270deg, var(--graph-rightGlow) 0%, transparent 40%) no-repeat,
+      linear-gradient(180deg, var(--graph-baseTop) 0%, var(--graph-baseMid) 40%, var(--graph-baseDark) 100%) no-repeat;
+    background-attachment: fixed;
+  }
+
+  .phone { width: 390px; min-height: 100vh; position: relative; overflow-x: hidden; overflow-y: auto; background: transparent; }
+  @media (max-width: 390px) { .phone { width: 100%; } }
+
+  /* ============================================================
+     Shared components
+     ============================================================ */
+  .brand-text {
+    background: linear-gradient(135deg, var(--brand-rose), var(--brand-lavender));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+
+  .label-xs {
+    font-size: 11px; font-weight: 600; color: var(--text-secondary); letter-spacing: 0.5px;
+  }
+
+  .pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 8px; border-radius: 6px;
+    font-size: 10px; font-weight: 500; white-space: nowrap;
+  }
+
+  .pill.accent  { background: color-mix(in srgb, var(--brand-rose) 14%, transparent); color: var(--brand-rose); }
+  .pill.muted   { background: color-mix(in srgb, var(--text-secondary) 10%, transparent); color: var(--text-secondary); }
+  .pill.mind    { background: color-mix(in srgb, var(--mind-base2) 16%, transparent); color: var(--mind-base); }
+  .pill.body    { background: color-mix(in srgb, var(--body-base2) 16%, transparent); color: var(--body-base); }
+
+  /* Glass Card */
+  .glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(26px); -webkit-backdrop-filter: blur(26px);
+    border-radius: var(--radius-lg);
+    border: 0.5px solid var(--glass-border);
+    overflow: hidden;
+  }
+
+  .divider { height: 0.5px; background: var(--separator); }
+  .divider.pad { margin: 0 22px; }
+
+  /* Entrance animations */
+  @keyframes slideUp { from { opacity:0; transform:translateY(16px) } to { opacity:1; transform:translateY(0) } }
+  .enter { animation: slideUp 0.55s cubic-bezier(0.25,0.46,0.45,0.94) both; }
+  .e0{animation-delay:0s} .e1{animation-delay:.07s} .e2{animation-delay:.14s}
+  .e3{animation-delay:.21s} .e4{animation-delay:.28s} .e5{animation-delay:.35s} .e6{animation-delay:.42s}
+  @media(prefers-reduced-motion:reduce){.enter{animation:none;opacity:1}}
+
+  /* ============================================================
+     Hero Header
+     ============================================================ */
+  .hero {
+    padding: 56px 22px 8px;
+    display: flex; align-items: flex-start; gap: 14px;
+  }
+  .hero-left { flex:1; min-width:0; }
+
+  .hero-meta {
+    font-size: 12px; font-weight: 500; color: var(--text-secondary);
+    letter-spacing: -0.2px; margin-bottom: 2px;
+  }
+  .hero-title {
+    font-size: 34px; font-weight: 700; letter-spacing: -1.0px; line-height: 1.0;
+    margin-bottom: 4px;
+  }
+  .hero-sub {
+    font-size: 11px; color: var(--text-tertiary); display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  }
+
+  .hero-right { display: flex; flex-direction: column; align-items: center; gap: 8px; flex-shrink:0; }
+  .hero-ring {
+    position: relative; width: 52px; height: 52px; display: flex; align-items: center; justify-content: center;
+  }
+  .hero-ring svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+  .hero-ring-bg { fill: none; stroke: var(--separator); stroke-width: 5; }
+  .hero-ring-fg { fill: none; stroke-width: 5; stroke-linecap: round; transition: stroke-dashoffset 0.8s ease; }
+  .hero-ring-text { font-size: 13px; font-weight: 700; z-index: 1; }
+  .hero-ring-label { font-size: 9px; color: var(--text-tertiary); }
+
+  .cycle-dot { width: 12px; height: 12px; border-radius: 50%; transition: background 0.4s ease; }
+  .cycle-dot.green  { background: var(--success); }
+  .cycle-dot.yellow { background: var(--warning); }
+  .cycle-dot.red    { background: var(--error); }
+  .cycle-label { font-size: 9px; color: var(--text-tertiary); }
+
+  /* ============================================================
+     Scrubber
+     ============================================================ */
+  .scrubber {
+    margin: 8px 22px 14px; padding: 8px 12px; border-radius: var(--radius-sm);
+    background: var(--glass-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border: 0.5px solid var(--glass-border);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .scrub-emoji { font-size: 20px; }
+  .scrub-tier { font-size: 10px; font-weight: 600; color: var(--brand-lavender); min-width: 55px; text-align: center; }
+  .scrub-val  { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .scrub-unit { font-size: 9px; color: var(--text-tertiary); margin-left: -4px; }
+
+  input[type="range"] {
+    flex:1; -webkit-appearance:none; height:4px; border-radius:2px;
+    background: linear-gradient(90deg, var(--brand-rose), var(--brand-lavender)); opacity:0.35;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance:none; width:22px; height:22px; border-radius:50%;
+    background: var(--brand-lavender); border:3px solid white;
+    box-shadow: 0 2px 8px rgba(136,117,212,0.35); cursor:pointer;
+    transition: transform 0.15s ease;
+  }
+  input[type="range"]::-webkit-slider-thumb:active { transform: scale(1.15); }
+
+  /* ============================================================
+     Hormone Row
+     ============================================================ */
+  .hormone-row {
+    padding: 16px 22px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .hormone-header {
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .hormone-level {
+    font-size: 16px; font-weight: 500; letter-spacing: -0.3px;
+    display: flex; align-items: baseline; gap: 4px;
+  }
+  .hormone-unit { font-size: 12px; font-weight: 400; color: var(--text-secondary); }
+  .hormone-desc {
+    font-size: 12px; color: var(--text-secondary); line-height: 1.45;
+  }
+
+  /* ============================================================
+     Changes row (capsule pills)
+     ============================================================ */
+  .changes-scroll {
+    display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none;
+    padding: 0 22px 14px;
+  }
+  .changes-scroll::-webkit-scrollbar { display: none; }
+
+  .change-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: 500;
+    white-space: nowrap; flex-shrink: 0;
+  }
+  .change-pill.done {
+    color: var(--cycle-base);
+    background: color-mix(in srgb, var(--cycle-base) 14%, transparent);
+    border: 0.5px solid color-mix(in srgb, var(--cycle-base) 25%, transparent);
+  }
+  .change-pill.pending {
+    color: var(--text-tertiary); background: transparent;
+    border: 0.5px dashed var(--separator);
+  }
+
+  /* ============================================================
+     Body system rows
+     ============================================================ */
+  .system-row {
+    margin: 0 14px 4px; padding: 14px 16px; border-radius: var(--radius-md);
+    display: flex; align-items: center; gap: 12px;
+    cursor: pointer; transition: all 0.3s cubic-bezier(0.25,0.46,0.45,0.94);
+    border: 0.5px solid transparent;
+  }
+  .system-row:active { transform: scale(0.985); }
+
+  .system-row.mind { background: var(--mind-surface); border-color: var(--mind-border); }
+  .system-row.body { background: var(--body-surface); border-color: var(--body-border); }
+  .system-row.skin { background: var(--skin-surface); }
+  .system-row.cycle { background: var(--cycle-surface); }
+
+  .sys-icon {
+    width: 38px; height: 38px; border-radius: 11px; display: flex;
+    align-items: center; justify-content: center; font-size: 17px; flex-shrink: 0;
+  }
+  .system-row.mind .sys-icon  { background: color-mix(in srgb, var(--mind-base) 22%, var(--mind-surface)); }
+  .system-row.body .sys-icon  { background: color-mix(in srgb, var(--body-base) 22%, var(--body-surface)); }
+  .system-row.skin .sys-icon  { background: color-mix(in srgb, var(--skin-base) 22%, var(--skin-surface)); }
+  .system-row.cycle .sys-icon { background: color-mix(in srgb, var(--cycle-base) 22%, var(--cycle-surface)); }
+
+  .sys-info { flex:1; min-width:0; display: flex; flex-direction: column; gap: 4px; }
+  .sys-title { font-size: 14px; font-weight: 600; letter-spacing: -0.2px; }
+  .sys-subtitle { font-size: 12px; color: var(--text-secondary); }
+  .sys-chevron { font-size: 14px; color: var(--text-tertiary); opacity: 0.4; }
+
+  .sys-preview {
+    width: 50px; height: 36px; border-radius: 8px; overflow: hidden; flex-shrink: 0;
+    border: 0.5px solid var(--separator); position: relative;
+  }
+  .sys-preview svg { width: 100%; height: 100%; transform: scale(1.15); }
+
+  .sys-status { display: flex; align-items: center; gap: 5px; margin-top: 2px; }
+  .sys-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .system-row.mind .sys-dot  { background: var(--mind-base); }
+  .system-row.body .sys-dot  { background: var(--body-base); }
+  .system-row.skin .sys-dot  { background: var(--skin-base); }
+  .system-row.cycle .sys-dot { background: var(--cycle-base); }
+
+  .system-row.mind .sys-status  { color: var(--mind-base); font-size: 11px; font-weight: 500; }
+  .system-row.body .sys-status  { color: var(--body-base); font-size: 11px; font-weight: 500; }
+  .system-row.skin .sys-status  { color: var(--skin-base); font-size: 11px; font-weight: 500; }
+  .system-row.cycle .sys-status { color: var(--cycle-base); font-size: 11px; font-weight: 500; }
+
+  /* ============================================================
+     Milestones
+     ============================================================ */
+  .milestone-card {
+    margin: 0 14px 6px; padding: 14px; border-radius: var(--radius-md);
+    background: var(--glass-bg); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    border: 0.5px solid var(--glass-border);
+    display: flex; align-items: flex-start; gap: 12px;
+  }
+  .milestone-icon {
+    width: 34px; height: 34px; border-radius: 10px;
+    background: color-mix(in srgb, var(--text-secondary) 10%, transparent);
+    display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0;
+  }
+  .milestone-content { flex: 1; min-width: 0; }
+  .milestone-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .milestone-title { font-size: 13px; font-weight: 600; }
+  .milestone-desc { font-size: 12px; color: var(--text-secondary); line-height: 1.4; margin-top: 4px; }
+
+  /* ============================================================
+     Overlays
+     ============================================================ */
+  .overlay {
+    position: fixed; inset: 0; z-index: 100;
+    background:
+      linear-gradient(180deg, var(--graph-topGlow) 0%, transparent 50%) no-repeat,
+      linear-gradient(270deg, var(--graph-rightGlow) 0%, transparent 40%) no-repeat,
+      linear-gradient(180deg, var(--graph-baseTop) 0%, var(--graph-baseMid) 40%, var(--graph-baseDark) 100%) no-repeat;
+    display: flex; flex-direction: column;
+    transform: translateY(100%); transition: transform 0.45s cubic-bezier(0.32,0.72,0,1);
+  }
+  .overlay.open { transform: translateY(0); }
+
+  .ovl-header {
+    padding: 52px 20px 0; display: flex; align-items: center; gap: 10px;
+    background: linear-gradient(180deg, var(--glass-bg) 60%, transparent);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  }
+  .ovl-back {
+    width: 34px; height: 34px; border-radius: 10px;
+    background: var(--glass-bg); border: 0.5px solid var(--glass-border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; cursor: pointer; color: var(--brand-lavender);
+  }
+  .ovl-title { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+
+  .ovl-body { flex: 1; overflow-y: auto; overflow-x: hidden; padding-bottom: 40px; }
+
+  .ovl-scrubber {
+    display: flex; align-items: center; gap: 10px; padding: 8px 20px 12px;
+  }
+  .ovl-scrubber input[type="range"] { flex: 1; }
+
+  .ovl-wireframe { width: 100%; height: 340px; position: relative; overflow: hidden; }
+  .ovl-wireframe svg { width: 100%; height: 100%; }
+
+  .ovl-stats {
+    display: flex; gap: 8px; padding: 0 20px 10px;
+  }
+  .ovl-stat {
+    flex:1; padding: 12px 8px; border-radius: var(--radius-sm);
+    background: var(--glass-bg); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    border: 0.5px solid var(--glass-border); text-align: center;
+  }
+  .ovl-stat-val { font-size: 24px; font-weight: 700; letter-spacing: -0.5px; }
+  .ovl-stat-lbl { font-size: 10px; color: var(--text-tertiary); margin-top: 2px; }
+  .ovl-stat-sub { font-size: 9px; color: var(--text-tertiary); opacity: 0.6; margin-top: 1px; }
+
+  .ovl-insight {
+    margin: 0 20px 14px; padding: 14px; border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--brand-lavender) 8%, var(--glass-bg));
+    border: 0.5px solid color-mix(in srgb, var(--brand-lavender) 18%, transparent);
+  }
+  .ovl-insight-lbl { font-size: 10px; font-weight: 600; color: var(--brand-lavender); letter-spacing: 0.5px; margin-bottom: 4px; }
+  .ovl-insight-txt { font-size: 13px; line-height: 1.4; font-weight: 500; }
+
+  .ovl-section-lbl { font-size: 11px; font-weight: 600; color: var(--text-secondary); letter-spacing: 0.5px; padding: 14px 20px 6px; }
+
+  .ovl-card {
+    margin: 0 14px 6px; padding: 14px; border-radius: var(--radius-md);
+    background: var(--glass-bg); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    border: 0.5px solid var(--glass-border); cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.25,0.46,0.45,0.94);
+  }
+  .ovl-card.active {
+    border-color: var(--brand-lavender);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-lavender) 10%, transparent);
+  }
+  .ovl-card-hdr { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .ovl-card-icon {
+    width: 30px; height: 30px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0;
+  }
+  .ovl-card-txt {
+    font-size: 12px; color: var(--text-secondary); line-height: 1.5;
+    max-height: 52px; overflow: hidden; position: relative; transition: max-height 0.4s ease;
+  }
+  .ovl-card-txt.expanded { max-height: 600px; }
+  .ovl-card-txt.fade::after {
+    content:''; position:absolute; bottom:0; left:0; right:0; height:20px;
+    background: linear-gradient(transparent, var(--glass-bg)); pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+  .ovl-card-txt.expanded.fade::after { opacity:0; }
+  .ovl-card-more { font-size: 11px; font-weight: 600; margin-top: 4px; display: inline-block; cursor: pointer; }
+
+  /* Wireframe dots */
+  .wdot { cursor: pointer; transition: r 0.2s, fill 0.2s, filter 0.2s; }
+  .wdot:hover { filter: drop-shadow(0 0 6px rgba(212,83,126,0.4)); }
+
+  .tap-hint {
+    font-size: 10px; color: var(--text-tertiary); text-align: center;
+    padding: 0 0 8px; opacity: 0.6;
+  }
+</style>
+</head>
+<body>
+<div class="phone">
+  <!-- ===== HERO ===== -->
+  <div class="hero enter e0">
+    <div class="hero-left">
+      <div class="hero-meta">Estrogen · Injectable</div>
+      <div class="hero-title brand-text">Time</div>
+      <div class="hero-sub">
+        <span id="hMonths">Month 8 of HRT</span>
+        <span class="pill muted" id="hBand">🍃 Month 6–11</span>
+      </div>
+    </div>
+    <div class="hero-right">
+      <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;">
+        <span style="font-size:12px;font-weight:600;color:var(--text-primary);">Estradiol Valerate</span>
+        <span style="font-size:10px;color:var(--text-secondary);">4.0 mg · weekly</span>
+        <span style="font-size:9px;color:var(--text-tertiary);">20 mg/mL concentration</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SCRUBBER ===== -->
+  <div class="scrubber enter e1">
+    <span class="scrub-emoji" id="sEmoji">🍃</span>
+    <span class="scrub-val" id="sMonth">8</span><span class="scrub-unit">mo</span>
+    <input type="range" id="mainSlider" min="0" max="144" value="8" step="1">
+  </div>
+
+  <!-- ===== HORMONE ROW ===== -->
+  <div class="divider pad enter e2"></div>
+  <div class="hormone-row enter e2">
+    <div class="hormone-header">
+      <span class="label-xs">HORMONE LEVELS</span>
+      <span class="pill accent" id="hRangePill">Optimal</span>
+    </div>
+    <div class="hormone-level">
+      <span id="hLevel">187</span><span class="hormone-unit">pg/mL</span>
+    </div>
+    <div class="hormone-desc" id="hDesc">
+      At this level, you'll feel emotionally stable and notice ongoing skin and body changes. This is the sweet spot for most people.
+    </div>
+  </div>
+
+  <!-- ===== REGIMEN TIMELINE ===== -->
+  <div class="divider pad enter e2"></div>
+  <div style="padding:14px 22px; display:flex; align-items:center; gap:10px;" class="enter e2">
+    <span class="label-xs">REGIMEN TIMELINE</span>
+    <span style="margin-left:auto;font-size:11px;color:var(--text-secondary);" id="regimenSummary">Jan 1 – Present: Estradiol Valerate 4.0 mg</span>
+  </div>
+
+  <!-- ===== BODY SYSTEMS ===== -->
+  <div class="divider pad enter e2"></div>
+  <div style="padding:14px 22px 8px;" class="enter e2">
+    <span class="label-xs">YOUR BODY</span>
+  </div>
+
+  <!-- Mind row -->
+  <div class="system-row mind enter e3" data-system="mind" id="rowMind">
+    <div class="sys-icon">🧠</div>
+    <div class="sys-info">
+      <div class="sys-title">Mood & Mind</div>
+      <div class="sys-subtitle" id="mindSub">Active neural remodelling</div>
+      <div class="sys-status"><span class="sys-dot"></span><span id="mindStatus">Stabilising</span></div>
+    </div>
+    <div class="sys-preview">
+      <svg viewBox="0 0 50 36"><ellipse cx="25" cy="18" rx="16" ry="14" stroke="var(--mind-base)" stroke-width="1.2" fill="none" opacity="0.5"/><line x1="25" y1="5" x2="25" y2="31" stroke="var(--mind-base)" stroke-width="0.4" stroke-dasharray="1.5 3" opacity="0.3"/><circle cx="20" cy="16" r="1.8" fill="var(--mind-base)" opacity="0.5"/><circle cx="25" cy="14" r="1.8" fill="var(--mind-base)" opacity="0.5"/><circle cx="30" cy="16" r="1.8" fill="var(--mind-base)" opacity="0.5"/></svg>
+    </div>
+    <span class="sys-chevron">›</span>
+  </div>
+
+  <!-- Body row -->
+  <div class="system-row body enter e4" data-system="body" id="rowBody" style="margin-bottom:28px;">
+    <div class="sys-icon">🦴</div>
+    <div class="sys-info">
+      <div class="sys-title">Body Shape</div>
+      <div class="sys-subtitle" id="bodySub">Still in progress</div>
+      <div class="sys-status"><span class="sys-dot"></span><span id="bodyStatus">Still in progress</span></div>
+    </div>
+    <div class="sys-preview">
+      <svg viewBox="0 0 50 36"><line x1="25" y1="5" x2="25" y2="32" stroke="var(--body-base)" stroke-width="0.4" stroke-dasharray="2 2" opacity="0.25"/><path d="M25 5 Q18 8 17 18 Q16 24 18 28" stroke="var(--body-base)" stroke-width="1" fill="none" opacity="0.35"/><path d="M25 5 Q32 8 33 18 Q34 24 32 28" stroke="var(--body-base)" stroke-width="1" fill="none" opacity="0.35"/><ellipse cx="17" cy="24" rx="4" ry="6" fill="var(--body-base2)" opacity="0.10"/><ellipse cx="33" cy="24" rx="4" ry="6" fill="var(--body-base2)" opacity="0.10"/></svg>
+    </div>
+    <span class="sys-chevron">›</span>
+  </div>
+</div>
+
+<!-- ============================================================
+     MIND OVERLAY
+     ============================================================ -->
+<div class="overlay" id="mindOvl">
+  <div class="ovl-header">
+    <div class="ovl-back" onclick="closeOvl('mind')">←</div>
+    <div class="ovl-title" style="color:var(--mind-base)">Mood & Mind</div>
+  </div>
+  <div class="ovl-body">
+    <div class="ovl-scrubber">
+      <span class="scrub-emoji" id="mindOvlEmoji">🍃</span>
+      <span class="scrub-val" id="mindOvlMonth">8</span><span class="scrub-unit">mo</span>
+      <input type="range" id="mindOvlSlider" min="0" max="144" value="8" step="1">
+    </div>
+
+    <!-- Brain wireframe -->
+    <div class="ovl-wireframe">
+      <svg viewBox="0 0 360 340" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="mg1" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="var(--mind-base2)" stop-opacity="0.08"/><stop offset="100%" stop-color="var(--mind-base2)" stop-opacity="0"/>
+          </radialGradient>
+          <radialGradient id="hg1" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="var(--brand-rose)" stop-opacity="0.16"/><stop offset="100%" stop-color="var(--brand-rose)" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+        <ellipse cx="180" cy="180" rx="140" ry="120" fill="url(#mg1)"/>
+        <path d="M180 80 Q105 75 65 123 Q35 170 48 240 Q55 280 80 315 Q110 345 140 350 Q165 355 180 350" stroke="var(--mind-base)" stroke-width="1.3" fill="none" opacity="0.3"/>
+        <path d="M180 80 Q255 75 295 123 Q325 170 312 240 Q305 280 280 315 Q250 345 220 350 Q195 355 180 350" stroke="var(--mind-base)" stroke-width="1.3" fill="none" opacity="0.3"/>
+        <line x1="180" y1="82" x2="180" y2="348" stroke="var(--mind-base)" stroke-width="0.6" opacity="0.25" stroke-dasharray="3 6"/>
+
+        <ellipse id="mpfcL" cx="150" cy="155" rx="42" ry="38" fill="var(--mind-base)" opacity="0.04"/>
+        <ellipse id="mpfcR" cx="210" cy="155" rx="42" ry="38" fill="var(--mind-base)" opacity="0.04"/>
+
+        <ellipse id="mhippAL" cx="150" cy="268" rx="28" ry="18" fill="url(#hg1)" opacity="0.18"/>
+        <ellipse id="mhippAR" cx="210" cy="268" rx="28" ry="18" fill="url(#hg1)" opacity="0.18"/>
+        <path id="mhippL" d="M132 263 Q150 250 168 263 Q150 278 132 263" stroke="var(--brand-rose)" stroke-width="1.5" fill="none" opacity="0.45"/>
+        <path id="mhippR" d="M192 263 Q210 250 228 263 Q210 278 192 263" stroke="var(--brand-rose)" stroke-width="1.5" fill="none" opacity="0.45"/>
+
+        <circle cx="137" cy="240" r="8" fill="var(--mind-base)" opacity="0.05"/>
+        <circle cx="223" cy="240" r="8" fill="var(--mind-base)" opacity="0.05"/>
+
+        <g id="mNetwork"></g>
+
+        <!-- Callouts -->
+        <line x1="155" y1="158" x2="50" y2="105" stroke="var(--mind-base2)" stroke-width="1" opacity="0.35"/>
+        <circle cx="48" cy="103" r="4" fill="var(--mind-base)" class="wdot" data-region="pfc"/>
+        <text x="38" y="94" font-size="8" font-weight="600" fill="currentColor" opacity="0.38">PFC</text>
+
+        <line x1="134" y1="272" x2="38" y2="290" stroke="var(--brand-rose)" stroke-width="1" opacity="0.35"/>
+        <circle cx="36" cy="288" r="4" fill="var(--brand-rose)" class="wdot" data-region="hippocampus"/>
+        <text x="24" y="280" font-size="8" font-weight="600" fill="currentColor" opacity="0.38">Hippocampus</text>
+
+        <line x1="148" y1="238" x2="70" y2="205" stroke="var(--mind-base2)" stroke-width="1" opacity="0.30"/>
+        <circle cx="68" cy="203" r="4" fill="var(--mind-base)" class="wdot" data-region="amygdala"/>
+        <text x="56" y="196" font-size="8" font-weight="600" fill="currentColor" opacity="0.38">Amygdala</text>
+
+        <line x1="200" y1="190" x2="298" y2="140" stroke="var(--mind-base2)" stroke-width="1" opacity="0.30"/>
+        <circle cx="300" cy="138" r="4" fill="var(--mind-base)" class="wdot" data-region="synaptic"/>
+        <text x="288" y="130" font-size="8" font-weight="600" fill="currentColor" opacity="0.38">Synaptic</text>
+      </svg>
+    </div>
+    <div class="tap-hint">Tap a dot on the brain to highlight that region</div>
+
+    <div class="ovl-stats" id="mindStats"></div>
+    <div class="ovl-insight" id="mindInsight">
+      <div class="ovl-insight-lbl">KEY INSIGHT</div>
+      <div class="ovl-insight-txt" id="mindInsightTxt"></div>
+    </div>
+
+    <div class="ovl-section-lbl">NEURAL REGIONS</div>
+    <div id="mindCards"></div>
+  </div>
+</div>
+
+<!-- ============================================================
+     BODY OVERLAY
+     ============================================================ -->
+<div class="overlay" id="bodyOvl">
+  <div class="ovl-header">
+    <div class="ovl-back" onclick="closeOvl('body')">←</div>
+    <div class="ovl-title" style="color:var(--body-base)">Body Shape</div>
+  </div>
+  <div class="ovl-body">
+    <div class="ovl-scrubber">
+      <span class="scrub-emoji" id="bodyOvlEmoji">🍃</span>
+      <span class="scrub-val" id="bodyOvlMonth">8</span><span class="scrub-unit">mo</span>
+      <input type="range" id="bodyOvlSlider" min="0" max="144" value="8" step="1">
+    </div>
+
+    <div class="ovl-wireframe">
+      <svg viewBox="0 0 360 340" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="bg1" cx="50%" cy="60%" r="50%">
+            <stop offset="0%" stop-color="var(--body-base2)" stop-opacity="0.08"/><stop offset="100%" stop-color="var(--body-base2)" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+        <ellipse cx="180" cy="210" rx="115" ry="70" fill="url(#bg1)"/>
+
+        <line x1="180" y1="70" x2="180" y2="305" stroke="currentColor" stroke-width="0.5" stroke-dasharray="3 4" opacity="0.10"/>
+
+        <path d="M180 66 Q130 74 120 138 Q115 180 122 225" stroke="currentColor" stroke-width="1.2" fill="none" opacity="0.28"/>
+        <path d="M180 66 Q230 74 240 138 Q245 180 238 225" stroke="currentColor" stroke-width="1.2" fill="none" opacity="0.28"/>
+
+        <path d="M122 215 Q170 224 238 215" stroke="currentColor" stroke-width="1.0" opacity="0.20"/>
+
+        <path d="M120 225 Q102 265 106 308 Q110 338 130 355" stroke="currentColor" stroke-width="1.2" fill="none" opacity="0.28" id="bHipL"/>
+        <path d="M240 225 Q258 265 254 308 Q250 338 230 355" stroke="currentColor" stroke-width="1.2" fill="none" opacity="0.28" id="bHipR"/>
+
+        <path d="M152 305 L155 365" stroke="currentColor" stroke-width="1.0" fill="none" opacity="0.20"/>
+        <path d="M208 305 L205 365" stroke="currentColor" stroke-width="1.0" fill="none" opacity="0.20"/>
+
+        <!-- Fat layer -->
+        <ellipse id="bFatHL" cx="113" cy="258" rx="18" ry="26" fill="var(--body-base2)" opacity="0.04" transform="rotate(-5,113,258)"/>
+        <ellipse id="bFatHR" cx="247" cy="258" rx="18" ry="26" fill="var(--body-base2)" opacity="0.04" transform="rotate(5,247,258)"/>
+        <ellipse id="bFatTL" cx="108" cy="315" rx="14" ry="22" fill="var(--body-base2)" opacity="0.03" transform="rotate(-2,108,315)"/>
+        <ellipse id="bFatTR" cx="252" cy="315" rx="14" ry="22" fill="var(--body-base2)" opacity="0.03" transform="rotate(2,252,315)"/>
+        <ellipse id="bFatG" cx="180" cy="328" rx="28" ry="20" fill="var(--body-base2)" opacity="0.02"/>
+        <ellipse id="bFatW" cx="180" cy="210" rx="30" ry="8" fill="var(--brand-rose)" opacity="0.02"/>
+
+        <!-- Callouts -->
+        <line x1="104" y1="264" x2="48" y2="230" stroke="var(--body-base2)" stroke-width="1" opacity="0.35"/>
+        <circle cx="46" cy="228" r="4" fill="var(--body-base)" class="wdot" data-region="hips"/>
+        <text x="34" y="218" font-size="8" font-weight="600" fill="currentColor" opacity="0.38">Hips</text>
+
+        <line x1="250" y1="264" x2="304" y2="230" stroke="var(--body-base2)" stroke-width="1" opacity="0.35"/>
+        <circle cx="306" cy="228" r="4" fill="var(--body-base)" class="wdot" data-region="hips"/>
+        <text x="296" y="218" font-size="8" font-weight="600" fill="currentColor" opacity="0.38">Hips</text>
+
+        <line x1="238" y1="320" x2="290" y2="305" stroke="var(--body-base2)" stroke-width="1" opacity="0.30"/>
+        <circle cx="292" cy="303" r="3.5" fill="var(--body-base)" class="wdot" data-region="thighs"/>
+        <text x="282" y="296" font-size="8" font-weight="600" fill="currentColor" opacity="0.35">Thighs</text>
+
+        <line x1="130" y1="212" x2="64" y2="186" stroke="var(--brand-rose)" stroke-width="1" opacity="0.30"/>
+        <circle cx="62" cy="184" r="3.5" fill="var(--brand-rose)" class="wdot" data-region="waist"/>
+        <text x="50" y="177" font-size="8" font-weight="600" fill="currentColor" opacity="0.35">Waist</text>
+
+        <line x1="195" y1="338" x2="265" y2="355" stroke="var(--body-base2)" stroke-width="1" opacity="0.30"/>
+        <circle cx="267" cy="353" r="3.5" fill="var(--body-base)" class="wdot" data-region="glutes"/>
+        <text x="258" y="345" font-size="8" font-weight="600" fill="currentColor" opacity="0.35">Glutes</text>
+      </svg>
+    </div>
+    <div class="tap-hint">Tap a dot on the body to highlight that region</div>
+
+    <div class="ovl-stats" id="bodyStats"></div>
+    <div class="ovl-insight" id="bodyInsight">
+      <div class="ovl-insight-lbl">KEY INSIGHT</div>
+      <div class="ovl-insight-txt" id="bodyInsightTxt"></div>
+    </div>
+
+    <div class="ovl-section-lbl">BODY REGIONS</div>
+    <div id="bodyCards"></div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const TIERS = [
+    { n:'Beginning', e:'🌱', m0:0,  m1:2,   b:'Month 0–2' },
+    { n:'Emerging',  e:'🌿', m0:3,  m1:5,   b:'Month 3–5' },
+    { n:'In Motion', e:'🍃', m0:6,  m1:11,  b:'Month 6–11' },
+    { n:'Deepening', e:'🌾', m0:12, m1:23,  b:'Year 1–2' },
+    { n:'Settled',   e:'🌳', m0:24, m1:59,  b:'Year 2–5' },
+    { n:'Rooted',    e:'🌀', m0:60, m1:119, b:'Year 5–10' },
+    { n:'Veteran',   e:'🏔️', m0:120,m1:144,b:'10+ years' },
+  ];
+
+  function t4m(m) {
+    if(m<=2)return TIERS[0]; if(m<=5)return TIERS[1]; if(m<=11)return TIERS[2];
+    if(m<=23)return TIERS[3]; if(m<=59)return TIERS[4]; if(m<=119)return TIERS[5];
+    return TIERS[6];
+  }
+
+  // --- Change data ---
+  const CHANGES = [
+    { l:'Skin softening', u:1 }, { l:'Breast growth', u:2 }, { l:'Fat redistribution', u:3 },
+    { l:'Hair thinning slows', u:6 }, { l:'Body hair softens', u:6 }, { l:'Muscle mass shifts', u:9 },
+  ];
+
+  // --- Mind data ---
+  const MIND_REGIONS = {
+    pfc:{ l:'Prefrontal Cortex', i:'🧠', s:1,p:18,c:36,
+      e:'ER-α/ER-β receptors respond to estradiol. Cerebral blood flow increases, supporting shifts in executive function and working memory.',
+      m:'Dopaminergic signaling modulated. Many report improved cognitive flexibility, enriched emotional regulation, and a qualitative shift in decision-making.',
+      d:'PFC circuits fully adapted. Executive function and emotional top-down control are stabilized under the estrogen-dominant neurochemical environment.',
+    },
+    hippocampus:{ l:'Hippocampus', i:'🌀', s:1,p:24,c:48,
+      e:'BDNF upregulated. Synaptogenesis begins — new dendritic spines sprout on CA1 pyramidal neurons within the first month.',
+      m:'Volume measurably increases via estrogen-driven neurogenesis in the dentate gyrus. CA1 spine density up ~30%. Verbal memory improves measurably.',
+      d:'Fully adapted. Sustained BDNF signaling, enhanced synaptic plasticity, and reduced oxidative stress provide ongoing neuroprotection.',
+    },
+    amygdala:{ l:'Amygdala', i:'💫', s:1,p:12,c:24,
+      e:'Amygdala reactivity modulated. Emotional intensity may feel heightened as it adjusts to reduced T and rising estradiol.',
+      m:'Response patterns shifting. Many report richer emotional range — increased empathy, deeper emotional recall, qualitative change in emotional experience.',
+      d:'Function stabilized. Emotional responses are well-calibrated. The "emotional recalibration" period is largely complete.',
+    },
+    synaptic:{ l:'Synaptic Plasticity', i:'✨', s:1,p:18,c:60,
+      e:'LTP rapidly enhanced in hippocampal and cortical synapses. NMDA receptor expression increases within weeks, priming circuits for remodelling.',
+      m:'Synaptic density actively increasing across limbic and cortical regions. Estrogen promotes dendritic spine formation via CREB-mediated transcription.',
+      d:'Architecture fully remodelled. Enhanced plasticity state maintained through ongoing estrogen — a continuous, active process, not a one-time change.',
+    },
+  };
+
+  const BRAIN_NODES=[
+    {id:'n1',x:120,y:128},{id:'n2',x:155,y:108},{id:'n3',x:190,y:123},{id:'n4',x:212,y:138},
+    {id:'n5',x:235,y:118},{id:'n6',x:140,y:162},{id:'n7',x:175,y:172},{id:'n8',x:200,y:158},
+    {id:'n9',x:130,y:198},{id:'n10',x:160,y:208},{id:'n11',x:198,y:193},{id:'n12',x:228,y:204},
+    {id:'n13',x:145,y:245},{id:'n14',x:175,y:249},{id:'n15',x:208,y:239},{id:'n16',x:125,y:278},
+    {id:'n17',x:155,y:284},{id:'n18',x:195,y:288},{id:'n19',x:225,y:274},{id:'n20',x:170,y:313},
+  ];
+
+  const BRAIN_EDGES=[
+    ['n1','n2'],['n1','n6'],['n2','n3'],['n2','n7'],['n3','n4'],['n3','n8'],['n4','n5'],['n4','n11'],
+    ['n6','n7'],['n6','n9'],['n7','n8'],['n7','n10'],['n8','n11'],['n9','n10'],['n9','n13'],
+    ['n10','n14'],['n11','n12'],['n11','n15'],['n12','n15'],['n13','n14'],['n13','n16'],
+    ['n14','n15'],['n14','n17'],['n15','n19'],['n16','n17'],['n17','n18'],['n18','n19'],
+    ['n17','n20'],['n18','n20'],['n5','n12'],['n3','n6'],['n8','n14'],['n10','n13'],['n18','n15'],
+  ];
+
+  // --- Body data ---
+  const BODY_REGIONS = {
+    hips:{ l:'Hips & Pelvis', i:'🦴', s:3,p:18,c:36,
+      e:'Estrogen directs subcutaneous fat to the iliac crest and greater trochanter. Hip-to-waist ratio begins shifting as gynoid-pattern deposition establishes.',
+      m:'Hip circumference measurably increasing. Combined with waist narrowing, the hourglass contour becomes pronounced. This is the most visibly dynamic phase of fat redistribution.',
+      d:'Hip contours largely complete. The wider iliac span and fuller trochanteric profile are maintained through continued estrogen therapy.',
+    },
+    thighs:{ l:'Thighs', i:'🦵', s:4,p:20,c:36,
+      e:'Subcutaneous fat accumulating on outer and inner thighs. Pants may fit differently around the upper leg as gynoid-pattern deposition begins.',
+      m:'Thigh circumference increases measurably. Inner-thigh fat pads develop — a hallmark of estrogen-dominant body composition. The thigh gap may narrow or close.',
+      d:'Thigh fat distribution stabilized. The curve from hip to knee is well-defined and maintained with consistent hormone levels.',
+    },
+    waist:{ l:'Waist', i:'⌛', s:3,p:12,c:24,
+      e:'Androgenic visceral fat begins decreasing as testosterone is suppressed. Waist may narrow before hip expansion becomes visible.',
+      m:'Waist actively decreasing relative to hips. Visceral fat loss creates a more defined waistline, amplifying the hourglass effect from simultaneous hip expansion.',
+      d:'Waist contours stabilized. The ratio is now in a typically feminine range, maintained by ongoing estrogen exposure.',
+    },
+    glutes:{ l:'Glutes', i:'🍑', s:3,p:24,c:48,
+      e:'Fat deposition begins in the gluteal region. Often subtle at first — pants may feel different in the seat before any visible change.',
+      m:'Gluteal fat pads actively expanding. Combined with pelvic rotation from ligament changes, posterior profile and posture change noticeably.',
+      d:'Gluteal fat distribution mature. May continue subtle refinement through year 4-5 as the 2-3 year adipocyte turnover cycle completes.',
+    },
+    chest:{ l:'Chest', i:'💗', s:1,p:36,c:60,
+      e:'Breast bud formation begins within first weeks. Areolar tissue becomes sensitive; the chest wall deposits glandular and fatty tissue beneath the nipple.',
+      m:'Growth progressing through Tanner stages 2-4. Montgomery glands develop; the breast mound expands. Growth is not linear — expect plateaus and spurts.',
+      d:'Maturation continues through year 3-5. Ductal-lobular system and terminal duct lobular units complete development. Full maturity up to 60 months.',
+    },
+  };
+
+  // --- State ---
+  let activeMind = null, activeBody = null;
+
+  // ======== MAIN VIEW UPDATES ========
+
+  function updateMain(m) {
+    const tier = t4m(m);
+    document.getElementById('hMonths').textContent = 'Month ' + m + ' of HRT';
+    document.getElementById('hBand').textContent = tier.e + ' ' + tier.b;
+    document.getElementById('sEmoji').textContent = tier.e;
+    document.getElementById('sMonth').textContent = m;
+
+    // Hormone insight
+    const level = 80 + m * 2.5;
+    document.getElementById('hLevel').textContent = Math.round(level);
+    if (level < 50) { document.getElementById('hRangePill').textContent = 'Very Low'; document.getElementById('hRangePill').className = 'pill muted'; }
+    else if (level < 100) { document.getElementById('hRangePill').textContent = 'Low'; document.getElementById('hRangePill').className = 'pill muted'; }
+    else if (level <= 300) { document.getElementById('hRangePill').textContent = 'Optimal'; document.getElementById('hRangePill').className = 'pill accent'; }
+    else { document.getElementById('hRangePill').textContent = 'High'; document.getElementById('hRangePill').className = 'pill muted'; }
+
+    let hDesc;
+    if (m < 3) hDesc = 'Levels are building — early on this can be normal as your dose settles. Give it time and track the trend.';
+    else if (m < 12) hDesc = 'At this level, you\'ll feel emotionally stable and notice ongoing skin and body changes. This is the sweet spot for most people.';
+    else hDesc = 'Levels are right in range. You should feel stable and your changes should continue progressing steadily.';
+    document.getElementById('hDesc').textContent = hDesc;
+
+    // Body system rows
+    if (m < 3) {
+      document.getElementById('mindSub').textContent = 'Settling in';
+      document.getElementById('mindStatus').textContent = 'Settling in';
+      document.getElementById('bodySub').textContent = 'Fat, curves & what to expect';
+      document.getElementById('bodyStatus').textContent = 'Early changes';
+    } else if (m < 24) {
+      document.getElementById('mindSub').textContent = 'Active neural remodelling';
+      document.getElementById('mindStatus').textContent = 'Stabilising';
+      document.getElementById('bodySub').textContent = 'Fat, curves & what to expect';
+      document.getElementById('bodyStatus').textContent = 'Still in progress';
+    } else if (m < 60) {
+      document.getElementById('mindSub').textContent = 'Long-term emotional baseline';
+      document.getElementById('mindStatus').textContent = 'Stable';
+      document.getElementById('bodySub').textContent = 'Your body\'s established form';
+      document.getElementById('bodyStatus').textContent = 'Mature changes';
+    } else {
+      document.getElementById('mindSub').textContent = 'Emotional baseline at 5+ years';
+      document.getElementById('mindStatus').textContent = 'Stable · 5+ years';
+      document.getElementById('bodySub').textContent = 'Body composition at 5+ years';
+      document.getElementById('bodyStatus').textContent = 'Mature · 5+ years';
+    }
+
+    // Regimen summary
+    const years = Math.max(1, Math.floor(m / 12));
+    document.getElementById('regimenSummary').textContent = m > 24
+      ? '3 regimen changes over ' + years + ' years — tap for details'
+      : 'Jan 1 – Present: Estradiol Valerate 4.0 mg @ 20 mg/mL';
+
+    // Also update overlays
+    updateMindOvl(m);
+    updateBodyOvl(m);
+  }
+
+  // ======== MIND OVERLAY ========
+
+  function buildBrainNet(m) {
+    const density = Math.min(1, m / 36);
+    const nm = {}; BRAIN_NODES.forEach(n => nm[n.id] = n);
+    let h = '';
+    BRAIN_EDGES.forEach(([f,t]) => {
+      const a = nm[f], b = nm[t]; if (!a || !b) return;
+      const g = Math.min(1, ((a.y + b.y)/2 - 100)/230 * density * 2.5);
+      h += `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="var(--mind-base2)" stroke-width="${(g*1.2+0.3).toFixed(1)}" opacity="${(g*0.52).toFixed(2)}"/>`;
+    });
+    BRAIN_NODES.forEach(n => {
+      const g = Math.min(1, (n.y - 100)/230 * density * 1.8);
+      h += `<circle cx="${n.x}" cy="${n.y}" r="${(1.4+g*2.8).toFixed(1)}" fill="var(--mind-base)" opacity="${(0.10+g*0.58).toFixed(2)}"/>`;
+    });
+    return h;
+  }
+
+  function updateMindOvl(m) {
+    const tier = t4m(m);
+    document.getElementById('mindOvlEmoji').textContent = tier.e;
+    document.getElementById('mindOvlMonth').textContent = m;
+    document.getElementById('mindOvlSlider').value = m;
+
+    // Brain SVG updates
+    const g = Math.min(1, m/48);
+    ['mhippL','mhippR'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.setAttribute('stroke-width', (1.5 + g*1.8).toFixed(1));
+    });
+    ['mhippAL','mhippAR'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.setAttribute('opacity', (0.10 + g*0.38).toFixed(2));
+    });
+    document.getElementById('mNetwork').innerHTML = buildBrainNet(m);
+
+    // Stats
+    const syn = (1 + Math.min(1,m/18)*0.45).toFixed(1);
+    const hipp = (1 + Math.min(1,m/48)*0.12).toFixed(1);
+    const bdnf = (1 + Math.min(1,m/12)*0.50).toFixed(1);
+    document.getElementById('mindStats').innerHTML = `
+      <div class="ovl-stat"><div class="ovl-stat-val" style="color:var(--mind-base)">${syn}x</div><div class="ovl-stat-lbl">Synaptic Density</div><div class="ovl-stat-sub">${m>=18?'Peak reached':'Rising'}</div></div>
+      <div class="ovl-stat"><div class="ovl-stat-val" style="color:var(--brand-rose)">${hipp}x</div><div class="ovl-stat-lbl">Hippocampal Vol.</div><div class="ovl-stat-sub">${m>=48?'Fully adapted':'Growing'}</div></div>
+      <div class="ovl-stat"><div class="ovl-stat-val" style="color:var(--mind-base)">${bdnf}x</div><div class="ovl-stat-lbl">BDNF Activity</div><div class="ovl-stat-sub">${m>=12?'Peak reached':'Rising'}</div></div>`;
+
+    // Insight
+    let insight;
+    if(m<3) insight='Neurochemical recalibration is beginning as estradiol rises. Your brain\'s estrogen receptors in the hippocampus, amygdala, and prefrontal cortex are activating for the first time.';
+    else if(m<12) insight='Estrogen is actively remodelling your neural circuits. Synaptic density is measurably increasing — new dendritic spines sprout in the hippocampus and PFC. BDNF is upregulated.';
+    else if(m<36) insight='Hippocampal volume is increasing due to estrogen-driven neurogenesis. Amygdala reactivity patterns have shifted. Synaptic architecture continues to be refined across cortical regions.';
+    else if(m<60) insight='Synaptic architecture is stabilizing. Your neural circuits are well-adapted to the estrogen-dominant environment. Ongoing neuroprotection through sustained BDNF signaling and reduced oxidative stress.';
+    else insight='Your brain\'s neural architecture is fully adapted. Consistent hormone levels maintain ongoing neuroprotection, synaptic health, and emotional stability.';
+    document.getElementById('mindInsightTxt').textContent = insight;
+
+    // Cards
+    let cards = '';
+    for (const [k, r] of Object.entries(MIND_REGIONS)) {
+      let txt, status;
+      if(m < r.s){ txt='Changes to the ' + r.l.toLowerCase() + ' are about to begin as hormone levels rise and neural receptors activate.'; status='Starts M' + r.s; }
+      else if(m < r.p){ txt=r.e; const p = Math.round((m-r.s)/(r.p-r.s)*100); status=p+'% underway'; }
+      else if(m < r.c){ txt=r.m; const p = Math.round((m-r.s)/(r.c-r.s)*100); status=p+'% complete'; }
+      else { txt=r.d; status='Established'; }
+
+      const act = activeMind === k;
+      cards += `
+        <div class="ovl-card${act?' active':''}" data-region="${k}" onclick="__selMind('${k}')">
+          <div class="ovl-card-hdr">
+            <div class="ovl-card-icon" style="background:color-mix(in srgb, var(--mind-base2) 16%, transparent);">${r.i}</div>
+            <span style="font-size:14px;font-weight:600;">${r.l}</span>
+            <span class="pill mind" style="margin-left:auto;">${status}</span>
+          </div>
+          <div class="ovl-card-txt fade" id="mct_${k}">${txt}</div>
+          <span class="ovl-card-more" style="color:var(--mind-base);" onclick="event.stopPropagation();__togMind('${k}')">Read more →</span>
+        </div>`;
+    }
+    document.getElementById('mindCards').innerHTML = cards;
+  }
+
+  window.__togMind = function(k) { const el = document.getElementById('mct_' + k); if(el){el.classList.toggle('expanded');el.classList.toggle('fade');} };
+  window.__selMind = function(k) { activeMind = (activeMind === k) ? null : k; updateMindOvl(parseInt(document.getElementById('mainSlider').value)); };
+
+  // ======== BODY OVERLAY ========
+
+  function updateBodyOvl(m) {
+    const tier = t4m(m);
+    document.getElementById('bodyOvlEmoji').textContent = tier.e;
+    document.getElementById('bodyOvlMonth').textContent = m;
+    document.getElementById('bodyOvlSlider').value = m;
+
+    function exp(s,p,c) { if(m<s)return 0; if(m>=c)return 1; if(m<p)return (m-s)/(p-s); return 1; }
+
+    const h = exp(3,18,36), t = exp(4,20,36), g = exp(3,24,48), w = exp(3,12,24), ch = exp(1,36,60);
+
+    const appE = (id, base, range) => { const el = document.getElementById(id); if(el) el.setAttribute(arguments[3], (base + range * arguments[1]).toFixed(arguments[4] || 2)); };
+    // This is getting complex — let me simplify to a helper
+    function upd(id, prop, base, range, decimals) {
+      const el = document.getElementById(id);
+      if(!el) return;
+      if(prop === 'opacity') el.setAttribute(prop, (base + range * arguments.callee.caller.arguments[2]).toFixed(decimals||3));
+    }
+
+    // Simpler inline approach
+    function ap(id, v, ops) {
+      const el = document.getElementById(id); if(!el) return;
+      for(const [attr, base, rng, dec] of ops) {
+        el.setAttribute(attr, (base + v * rng).toFixed(dec || 3));
+      }
+    }
+    ap('bFatHL', h, [['rx',14,12,1],['ry',22,14,1],['opacity',0.03,0.07,3]]);
+    ap('bFatHR', h, [['rx',14,12,1],['ry',22,14,1],['opacity',0.03,0.07,3]]);
+    ap('bFatTL', t, [['rx',10,12,1],['ry',18,10,1],['opacity',0.02,0.06,3]]);
+    ap('bFatTR', t, [['rx',10,12,1],['ry',18,10,1],['opacity',0.02,0.06,3]]);
+    ap('bFatG', g, [['rx',22,16,1],['ry',16,10,1],['opacity',0.02,0.05,3]]);
+    ap('bFatW', w, [['opacity',0.01,0.04,3]]);
+
+    // Stats
+    const hP=Math.round(exp(3,18,36)*100), wP=Math.round(exp(3,12,24)*100), gP=Math.round(exp(3,24,48)*100);
+    document.getElementById('bodyStats').innerHTML = `
+      <div class="ovl-stat"><div class="ovl-stat-val" style="color:var(--body-base)">${hP}%</div><div class="ovl-stat-lbl">Hips</div><div class="ovl-stat-sub">${m>=36?'Established':'Peak M18'}</div></div>
+      <div class="ovl-stat"><div class="ovl-stat-val" style="color:var(--brand-rose)">${wP}%</div><div class="ovl-stat-lbl">Waist</div><div class="ovl-stat-sub">${m>=24?'Established':'Peak M12'}</div></div>
+      <div class="ovl-stat"><div class="ovl-stat-val" style="color:var(--body-base)">${gP}%</div><div class="ovl-stat-lbl">Glutes</div><div class="ovl-stat-sub">${m>=48?'Established':'Peak M24'}</div></div>`;
+
+    let insight;
+    if(m<3) insight='Fat redistribution hasn\'t begun yet. As estrogen levels rise, your body gradually shifts from android- to gynoid-pattern fat storage — driven by ER-α activation in subcutaneous adipocytes.';
+    else if(m<12) insight='Early redistribution underway. Estrogen directs new fat to the hips, glutes, and thighs. Visceral fat also begins to decrease as testosterone is suppressed.';
+    else if(m<36) insight='Peak redistribution. Your body shape is actively changing — hip circumference increasing, waist narrowing, gynoid fat pads expanding. This is the most visibly dynamic phase.';
+    else if(m<60) insight='Body contours maturing. The 2-3 year adipocyte turnover cycle means subtle refinements continue, but major structural changes in fat distribution are largely complete.';
+    else insight='Body composition fully established. Fat distribution patterns maintained through ongoing estrogen — consistent levels prevent reversion to android-pattern storage.';
+    document.getElementById('bodyInsightTxt').textContent = insight;
+
+    let cards = '';
+    for (const [k, r] of Object.entries(BODY_REGIONS)) {
+      let txt, status;
+      if(m < r.s){ txt=r.l + ' changes typically begin around month ' + r.s + '.'; status='Starts M' + r.s; }
+      else if(m < r.p){ txt=r.e; const p = Math.round((m-r.s)/(r.p-r.s)*100); status=p+'% underway'; }
+      else if(m < r.c){ txt=r.m; const p = Math.round((m-r.s)/(r.c-r.s)*100); status=p+'% complete'; }
+      else { txt=r.d; status='Established'; }
+
+      const act = activeBody === k;
+      cards += `
+        <div class="ovl-card${act?' active':''}" data-region="${k}" onclick="__selBody('${k}')">
+          <div class="ovl-card-hdr">
+            <div class="ovl-card-icon" style="background:color-mix(in srgb, var(--body-base2) 16%, transparent);">${r.i}</div>
+            <span style="font-size:14px;font-weight:600;">${r.l}</span>
+            <span class="pill body" style="margin-left:auto;">${status}</span>
+          </div>
+          <div class="ovl-card-txt fade" id="bct_${k}">${txt}</div>
+          <span class="ovl-card-more" style="color:var(--body-base);" onclick="event.stopPropagation();__togBody('${k}')">Read more →</span>
+        </div>`;
+    }
+    document.getElementById('bodyCards').innerHTML = cards;
+  }
+
+  window.__togBody = function(k) { const el = document.getElementById('bct_' + k); if(el){el.classList.toggle('expanded');el.classList.toggle('fade');} };
+  window.__selBody = function(k) { activeBody = (activeBody === k) ? null : k; updateBodyOvl(parseInt(document.getElementById('mainSlider').value)); };
+
+  // ======== OPEN/CLOSE OVERLAYS ========
+
+  document.getElementById('rowMind').addEventListener('click', function() {
+    document.getElementById('mindOvl').classList.add('open');
+  });
+  document.getElementById('rowBody').addEventListener('click', function() {
+    document.getElementById('bodyOvl').classList.add('open');
+  });
+
+  window.closeOvl = function(type) {
+    document.getElementById(type + 'Ovl').classList.remove('open');
+  };
+
+  // ======== SLIDER BINDINGS ========
+
+  document.getElementById('mainSlider').addEventListener('input', function() {
+    updateMain(parseInt(this.value));
+  });
+
+  document.getElementById('mindOvlSlider').addEventListener('input', function() {
+    const m = parseInt(this.value);
+    document.getElementById('mainSlider').value = m;
+    updateMain(m);
+  });
+
+  document.getElementById('bodyOvlSlider').addEventListener('input', function() {
+    const m = parseInt(this.value);
+    document.getElementById('mainSlider').value = m;
+    updateMain(m);
+  });
+
+  // ======== WIREFRAME DOT CLICKS ========
+
+  document.querySelectorAll('.wdot').forEach(d => {
+    d.addEventListener('click', function() {
+      const r = this.getAttribute('data-region');
+      if (!r) return;
+      // Determine which overlay we're in
+      const mindOvl = document.getElementById('mindOvl');
+      if (mindOvl.classList.contains('open')) {
+        window.__selMind(r);
+        const card = document.querySelector('#mindCards .ovl-card[data-region="'+r+'"]');
+        if (card) card.scrollIntoView({behavior:'smooth',block:'center'});
+      }
+      const bodyOvl = document.getElementById('bodyOvl');
+      if (bodyOvl.classList.contains('open')) {
+        window.__selBody(r);
+        const card = document.querySelector('#bodyCards .ovl-card[data-region="'+r+'"]');
+        if (card) card.scrollIntoView({behavior:'smooth',block:'center'});
+      }
+    });
+  });
+
+  // Init
+  updateMain(8);
+})();
+</script>
+</body>
+</html>

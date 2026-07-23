@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Body Shape — xT Time Tab</title>
+<style>
+  /* ============================================================
+     Theme tokens — mirrors xT/Theme/Theme.swift
+     ============================================================ */
+  :root {
+    /* Graph background layers */
+    --graph-baseTop:   #E4D8F0;
+    --graph-baseMid:   #EBE2F4;
+    --graph-baseDark:  #F2EDF8;
+    --graph-topGlow:   #E898B2;
+    --graph-rightGlow: #9B8FE0;
+    --graph-gridLine:  rgba(0,0,0,0.05);
+
+    /* Brand */
+    --brand-rose:     #D4537E;
+    --brand-lavender: #8875D4;
+
+    /* Surfaces */
+    --glass-tint:     #F0ECF8;
+    --glass-border:   rgba(255,255,255,0.20);
+    --card-bg:        rgba(255,255,255,0.80);
+    --separator:      rgba(0,0,0,0.08);
+
+    /* Text */
+    --text-primary:   #1C1C1E;
+    --text-secondary: #6B6B7A;
+    --text-tertiary:  #A0A0B0;
+
+    /* Body palette (amber) */
+    --body-base:    #854F0B;
+    --body-base2:   #D4862B;
+    --body-surface: #FAEEDA;
+    --body-border:  #FAC775;
+    --body-accent:  #854F0B;
+
+    /* Semantic */
+    --success: #3B8C6E;
+    --warning: #E8982E;
+
+    /* Radius & spacing — matches Theme tokens */
+    --radius-sm: 12px;
+    --radius-md: 16px;
+    --radius-lg: 20px;
+    --radius-xl: 24px;
+    --space-card: 14px;
+    --space-lg: 16px;
+
+    /* Shadow */
+    --shadow-card: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-elevated: 0 4px 12px rgba(0,0,0,0.08);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --graph-baseTop:   #1A0D1A;
+      --graph-baseMid:   #0F0B1C;
+      --graph-baseDark:  #08060F;
+      --graph-topGlow:   #C0306A;
+      --graph-rightGlow: #7060D0;
+      --graph-gridLine:  rgba(255,255,255,0.035);
+
+      --glass-tint:     #0A0814;
+      --glass-border:   rgba(255,255,255,0.12);
+      --card-bg:        rgba(15,11,28,0.80);
+      --separator:      rgba(255,255,255,0.06);
+
+      --text-primary:   #F0EEFA;
+      --text-secondary: #8E8CA0;
+      --text-tertiary:  #605E78;
+
+      --body-base:    #D4862B;
+      --body-base2:   #EFA94D;
+      --body-surface: #2E1C05;
+      --body-border:  #6B3D08;
+      --body-accent:  #D4862B;
+
+      --success: #64DC9E;
+      --warning: #F0B840;
+
+      --shadow-card: 0 1px 3px rgba(0,0,0,0.02);
+      --shadow-elevated: 0 4px 16px rgba(0,0,0,0.4);
+    }
+  }
+
+  /* ============================================================
+     Reset & base
+     ============================================================ */
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+    color: var(--text-primary);
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+    overflow-x: hidden;
+    /* Match home gradient: topGlow fade at top, base gradient */
+    background:
+      linear-gradient(180deg, var(--graph-topGlow) 0%, transparent 50%) no-repeat,
+      linear-gradient(270deg, var(--graph-rightGlow) 0%, transparent 40%) no-repeat,
+      linear-gradient(180deg, var(--graph-baseTop) 0%, var(--graph-baseMid) 40%, var(--graph-baseDark) 100%) no-repeat;
+    background-attachment: fixed;
+  }
+
+  .phone-frame {
+    width: 390px;
+    min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
+    overflow-y: auto;
+    background: transparent;
+  }
+
+  @media (max-width: 390px) { .phone-frame { width: 100%; } }
+
+  /* ============================================================
+     Glass card — simulates ultraThinMaterial + hairline border
+     ============================================================ */
+  .glass-card {
+    background: var(--card-bg);
+    backdrop-filter: blur(28px);
+    -webkit-backdrop-filter: blur(28px);
+    border-radius: var(--radius-lg);
+    border: 0.5px solid var(--glass-border);
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+  }
+
+  .glass-card.raised {
+    box-shadow: var(--shadow-elevated);
+  }
+
+  /* Time-card variant — opaque pastel surface */
+  .time-card {
+    border-radius: var(--radius-md);
+    border: 0.5px solid transparent;
+    overflow: hidden;
+  }
+
+  .time-card.body-themed {
+    background: var(--body-surface);
+    border-color: var(--body-border);
+    border-opacity: 0.6;
+  }
+
+  /* ============================================================
+     Gradient text — matches Theme.Gradients.brandColors
+     ============================================================ */
+  .brand-gradient-text {
+    background: linear-gradient(135deg, var(--brand-rose), var(--brand-lavender));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* ============================================================
+     Hero header (mirrors TimeHeroHeader)
+     ============================================================ */
+  .hero {
+    padding: 56px 22px 12px;
+  }
+
+  .hero-breadcrumb {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    letter-spacing: -0.2px;
+    margin-bottom: 2px;
+  }
+
+  .hero-title {
+    font-size: 34px;
+    font-weight: 700;
+    letter-spacing: -1.0px;
+    line-height: 1.05;
+    margin-bottom: 4px;
+  }
+
+  .hero-subtitle {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .hero-tier-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 500;
+    background: color-mix(in srgb, var(--brand-lavender) 14%, transparent);
+    color: var(--brand-lavender);
+  }
+
+  /* ============================================================
+     Time scrubber pill
+     ============================================================ */
+  .scrubber {
+    margin: 4px 22px 16px;
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    background: var(--card-bg);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 0.5px solid var(--glass-border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .scrubber-emoji {
+    font-size: 22px;
+    line-height: 1;
+  }
+
+  .scrubber-tier {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--brand-lavender);
+    min-width: 60px;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .scrubber-value {
+    font-size: 20px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-primary);
+    min-width: 28px;
+    text-align: center;
+  }
+
+  .scrubber-value-unit {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-tertiary);
+    margin-left: -6px;
+  }
+
+  /* Range input styled to match accent */
+  .range-slider {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 4px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, var(--brand-rose), var(--brand-lavender));
+    opacity: 0.35;
+    outline: none;
+  }
+
+  .range-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--brand-lavender);
+    border: 3px solid var(--card-bg);
+    box-shadow: 0 2px 8px rgba(136,117,212,0.35);
+    cursor: pointer;
+    transition: transform 0.15s ease;
+  }
+
+  .range-slider::-webkit-slider-thumb:active {
+    transform: scale(1.15);
+  }
+
+  /* ============================================================
+     Section header label — matches caption2 + tracking 0.5
+     ============================================================ */
+  .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    letter-spacing: 0.5px;
+    text-transform: none;
+    padding: 18px 22px 8px;
+  }
+
+  /* ============================================================
+     Divider — mimics Divider().opacity(0.5)
+     ============================================================ */
+  .divider {
+    height: 0.5px;
+    background: var(--separator);
+    margin: 0 22px;
+  }
+
+  .divider.full {
+    margin: 0;
+  }
+
+  /* ============================================================
+     Wireframe canvas
+     ============================================================ */
+  .wireframe-container {
+    position: relative;
+    width: 100%;
+    height: 380px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .wireframe-container svg {
+    width: 100%;
+    height: 100%;
+    max-width: 340px;
+  }
+
+  /* SVG callout dots */
+  .wireframe-dot {
+    cursor: pointer;
+    transition: r 0.25s ease, fill 0.25s ease, filter 0.25s ease;
+  }
+
+  .wireframe-dot:hover {
+    filter: drop-shadow(0 0 8px rgba(212,83,126,0.4));
+  }
+
+  /* ============================================================
+     Stat rows
+     ============================================================ */
+  .stats-row {
+    display: flex;
+    gap: 10px;
+    padding: 0 22px 14px;
+  }
+
+  .stat-card {
+    flex: 1;
+    padding: 14px 10px;
+    border-radius: var(--radius-sm);
+    background: var(--card-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 0.5px solid var(--glass-border);
+    text-align: center;
+    transition: transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  .stat-card:hover { transform: translateY(-2px); }
+
+  .stat-value {
+    font-size: 26px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.5px;
+    color: var(--body-base);
+    transition: color 0.4s ease;
+  }
+
+  .stat-label {
+    font-size: 10px;
+    color: var(--text-tertiary);
+    margin-top: 2px;
+    letter-spacing: 0.3px;
+  }
+
+  .stat-sub {
+    font-size: 9px;
+    color: var(--text-tertiary);
+    margin-top: 1px;
+    opacity: 0.7;
+  }
+
+  /* ============================================================
+     Region detail cards
+     ============================================================ */
+  .region-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 4px 22px 20px;
+  }
+
+  .region-card {
+    padding: 14px;
+    border-radius: var(--radius-md);
+    border: 0.5px solid var(--separator);
+    background: var(--card-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    position: relative;
+  }
+
+  .region-card.active {
+    border-color: var(--body-base2);
+    background: color-mix(in srgb, var(--body-surface) 70%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--body-base2) 10%, transparent);
+  }
+
+  .region-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+  }
+
+  .region-card-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--body-base2) 18%, transparent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  .region-card-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.2px;
+  }
+
+  .region-card-status {
+    margin-left: auto;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--body-base);
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--body-base2) 12%, transparent);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .region-card-text {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    max-height: 56px;
+    overflow: hidden;
+    position: relative;
+    transition: max-height 0.4s ease, opacity 0.3s ease;
+  }
+
+  .region-card-text.masked::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 22px;
+    background: linear-gradient(transparent, var(--card-bg));
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+  }
+
+  .region-card-text.expanded { max-height: 500px; }
+  .region-card-text.expanded.masked::after { opacity: 0; }
+
+  .region-card-more {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--body-base);
+    margin-top: 6px;
+    display: inline-block;
+    cursor: pointer;
+  }
+
+  /* ============================================================
+     Progress stage dots
+     ============================================================ */
+  .stage-dots {
+    display: flex;
+    gap: 6px;
+    padding: 0 22px;
+    margin-bottom: 10px;
+  }
+
+  .stage-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--separator);
+    transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  .stage-dot.past   { background: var(--body-base2); width: 20px; border-radius: 3px; }
+  .stage-dot.active { background: var(--body-base); width: 16px; border-radius: 3px; animation: pulse-dot 2.5s ease-in-out infinite; }
+
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
+  }
+
+  /* ============================================================
+     Staggered entrance animations
+     ============================================================ */
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .entrance {
+    animation: slideUp 0.55s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+  }
+
+  .s1 { animation-delay: 0.00s; }
+  .s2 { animation-delay: 0.07s; }
+  .s3 { animation-delay: 0.14s; }
+  .s4 { animation-delay: 0.21s; }
+  .s5 { animation-delay: 0.28s; }
+  .s6 { animation-delay: 0.35s; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .entrance { animation: none; opacity: 1; }
+  }
+
+  /* ============================================================
+     Timeline bar (like changes row)
+     ============================================================ */
+  .timeline-bar {
+    display: flex;
+    gap: 6px;
+    padding: 0 22px 12px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .timeline-bar::-webkit-scrollbar { display: none; }
+
+  .timeline-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+    flex-shrink: 0;
+    color: var(--text-secondary);
+    background: color-mix(in srgb, var(--text-secondary) 8%, transparent);
+    border: 0.5px solid var(--separator);
+    transition: all 0.3s ease;
+  }
+
+  .timeline-pill.done {
+    color: var(--body-base);
+    background: color-mix(in srgb, var(--body-base2) 15%, transparent);
+    border-color: var(--body-border);
+  }
+
+  .timeline-pill.pending {
+    color: var(--text-tertiary);
+    background: transparent;
+    border: 0.5px dashed var(--separator);
+  }
+
+  /* ============================================================
+     Insight banner
+     ============================================================ */
+  .insight-banner {
+    margin: 0 22px 16px;
+    padding: 14px;
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--brand-lavender) 8%, transparent);
+    border: 0.5px solid color-mix(in srgb, var(--brand-lavender) 18%, transparent);
+  }
+
+  .insight-banner-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--brand-lavender);
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+  }
+
+  .insight-banner-text {
+    font-size: 13px;
+    color: var(--text-primary);
+    line-height: 1.45;
+    font-weight: 500;
+  }
+
+  /* ============================================================
+     Page footer
+     ============================================================ */
+  .page-footer {
+    padding: 8px 22px 40px;
+    text-align: center;
+  }
+
+  .page-footer-text {
+    font-size: 11px;
+    color: var(--text-tertiary);
+  }
+
+  .page-footer-emoji {
+    font-size: 16px;
+    vertical-align: middle;
+  }
+</style>
+</head>
+<body>
+<div class="phone-frame">
+  <!-- Hero -->
+  <div class="hero entrance s1">
+    <div class="hero-breadcrumb">Time · Body Systems</div>
+    <div class="hero-title brand-gradient-text" id="heroTitle">Body Shape</div>
+    <div class="hero-subtitle">
+      <span>Estrogen · Injectable</span>
+      <span class="hero-tier-badge" id="heroBadge">🌱 Month 0–2</span>
+    </div>
+  </div>
+
+  <!-- Time Scrubber -->
+  <div class="scrubber entrance s2">
+    <span class="scrubber-emoji" id="scrubEmoji">🌱</span>
+    <span class="scrubber-tier" id="scrubTier">Beginning</span>
+    <span class="scrubber-value" id="scrubMonth">1</span>
+    <span class="scrubber-value-unit">mo</span>
+    <input type="range" class="range-slider" id="timeSlider" min="0" max="144" value="1" step="1">
+  </div>
+
+  <!-- Wireframe canvas -->
+  <div class="wireframe-container entrance s3" id="wireframeEl">
+    <svg viewBox="0 0 340 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="hipGlow" cx="50%" cy="60%" r="50%">
+          <stop offset="0%" stop-color="var(--body-base2)" stop-opacity="0.10"/>
+          <stop offset="100%" stop-color="var(--body-base2)" stop-opacity="0"/>
+        </radialGradient>
+        <filter id="dotGlow">
+          <feGaussianBlur stdDeviation="1.5" result="blur"/>
+          <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+        </filter>
+      </defs>
+
+      <!-- Hip glow -->
+      <ellipse cx="170" cy="230" rx="115" ry="75" fill="url(#hipGlow)"/>
+
+      <!-- Spine centerline -->
+      <line x1="170" y1="72" x2="170" y2="320" stroke="currentColor" stroke-width="0.6" stroke-dasharray="4 5" opacity="0.12"/>
+
+      <!-- Shoulders -->
+      <path d="M170 68 Q135 78 115 110" stroke="currentColor" stroke-width="1.2" fill="none" opacity="0.25"/>
+      <path d="M170 68 Q205 78 225 110" stroke="currentColor" stroke-width="1.2" fill="none" opacity="0.25"/>
+
+      <!-- Ribcage outline -->
+      <path d="M170 72 Q118 82 112 148 Q108 185 115 228" stroke="currentColor" stroke-width="1.2" fill="none" opacity="0.3"/>
+      <path d="M170 72 Q222 82 228 148 Q232 185 225 228" stroke="currentColor" stroke-width="1.2" fill="none" opacity="0.3"/>
+
+      <!-- Ribs -->
+      <path d="M120 108 Q170 114 220 108" stroke="currentColor" stroke-width="0.4" opacity="0.10"/>
+      <path d="M116 130 Q170 136 224 130" stroke="currentColor" stroke-width="0.4" opacity="0.10"/>
+      <path d="M114 152 Q170 158 226 152" stroke="currentColor" stroke-width="0.4" opacity="0.10"/>
+      <path d="M114 174 Q170 180 226 174" stroke="currentColor" stroke-width="0.4" opacity="0.10"/>
+      <path d="M115 196 Q170 202 225 196" stroke="currentColor" stroke-width="0.4" opacity="0.10"/>
+
+      <!-- Waist pinch -->
+      <path d="M117 218 Q170 226 223 218" stroke="currentColor" stroke-width="1.0" opacity="0.22"/>
+
+      <!-- Outer hip silhouette -->
+      <path id="hipOutlineL" d="M116 228 Q100 268 104 312 Q108 342 128 362" stroke="currentColor" stroke-width="1.2" fill="none" opacity="0.32"/>
+      <path id="hipOutlineR" d="M224 228 Q240 268 236 312 Q232 342 212 362" stroke="currentColor" stroke-width="1.2" fill="none" opacity="0.32"/>
+
+      <!-- Inner thighs -->
+      <path d="M148 315 L152 385" stroke="currentColor" stroke-width="1.0" fill="none" opacity="0.22"/>
+      <path d="M192 315 L188 385" stroke="currentColor" stroke-width="1.0" fill="none" opacity="0.22"/>
+
+      <!-- Pelvic bone hint -->
+      <path d="M142 244 Q170 260 198 244" stroke="currentColor" stroke-width="0.8" fill="none" opacity="0.18" stroke-dasharray="2 4"/>
+
+      <!-- === Fat redistribution layer (animated via JS) === -->
+      <g id="fatGroup">
+        <!-- Hips fat pads -->
+        <ellipse id="fatHipL"  cx="113" cy="262" rx="20" ry="28" fill="var(--body-base2)" opacity="0.06" transform="rotate(-6,113,262)"/>
+        <ellipse id="fatHipR"  cx="227" cy="262" rx="20" ry="28" fill="var(--body-base2)" opacity="0.06" transform="rotate(6,227,262)"/>
+        <!-- Thigh fat pads -->
+        <ellipse id="fatThighL" cx="108" cy="320" rx="16" ry="26" fill="var(--body-base2)" opacity="0.04" transform="rotate(-2,108,320)"/>
+        <ellipse id="fatThighR" cx="232" cy="320" rx="16" ry="26" fill="var(--body-base2)" opacity="0.04" transform="rotate(2,232,320)"/>
+        <!-- Gluteal fat -->
+        <ellipse id="fatGlute" cx="170" cy="332" rx="32" ry="22" fill="var(--body-base2)" opacity="0.03"/>
+        <!-- Waist narrowing highlight -->
+        <ellipse id="fatWaist" cx="170" cy="212" rx="30" ry="8" fill="var(--brand-rose)" opacity="0.03"/>
+        <!-- Chest fat -->
+        <ellipse id="fatChestL" cx="145" cy="138" rx="12" ry="8" fill="var(--brand-rose)" opacity="0.04"/>
+        <ellipse id="fatChestR" cx="195" cy="138" rx="12" ry="8" fill="var(--brand-rose)" opacity="0.04"/>
+      </g>
+
+      <!-- === Callout lines & dots === -->
+      <g id="callouts">
+        <!-- Left hip -->
+        <line x1="104" y1="268" x2="52" y2="235" stroke="var(--body-base2)" stroke-width="1" opacity="0.4"/>
+        <circle cx="50" cy="233" r="6" fill="var(--body-base2)" opacity="0.15" id="rippleHipL"/>
+        <circle cx="50" cy="233" r="4.5" fill="var(--body-base)" class="wireframe-dot" data-region="hips" filter="url(#dotGlow)"/>
+        <text x="38" y="222" font-size="9" font-weight="600" fill="currentColor" opacity="0.45">Hips</text>
+
+        <!-- Right hip -->
+        <line x1="236" y1="268" x2="288" y2="235" stroke="var(--body-base2)" stroke-width="1" opacity="0.4"/>
+        <circle cx="290" cy="233" r="6" fill="var(--body-base2)" opacity="0.15" id="rippleHipR"/>
+        <circle cx="290" cy="233" r="4.5" fill="var(--body-base)" class="wireframe-dot" data-region="hips" filter="url(#dotGlow)"/>
+        <text x="280" y="222" font-size="9" font-weight="600" fill="currentColor" opacity="0.45">Hips</text>
+
+        <!-- Thighs -->
+        <line x1="230" y1="324" x2="282" y2="310" stroke="var(--body-base2)" stroke-width="1" opacity="0.35"/>
+        <circle cx="284" cy="308" r="5" fill="var(--body-base2)" opacity="0.12"/>
+        <circle cx="284" cy="308" r="4" fill="var(--body-base)" class="wireframe-dot" data-region="thighs" opacity="0.8"/>
+        <text x="275" y="298" font-size="9" font-weight="600" fill="currentColor" opacity="0.42">Thighs</text>
+
+        <!-- Waist -->
+        <line x1="128" y1="216" x2="66" y2="188" stroke="var(--brand-rose)" stroke-width="1" opacity="0.35"/>
+        <circle cx="64" cy="186" r="5" fill="var(--brand-rose)" opacity="0.12"/>
+        <circle cx="64" cy="186" r="4" fill="var(--brand-rose)" class="wireframe-dot" data-region="waist" opacity="0.8"/>
+        <text x="52" y="176" font-size="9" font-weight="600" fill="currentColor" opacity="0.42">Waist</text>
+
+        <!-- Glutes -->
+        <line x1="192" y1="345" x2="264" y2="360" stroke="var(--body-base2)" stroke-width="1" opacity="0.35"/>
+        <circle cx="266" cy="358" r="5" fill="var(--body-base2)" opacity="0.12"/>
+        <circle cx="266" cy="358" r="4" fill="var(--body-base)" class="wireframe-dot" data-region="glutes" opacity="0.8"/>
+        <text x="258" y="348" font-size="9" font-weight="600" fill="currentColor" opacity="0.42">Glutes</text>
+
+        <!-- Chest -->
+        <line x1="155" y1="132" x2="52" y2="100" stroke="var(--brand-rose)" stroke-width="1" opacity="0.35"/>
+        <circle cx="50" cy="98" r="5" fill="var(--brand-rose)" opacity="0.12"/>
+        <circle cx="50" cy="98" r="4" fill="var(--brand-rose)" class="wireframe-dot" data-region="chest" opacity="0.8"/>
+        <text x="38" y="88" font-size="9" font-weight="600" fill="currentColor" opacity="0.42">Chest</text>
+      </g>
+
+      <!-- Annotation -->
+      <text id="annotation" x="170" y="388" text-anchor="middle" font-size="10" fill="currentColor" opacity="0.25">
+        Fat redistribution begins ~month 3, peaks at 2-3 years
+      </text>
+    </svg>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row entrance s4" id="statsRow"></div>
+
+  <!-- Region timeline pills -->
+  <div class="timeline-bar entrance s5" id="timelineBar"></div>
+
+  <!-- Stage dots -->
+  <div class="stage-dots entrance s5" id="stageDots"></div>
+
+  <!-- Insight -->
+  <div class="insight-banner entrance s5" id="insightBanner">
+    <div class="insight-banner-label">KEY INSIGHT</div>
+    <div class="insight-banner-text" id="insightText"></div>
+  </div>
+
+  <!-- Region detail cards -->
+  <div class="region-cards entrance s6" id="regionCards"></div>
+
+  <div class="page-footer">
+    <span class="page-footer-text" id="pageFooter"></span>
+  </div>
+</div>
+
+<script>
+(function() {
+  const TIERS = [
+    { name: 'Beginning', emoji: '🌱', m0: 0,  m1: 2,   band: 'Month 0–2' },
+    { name: 'Emerging',  emoji: '🌿', m0: 3,  m1: 5,   band: 'Month 3–5' },
+    { name: 'In Motion', emoji: '🍃', m0: 6,  m1: 11,  band: 'Month 6–11' },
+    { name: 'Deepening', emoji: '🌾', m0: 12, m1: 23,  band: 'Year 1–2' },
+    { name: 'Settled',   emoji: '🌳', m0: 24, m1: 59,  band: 'Year 2–5' },
+    { name: 'Rooted',    emoji: '🌀', m0: 60, m1: 119, band: 'Year 5–10' },
+    { name: 'Veteran',   emoji: '🏔️', m0: 120,m1: 144,band: '10+ years' },
+  ];
+
+  function tierFor(m) {
+    if (m <= 2)  return TIERS[0];
+    if (m <= 5)  return TIERS[1];
+    if (m <= 11) return TIERS[2];
+    if (m <= 23) return TIERS[3];
+    if (m <= 59) return TIERS[4];
+    if (m <= 119)return TIERS[5];
+    return TIERS[6];
+  }
+
+  // Fat redistribution timeline
+  const REGIONS = {
+    hips: {
+      label: 'Hips & Pelvis', icon: '🦴', start: 3, peak: 18, complete: 36,
+      early: 'Estrogen begins redirecting subcutaneous fat to the hip and pelvic girdle. The iliac crest and greater trochanter areas become primary deposition sites.',
+      mid: 'Hip circumference is measurably increasing as gynoid-pattern fat distribution establishes. Combined with waist narrowing, your hip-to-waist ratio is significantly shifting.',
+      late: 'Fat redistribution to the hips is largely complete. The new contours — wider iliac crest span and fuller trochanteric profile — are maintained through continued estrogen therapy.',
+    },
+    thighs: {
+      label: 'Thighs', icon: '🦵', start: 4, peak: 20, complete: 36,
+      early: 'Subcutaneous fat begins accumulating on the outer and inner thighs. You may notice pants fitting differently around the upper leg as gynoid-pattern deposition begins.',
+      mid: 'Thigh circumference increases measurably. The thigh gap may narrow or close entirely as inner-thigh fat pads develop — a hallmark of estrogen-dominant body composition.',
+      late: 'Thigh fat distribution has stabilized at its estrogen-dominant pattern. The curve from hip to knee is well-defined and maintained with consistent hormone levels.',
+    },
+    waist: {
+      label: 'Waist', icon: '⌛', start: 3, peak: 12, complete: 24,
+      early: 'Androgenic visceral fat begins to decrease as testosterone is suppressed. Your waist may narrow slightly even before hip expansion becomes visible externally.',
+      mid: 'Waist circumference is actively decreasing relative to the hips. Visceral fat loss is the primary driver, creating a more defined waistline and hourglass contour.',
+      late: 'Waist contours have stabilized. The ratio between your waist and hip measurements is now in a typically feminine range, maintained by ongoing estrogen exposure.',
+    },
+    glutes: {
+      label: 'Glutes', icon: '🍑', start: 3, peak: 24, complete: 48,
+      early: 'Fat deposition begins in the gluteal region. This is often subtle at first — you might notice your pants fitting differently in the seat before any visible change.',
+      mid: 'Gluteal fat pads are actively expanding. Combined with pelvic rotation from ligament changes (relaxin-mediated), your posterior profile and posture are changing noticeably.',
+      late: 'Gluteal fat distribution is mature. The shape is maintained but may continue subtle refinement through year 4-5 of therapy as the 2-3 year cell-turnover cycle completes.',
+    },
+    chest: {
+      label: 'Chest', icon: '💗', start: 1, peak: 36, complete: 60,
+      early: 'Breast bud formation begins within the first weeks of estrogen exposure. Areolar tissue becomes more sensitive and the chest wall starts depositing glandular and fatty tissue beneath the nipple.',
+      mid: 'Breast growth is actively progressing through Tanner stages 2-4. Montgomery glands develop and the breast mound continues expanding. Growth is not linear — expect plateaus and spurts.',
+      late: 'Breast maturation continues through year 3-5 as the ductal-lobular system completes development and terminal duct lobular units form. Full maturity may take up to 60 months.',
+    },
+  };
+
+  let activeRegion = null;
+
+  function stageDots(m) {
+    const tier = tierFor(m);
+    const idx = TIERS.indexOf(tier);
+    let html = '';
+    for (let i = 0; i < TIERS.length; i++) {
+      let cls = 'stage-dot';
+      if (i < idx) cls += ' past';
+      else if (i === idx) cls += ' active';
+      html += `<div class="${cls}" title="${TIERS[i].name}"></div>`;
+    }
+    document.getElementById('stageDots').innerHTML = html;
+  }
+
+  function buildStats(m) {
+    function pct(start, peak, complete) {
+      if (m < start) return 0;
+      if (m >= complete) return 100;
+      if (m < peak) return Math.round((m - start) / (peak - start) * 100);
+      return Math.round((m - start) / (complete - start) * 100);
+    }
+    const hipsPct = pct(3, 18, 36);
+    const waistPct = pct(3, 12, 24);
+    const glutePct = pct(3, 24, 48);
+
+    const stats = [
+      { value: hipsPct + '%', label: 'Hips', sub: m >= 36 ? 'Established' : `${36-m}mo to completion` },
+      { value: waistPct + '%', label: 'Waist', sub: m >= 24 ? 'Established' : `${24-m}mo to stable` },
+      { value: glutePct + '%', label: 'Glutes', sub: m >= 48 ? 'Established' : `${48-m}mo to mature` },
+    ];
+
+    document.getElementById('statsRow').innerHTML = stats.map(s =>
+      `<div class="stat-card">
+        <div class="stat-value">${s.value}</div>
+        <div class="stat-label">${s.label}</div>
+        <div class="stat-sub">${s.sub}</div>
+      </div>`
+    ).join('');
+  }
+
+  function buildTimeline(m) {
+    const pills = [];
+    for (const [key, r] of Object.entries(REGIONS)) {
+      const done = m >= r.complete;
+      const active = m >= r.start && m < r.complete;
+      pills.push({
+        label: r.label,
+        done,
+        active,
+        key,
+      });
+    }
+    document.getElementById('timelineBar').innerHTML = pills.map(p =>
+      `<span class="timeline-pill ${p.done ? 'done' : p.active ? 'done' : 'pending'}" data-region="${p.key}">
+        ${p.done ? '✓' : p.active ? '●' : '○'} ${p.label}
+      </span>`
+    ).join('');
+  }
+
+  function buildCards(m) {
+    let html = '';
+    for (const [key, r] of Object.entries(REGIONS)) {
+      let text, status;
+      if (m < r.start) {
+        text = `Not yet started. ${r.label} changes typically begin around month ${r.start} as estrogen levels rise.`;
+        status = `Starts M${r.start}`;
+      } else if (m < r.peak) {
+        text = r.early;
+        const p = Math.round((m - r.start) / (r.peak - r.start) * 100);
+        status = `${p}% underway`;
+      } else if (m < r.complete) {
+        text = r.mid;
+        const p = Math.round((m - r.start) / (r.complete - r.start) * 100);
+        status = `${p}% complete`;
+      } else {
+        text = r.late;
+        status = 'Established';
+      }
+
+      const active = activeRegion === key;
+      html += `
+        <div class="region-card${active ? ' active' : ''}" data-region="${key}" onclick="__sel('${key}')">
+          <div class="region-card-header">
+            <div class="region-card-icon">${r.icon}</div>
+            <div class="region-card-title">${r.label}</div>
+            <div class="region-card-status">${status}</div>
+          </div>
+          <div class="region-card-text masked" id="ct_${key}">${text}</div>
+          <span class="region-card-more" onclick="event.stopPropagation();__toggle('${key}')">Read more →</span>
+        </div>`;
+    }
+    document.getElementById('regionCards').innerHTML = html;
+  }
+
+  function updateBodySVG(m) {
+    function exp(start, peak, complete) {
+      if (m < start) return 0;
+      if (m >= complete) return 1;
+      if (m < peak) return (m - start) / (peak - start);
+      return 1;
+    }
+
+    const h = exp(3, 18, 36);
+    const t = exp(4, 20, 36);
+    const g = exp(3, 24, 48);
+    const c = exp(1, 36, 60);
+
+    applyEllipse('fatHipL', h, { rx: [18,14], ry: [26,16], opacity: [0.03,0.10] });
+    applyEllipse('fatHipR', h, { rx: [18,14], ry: [26,16], opacity: [0.03,0.10] });
+    applyEllipse('fatThighL', t, { rx: [12,14], ry: [22,12], opacity: [0.02,0.08] });
+    applyEllipse('fatThighR', t, { rx: [12,14], ry: [22,12], opacity: [0.02,0.08] });
+    applyEllipse('fatGlute', g, { rx: [26,18], ry: [18,12], opacity: [0.02,0.07] });
+    applyEllipse('fatWaist', exp(3,12,24), { rx: [26,8], opacity: [0.01,0.05] });
+    applyEllipse('fatChestL', c, { rx: [10,8], ry: [6,6], opacity: [0.02,0.10] });
+    applyEllipse('fatChestR', c, { rx: [10,8], ry: [6,6], opacity: [0.02,0.10] });
+  }
+
+  function applyEllipse(id, t, props) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    for (const [attr, [base, range]] of Object.entries(props)) {
+      if (attr === 'opacity') el.setAttribute(attr, (base + t * range).toFixed(3));
+      else el.setAttribute(attr, (base + t * range).toFixed(1));
+    }
+  }
+
+  function annotation(m) {
+    const lines = [
+      { max: 3,  text: 'Preparing — fat redistribution begins ~month 3' },
+      { max: 12, text: 'Early redistribution — new fat deposits forming at hips & glutes' },
+      { max: 36, text: 'Peak redistribution — body shape significantly shifting' },
+      { max: 60, text: 'Maturing — subtle refinements continue through year 5' },
+      { max: 144, text: 'Fully established — body composition is mature' },
+    ];
+    for (const l of lines) { if (m < l.max) return l.text; }
+    return lines[lines.length-1].text;
+  }
+
+  function insight(m) {
+    if (m < 3) return 'Fat redistribution hasn\'t begun yet. As estrogen levels rise, your body will gradually shift from android-pattern to gynoid-pattern fat storage — a process driven by ER-α activation in subcutaneous adipocytes.';
+    if (m < 12) return 'Early redistribution is underway. Estrogen is directing new subcutaneous fat to the hip, gluteal, and thigh regions. Visceral fat is also beginning to decrease as testosterone is suppressed.';
+    if (m < 36) return 'Peak redistribution period. Your body shape is actively changing — hip circumference is increasing, waist is narrowing, and gynoid fat pads are expanding. This is the most visibly dynamic phase.';
+    if (m < 60) return 'Body contours are maturing. The 2-3 year adipocyte cell-turnover cycle means subtle refinements continue, but the major structural changes in fat distribution are largely complete.';
+    return 'Your body composition is fully established. Fat distribution patterns are maintained through ongoing estrogen therapy — consistent hormone levels prevent reversion to android-pattern storage.';
+  }
+
+  // Public toggle/select helpers
+  window.__toggle = function(key) {
+    const el = document.getElementById('ct_' + key);
+    if (!el) return;
+    el.classList.toggle('expanded');
+    el.classList.toggle('masked');
+  };
+
+  window.__sel = function(key) {
+    activeRegion = (activeRegion === key) ? null : key;
+    buildCards(parseInt(document.getElementById('timeSlider').value));
+  };
+
+  function update(m) {
+    const tier = tierFor(m);
+    document.getElementById('heroBadge').textContent = tier.emoji + ' ' + tier.band;
+    document.getElementById('scrubEmoji').textContent = tier.emoji;
+    document.getElementById('scrubTier').textContent = tier.name;
+    document.getElementById('scrubMonth').textContent = m;
+    document.getElementById('insightText').textContent = insight(m);
+    document.getElementById('annotation').textContent = annotation(m);
+    document.getElementById('pageFooter').innerHTML = `<span class="page-footer-emoji">${tier.emoji}</span> ${tier.name} · Month ${m} on HRT`;
+
+    stageDots(m);
+    buildStats(m);
+    buildTimeline(m);
+    buildCards(m);
+    updateBodySVG(m);
+  }
+
+  document.getElementById('timeSlider').addEventListener('input', function() {
+    update(parseInt(this.value));
+  });
+
+  // Dot interactions
+  document.querySelectorAll('.wireframe-dot').forEach(dot => {
+    dot.addEventListener('click', function() {
+      const r = this.getAttribute('data-region');
+      if (r) {
+        window.__sel(r);
+        const card = document.querySelector(`.region-card[data-region="${r}"]`);
+        if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
+  });
+
+  // Pill interactions
+  document.getElementById('timelineBar').addEventListener('click', function(e) {
+    const pill = e.target.closest('.timeline-pill');
+    if (!pill) return;
+    const r = pill.getAttribute('data-region');
+    if (r) {
+      window.__sel(r);
+      const card = document.querySelector(`.region-card[data-region="${r}"]`);
+      if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  });
+
+  update(1);
+})();
+</script>
+</body>
+</html>

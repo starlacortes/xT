@@ -27,18 +27,12 @@ struct SettingsView: View {
     @State private var journalReminderMinute = 0
     @State private var showingDoseTimePicker = false
     @State private var showingJournalTimePicker = false
-    
+
     // Therapeutic target state
     @State private var useCustomTargets: Bool = false
     @State private var targetTroughMin: Double = 100
     @State private var targetTroughMax: Double = 200
     @State private var targetPeakCeiling: Double = 600
-
-#if DEBUG
-    // Developer Area state (plan §2.6)
-    @State private var showingDeveloperModeAlert = false
-    @State private var showingSampleProfileAlert = false
-#endif
 
     var body: some View {
         NavigationStack {
@@ -52,13 +46,12 @@ struct SettingsView: View {
 
                     VStack(spacing: 32) {
                         settingsMedicationSection
+                        settingsHistoryInsightsSection
                         settingsTherapeuticTargetsSection
                         settingsNotificationsSection
                         settingsPrivacySection
                         settingsAboutSection
-#if DEBUG
-                        settingsDeveloperSection
-#endif
+                        settingsResetSection
                     }
                     .padding(.top, 24)
                     .padding(.bottom, 48)
@@ -215,6 +208,24 @@ struct SettingsView: View {
 
             settingsDivider()
 
+            NavigationLink(destination: AvoidZonesEditorView()) {
+                settingsRowContent(
+                    icon: "exclamationmark.shield",
+                    iconBg: Theme.Colors.warning.opacity(0.13),
+                    iconColor: Theme.Colors.warning,
+                    title: "Avoid zones",
+                    subtitle: avoidZonesSubtitle,
+                    trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(.secondary) }
+                )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    // MARK: - History & Insights Section
+
+    private var settingsHistoryInsightsSection: some View {
+        settingsSection(label: "History & Insights") {
             NavigationLink(destination: AdherenceView()) {
                 settingsRowContent(
                     icon: "chart.line.uptrend.xyaxis",
@@ -222,6 +233,20 @@ struct SettingsView: View {
                     iconColor: Theme.Colors.Time.body.base,
                     title: "Adherence & history",
                     subtitle: adherenceSubtitle,
+                    trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(.secondary) }
+                )
+            }
+            .buttonStyle(.plain)
+
+            settingsDivider()
+
+            NavigationLink(destination: DoseHistoryView()) {
+                settingsRowContent(
+                    icon: "clock.arrow.circlepath",
+                    iconBg: Theme.Colors.Time.cycle.surface,
+                    iconColor: Theme.Colors.Time.cycle.base,
+                    title: "Dose history",
+                    subtitle: doseHistorySubtitle,
                     trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(.secondary) }
                 )
             }
@@ -260,8 +285,6 @@ struct SettingsView: View {
             .padding(.horizontal, 22)
             .padding(.vertical, 16)
             .contentShape(Rectangle())
-
-
         }
     }
 
@@ -503,9 +526,28 @@ struct SettingsView: View {
                 subtitle: nil,
                 trailing: { Text("0.8.0").font(.system(size: 13)).foregroundStyle(.secondary) }
             )
-
+#if DEBUG
             settingsDivider()
+            NavigationLink(destination: DeveloperSettingsView()) {
+                settingsRowContent(
+                    icon: "wrench.and.screwdriver",
+                    iconBg: Color(.systemGray6),
+                    iconColor: .secondary,
+                    title: "Developer",
+                    subtitle: "Tools & test options",
+                    trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(.secondary) }
+                )
+            }
+            .buttonStyle(.plain)
+#endif
+        }
+    }
 
+    // MARK: - Reset Section
+
+    private var settingsResetSection: some View {
+        VStack(spacing: 0) {
+            Divider().opacity(0.5)
             Button(role: .destructive, action: { showingResetAlert = true }) {
                 settingsRowContent(
                     icon: "trash.fill",
@@ -517,179 +559,9 @@ struct SettingsView: View {
                 )
             }
             .buttonStyle(.plain)
+            Divider().opacity(0.5)
         }
     }
-
-    // MARK: - Developer Section (DEBUG only)
-
-#if DEBUG
-    @ViewBuilder
-    private var settingsDeveloperSection: some View {
-        let dev = DeveloperSettings.shared
-
-        settingsSection(label: "Developer") {
-            // Master gate.
-            HStack(spacing: 14) {
-                settingsIconView(
-                    icon: "wrench.and.screwdriver",
-                    bg: Color(.systemGray6),
-                    color: .secondary
-                )
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Developer mode")
-                        .font(Theme.Fonts.callout)
-                        .foregroundStyle(.primary)
-                    Text(dev.developerModeEnabled ? "On" : "Off")
-                        .font(Theme.Fonts.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-
-                Toggle("", isOn: Binding(
-                    get: { dev.developerModeEnabled },
-                    set: { newValue in
-                        if newValue {
-                            showingDeveloperModeAlert = true
-                        } else {
-                            onDeveloperModeDisabled()
-                        }
-                    }
-                ))
-                .labelsHidden()
-                .toggleStyle(SwitchToggleStyle(tint: Theme.Colors.accent))
-            }
-            .padding(.horizontal, 22)
-            .padding(.vertical, 16)
-            .contentShape(Rectangle())
-
-            settingsDivider()
-
-            // Sample (Jan) — greyed out unless developer mode is on.
-            HStack(spacing: 14) {
-                settingsIconView(
-                    icon: "person.crop.circle.badge",
-                    bg: Theme.Colors.Time.cycle.surface,
-                    color: Theme.Colors.Time.cycle.base
-                )
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Sample (Jan)")
-                        .font(Theme.Fonts.callout)
-                        .foregroundStyle(.primary)
-                    Text(dev.sampleProfileEnabled ? "Jan test profile active" : "Load Jan test profile")
-                        .font(Theme.Fonts.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-
-                Toggle("", isOn: Binding(
-                    get: { dev.sampleProfileEnabled },
-                    set: { newValue in
-                        if newValue {
-                            showingSampleProfileAlert = true
-                        } else {
-                            onSampleProfileDisabled()
-                        }
-                    }
-                ))
-                .labelsHidden()
-                .toggleStyle(SwitchToggleStyle(tint: Theme.Colors.accent))
-            }
-            .padding(.horizontal, 22)
-            .padding(.vertical, 16)
-            .contentShape(Rectangle())
-            .disabled(!dev.developerModeEnabled)
-            .opacity(dev.developerModeEnabled ? 1 : 0.4)
-
-            settingsDivider()
-
-            // Research (Insights tab) — greyed out unless developer mode is on.
-            HStack(spacing: 14) {
-                settingsIconView(
-                    icon: "chart.xyaxis.line",
-                    bg: Theme.Colors.Time.body.surface,
-                    color: Theme.Colors.Time.body.base
-                )
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Research")
-                        .font(Theme.Fonts.callout)
-                        .foregroundStyle(.primary)
-                    Text(dev.researchTabVisible ? "Insights tab visible" : "Show Insights tab")
-                        .font(Theme.Fonts.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-
-                Toggle("", isOn: Binding(
-                    get: { dev.researchTabVisible },
-                    set: { dev.researchTabVisible = $0 }
-                ))
-                .labelsHidden()
-                .toggleStyle(SwitchToggleStyle(tint: Theme.Colors.accent))
-            }
-            .padding(.horizontal, 22)
-            .padding(.vertical, 16)
-            .contentShape(Rectangle())
-            .disabled(!dev.developerModeEnabled)
-            .opacity(dev.developerModeEnabled ? 1 : 0.4)
-        }
-        .alert("Enable developer mode?", isPresented: $showingDeveloperModeAlert) {
-            Button("Cancel", role: .cancel) {}
-            Button("Enable") { DeveloperSettings.shared.developerModeEnabled = true }
-        } message: {
-            Text("Developer mode unlocks test-only tools. Leave this off for normal use.")
-        }
-        .alert("Switch to the Jan test profile?", isPresented: $showingSampleProfileAlert) {
-            Button("Cancel", role: .cancel) {}
-            Button("Quit & Switch") { onSampleProfileEnabled() }
-        } message: {
-            Text("Your data is preserved and will be restored when you turn this off. The app will quit.")
-        }
-    }
-
-    private func onDeveloperModeDisabled() {
-        // Turning the master gate off also disables the child toggles.
-        // If Sample was active, restore the user's data first.
-        if DeveloperSettings.shared.sampleProfileEnabled {
-            onSampleProfileDisabled()
-        }
-        DeveloperSettings.shared.researchTabVisible = false
-        DeveloperSettings.shared.developerModeEnabled = false
-    }
-
-    private func onSampleProfileEnabled() {
-        // Preserve the user's real data, mark Sample active, seed Jan, then quit
-        // so the next launch comes up cleanly on the Jan dataset (plan §2.4).
-        guard ProfileSnapshot.snapshotIfNeeded() else {
-            print("[SettingsView] snapshot failed — aborting sample profile switch")
-            return
-        }
-        DeveloperSettings.shared.sampleProfileEnabled = true
-        SpoofProfile.forceApply()
-
-        // Explicitly flush all SwiftData contexts to disk before hard exit.
-        // exit(0) does not give CoreData a chance to tear down gracefully;
-        // a synchronous save here ensures the WAL contains every pending write.
-        try? JournalManager.shared.modelContext?.save()
-        MedicationManager.shared.saveContext()
-
-        // Sync UserDefaults so the spfKey marker and sampleProfileEnabled
-        // flag survive process termination.
-        UserDefaults.standard.synchronize()
-        exit(0)
-    }
-
-    private func onSampleProfileDisabled() {
-        // Restore the user's snapshot over Jan's data and rehydrate in place.
-        ProfileSnapshot.restore()
-        DeveloperSettings.shared.sampleProfileEnabled = false
-    }
-#endif
 
     // MARK: - Layout helpers
 
@@ -809,6 +681,18 @@ struct SettingsView: View {
             return "\(pct)% adherence · \(medicationManager.onTimeStreak) streak · regimen timeline"
         }
         return "Regimen history & dose intensity"
+    }
+
+    private var doseHistorySubtitle: String {
+        let count = medicationManager.doseHistory.count
+        if count == 0 { return "No doses recorded yet" }
+        return "Review & correct \(count) dose\(count == 1 ? "" : "s")"
+    }
+
+    private var avoidZonesSubtitle: String {
+        let count = medicationManager.avoidZones.count
+        if count == 0 { return "No zones marked" }
+        return "\(count) zone\(count == 1 ? "" : "s") marked"
     }
 
     private var formatDoseReminderSubtitle: String {

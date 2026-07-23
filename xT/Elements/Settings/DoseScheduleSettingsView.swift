@@ -15,6 +15,10 @@ struct DoseScheduleSettingsView: View {
     @State private var defaultDoseAmount: Double
     @State private var defaultInjectionTime: Date
 
+    @AppStorage("mm.rotationWindow_injection") private var rotationWindowInjection: Int = 14
+    @AppStorage("mm.rotationWindow_topical") private var rotationWindowTopical: Int = 7
+    @AppStorage("mm.rotationWindow_patch") private var rotationWindowPatch: Int = 30
+
     private let doseAmounts: [Double] = {
         var amounts: [Double] = []
         for i in stride(from: 0.5, through: 10.0, by: 0.5) { amounts.append(i) }
@@ -33,6 +37,30 @@ struct DoseScheduleSettingsView: View {
 
         doseUnit = mgr.selectedMedication == "Testosterone" ? "mg" : "mg"
         medicationName = mgr.selectedMedication ?? "Medication"
+
+        if let data = UserDefaults.standard.data(forKey: userPreferredZonesKey),
+           let decoded = try? JSONDecoder().decode([String: [String]].self, from: data) {
+            _userPreferredZones = State(initialValue: decoded)
+        } else {
+            _userPreferredZones = State(initialValue: [:])
+        }
+    }
+
+    @State private var showAvoidZones = false
+
+    private let userPreferredZonesKey = "mm.userPreferredZones"
+    @State private var userPreferredZones: [String: [String]] = [:]
+
+    private var medicationRouteCombos: [(medication: String, routeClass: RouteClass)] {
+        let medications = ["Estrogen", "Testosterone", "Progesterone"]
+        let routes = RouteClass.allCases.filter { $0 != .oral }
+        var combos: [(String, RouteClass)] = []
+        for med in medications {
+            for route in routes {
+                combos.append((med, route))
+            }
+        }
+        return combos
     }
 
     var body: some View {
@@ -42,6 +70,9 @@ struct DoseScheduleSettingsView: View {
                     frequencySection
                     doseAmountSection
                     injectionTimeSection
+                    rotationSafetySection
+                    avoidZonesSection
+                    preferredZonesSection
                     previewSection
                 }
                 .padding(.horizontal, 20)
@@ -250,6 +281,176 @@ struct DoseScheduleSettingsView: View {
         comps.hour = 9
         comps.minute = 0
         return Calendar.current.date(from: comps) ?? Date()
+    }
+
+    // MARK: - Rotation Safety Section
+
+    private var rotationSafetySection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            sectionLabel("Rotation Safety Windows")
+
+            Text("How many days before you can reuse the same administration site.")
+                .font(Theme.Fonts.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            VStack(spacing: 0) {
+                rotationPickerRow(routeClass: .injection,
+                                  displayName: "Injection (IM/SubQ)",
+                                  value: $rotationWindowInjection,
+                                  options: [7, 14, 21, 30])
+                Divider().padding(.leading, 52)
+                rotationPickerRow(routeClass: .topical,
+                                  displayName: "Topical (Gel/Cream)",
+                                  value: $rotationWindowTopical,
+                                  options: [3, 5, 7, 10])
+                Divider().padding(.leading, 52)
+                rotationPickerRow(routeClass: .patch,
+                                  displayName: "Patch",
+                                  value: $rotationWindowPatch,
+                                  options: [7, 14, 21, 30])
+            }
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                    .fill(Color(.systemBackground))
+            )
+        }
+    }
+
+    private func rotationPickerRow(routeClass: RouteClass, displayName: String, value: Binding<Int>, options: [Int]) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: routeClass.iconName)
+                .font(.title3)
+                .foregroundStyle(routeClass.tintColor)
+                .frame(width: 28)
+
+            Text(displayName)
+                .font(Theme.Fonts.callout)
+                .foregroundStyle(.primary)
+
+            Spacer()
+
+            Picker("", selection: value) {
+                ForEach(options, id: \.self) { days in
+                    Text("\(days) days").tag(days)
+                }
+            }
+            .pickerStyle(.menu)
+            .tint(routeClass.tintColor)
+        }
+        .padding(.vertical, 4)
+    }
+
+    // MARK: - Avoid Zones Section
+
+    private var avoidZonesSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            sectionLabel("Avoid Zones")
+
+            NavigationLink(destination: AvoidZonesEditorView()) {
+                HStack(spacing: 12) {
+                    Image(systemName: "exclamationmark.shield")
+                        .font(.title3)
+                        .foregroundStyle(Theme.Colors.warning)
+                        .frame(width: 28)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Manage Avoid Zones")
+                            .font(Theme.Fonts.callout)
+                            .foregroundStyle(.primary)
+                        Text(avoidZonesSubtitle)
+                            .font(Theme.Fonts.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                        .fill(Color(.systemBackground))
+                )
+            }
+        }
+    }
+
+    private var avoidZonesSubtitle: String {
+        let count = medicationManager.avoidZones.count
+        if count == 0 { return "No zones marked" }
+        return "\(count) zone\(count == 1 ? "" : "s") marked"
+    }
+
+    // MARK: - Preferred Administration Zones Section
+
+    private var preferredZonesSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            sectionLabel("Preferred Administration Zones")
+
+            VStack(spacing: 0) {
+                ForEach(Array(medicationRouteCombos.enumerated()), id: \.offset) { idx, combo in
+                    let count = preferredZonesCount(
+                        medication: combo.medication,
+                        routeClass: combo.routeClass
+                    )
+                    NavigationLink(destination: PreferredZonesEditorView(
+                        medication: combo.medication,
+                        routeClass: combo.routeClass,
+                        onSave: { zones in
+                            let key = "\(combo.medication)|\(combo.routeClass.rawValue)"
+                            userPreferredZones[key] = zones
+                            if let data = try? JSONEncoder().encode(userPreferredZones) {
+                                UserDefaults.standard.set(data, forKey: userPreferredZonesKey)
+                            }
+                        }
+                    )) {
+                        HStack(spacing: 12) {
+                            Image(systemName: combo.routeClass.iconName)
+                                .font(.title3)
+                                .foregroundStyle(combo.routeClass.tintColor)
+                                .frame(width: 28)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("\(combo.medication) — \(combo.routeClass.displayName)")
+                                    .font(Theme.Fonts.callout)
+                                    .foregroundStyle(.primary)
+                                Text("\(count) \(count == 1 ? "zone" : "zones")")
+                                    .font(Theme.Fonts.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            Spacer()
+
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                        .padding(12)
+                        .background(
+                            RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                                .fill(Color(.systemBackground))
+                        )
+                    }
+
+                    if idx < medicationRouteCombos.count - 1 {
+                        Divider()
+                            .padding(.leading, 52)
+                    }
+                }
+            }
+        }
+    }
+
+    private func preferredZonesCount(medication: String, routeClass: RouteClass) -> Int {
+        let key = "\(medication)|\(routeClass.rawValue)"
+        if let userZones = userPreferredZones[key], !userZones.isEmpty {
+            return userZones.count
+        }
+        return BodySketchData.preferredZones(medication: medication, routeClass: routeClass).count
     }
 
     // MARK: - Save

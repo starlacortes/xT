@@ -32,6 +32,7 @@ struct FlatGraphView: View {
 
     /// Pharmacokinetically-aware dense interpolation points for smooth scrubbing.
     @State private var densePoints: [(date: Date, value: Double, xFraction: CGFloat)] = []
+    @State private var currentDotPulsePhase: Int = 0
 
     private var points: [MedicationManager.EstimatedPoint] {
         medicationManager.recentLevels
@@ -110,9 +111,11 @@ struct FlatGraphView: View {
 
                     therapeuticReferenceLines(bounds: bounds, w: w, h: h)
 
-                    peakMarker(bounds: bounds, w: w, h: h)
+                    currentDot(bounds: bounds, w: w, h: h)
 
-                    doseMarkers(bounds: bounds, w: w, h: h)
+                    lastDoseDot(bounds: bounds, w: w, h: h)
+
+                    nextDoseDot(bounds: bounds, w: w, h: h)
 
                     scrubIndicatorLine(w: w, h: h)
                 }
@@ -129,6 +132,15 @@ struct FlatGraphView: View {
                     animatedValues = AnimatableVector(values: points.map(\.value))
                 }
                 generateDensePoints()
+            }
+            .onAppear {
+                guard currentDotPulsePhase == 0 else { return }
+                withAnimation(.easeInOut(duration: 0.35).repeatCount(2, autoreverses: true)) {
+                    currentDotPulsePhase = 1
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) {
+                    currentDotPulsePhase = 2
+                }
             }
             .onChange(of: points.map(\.value)) { _, newValues in
                 withAnimation(.spring(response: 0.55, dampingFraction: 0.75)) {
@@ -345,99 +357,109 @@ struct FlatGraphView: View {
         .stroke(color, style: StrokeStyle(lineWidth: 0.5, dash: [3, 5]))
     }
 
-    // MARK: - Peak marker
+    // MARK: - Current dot
 
-    private func peakMarker(bounds: (min: Double, max: Double, range: Double),
+    @ViewBuilder
+    private func currentDot(bounds: (min: Double, max: Double, range: Double),
                             w: CGFloat, h: CGFloat) -> some View {
-        let (minV, _, range) = bounds
-        guard let peakPt = points.max(by: { $0.value < $1.value }) else {
-            return AnyView(EmptyView())
-        }
-        let peakIdx = points.firstIndex(where: { $0.date == peakPt.date }) ?? 0
+        if let currentLevel = currentLevel,
+           !densePoints.isEmpty,
+           let lastDate = densePoints.last?.date {
+            let now = Date()
+            let targetDate = min(now, lastDate)
+            let nearest = densePoints.enumerated().min(by: {
+                abs($0.element.date.timeIntervalSince(targetDate)) < abs($1.element.date.timeIntervalSince(targetDate))
+            }) ?? (offset: densePoints.count - 1, element: densePoints[densePoints.count - 1])
+            let px = CurveLayout.markerX(index: nearest.offset, count: densePoints.count, width: w)
+            let (minV, _, range) = bounds
+            let py = CurveLayout.yPos(value: currentLevel, min: minV, range: range,
+                                      height: h, dataFraction: dataRegionFraction)
+            let scale: CGFloat = currentDotPulsePhase == 1 ? 1.6 : 1.0
 
-        let px = CurveLayout.markerX(index: peakIdx, count: points.count, width: w)
-        let py = CurveLayout.yPos(value: peakPt.value, min: minV, range: range,
-                                    height: h, dataFraction: dataRegionFraction)
-
-        return AnyView(
             ZStack {
                 Circle()
-                    .fill(levelTint.opacity(0.22))
-                    .frame(width: 14, height: 14)
+                    .fill(levelTint.opacity(0.25))
+                    .frame(width: 18, height: 18)
                     .position(x: px, y: py)
+                    .blur(radius: 6)
                 Circle()
                     .fill(levelTint)
-                    .frame(width: 6, height: 6)
+                    .frame(width: 8, height: 8)
                     .position(x: px, y: py)
-                Text("peak")
-                    .font(.system(size: 8, weight: .semibold))
-                    .foregroundStyle(levelTint.opacity(0.7))
-                    .position(x: px, y: py + 14)
+                    .scaleEffect(scale)
             }
-        )
+        }
     }
 
-    // MARK: - Dose markers
+    // MARK: - Last dose dot
 
-    private func doseMarkers(bounds: (min: Double, max: Double, range: Double),
+    @ViewBuilder
+    private func lastDoseDot(bounds: (min: Double, max: Double, range: Double),
                              w: CGFloat, h: CGFloat) -> some View {
-        let (minV, _, range) = bounds
-        let activeDoses = medicationManager.doseHistory.filter {
-            $0.doseStatus == DoseStatus.taken.rawValue && !$0.isDeleted
-        }
-        guard !activeDoses.isEmpty, !points.isEmpty else {
-            return AnyView(EmptyView())
-        }
-        let visibleStart = points.first!.date.addingTimeInterval(-12 * 3600)
-        let visibleEnd = points.last!.date.addingTimeInterval(12 * 3600)
-        let visibleDoses = activeDoses.filter {
-            $0.doseDate >= visibleStart && $0.doseDate <= visibleEnd
-        }
-        guard !visibleDoses.isEmpty else { return AnyView(EmptyView()) }
+        if let lastDoseDate = medicationManager.lastDoseDate,
+           !points.isEmpty {
+            let visibleStart = points.first!.date
+            let visibleEnd = points.last!.date
+            if lastDoseDate >= visibleStart && lastDoseDate <= visibleEnd {
+                let idx = points.enumerated().min(by: { abs($0.element.date.timeIntervalSince(lastDoseDate)) < abs($1.element.date.timeIntervalSince(lastDoseDate)) })!.offset
+                let (minV, _, range) = bounds
+                let px = CurveLayout.markerX(index: idx, count: points.count, width: w)
+                let py = CurveLayout.yPos(value: points[idx].value, min: minV, range: range,
+                                          height: h, dataFraction: dataRegionFraction)
 
-        return AnyView(
-            ZStack {
-                ForEach(visibleDoses, id: \.id) { dose in
-                    doseDot(for: dose, minV: minV, range: range, w: w, h: h)
+                ZStack {
+                    Circle()
+                        .fill(Theme.Colors.accentSecondary.opacity(0.22))
+                        .frame(width: 12, height: 12)
+                        .position(x: px, y: py)
+                    Circle()
+                        .fill(Theme.Colors.accentSecondary)
+                        .frame(width: 4, height: 4)
+                        .position(x: px, y: py)
+                    Text("dose")
+                        .font(.system(size: 7, weight: .semibold))
+                        .foregroundStyle(Theme.Colors.accentSecondary.opacity(0.6))
+                        .position(x: px, y: py + 12)
                 }
             }
-        )
+        }
     }
 
-    private func doseDot(for dose: DoseRecord,
-                         minV: Double, range: Double,
-                         w: CGFloat, h: CGFloat) -> some View {
-        var bestIdx = 0
-        var bestDelta = TimeInterval.greatestFiniteMagnitude
-        for (i, pt) in points.enumerated() {
-            let delta = abs(pt.date.timeIntervalSince(dose.doseDate))
-            if delta < bestDelta {
-                bestDelta = delta
-                bestIdx = i
+    // MARK: - Next dose dot
+
+    @ViewBuilder
+    private func nextDoseDot(bounds: (min: Double, max: Double, range: Double),
+                             w: CGFloat, h: CGFloat) -> some View {
+        if let nextDoseDate = medicationManager.nextDoseDate,
+           !points.isEmpty {
+            let firstDate = points.first!.date
+            let lastDate = points.last!.date
+            let totalTime = lastDate.timeIntervalSince(firstDate)
+            if totalTime > 0 {
+                let fraction = nextDoseDate.timeIntervalSince(firstDate) / totalTime
+                let rawX = fraction * w
+                let px = min(max(rawX, 8), w - 8)
+                let (minV, _, range) = bounds
+                let yValue = currentLevel ?? points.last!.value
+                let py = CurveLayout.yPos(value: yValue, min: minV, range: range,
+                                          height: h, dataFraction: dataRegionFraction)
+
+                ZStack {
+                    Circle()
+                        .stroke(levelTint.opacity(0.3), lineWidth: 1)
+                        .frame(width: 18, height: 18)
+                        .position(x: px, y: py)
+                    Circle()
+                        .stroke(levelTint, lineWidth: 2)
+                        .frame(width: 10, height: 10)
+                        .position(x: px, y: py)
+                    Text("next dose")
+                        .font(.system(size: 7, weight: .semibold))
+                        .foregroundStyle(Theme.Colors.Graph.yAxisLabel.opacity(0.55))
+                        .position(x: px, y: py + 14)
+                }
             }
         }
-        guard bestDelta < 7 * 86400 else { return AnyView(EmptyView()) }
-
-        let px = CurveLayout.markerX(index: bestIdx, count: points.count, width: w)
-        let py = CurveLayout.yPos(value: points[bestIdx].value, min: minV, range: range,
-                                    height: h, dataFraction: dataRegionFraction)
-
-        return AnyView(
-            ZStack {
-                Circle()
-                    .fill(Theme.Colors.accentSecondary.opacity(0.22))
-                    .frame(width: 12, height: 12)
-                    .position(x: px, y: py)
-                Circle()
-                    .fill(Theme.Colors.accentSecondary)
-                    .frame(width: 4, height: 4)
-                    .position(x: px, y: py)
-                Text("dose")
-                    .font(.system(size: 7, weight: .semibold))
-                    .foregroundStyle(Theme.Colors.accentSecondary.opacity(0.6))
-                    .position(x: px, y: py + 12)
-            }
-        )
     }
 
 }

@@ -36,6 +36,13 @@ class DoseRecord: Identifiable, Hashable {
     var skipReason: String?             // optional reason for intentionally skipping
     var injectionTime: Date?            // precise time-of-day for accurate PK modeling; nil = midnight
 
+    // --- Injection Site Tracking (v2.1) ---
+    var injectionSitesJSON: String?     // JSON-encoded [InjectionSite]; empty for oral routes
+    var recordedAt: Date?               // Real timestamp of record creation/edit
+    var isUserCorrected: Bool           // true if this record replaced a previous one
+    var originalDoseId: String?         // UUID of the original dose (nil for new doses)
+    var originalSiteJSON: String?       // JSON of original [InjectionSite] before correction (nil for new doses)
+
     /// Convenience initializer — called by managers, not by SwiftData directly.
     init(
         id: String = UUID().uuidString,
@@ -48,7 +55,12 @@ class DoseRecord: Identifiable, Hashable {
         notes: String? = nil,
         doseStatus: DoseStatus = .taken,
         skipReason: String? = nil,
-        injectionTime: Date? = nil
+        injectionTime: Date? = nil,
+        injectionSites: [InjectionSite] = [],
+        recordedAt: Date? = nil,
+        isUserCorrected: Bool = false,
+        originalDoseId: String? = nil,
+        originalSites: [InjectionSite] = []
     ) {
         self.id = id
         self.doseDate = doseDate
@@ -62,11 +74,46 @@ class DoseRecord: Identifiable, Hashable {
         self.doseStatus = doseStatus.rawValue
         self.skipReason = skipReason
         self.injectionTime = injectionTime
+        self.injectionSitesJSON = InjectionSite.toJSONArray(injectionSites)
+        self.recordedAt = recordedAt ?? Date()
+        self.isUserCorrected = isUserCorrected
+        self.originalDoseId = originalDoseId
+        self.originalSiteJSON = InjectionSite.toJSONArray(originalSites)
     }
 
     // Hashable conformance for Set operations
     func hash(into hasher: inout Hasher) { hasher.combine(id) }
     static func == (lhs: DoseRecord, rhs: DoseRecord) -> Bool { lhs.id == rhs.id }
+}
+
+// MARK: - Injection Site Computed Properties
+
+extension DoseRecord {
+    /// Decoded injection sites array from JSON storage.
+    var injectionSites: [InjectionSite] {
+        get { InjectionSite.fromJSONArray(injectionSitesJSON) }
+        set { injectionSitesJSON = InjectionSite.toJSONArray(newValue) }
+    }
+
+    /// Convenience: first site (most common case for injections).
+    var primarySite: InjectionSite? { injectionSites.first }
+
+    /// Convenience: backward-compatible single-site accessor.
+    var injectionSite: InjectionSite? {
+        get { primarySite }
+        set {
+            if let site = newValue {
+                injectionSitesJSON = InjectionSite.toJSONArray([site])
+            } else {
+                injectionSitesJSON = nil
+            }
+        }
+    }
+
+    /// Original sites before correction, preserved for audit trail.
+    var originalSites: [InjectionSite] {
+        InjectionSite.fromJSONArray(originalSiteJSON)
+    }
 }
 
 // MARK: - Convenience Extensions

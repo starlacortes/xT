@@ -204,8 +204,8 @@ struct OnboardingView: View {
 
             if hasBeenOnHRT {
                 HStack(spacing: 12) {
-                    durationStepper(label: "Years", value: $hrtDurationYears, range: 0...20)
-                    durationStepper(label: "Months", value: $hrtDurationMonths, range: 1...11)
+                    durationStepper(label: "Year", value: $hrtDurationYears, range: 0...20)
+                    durationStepper(label: "Month", value: $hrtDurationMonths, range: 1...11)
                 }
                 .padding(.horizontal, 40)
                 .transition(.opacity.combined(with: .move(edge: .bottom)))

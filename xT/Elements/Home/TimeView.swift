@@ -554,7 +554,7 @@ struct TimeBodySection: View {
 
             ForEach(engine.bodySystems) { system in
                 NavigationLink(value: system.systemKey) {
-                    TimeBodySystemRow(system: system, tenureTier: engine.tenureTier)
+                    TimeBodySystemRow(system: system, tenureTier: engine.tenureTier, months: engine.activeMonthsOnHRT)
                         .padding(.horizontal, 22)
                         .padding(.vertical, 14)
                 }
@@ -569,7 +569,14 @@ struct TimeBodySection: View {
         // Value-based navigation destination — maps BodySystemKey to detail view
         .navigationDestination(for: BodySystemKey.self) { key in
             if let system = engine.bodySystems.first(where: { $0.systemKey == key }) {
-                TimeBodyDetailView(system: system, engine: engine)
+                switch key {
+                case .moodAndMind:
+                    MoodMindDetailView(system: system, engine: engine)
+                case .bodyShape:
+                    BodyShapeDetailView(system: system, engine: engine)
+                default:
+                    TimeBodyDetailView(system: system, engine: engine)
+                }
             }
         }
     }
@@ -578,16 +585,25 @@ struct TimeBodySection: View {
 struct TimeBodySystemRow: View {
     let system: TimeBodySystem
     let tenureTier: TenureTier
+    let months: Int
 
     var body: some View {
-        HStack(spacing: 14) {
-            ZStack {
-                Circle()
-                    .fill(system.palette.surface)
-                    .frame(width: 38, height: 38)
-                Image(systemName: sfSymbol(for: system.icon))
-                    .font(.system(size: 16))
-                    .foregroundStyle(system.palette.accent)
+        HStack(alignment: .center, spacing: 14) {
+            switch system.systemKey {
+            case .moodAndMind:
+                MiniMindDiagram(months: months)
+            case .bodyShape:
+                MiniBodySilhouette(months: months)
+                    .padding(.horizontal, 9)
+            default:
+                ZStack {
+                    Circle()
+                        .fill(system.palette.surface)
+                        .frame(width: 38, height: 38)
+                    Image(systemName: sfSymbol(for: system.icon))
+                        .font(.system(size: 16))
+                        .foregroundStyle(system.palette.accent)
+                }
             }
 
             VStack(alignment: .leading, spacing: 5) {

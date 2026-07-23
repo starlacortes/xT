@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Mood & Mind — xT Time Tab</title>
+<style>
+  /* ============================================================
+     Theme tokens — mirrors xT/Theme/Theme.swift
+     ============================================================ */
+  :root {
+    --graph-baseTop:   #E4D8F0;
+    --graph-baseMid:   #EBE2F4;
+    --graph-baseDark:  #F2EDF8;
+    --graph-topGlow:   #E898B2;
+    --graph-rightGlow: #9B8FE0;
+    --graph-gridLine:  rgba(0,0,0,0.05);
+
+    --brand-rose:     #D4537E;
+    --brand-lavender: #8875D4;
+
+    --glass-tint:     #F0ECF8;
+    --glass-border:   rgba(255,255,255,0.20);
+    --card-bg:        rgba(255,255,255,0.80);
+    --separator:      rgba(0,0,0,0.08);
+
+    --text-primary:   #1C1C1E;
+    --text-secondary: #6B6B7A;
+    --text-tertiary:  #A0A0B0;
+
+    /* Mind palette (purple) */
+    --mind-base:    #534AB7;
+    --mind-base2:   #7E74D8;
+    --mind-surface: #EEEDFE;
+    --mind-border:  #CECBF6;
+    --mind-accent:  #534AB7;
+
+    --growing-color: #D4537E;
+
+    --radius-sm: 12px;
+    --radius-md: 16px;
+    --radius-lg: 20px;
+    --radius-xl: 24px;
+
+    --shadow-card: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-elevated: 0 4px 12px rgba(0,0,0,0.08);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --graph-baseTop:   #1A0D1A;
+      --graph-baseMid:   #0F0B1C;
+      --graph-baseDark:  #08060F;
+      --graph-topGlow:   #C0306A;
+      --graph-rightGlow: #7060D0;
+
+      --glass-border:   rgba(255,255,255,0.12);
+      --card-bg:        rgba(15,11,28,0.80);
+      --separator:      rgba(255,255,255,0.06);
+
+      --text-primary:   #F0EEFA;
+      --text-secondary: #8E8CA0;
+      --text-tertiary:  #605E78;
+
+      --mind-base:    #7E74D8;
+      --mind-base2:   #A098EC;
+      --mind-surface: #1E1C3A;
+      --mind-border:  #3D3880;
+      --mind-accent:  #7E74D8;
+
+      --growing-color: #E8709A;
+
+      --shadow-card: 0 1px 3px rgba(0,0,0,0.02);
+      --shadow-elevated: 0 4px 16px rgba(0,0,0,0.4);
+    }
+  }
+
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+    color: var(--text-primary);
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+    overflow-x: hidden;
+    background:
+      linear-gradient(180deg, var(--graph-topGlow) 0%, transparent 50%) no-repeat,
+      linear-gradient(270deg, var(--graph-rightGlow) 0%, transparent 40%) no-repeat,
+      linear-gradient(180deg, var(--graph-baseTop) 0%, var(--graph-baseMid) 40%, var(--graph-baseDark) 100%) no-repeat;
+    background-attachment: fixed;
+  }
+
+  .phone-frame {
+    width: 390px;
+    min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
+    overflow-y: auto;
+    background: transparent;
+  }
+
+  @media (max-width: 390px) { .phone-frame { width: 100%; } }
+
+  /* Glass card */
+  .glass-card {
+    background: var(--card-bg);
+    backdrop-filter: blur(28px);
+    -webkit-backdrop-filter: blur(28px);
+    border-radius: var(--radius-lg);
+    border: 0.5px solid var(--glass-border);
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+  }
+
+  /* Brand gradient text */
+  .brand-gradient-text {
+    background: linear-gradient(135deg, var(--brand-rose), var(--brand-lavender));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Hero */
+  .hero {
+    padding: 56px 22px 12px;
+  }
+
+  .hero-breadcrumb {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    letter-spacing: -0.2px;
+    margin-bottom: 2px;
+  }
+
+  .hero-title {
+    font-size: 34px;
+    font-weight: 700;
+    letter-spacing: -1.0px;
+    line-height: 1.05;
+    margin-bottom: 4px;
+  }
+
+  .hero-subtitle {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .hero-tier-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 500;
+    background: color-mix(in srgb, var(--brand-lavender) 14%, transparent);
+    color: var(--brand-lavender);
+  }
+
+  /* Scrubber */
+  .scrubber {
+    margin: 4px 22px 16px;
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    background: var(--card-bg);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 0.5px solid var(--glass-border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .scrubber-emoji {
+    font-size: 22px;
+    line-height: 1;
+  }
+
+  .scrubber-tier {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--brand-lavender);
+    min-width: 60px;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .scrubber-value {
+    font-size: 20px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-primary);
+    min-width: 28px;
+    text-align: center;
+  }
+
+  .scrubber-value-unit {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-tertiary);
+    margin-left: -6px;
+  }
+
+  .range-slider {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 4px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, var(--brand-rose), var(--brand-lavender));
+    opacity: 0.35;
+    outline: none;
+  }
+
+  .range-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--brand-lavender);
+    border: 3px solid var(--card-bg);
+    box-shadow: 0 2px 8px rgba(136,117,212,0.35);
+    cursor: pointer;
+    transition: transform 0.15s ease;
+  }
+
+  .range-slider::-webkit-slider-thumb:active { transform: scale(1.15); }
+
+  /* Section label */
+  .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    letter-spacing: 0.5px;
+    padding: 18px 22px 8px;
+  }
+
+  /* Divider */
+  .divider {
+    height: 0.5px;
+    background: var(--separator);
+    margin: 0 22px;
+  }
+
+  /* Wireframe */
+  .wireframe-container {
+    position: relative;
+    width: 100%;
+    height: 380px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .wireframe-container svg {
+    width: 100%;
+    height: 100%;
+    max-width: 360px;
+  }
+
+  .wireframe-dot {
+    cursor: pointer;
+    transition: r 0.25s ease, fill 0.25s ease, filter 0.25s ease;
+  }
+
+  .wireframe-dot:hover {
+    filter: drop-shadow(0 0 8px rgba(212,83,126,0.4));
+  }
+
+  /* Stats */
+  .stats-row {
+    display: flex;
+    gap: 10px;
+    padding: 0 22px 14px;
+  }
+
+  .stat-card {
+    flex: 1;
+    padding: 14px 10px;
+    border-radius: var(--radius-sm);
+    background: var(--card-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 0.5px solid var(--glass-border);
+    text-align: center;
+    transition: transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  .stat-card:hover { transform: translateY(-2px); }
+
+  .stat-value {
+    font-size: 26px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.5px;
+    color: var(--mind-base);
+    transition: color 0.4s ease;
+  }
+
+  .stat-label {
+    font-size: 10px;
+    color: var(--text-tertiary);
+    margin-top: 2px;
+    letter-spacing: 0.3px;
+  }
+
+  .stat-sub {
+    font-size: 9px;
+    color: var(--text-tertiary);
+    margin-top: 1px;
+    opacity: 0.7;
+  }
+
+  /* Region cards */
+  .region-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 4px 22px 20px;
+  }
+
+  .region-card {
+    padding: 14px;
+    border-radius: var(--radius-md);
+    border: 0.5px solid var(--separator);
+    background: var(--card-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    position: relative;
+  }
+
+  .region-card.active {
+    border-color: var(--mind-base2);
+    background: color-mix(in srgb, var(--mind-surface) 70%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--mind-base2) 10%, transparent);
+  }
+
+  .region-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+  }
+
+  .region-card-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--mind-base2) 18%, transparent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  .region-card-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.2px;
+  }
+
+  .region-card-status {
+    margin-left: auto;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--mind-base);
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--mind-base2) 12%, transparent);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .region-card-text {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    max-height: 56px;
+    overflow: hidden;
+    position: relative;
+    transition: max-height 0.4s ease, opacity 0.3s ease;
+  }
+
+  .region-card-text.masked::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 22px;
+    background: linear-gradient(transparent, var(--card-bg));
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+  }
+
+  .region-card-text.expanded { max-height: 500px; }
+  .region-card-text.expanded.masked::after { opacity: 0; }
+
+  .region-card-more {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--mind-base);
+    margin-top: 6px;
+    display: inline-block;
+    cursor: pointer;
+  }
+
+  /* Stage dots */
+  .stage-dots {
+    display: flex;
+    gap: 6px;
+    padding: 0 22px;
+    margin-bottom: 10px;
+  }
+
+  .stage-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--separator);
+    transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  .stage-dot.past   { background: var(--mind-base2); width: 20px; border-radius: 3px; }
+  .stage-dot.active { background: var(--mind-base); width: 16px; border-radius: 3px; animation: pulse-dot 2.5s ease-in-out infinite; }
+
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
+  }
+
+  /* Timeline pills */
+  .timeline-bar {
+    display: flex;
+    gap: 6px;
+    padding: 0 22px 12px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .timeline-bar::-webkit-scrollbar { display: none; }
+
+  .timeline-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+    flex-shrink: 0;
+    color: var(--text-secondary);
+    background: color-mix(in srgb, var(--text-secondary) 8%, transparent);
+    border: 0.5px solid var(--separator);
+    transition: all 0.3s ease;
+    cursor: pointer;
+  }
+
+  .timeline-pill.done {
+    color: var(--mind-base);
+    background: color-mix(in srgb, var(--mind-base2) 15%, transparent);
+    border-color: var(--mind-border);
+  }
+
+  .timeline-pill.pending {
+    color: var(--text-tertiary);
+    background: transparent;
+    border: 0.5px dashed var(--separator);
+  }
+
+  /* Insight */
+  .insight-banner {
+    margin: 0 22px 16px;
+    padding: 14px;
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--brand-lavender) 8%, transparent);
+    border: 0.5px solid color-mix(in srgb, var(--brand-lavender) 18%, transparent);
+  }
+
+  .insight-banner-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--brand-lavender);
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+  }
+
+  .insight-banner-text {
+    font-size: 13px;
+    color: var(--text-primary);
+    line-height: 1.45;
+    font-weight: 500;
+  }
+
+  /* Entrance */
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .entrance {
+    animation: slideUp 0.55s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+  }
+
+  .s1 { animation-delay: 0.00s; }
+  .s2 { animation-delay: 0.07s; }
+  .s3 { animation-delay: 0.14s; }
+  .s4 { animation-delay: 0.21s; }
+  .s5 { animation-delay: 0.28s; }
+  .s6 { animation-delay: 0.35s; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .entrance { animation: none; opacity: 1; }
+  }
+
+  /* Footer */
+  .page-footer {
+    padding: 8px 22px 40px;
+    text-align: center;
+  }
+
+  .page-footer-text {
+    font-size: 11px;
+    color: var(--text-tertiary);
+  }
+
+  .page-footer-emoji {
+    font-size: 16px;
+    vertical-align: middle;
+  }
+</style>
+</head>
+<body>
+<div class="phone-frame">
+  <div class="hero entrance s1">
+    <div class="hero-breadcrumb">Time · Body Systems</div>
+    <div class="hero-title brand-gradient-text">Mood & Mind</div>
+    <div class="hero-subtitle">
+      <span>Estrogen · Injectable</span>
+      <span class="hero-tier-badge" id="heroBadge">🌱 Month 0–2</span>
+    </div>
+  </div>
+
+  <div class="scrubber entrance s2">
+    <span class="scrubber-emoji" id="scrubEmoji">🌱</span>
+    <span class="scrubber-tier" id="scrubTier">Beginning</span>
+    <span class="scrubber-value" id="scrubMonth">1</span>
+    <span class="scrubber-value-unit">mo</span>
+    <input type="range" class="range-slider" id="timeSlider" min="0" max="144" value="1" step="1">
+  </div>
+
+  <!-- Brain Wireframe -->
+  <div class="wireframe-container entrance s3">
+    <svg viewBox="0 0 360 380" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="brainBgGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="var(--mind-base2)" stop-opacity="0.08"/>
+          <stop offset="100%" stop-color="var(--mind-base2)" stop-opacity="0"/>
+        </radialGradient>
+        <radialGradient id="hippGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="var(--growing-color)" stop-opacity="0.18"/>
+          <stop offset="100%" stop-color="var(--growing-color)" stop-opacity="0"/>
+        </radialGradient>
+        <filter id="dotGlowM">
+          <feGaussianBlur stdDeviation="1.5" result="blur"/>
+          <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+        </filter>
+      </defs>
+
+      <!-- Background glow -->
+      <ellipse cx="180" cy="190" rx="140" ry="130" fill="url(#brainBgGlow)"/>
+
+      <!-- Brain outline -->
+      <g opacity="0.32">
+        <path d="M180 85 Q105 80 65 128 Q35 175 48 245 Q55 285 80 320 Q110 350 140 355 Q165 360 180 355" stroke="var(--mind-base)" stroke-width="1.3" fill="none"/>
+        <path d="M180 85 Q255 80 295 128 Q325 175 312 245 Q305 285 280 320 Q250 350 220 355 Q195 360 180 355" stroke="var(--mind-base)" stroke-width="1.3" fill="none"/>
+        <line x1="180" y1="87" x2="180" y2="353" stroke="var(--mind-base)" stroke-width="0.6" opacity="0.5" stroke-dasharray="3 6"/>
+      </g>
+
+      <!-- Central sulcus -->
+      <path d="M135 125 Q168 185 148 300" stroke="currentColor" stroke-width="0.6" opacity="0.18"/>
+      <path d="M225 125 Q192 185 212 300" stroke="currentColor" stroke-width="0.6" opacity="0.18"/>
+
+      <!-- Corpus callosum -->
+      <path d="M125 170 Q180 155 235 170" stroke="var(--mind-base)" stroke-width="0.8" opacity="0.20" stroke-dasharray="2 4"/>
+
+      <!-- PFC region -->
+      <ellipse id="pfcAreaL" cx="150" cy="160" rx="42" ry="38" fill="var(--mind-base)" opacity="0.04"/>
+      <ellipse id="pfcAreaR" cx="210" cy="160" rx="42" ry="38" fill="var(--mind-base)" opacity="0.04"/>
+
+      <!-- Hippocampus -->
+      <ellipse id="hippAreaL" cx="150" cy="272" rx="28" ry="18" fill="url(#hippGlow)" opacity="0.18"/>
+      <ellipse id="hippAreaR" cx="210" cy="272" rx="28" ry="18" fill="url(#hippGlow)" opacity="0.18"/>
+      <path id="hippCrescentL" d="M132 267 Q150 254 168 267 Q150 282 132 267" stroke="var(--growing-color)" stroke-width="1.5" fill="none" opacity="0.45"/>
+      <path id="hippCrescentR" d="M192 267 Q210 254 228 267 Q210 282 192 267" stroke="var(--growing-color)" stroke-width="1.5" fill="none" opacity="0.45"/>
+
+      <!-- Amygdala -->
+      <circle id="amygL" cx="138" cy="245" r="9" fill="var(--mind-base)" opacity="0.06"/>
+      <circle id="amygR" cx="222" cy="245" r="9" fill="var(--mind-base)" opacity="0.06"/>
+      <text x="138" y="248" text-anchor="middle" font-size="7" fill="var(--mind-base)" opacity="0.35">A</text>
+      <text x="222" y="248" text-anchor="middle" font-size="7" fill="var(--mind-base)" opacity="0.35">A</text>
+
+      <!-- Neural network (populated by JS) -->
+      <g id="brainNetwork"></g>
+
+      <!-- Callouts -->
+      <g id="callouts">
+        <line x1="156" y1="164" x2="48" y2="108" stroke="var(--mind-base2)" stroke-width="1" opacity="0.4"/>
+        <circle cx="46" cy="106" r="5" fill="var(--mind-base2)" opacity="0.14"/>
+        <circle cx="46" cy="106" r="4" fill="var(--mind-base)" class="wireframe-dot" data-region="pfc" filter="url(#dotGlowM)"/>
+        <text x="36" y="96" font-size="9" font-weight="600" fill="currentColor" opacity="0.42">Prefrontal</text>
+        <text x="36" y="106" font-size="8" fill="currentColor" opacity="0.30">Cortex</text>
+
+        <line x1="134" y1="278" x2="40" y2="290" stroke="var(--growing-color)" stroke-width="1" opacity="0.4"/>
+        <circle cx="38" cy="288" r="5" fill="var(--growing-color)" opacity="0.14"/>
+        <circle cx="38" cy="288" r="4" fill="var(--growing-color)" class="wireframe-dot" data-region="hippocampus" filter="url(#dotGlowM)"/>
+        <text x="24" y="280" font-size="9" font-weight="600" fill="currentColor" opacity="0.42">Hippocampus</text>
+
+        <line x1="148" y1="242" x2="70" y2="210" stroke="var(--mind-base2)" stroke-width="1" opacity="0.35"/>
+        <circle cx="68" cy="208" r="5" fill="var(--mind-base2)" opacity="0.12"/>
+        <circle cx="68" cy="208" r="4" fill="var(--mind-base)" class="wireframe-dot" data-region="amygdala" filter="url(#dotGlowM)" opacity="0.8"/>
+        <text x="56" y="198" font-size="9" font-weight="600" fill="currentColor" opacity="0.42">Amygdala</text>
+
+        <line x1="200" y1="195" x2="305" y2="140" stroke="var(--mind-base2)" stroke-width="1" opacity="0.35"/>
+        <circle cx="307" cy="138" r="5" fill="var(--mind-base2)" opacity="0.12"/>
+        <circle cx="307" cy="138" r="4" fill="var(--mind-base)" class="wireframe-dot" data-region="synaptic" filter="url(#dotGlowM)" opacity="0.8"/>
+        <text x="295" y="128" font-size="9" font-weight="600" fill="currentColor" opacity="0.42">Synaptic</text>
+        <text x="295" y="138" font-size="8" fill="currentColor" opacity="0.30">Plasticity</text>
+      </g>
+
+      <text id="annotation" x="180" y="368" text-anchor="middle" font-size="10" fill="currentColor" opacity="0.25">
+        Neuroplasticity increases as hormone levels stabilise
+      </text>
+    </svg>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row entrance s4" id="statsRow"></div>
+
+  <!-- Timeline pills -->
+  <div class="timeline-bar entrance s5" id="timelineBar"></div>
+
+  <!-- Stage dots -->
+  <div class="stage-dots entrance s5" id="stageDots"></div>
+
+  <!-- Insight -->
+  <div class="insight-banner entrance s5" id="insightBanner">
+    <div class="insight-banner-label">KEY INSIGHT</div>
+    <div class="insight-banner-text" id="insightText"></div>
+  </div>
+
+  <!-- Region cards -->
+  <div class="region-cards entrance s6" id="regionCards"></div>
+
+  <div class="page-footer">
+    <span class="page-footer-text" id="pageFooter"></span>
+  </div>
+</div>
+
+<script>
+(function() {
+  const TIERS = [
+    { name: 'Beginning', emoji: '🌱', m0:0,  m1:2,   band: 'Month 0–2' },
+    { name: 'Emerging',  emoji: '🌿', m0:3,  m1:5,   band: 'Month 3–5' },
+    { name: 'In Motion', emoji: '🍃', m0:6,  m1:11,  band: 'Month 6–11' },
+    { name: 'Deepening', emoji: '🌾', m0:12, m1:23,  band: 'Year 1–2' },
+    { name: 'Settled',   emoji: '🌳', m0:24, m1:59,  band: 'Year 2–5' },
+    { name: 'Rooted',    emoji: '🌀', m0:60, m1:119, band: 'Year 5–10' },
+    { name: 'Veteran',   emoji: '🏔️', m0:120,m1:144,band: '10+ years' },
+  ];
+
+  function tierFor(m) {
+    if (m <= 2)  return TIERS[0];
+    if (m <= 5)  return TIERS[1];
+    if (m <= 11) return TIERS[2];
+    if (m <= 23) return TIERS[3];
+    if (m <= 59) return TIERS[4];
+    if (m <= 119)return TIERS[5];
+    return TIERS[6];
+  }
+
+  const REGIONS = {
+    pfc: {
+      label: 'Prefrontal Cortex', icon: '🧠', start: 1, peak: 18, complete: 36,
+      early: 'Estrogen receptors (ER-α, ER-β) in the PFC begin responding to rising estradiol. Cerebral blood flow increases measurably, supporting early shifts in executive function and working memory.',
+      mid: 'Dopaminergic signaling in the PFC is being modulated by estrogen. Many report improved cognitive flexibility, enriched emotional regulation, and a qualitative shift in how decisions feel — less analytical, more integrative.',
+      late: 'PFC function has stabilized. The neural circuits governing executive function and emotional top-down control are fully adapted to the estrogen-dominant neurochemical environment.',
+    },
+    hippocampus: {
+      label: 'Hippocampus', icon: '🌀', start: 1, peak: 24, complete: 48,
+      early: 'Estradiol rapidly upregulates BDNF (brain-derived neurotrophic factor) in the hippocampus. Synaptogenesis begins — new dendritic spines are sprouting on CA1 pyramidal neurons within the first month.',
+      mid: 'Hippocampal volume is measurably increasing due to estrogen-driven neurogenesis in the dentate gyrus. Spine density in CA1 has increased ~30%. Verbal memory and spatial navigation show measurable improvements on standardized assessments.',
+      late: 'The hippocampus has fully adapted. Estrogen-mediated neuroprotection is ongoing — this region now benefits from sustained BDNF signaling, enhanced synaptic plasticity, and reduced oxidative stress.',
+    },
+    amygdala: {
+      label: 'Amygdala', icon: '💫', start: 1, peak: 12, complete: 24,
+      early: 'Estrogen begins modulating amygdala reactivity. Emotional intensity may feel heightened as the amygdala adjusts to reduced testosterone and increasing estradiol signaling.',
+      mid: 'Amygdala response patterns are shifting. Many report a richer emotional range — increased empathy, deeper emotional recall, and a qualitative change in how emotions are experienced and expressed.',
+      late: 'Amygdala function has stabilized. Emotional responses are well-calibrated to the new hormonal environment. The initial "emotional recalibration" period is largely complete.',
+    },
+    synaptic: {
+      label: 'Synaptic Plasticity', icon: '✨', start: 1, peak: 18, complete: 60,
+      early: 'Estrogen rapidly enhances long-term potentiation (LTP) in hippocampal and cortical synapses. NMDA receptor expression increases within the first weeks of therapy, priming circuits for remodelling.',
+      mid: 'Synaptic density is actively increasing across limbic and cortical regions. Estrogen promotes dendritic spine formation and stabilizes existing synapses through CREB-mediated gene transcription — this is structural brain change.',
+      late: 'Synaptic architecture has fully remodelled. The enhanced plasticity state is maintained through ongoing estrogen exposure — this is not a one-time change but a continuous process supported by consistent hormone levels.',
+    },
+  };
+
+  const BRAIN_NODES = [
+    { id:'n1',x:120,y:130 },{ id:'n2',x:155,y:110 },{ id:'n3',x:190,y:125 },
+    { id:'n4',x:210,y:140 },{ id:'n5',x:233,y:120 },{ id:'n6',x:140,y:165 },
+    { id:'n7',x:175,y:175 },{ id:'n8',x:200,y:160 },{ id:'n9',x:130,y:200 },
+    { id:'n10',x:160,y:210 },{ id:'n11',x:198,y:195 },{ id:'n12',x:228,y:205 },
+    { id:'n13',x:145,y:248 },{ id:'n14',x:175,y:252 },{ id:'n15',x:208,y:242 },
+    { id:'n16',x:125,y:282 },{ id:'n17',x:155,y:288 },{ id:'n18',x:195,y:292 },
+    { id:'n19',x:225,y:278 },{ id:'n20',x:170,y:318 },
+  ];
+
+  const BRAIN_EDGES = [
+    ['n1','n2'],['n1','n6'],['n2','n3'],['n2','n7'],['n3','n4'],['n3','n8'],
+    ['n4','n5'],['n4','n11'],['n6','n7'],['n6','n9'],['n7','n8'],['n7','n10'],
+    ['n8','n11'],['n9','n10'],['n9','n13'],['n10','n14'],['n11','n12'],
+    ['n11','n15'],['n12','n15'],['n13','n14'],['n13','n16'],['n14','n15'],
+    ['n14','n17'],['n15','n19'],['n16','n17'],['n17','n18'],['n18','n19'],
+    ['n17','n20'],['n18','n20'],['n5','n12'],['n3','n6'],['n8','n14'],
+    ['n10','n13'],['n18','n15'],
+  ];
+
+  let activeRegion = null;
+
+  function stageDots(m) {
+    const tier = tierFor(m);
+    const idx = TIERS.indexOf(tier);
+    let html = '';
+    for (let i = 0; i < TIERS.length; i++) {
+      let cls = 'stage-dot';
+      if (i < idx) cls += ' past';
+      else if (i === idx) cls += ' active';
+      html += `<div class="${cls}" title="${TIERS[i].name}"></div>`;
+    }
+    document.getElementById('stageDots').innerHTML = html;
+  }
+
+  function buildStats(m) {
+    const syn = (1 + Math.min(1, m/18) * 0.45).toFixed(1);
+    const hipp = (1 + Math.min(1, m/48) * 0.12).toFixed(1);
+    const bdnf = (1 + Math.min(1, m/12) * 0.50).toFixed(1);
+
+    const stats = [
+      { value: syn+'x', label: 'Synaptic Density', sub: m >= 18 ? 'Peak reached' : 'Rising' },
+      { value: hipp+'x', label: 'Hippocampal Vol.', sub: m >= 48 ? 'Fully adapted' : 'Growing' },
+      { value: bdnf+'x', label: 'BDNF Activity', sub: m >= 12 ? 'Peak reached' : 'Rising' },
+    ];
+
+    document.getElementById('statsRow').innerHTML = stats.map(s =>
+      `<div class="stat-card">
+        <div class="stat-value">${s.value}</div>
+        <div class="stat-label">${s.label}</div>
+        <div class="stat-sub">${s.sub}</div>
+      </div>`
+    ).join('');
+  }
+
+  function buildTimeline(m) {
+    const pills = [];
+    for (const [key, r] of Object.entries(REGIONS)) {
+      const done = m >= r.complete;
+      const active = m >= r.start && m < r.complete;
+      pills.push({ label: r.label, done, active, key });
+    }
+    document.getElementById('timelineBar').innerHTML = pills.map(p =>
+      `<span class="timeline-pill ${p.done ? 'done' : p.active ? 'done' : 'pending'}" data-region="${p.key}">
+        ${p.done ? '✓' : p.active ? '●' : '○'} ${p.label}
+      </span>`
+    ).join('');
+  }
+
+  function buildCards(m) {
+    let html = '';
+    for (const [key, r] of Object.entries(REGIONS)) {
+      let text, status;
+      if (m < r.start) {
+        text = `Changes to the ${r.label.toLowerCase()} are about to begin as hormone levels rise and neural receptors activate.`;
+        status = `Starts M${r.start}`;
+      } else if (m < r.peak) {
+        text = r.early;
+        const p = Math.round((m - r.start) / (r.peak - r.start) * 100);
+        status = `${p}% underway`;
+      } else if (m < r.complete) {
+        text = r.mid;
+        const p = Math.round((m - r.start) / (r.complete - r.start) * 100);
+        status = `${p}% complete`;
+      } else {
+        text = r.late;
+        status = 'Established';
+      }
+
+      const active = activeRegion === key;
+      html += `
+        <div class="region-card${active ? ' active' : ''}" data-region="${key}" onclick="__sel('${key}')">
+          <div class="region-card-header">
+            <div class="region-card-icon">${r.icon}</div>
+            <div class="region-card-title">${r.label}</div>
+            <div class="region-card-status">${status}</div>
+          </div>
+          <div class="region-card-text masked" id="ct_${key}">${text}</div>
+          <span class="region-card-more" onclick="event.stopPropagation();__toggle('${key}')">Read more →</span>
+        </div>`;
+    }
+    document.getElementById('regionCards').innerHTML = html;
+  }
+
+  function buildBrainNetwork(m) {
+    const density = Math.min(1, m / 36);
+    const nodeMap = {};
+    BRAIN_NODES.forEach(n => nodeMap[n.id] = n);
+
+    let html = '';
+    BRAIN_EDGES.forEach(([from, to]) => {
+      const a = nodeMap[from], b = nodeMap[to];
+      if (!a || !b) return;
+      const g = Math.min(1, ((a.y + b.y) / 2 - 100) / 230 * density * 2.5);
+      html += `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"
+        stroke="var(--mind-base2)" stroke-width="${(g*1.2+0.3).toFixed(1)}"
+        opacity="${(g*0.55).toFixed(2)}"/>`;
+    });
+
+    BRAIN_NODES.forEach(n => {
+      const g = Math.min(1, (n.y - 100) / 230 * density * 1.8);
+      const r = (1.4 + g * 2.8).toFixed(1);
+      const op = (0.10 + g * 0.60).toFixed(2);
+      html += `<circle cx="${n.x}" cy="${n.y}" r="${r}" fill="var(--mind-base)" opacity="${op}"/>`;
+    });
+    return html;
+  }
+
+  function updateBrainSVG(m) {
+    const g = Math.min(1, m / 48);
+    ['hippCrescentL','hippCrescentR'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.setAttribute('stroke-width', (1.5 + g * 1.8).toFixed(1));
+    });
+    ['hippAreaL','hippAreaR'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.setAttribute('opacity', (0.10 + g * 0.38).toFixed(2));
+    });
+
+    document.getElementById('brainNetwork').innerHTML = buildBrainNetwork(m);
+  }
+
+  function insight(m) {
+    if (m < 3) return 'Neurochemical recalibration is beginning as estradiol levels rise. Your brain\'s estrogen receptors (ER-α and ER-β) in the hippocampus, amygdala, and prefrontal cortex are activating for the first time in this hormonal context.';
+    if (m < 12) return 'Estrogen is actively remodelling your neural circuits. Synaptic density is measurably increasing — new dendritic spines are sprouting in the hippocampus and prefrontal cortex. BDNF is upregulated, supporting neuroplasticity.';
+    if (m < 36) return 'Hippocampal volume is increasing due to estrogen-driven neurogenesis in the dentate gyrus. The amygdala\'s reactivity patterns have shifted, contributing to a richer emotional range. Synaptic architecture continues to be refined.';
+    if (m < 60) return 'Synaptic architecture is stabilizing. Your neural circuits are now well-adapted to the estrogen-dominant neurochemical environment. Estrogen continues to provide neuroprotection through sustained BDNF signaling and reduced oxidative stress.';
+    return 'Your brain\'s neural architecture is fully adapted. Consistent hormone levels maintain ongoing neuroprotection, synaptic health, and emotional stability. This is a continuous, active state supported by estrogen.';
+  }
+
+  function annotation(m) {
+    const lines = [
+      { max: 3,  text: 'Neurochemical recalibration begins as estradiol rises' },
+      { max: 12, text: 'Active neural remodelling — synaptic density increasing' },
+      { max: 36, text: 'Hippocampal volume growing — memory & emotion centres maturing' },
+      { max: 60, text: 'Synaptic architecture stabilising — ongoing neuroprotection' },
+      { max: 144,text: 'Fully adapted neural circuits — sustained by consistent levels' },
+    ];
+    for (const l of lines) { if (m < l.max) return l.text; }
+    return lines[lines.length-1].text;
+  }
+
+  window.__toggle = function(key) {
+    const el = document.getElementById('ct_' + key);
+    if (!el) return;
+    el.classList.toggle('expanded');
+    el.classList.toggle('masked');
+  };
+
+  window.__sel = function(key) {
+    activeRegion = (activeRegion === key) ? null : key;
+    buildCards(parseInt(document.getElementById('timeSlider').value));
+  };
+
+  function update(m) {
+    const tier = tierFor(m);
+    document.getElementById('heroBadge').textContent = tier.emoji + ' ' + tier.band;
+    document.getElementById('scrubEmoji').textContent = tier.emoji;
+    document.getElementById('scrubTier').textContent = tier.name;
+    document.getElementById('scrubMonth').textContent = m;
+    document.getElementById('insightText').textContent = insight(m);
+    document.getElementById('annotation').textContent = annotation(m);
+    document.getElementById('pageFooter').innerHTML = `<span class="page-footer-emoji">${tier.emoji}</span> ${tier.name} · Month ${m} on HRT`;
+
+    stageDots(m);
+    buildStats(m);
+    buildTimeline(m);
+    buildCards(m);
+    updateBrainSVG(m);
+  }
+
+  document.getElementById('timeSlider').addEventListener('input', function() {
+    update(parseInt(this.value));
+  });
+
+  document.querySelectorAll('.wireframe-dot').forEach(dot => {
+    dot.addEventListener('click', function() {
+      const r = this.getAttribute('data-region');
+      if (r) {
+        window.__sel(r);
+        const card = document.querySelector(`.region-card[data-region="${r}"]`);
+        if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
+  });
+
+  document.getElementById('timelineBar').addEventListener('click', function(e) {
+    const pill = e.target.closest('.timeline-pill');
+    if (!pill) return;
+    const r = pill.getAttribute('data-region');
+    if (r) {
+      window.__sel(r);
+      const card = document.querySelector(`.region-card[data-region="${r}"]`);
+      if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  });
+
+  update(1);
+})();
+</script>
+</body>
+</html>

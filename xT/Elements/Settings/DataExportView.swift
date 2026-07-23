@@ -55,8 +55,10 @@ struct DataExportView: View {
             // MARK: - What's Included
             Section {
                 summaryRow(icon: "syringe", label: "Dose history", count: activeDoseCount)
+                summaryRow(icon: "figure.arms.open", label: "Administration site history", count: siteDoseCount)
                 summaryRow(icon: "book", label: "Journal entries", count: journalManager.entries.count)
                 summaryRow(icon: "drop", label: "Blood test results", count: medicationManager.bloodTestHistory.count)
+                summaryRow(icon: "exclamationmark.shield", label: "Avoid zones", count: avoidZoneCount)
             } header: {
                 Text("What's Included")
             }
@@ -140,6 +142,14 @@ struct DataExportView: View {
         medicationManager.doseHistory.filter(\.isActive).count
     }
 
+    private var siteDoseCount: Int {
+        medicationManager.doseHistory.filter { $0.isActive && !$0.injectionSites.isEmpty }.count
+    }
+
+    private var avoidZoneCount: Int {
+        medicationManager.avoidZones.count
+    }
+
     private func generateExports() {
         guard let context = modelContainer?.mainContext else { return }
         let prefs = try? context.fetch(FetchDescriptor<UserPreferences>()).first
@@ -165,7 +175,8 @@ struct DataExportView: View {
             targetTroughMax: medicationManager.userTherapeuticTarget?.troughMax ?? 0,
             targetPeakCeiling: medicationManager.userTherapeuticTarget?.peakCeiling ?? 0,
             medicationUnit: medicationManager.selectedMedication == "Estrogen" ? "pg/mL" : "ng/dL",
-            profileName: profileManager.profileName
+            profileName: profileManager.profileName,
+            avoidZones: medicationManager.avoidZones
         )
 
         csvString = DataExporter.exportCSV(state: state)

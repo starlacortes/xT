@@ -37,6 +37,7 @@ struct DataExporter {
         let targetPeakCeiling: Double
         let medicationUnit: String
         let profileName: String
+        let avoidZones: [String: AvoidZoneInfo]
     }
 
     // MARK: - Public API
@@ -47,9 +48,13 @@ struct DataExporter {
 
         csv.append(doseHistoryCSV(state.doseHistory))
         csv.append("\n")
+        csv.append(injectionSiteCSV(state.doseHistory))
+        csv.append("\n")
         csv.append(journalEntriesCSV(state.journalEntries))
         csv.append("\n")
         csv.append(bloodTestsCSV(state.bloodTests))
+        csv.append("\n")
+        csv.append(avoidZonesCSV(state.avoidZones))
         csv.append("\n")
         csv.append(exportPreferencesCSV(state))
 
@@ -63,7 +68,10 @@ struct DataExporter {
             doseHistory: state.doseHistory.filter(\.isActive).map(DoseExport.from),
             journalEntries: state.journalEntries.map(JournalExport.from),
             bloodTests: state.bloodTests.map(BloodTestExport.from),
-            preferences: PreferencesExport.from(state)
+            preferences: PreferencesExport.from(state),
+            avoidZones: state.avoidZones.map { (zone, info) in
+                AvoidZoneExport(zoneLabel: zone, reason: info.reason, markedAt: isoFormatter.string(from: info.markedAt))
+            }.sorted(by: { $0.zoneLabel < $1.zoneLabel })
         )
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -74,14 +82,87 @@ struct DataExporter {
 
     private static func doseHistoryCSV(_ records: [DoseRecord]) -> String {
         var csv = "# ---- DOSE RECORDS ----\n"
-        csv.append("id,date,medication,ester,method,dose_mg,conc_mg_per_ml,status,skip_reason,injection_time\n")
+        csv.append("id,date,medication,ester,method,dose_mg,conc_mg_per_ml,status,skip_reason,injection_time,is_user_corrected,original_dose_id,recorded_at,site_count\n")
         for r in records where r.isActive {
             let status = r.doseStatus
             let conc = r.concentrationMgPerMl.map { String($0) } ?? ""
             let injectionTime = r.injectionTime.map { isoFormatter.string(from: $0) } ?? ""
             let skipReason = (r.skipReason ?? "").replacingOccurrences(of: "\"", with: "\"\"")
-            let line = "\"\(r.id)\",\"\(isoFormatter.string(from: r.doseDate))\",\"\(r.medicationType)\",\"\(r.ester)\",\"\(r.administrationMethod)\",\(r.doseAmount),\(conc),\"\(status)\",\"\(skipReason)\",\"\(injectionTime)\"\n"
+            let corrected = r.isUserCorrected ? "true" : "false"
+            let origId = r.originalDoseId ?? ""
+            let recordedStr = r.recordedAt.map { isoFormatter.string(from: $0) } ?? ""
+            let siteCount = r.injectionSites.count
+            let line = "\"\(r.id)\",\"\(isoFormatter.string(from: r.doseDate))\",\"\(r.medicationType)\",\"\(r.ester)\",\"\(r.administrationMethod)\",\(r.doseAmount),\(conc),\"\(status)\",\"\(skipReason)\",\"\(injectionTime)\",\(corrected),\"\(origId)\",\"\(recordedStr)\",\(siteCount)\n"
             csv.append(line)
+        }
+        return csv
+    }
+
+    /// Multi-row site export — one row per site per dose.
+    private static func injectionSiteCSV(_ records: [DoseRecord]) -> String {
+        // Only emit section if there's at least one record with site data.
+        let hasSites = records.contains { !$0.injectionSites.isEmpty }
+        guard hasSites else { return "" }
+
+        var csv = "# ---- ADMINISTRATION SITES ----\n"
+        csv.append("dose_id,dose_date,medication,ester,method,route_class,route_class_display,recorded_at,site_index,zone_label,view_context,sketch_id,body_region,normalized_x,normalized_y,duration_days,is_corrected,original_site,original_dose_id\n")
+
+        for r in records where r.isActive && !r.injectionSites.isEmpty {
+            let rc = RouteClass.from(method: r.administrationMethod)
+            let recordedStr = r.recordedAt.map { isoFormatter.string(from: $0) } ?? ""
+            let origId = r.originalDoseId ?? ""
+            let medType = r.medicationType.replacingOccurrences(of: "\"", with: "\"\"")
+            let ester = r.ester.replacingOccurrences(of: "\"", with: "\"\"")
+            let method = r.administrationMethod.replacingOccurrences(of: "\"", with: "\"\"")
+
+            for (idx, site) in r.injectionSites.enumerated() {
+                let originalSite: String
+                let orig = r.originalSites
+                if r.isUserCorrected, idx < orig.count {
+                    let o = orig[idx]
+                    let escapedZone = o.zoneLabel.replacingOccurrences(of: "\"", with: "\"\"")
+                    let escapedCtx = o.viewContext.replacingOccurrences(of: "\"", with: "\"\"")
+                    originalSite = "\"\(escapedZone) (\(escapedCtx))\""
+                } else {
+                    originalSite = ""
+                }
+
+                let zoneLabel = site.zoneLabel.replacingOccurrences(of: "\"", with: "\"\"")
+                let line = [
+                    "\"\(r.id)\"",
+                    "\"\(isoFormatter.string(from: r.doseDate))\"",
+                    "\"\(medType)\"",
+                    "\"\(ester)\"",
+                    "\"\(method)\"",
+                    "\"\(site.routeClass)\"",
+                    "\"\(rc.displayName)\"",
+                    "\"\(recordedStr)\"",
+                    "\(idx + 1)",
+                    "\"\(zoneLabel)\"",
+                    "\"\(site.viewContext)\"",
+                    "\"\(site.sketchId)\"",
+                    "\"\(site.bodyRegion)\"",
+                    "\(site.normalizedX)",
+                    "\(site.normalizedY)",
+                    "\(site.durationDays)",
+                    r.isUserCorrected ? "true" : "false",
+                    originalSite,
+                    "\"\(origId)\""
+                ].joined(separator: ",")
+                csv.append("\(line)\n")
+            }
+        }
+        return csv
+    }
+
+    /// Avoid zones section.
+    private static func avoidZonesCSV(_ zones: [String: AvoidZoneInfo]) -> String {
+        if zones.isEmpty { return "" }
+        var csv = "# ---- AVOID ZONES ----\n"
+        csv.append("zone_label,reason,marked_at\n")
+        for (zone, info) in zones.sorted(by: { $0.key < $1.key }) {
+            let reason = info.reason.replacingOccurrences(of: "\"", with: "\"\"")
+            csv.append("\"\(zone)\",\"\(reason)\",\"\(isoFormatter.string(from: info.markedAt))\"\n")
         }
         return csv
     }
@@ -168,7 +249,7 @@ struct DataExporter {
 
     // MARK: - Helpers
 
-    private static let isoFormatter: ISO8601DateFormatter = {
+    static let isoFormatter: ISO8601DateFormatter = {
         let f = ISO8601DateFormatter()
         f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return f
@@ -183,6 +264,7 @@ private struct ExportPayload: Encodable {
     let journalEntries: [JournalExport]
     let bloodTests: [BloodTestExport]
     let preferences: PreferencesExport
+    let avoidZones: [AvoidZoneExport]
 }
 
 private struct DoseExport: Encodable {
@@ -196,11 +278,16 @@ private struct DoseExport: Encodable {
     let doseStatus: String
     let skipReason: String?
     let injectionTime: String?
+    let injectionSites: [InjectionSiteExport]
+    let recordedAt: String?
+    let isUserCorrected: Bool
+    let originalDoseId: String?
+    let originalSite: InjectionSiteExport?
 
     static func from(_ r: DoseRecord) -> DoseExport {
         DoseExport(
             id: r.id,
-            doseDate: ISO8601DateFormatter().string(from: r.doseDate),
+            doseDate: DataExporter.isoFormatter.string(from: r.doseDate),
             medicationType: r.medicationType,
             ester: r.ester,
             administrationMethod: r.administrationMethod,
@@ -208,9 +295,47 @@ private struct DoseExport: Encodable {
             concentrationMgPerMl: r.concentrationMgPerMl,
             doseStatus: r.doseStatus,
             skipReason: r.skipReason,
-            injectionTime: r.injectionTime.map { ISO8601DateFormatter().string(from: $0) }
+            injectionTime: r.injectionTime.map { DataExporter.isoFormatter.string(from: $0) },
+            injectionSites: r.injectionSites.map(InjectionSiteExport.from),
+            recordedAt: r.recordedAt.map { DataExporter.isoFormatter.string(from: $0) },
+            isUserCorrected: r.isUserCorrected,
+            originalDoseId: r.originalDoseId,
+            originalSite: r.originalSites.first.map(InjectionSiteExport.from),
         )
     }
+}
+
+private struct InjectionSiteExport: Encodable {
+    let sketchId: String
+    let normalizedX: Double
+    let normalizedY: Double
+    let zoneLabel: String
+    let viewContext: String
+    let bodyRegion: String
+    let routeClass: String
+    let routeClassDisplay: String
+    let durationDays: Int
+
+    static func from(_ site: InjectionSite) -> InjectionSiteExport {
+        let rc = RouteClass(rawValue: site.routeClass) ?? .injection
+        return InjectionSiteExport(
+            sketchId: site.sketchId,
+            normalizedX: site.normalizedX,
+            normalizedY: site.normalizedY,
+            zoneLabel: site.zoneLabel,
+            viewContext: site.viewContext,
+            bodyRegion: site.bodyRegion,
+            routeClass: site.routeClass,
+            routeClassDisplay: rc.displayName,
+            durationDays: site.durationDays
+        )
+    }
+}
+
+private struct AvoidZoneExport: Encodable {
+    let zoneLabel: String
+    let reason: String
+    let markedAt: String
 }
 
 private struct JournalExport: Encodable {
@@ -223,7 +348,7 @@ private struct JournalExport: Encodable {
     static func from(_ e: JournalEntry) -> JournalExport {
         JournalExport(
             id: e.id.uuidString,
-            date: ISO8601DateFormatter().string(from: e.date),
+            date: DataExporter.isoFormatter.string(from: e.date),
             mood: e.mood.rawValue,
             text: e.text,
             symptoms: e.symptoms.map(\.name)
@@ -243,7 +368,7 @@ private struct BloodTestExport: Encodable {
     static func from(_ r: BloodTestRecord) -> BloodTestExport {
         BloodTestExport(
             id: r.id,
-            drawDate: ISO8601DateFormatter().string(from: r.drawDate),
+            drawDate: DataExporter.isoFormatter.string(from: r.drawDate),
             measuredLevel: r.measuredLevel,
             hormoneType: r.hormoneType,
             hoursSinceLastDose: r.hoursSinceLastDose,
@@ -285,7 +410,7 @@ private struct PreferencesExport: Encodable {
         let prefs = state.swiftDataPreferences
         return PreferencesExport(
             profileName: state.profileName,
-            hrtStartDate: state.hrtStartDate.map { ISO8601DateFormatter().string(from: $0) },
+            hrtStartDate: state.hrtStartDate.map { DataExporter.isoFormatter.string(from: $0) },
             selectedMedication: state.selectedMedication,
             medicationUnit: state.medicationUnit,
             antiAndrogenInUse: state.antiAndrogenInUse,
