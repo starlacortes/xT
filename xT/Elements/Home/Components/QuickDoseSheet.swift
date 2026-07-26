@@ -26,15 +26,13 @@ struct QuickDoseSheet: View {
 
     @State private var currentStep: Int = 1
     @State private var selectedSites: [InjectionSite] = []
-    @State private var showLastSitePreview: Bool = false
     @State private var isCorrectionMode: Bool
     @State private var originalDose: DoseRecord?
     @State private var patchDurationDays: Int = 7
     @State private var isCustomizing = false
 
-    // MARK: - 3D Body Picker Feature Flag
+    // MARK: - Body Picker Configuration
 
-    @AppStorage("use3DBodyPicker") private var use3DBodyPicker: Bool = false
     @AppStorage("bodyType") private var bodyTypeRaw: String = BodyType.neutral.rawValue
 
     private var bodyType: BodyType {
@@ -102,11 +100,11 @@ struct QuickDoseSheet: View {
     /// Preferred zones for the current medication + route combination.
     private var preferredZones: Set<String> {
         let med = medicationManager.selectedMedication ?? ""
-        return Set(BodySketchData.preferredZones(medication: med, routeClass: routeClass))
+        return Set(ZoneCentroidStore.preferredZones(medication: med, routeClass: routeClass))
     }
 
     private var recommendedZones: Set<String> {
-        Set(BodySketchData.recommendedZones(for: routeClass))
+        Set(ZoneCentroidStore.recommendedZones(for: routeClass))
     }
 
     /// Recently used zones within the rotation safety window.
@@ -156,11 +154,6 @@ struct QuickDoseSheet: View {
         }
         .onChange(of: concentration) { _, _ in updateMlFromMg() }
         .onChange(of: mgAmount) { _, _ in updateMlFromMg() }
-        .sheet(isPresented: $showLastSitePreview) {
-            if let sites = lastInjectionSites {
-                LastSitePreview(injectionSites: sites, routeClass: routeClass)
-            }
-        }
     }
 
     // MARK: Summary view (read-only prefill)
@@ -268,7 +261,7 @@ struct QuickDoseSheet: View {
 
     @ViewBuilder
     private func previousDosePreview(first: InjectionSite, count: Int) -> some View {
-        let region = BodySketchData.region(for: first.zoneLabel) ?? first.bodyRegion
+        let region = ZoneCentroidStore.shared.region(for: first.zoneLabel) ?? first.bodyRegion
         let zoneHasHeat = injectionHeatMap[first.zoneLabel] ?? 0 > 0
 
         VStack(alignment: .leading, spacing: 8) {
@@ -567,36 +560,14 @@ struct QuickDoseSheet: View {
     @State private var tapPositions: [String: BodyModel3DView.HitPosition] = [:]
     @State private var showInfoPanel = false
     @State private var multiSiteEnabled = false
+    @State private var showRecommendedZonesInfo = false
 
     private typealias UndoState = (labels: [String], positions: [String: BodyModel3DView.HitPosition])
     @State private var undoStack: [UndoState] = []
     @State private var redoStack: [UndoState] = []
 
     private var step2BodySitePicker: some View {
-        Group {
-            if use3DBodyPicker && routeClass == .injection {
-                step23DBodyPicker
-            } else {
-                BodySitePickerView(
-                    medicationType: medicationManager.selectedMedication ?? "",
-                    administrationMethod: medicationManager.selectedAdministrationMethod ?? "",
-                    routeClass: routeClass,
-                    doseHistory: medicationManager.doseHistory,
-                    avoidZones: medicationManager.avoidZones,
-                    preferredZones: preferredZones,
-                    recentlyUsedZones: recentlyUsedZones,
-                    onRecord: { sites in
-                        selectedSites = sites
-                        finalizeRecording()
-                    },
-                    onBack: { currentStep = 1 },
-                    onMarkAvoid: markZoneAsAvoid,
-                    heatMapProvider: { routeClass in
-                        await medicationManager.injectionSiteHeatMap(for: routeClass)
-                    }
-                )
-            }
-        }
+        step23DBodyPicker
     }
 
     // MARK: - 3D Body Picker (experimental)
@@ -612,40 +583,46 @@ struct QuickDoseSheet: View {
                     }.font(.subheadline)
                 }
                 Spacer()
-                Text("3D Beta").font(.caption2)
-                    .padding(.horizontal, 6).padding(.vertical, 2)
-                    .background(Capsule().fill(Theme.Colors.accentSecondary.opacity(0.15)))
-                    .foregroundStyle(Theme.Colors.accentSecondary)
             }
             .padding(.horizontal, 20).padding(.vertical, 12)
 
             // 3D body view
-            BodyModel3DView(
-                heatMapData: injectionHeatMap,
-                avoidZones: medicationManager.avoidZoneLabels,
-                preferredZones: preferredZones,
-                recommendedZones: recommendedZones,
-                selectedSites: $selectedZoneLabels3D,
-                maxSelections: multiSiteEnabled ? 2 : 1,
-                bodyType: bodyType,
-                snapAngle: bodySnapAngle,
-                snapNonce: bodySnapNonce,
-                onTapZone: { _, overlaps in
-                    if overlaps {
-                        showOverlapDisclaimer = true
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
-                            showOverlapDisclaimer = false
+            ZStack(alignment: .center) {
+                BodyModel3DView(
+                    heatMapData: injectionHeatMap,
+                    avoidZones: medicationManager.avoidZoneLabels,
+                    preferredZones: preferredZones,
+                    recommendedZones: recommendedZones,
+                    selectedSites: $selectedZoneLabels3D,
+                    maxSelections: multiSiteEnabled ? 2 : 1,
+                    bodyType: bodyType,
+                    snapAngle: bodySnapAngle,
+                    snapNonce: bodySnapNonce,
+                    onTapZone: { _, overlaps in
+                        if overlaps {
+                            showOverlapDisclaimer = true
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                                showOverlapDisclaimer = false
+                            }
                         }
+                    },
+                    tapPositions: $tapPositions,
+                    onPreTap: { oldLabels, oldPositions in
+                        undoStack.append((oldLabels, oldPositions))
+                        redoStack.removeAll()
                     }
-                },
-                tapPositions: $tapPositions,
-                onPreTap: { oldLabels, oldPositions in
-                    undoStack.append((oldLabels, oldPositions))
-                    redoStack.removeAll()
+                )
+
+                if showRecommendedZonesInfo {
+                    recommendedZonesOverlay
+                        .transition(.opacity.combined(with: .scale(0.95)))
                 }
-            )
+            }
             .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.lg))
             .padding(.horizontal, 12)
+            .onAppear {
+                showRecommendedZonesInfo = !UserDefaults.standard.bool(forKey: "hasSeenRecommendedZonesInfo")
+            }
 
             // Guided orbit controls
             body3DOrbitControls
@@ -692,11 +669,13 @@ struct QuickDoseSheet: View {
             Button {
                 guard !selectedZoneLabels3D.isEmpty else { return }
                 let now = Date()
+                let derivedViewContext = bodySnapAngle.label.lowercased()
                 selectedSites = selectedZoneLabels3D.map { zoneLabel in
                     let pos = tapPositions[zoneLabel]
                     return InjectionSite(
                         zoneLabel: zoneLabel,
-                        bodyRegion: BodySketchData.region(for: zoneLabel) ?? "unknown",
+                        bodyRegion: ZoneCentroidStore.shared.region(for: zoneLabel) ?? "unknown",
+                        viewContext: derivedViewContext,
                         worldPosition: pos.map { (x: $0.worldX, y: $0.worldY, z: $0.worldZ) },
                         viewNormal: pos.map { (x: $0.normalX, y: $0.normalY, z: $0.normalZ) },
                         lastUsedDate: now,
@@ -718,6 +697,44 @@ struct QuickDoseSheet: View {
             .disabled(selectedZoneLabels3D.isEmpty)
             .padding(.horizontal, 20).padding(.bottom, 20)
         }
+    }
+
+    private var recommendedZonesOverlay: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: Theme.Radius.lg)
+                .fill(.ultraThinMaterial)
+                .environment(\.colorScheme, .dark)
+
+            VStack(spacing: 20) {
+                Image(systemName: "lightspectral.horizontal")
+                    .font(.system(size: 32))
+                    .foregroundStyle(.white.opacity(0.7))
+
+                Text("Lightly shaded areas indicate clinically recommended regions.")
+                    .font(Theme.Fonts.callout)
+                    .foregroundStyle(.white.opacity(0.85))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
+
+                Button {
+                    withAnimation(.easeOut(duration: 0.35)) {
+                        showRecommendedZonesInfo = false
+                    }
+                    UserDefaults.standard.set(true, forKey: "hasSeenRecommendedZonesInfo")
+                } label: {
+                    Text("OK")
+                        .font(Theme.Fonts.callout)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 40)
+                        .padding(.vertical, 10)
+                        .background(.white.opacity(0.2))
+                        .clipShape(Capsule())
+                }
+            }
+            .padding(.vertical, 32)
+        }
+        .frame(maxWidth: 260, maxHeight: 282)
     }
 
     /// Front / Back toggle + step-left / step-right orbit arrows.
@@ -878,83 +895,78 @@ struct QuickDoseSheet: View {
     // MARK: - Last Location Panel
 
     private var lastLocationPanel: some View {
-        Button {
-            showLastSitePreview = true
-        } label: {
-            HStack(spacing: 10) {
-                // Left: pin icon + last zone label
-                HStack(spacing: 6) {
-                    Image(systemName: "mappin.circle.fill")
-                        .foregroundStyle(Theme.Colors.accentSecondary)
-                    if let sites = lastInjectionSites, let first = sites.first {
-                        Text(sites.count > 1
-                             ? "Last dose: \(first.zoneLabel) +\(sites.count - 1)"
-                             : "Last dose: \(first.zoneLabel)")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .lineLimit(1)
-                    }
-                }
-
-                Spacer()
-
-                // Center-right: safety indicator
-                if let days = lastSiteDaysAgo {
-                    HStack(spacing: 4) {
-                        if lastSiteIsSafe {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                                .font(.caption)
-                        } else {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundStyle(Theme.Colors.warning)
-                                .font(.caption)
-                        }
-                        Text("\(days)d ago")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+        HStack(spacing: 10) {
+            // Left: pin icon + last zone label
+            HStack(spacing: 6) {
+                Image(systemName: "mappin.circle.fill")
+                    .foregroundStyle(Theme.Colors.accentSecondary)
+                if let sites = lastInjectionSites, let first = sites.first {
+                    Text(sites.count > 1
+                         ? "Last dose: \(first.zoneLabel) +\(sites.count - 1)"
+                         : "Last dose: \(first.zoneLabel)")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .lineLimit(1)
                 }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .background(
-                RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                    .fill(Theme.Colors.accentSecondary.opacity(0.13))
-            )
-            .padding(.horizontal, 20)
-            .overlay(alignment: .trailing) {
-                Button {
-                    quickSelectLastSites()
-                } label: {
-                    Text("Use Same Site →")
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(lastSitesContainAvoidZone ? .secondary : Theme.Colors.accent)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(
-                            Capsule()
-                                .fill(lastSitesContainAvoidZone
-                                      ? Color(.tertiarySystemFill)
-                                      : Theme.Colors.accent.opacity(0.12))
-                        )
-                }
-                .disabled(lastSitesContainAvoidZone)
-                .overlay(alignment: .top) {
-                    if lastSitesContainAvoidZone {
-                        Text("Last site is marked as avoid. Choose a different site.")
-                            .font(.caption2)
-                            .padding(6)
-                            .background(Color(.systemGray6))
-                            .cornerRadius(6)
-                            .offset(y: -28)
+
+            Spacer()
+
+            // Center-right: safety indicator
+            if let days = lastSiteDaysAgo {
+                HStack(spacing: 4) {
+                    if lastSiteIsSafe {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                            .font(.caption)
+                    } else {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(Theme.Colors.warning)
+                            .font(.caption)
                     }
+                    Text("\(days)d ago")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-                .padding(.trailing, 28)
             }
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                .fill(Theme.Colors.accentSecondary.opacity(0.13))
+        )
+        .padding(.horizontal, 20)
+        .overlay(alignment: .trailing) {
+            Button {
+                quickSelectLastSites()
+            } label: {
+                Text("Use Same Site →")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(lastSitesContainAvoidZone ? .secondary : Theme.Colors.accent)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(
+                        Capsule()
+                            .fill(lastSitesContainAvoidZone
+                                  ? Color(.tertiarySystemFill)
+                                  : Theme.Colors.accent.opacity(0.12))
+                    )
+            }
+            .disabled(lastSitesContainAvoidZone)
+            .overlay(alignment: .top) {
+                if lastSitesContainAvoidZone {
+                    Text("Last site is marked as avoid. Choose a different site.")
+                        .font(.caption2)
+                        .padding(6)
+                        .background(Color(.systemGray6))
+                        .cornerRadius(6)
+                        .offset(y: -28)
+                }
+            }
+            .padding(.trailing, 28)
+        }
     }
 
     // MARK: - Correction Lock Panel

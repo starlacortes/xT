@@ -28,21 +28,11 @@ struct MainTabView: View {
                 }
                 .tag(2)
 
-            // Research tab — only when enabled via Settings → Developer.
-            // In RELEASE the flag is hardwired false, so the tab never appears.
-            if DeveloperSettings.shared.researchTabVisible {
-                InsightsDashboardView()
-                    .tabItem {
-                        Label("Insights", systemImage: "chart.xyaxis.line")
-                    }
-                    .tag(3)
-            }
-
             SettingsView()
                 .tabItem {
                     Label("Settings", systemImage: "gearshape")
                 }
-                .tag(4)
+                .tag(3)
         }
         .tint(Theme.Colors.accent)
         .tabViewStyle(.automatic)
@@ -52,34 +42,13 @@ struct MainTabView: View {
 
 // MARK: - Preview
 
-private struct MainTabPreview<Content: View>: View {
-    @State private var configured = false
-    @ViewBuilder let content: () -> Content
-
-    var body: some View {
-        content()
-            .onAppear {
-                guard !configured else { return }
-                configured = true
-
-                let mgr = MedicationManager.shared
-                mgr.selectedMedication = MedicationManager.MedicationType.estrogen.rawValue
-                mgr.selectedAdministrationMethod = MedicationManager.AdministrationMethod.injectable.rawValue
-                mgr.refreshState()
-
-                DeveloperSettings.shared.researchTabVisible = true
-            }
-    }
-}
-
 #Preview {
-    MainTabPreview {
+    SpoofPreview {
         MainTabView()
             .environment(\.medicationManager, MedicationManager.shared)
             .environment(\.profileManager, ProfileManager.shared)
             .environment(\.journalManager, JournalManager.shared)
             .environment(\.notificationManager, NotificationManager.shared)
             .environment(\.authenticationManager, AuthenticationManager.shared)
-            .environment(\.researchInsightsManager, ResearchInsightsManager.shared)
     }
 }

@@ -172,6 +172,14 @@ struct FlatGraphView: View {
                 }
                 generateDensePoints()
             }
+            .onChange(of: medicationManager.doseRecordedCount) { _, _ in
+                // Safety net: force chart refresh after dose recording,
+                // in case the sheet dismissal blocks the recentLevels observation.
+                let values = points.map(\.value)
+                guard !values.isEmpty else { return }
+                animatedValues = AnimatableVector(values: values)
+                generateDensePoints()
+            }
             .onChange(of: medicationManager.userTherapeuticTarget?.peakCeiling) { _, _ in }
         }
     }
@@ -512,8 +520,10 @@ struct FlatGraphView: View {
 }
 
 #Preview {
-    FlatGraphView(scrubFraction: .constant(nil), scrubValue: .constant(nil), scrubDate: .constant(nil))
-        .background(Color(.systemBackground))
-        .environment(\.medicationManager, MedicationManager.shared)
-        .frame(height: 400)
+    SpoofPreview {
+        FlatGraphView(scrubFraction: .constant(nil), scrubValue: .constant(nil), scrubDate: .constant(nil))
+            .background(Color(.systemBackground))
+            .environment(\.medicationManager, MedicationManager.shared)
+            .frame(height: 400)
+    }
 }

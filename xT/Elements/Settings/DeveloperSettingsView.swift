@@ -53,21 +53,6 @@ struct DeveloperSettingsView: View {
                     .disabled(!dev.developerModeEnabled)
                     .opacity(dev.developerModeEnabled ? 1 : 0.4)
 
-                    devDivider()
-
-                    devToggleRow(
-                        icon: "chart.xyaxis.line",
-                        bg: Theme.Colors.Time.body.surface,
-                        color: Theme.Colors.Time.body.base,
-                        title: "Research tab",
-                        subtitle: dev.researchTabVisible ? "Insights tab visible" : "Show Insights tab",
-                        isOn: Binding(
-                            get: { dev.researchTabVisible },
-                            set: { dev.researchTabVisible = $0 }
-                        )
-                    )
-                    .disabled(!dev.developerModeEnabled)
-                    .opacity(dev.developerModeEnabled ? 1 : 0.4)
                 }
             }
             .padding(.top, 24)
@@ -97,7 +82,6 @@ struct DeveloperSettingsView: View {
         if DeveloperSettings.shared.sampleProfileEnabled {
             onSampleProfileDisabled()
         }
-        DeveloperSettings.shared.researchTabVisible = false
         DeveloperSettings.shared.developerModeEnabled = false
     }
 

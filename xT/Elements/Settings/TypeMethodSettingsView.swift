@@ -33,11 +33,11 @@ struct TypeMethodSettingsView: View {
         let isEstrogen = selectedType == "Estrogen"
         if selectedMethod == "Injectable" {
             if isEstrogen {
-                return MedicationManager.MedicationEster.allCases
+                return MedicationEster.allCases
                     .filter { $0 != .oral && $0 != .transdermal }
                     .map { ($0.rawValue, halfLifeLabel($0.halfLifeDays)) }
             } else {
-                return MedicationManager.TestosteroneEster.allCases
+                return TestosteroneEster.allCases
                     .map { ($0.rawValue, halfLifeLabel($0.halfLifeDays)) }
             }
         } else if selectedMethod == "Oral" && isEstrogen {

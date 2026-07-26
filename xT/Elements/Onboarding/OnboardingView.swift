@@ -64,7 +64,20 @@ struct OnboardingView: View {
     @State private var showImagePicker: Bool = false
     @State private var showCamera: Bool = false
 
-    private let totalSteps = 10
+    // Step 6b — injection/application site (body picker)
+    @State private var selectedSiteLabels3D: [String] = []
+    @State private var tapPositions: [String: BodyModel3DView.HitPosition] = [:]
+    @State private var bodySnapAngle: BodySnapAngle = .front
+    @State private var bodySnapNonce: Int = 0
+    @State private var selectedInjectionSites: [InjectionSite] = []
+
+    private var isRouteShowsBodyPicker: Bool {
+        RouteClass.from(method: selectedMethod) != .oral
+    }
+
+    private var totalStepCount: Int {
+        isRouteShowsBodyPicker ? 11 : 10
+    }
     
     // MARK: - Body
     var body: some View {
@@ -87,10 +100,11 @@ struct OnboardingView: View {
                         case 3: medicationStep
                         case 4: concentrationStep
                         case 5: doseStep
-                        case 6: antiAndrogenStep
-                        case 7: bodyTypeStep
-                        case 8: profileStep
-                        case 9: reviewStep
+                        case 6: injectionSiteStep
+                        case 7: antiAndrogenStep
+                        case 8: bodyTypeStep
+                        case 9: profileStep
+                        case 10: reviewStep
                         default: EmptyView()
                         }
                     }
@@ -123,7 +137,7 @@ struct OnboardingView: View {
                     .frame(height: 3)
                 RoundedRectangle(cornerRadius: 2)
                     .fill(Theme.Colors.accent.opacity(0.8))
-                    .frame(width: geo.size.width * CGFloat(currentStep + 1) / CGFloat(totalSteps), height: 3)
+                    .frame(width: geo.size.width * CGFloat(currentStep + 1) / CGFloat(totalStepCount), height: 3)
                     .animation(.easeInOut(duration: 0.3), value: currentStep)
             }
         }
@@ -742,6 +756,184 @@ struct OnboardingView: View {
         }
     }
 
+    // MARK: - Step 6: Injection / Application Site (Body Picker)
+
+    private var injectionSiteStep: some View {
+        VStack(spacing: 0) {
+            Spacer()
+            Text("Where did you take it?")
+                .font(.title2)
+                .fontWeight(.regular)
+                .foregroundStyle(.white.opacity(0.9))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+
+            Text("Tap on the body model to mark your injection site.\nYou can rotate the model with the arrows below.")
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.55))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+                .padding(.top, 8)
+
+            Spacer()
+
+            BodyModel3DView(
+                heatMapData: [:],
+                avoidZones: [],
+                preferredZones: bodyPickerPreferredZones,
+                recommendedZones: bodyPickerRecommendedZones,
+                selectedSites: $selectedSiteLabels3D,
+                maxSelections: 1,
+                bodyType: BodyType(rawValue: bodyTypeRaw) ?? .neutral,
+                snapAngle: bodySnapAngle,
+                snapNonce: bodySnapNonce,
+                onTapZone: { _, _ in },
+                tapPositions: $tapPositions,
+                onPreTap: { _, _ in }
+            )
+            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.lg))
+            .padding(.horizontal, 40)
+            .frame(height: 320)
+
+            bodyPickerOrbitControls
+                .padding(.top, 12)
+
+            if let zone = selectedSiteLabels3D.first {
+                HStack(spacing: 8) {
+                    Image(systemName: "mappin.circle.fill")
+                        .foregroundStyle(Theme.Colors.accentSecondary)
+                    Text(zone)
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.9))
+                    Button {
+                        selectedSiteLabels3D.removeAll()
+                        tapPositions.removeAll()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.4))
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(
+                    RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                        .fill(Theme.Colors.accentSecondary.opacity(0.2))
+                )
+                .padding(.top, 12)
+            } else {
+                Text("Tap the model to mark your site")
+                    .font(.subheadline)
+                    .foregroundStyle(.white.opacity(0.4))
+                    .padding(.top, 12)
+            }
+
+            Spacer()
+
+            HStack(spacing: 16) {
+                secondaryButton("Skip for now") {
+                    selectedSiteLabels3D.removeAll()
+                    tapPositions.removeAll()
+                    advanceStep()
+                }
+                primaryButton("Continue", disabled: selectedSiteLabels3D.isEmpty) {
+                    commitInjectionSites()
+                    advanceStep()
+                }
+            }
+            .padding(.horizontal, 40)
+            .padding(.bottom, 40)
+
+            Spacer()
+                .frame(height: 20)
+        }
+    }
+
+    private var bodyPickerOrbitControls: some View {
+        HStack(spacing: 16) {
+            Button {
+                let angles = BodySnapAngle.allCases
+                let cur = angles.firstIndex(of: bodySnapAngle) ?? 0
+                bodySnapAngle = angles[(cur + angles.count - 1) % angles.count]
+                bodySnapNonce += 1
+            } label: {
+                Image(systemName: "arrow.backward.circle.fill")
+                    .font(.title2)
+                    .foregroundStyle(.white.opacity(0.5))
+            }
+
+            Spacer()
+
+            HStack(spacing: 0) {
+                ForEach([BodySnapAngle.front, .back], id: \.rawValue) { angle in
+                    Button {
+                        bodySnapAngle = angle
+                        bodySnapNonce += 1
+                    } label: {
+                        Text(angle.label)
+                            .font(.subheadline.weight(bodySnapAngle == angle ? .semibold : .regular))
+                            .foregroundStyle(bodySnapAngle == angle
+                                             ? Theme.Colors.accent
+                                             : .white.opacity(0.6))
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(bodySnapAngle == angle
+                                          ? Theme.Colors.accent.opacity(0.25)
+                                          : Color.clear)
+                            )
+                    }
+                }
+            }
+            .background(RoundedRectangle(cornerRadius: 10).fill(Color.white.opacity(0.15)))
+
+            Spacer()
+
+            Button {
+                let angles = BodySnapAngle.allCases
+                let cur = angles.firstIndex(of: bodySnapAngle) ?? 0
+                bodySnapAngle = angles[(cur + 1) % angles.count]
+                bodySnapNonce += 1
+            } label: {
+                Image(systemName: "arrow.forward.circle.fill")
+                    .font(.title2)
+                    .foregroundStyle(.white.opacity(0.5))
+            }
+        }
+        .padding(.horizontal, 40)
+    }
+
+    private var bodyPickerPreferredZones: Set<String> {
+        let routeClass = RouteClass.from(method: selectedMethod)
+        return Set(ZoneCentroidStore.preferredZones(medication: selectedType, routeClass: routeClass))
+    }
+
+    private var bodyPickerRecommendedZones: Set<String> {
+        let routeClass = RouteClass.from(method: selectedMethod)
+        return Set(ZoneCentroidStore.recommendedZones(for: routeClass))
+    }
+
+    private func commitInjectionSites() {
+        guard !selectedSiteLabels3D.isEmpty else { return }
+        let now = lastDoseDate
+        let derivedViewContext = bodySnapAngle.label.lowercased()
+        let routeClass = RouteClass.from(method: selectedMethod)
+        selectedInjectionSites = selectedSiteLabels3D.map { zoneLabel in
+            let pos = tapPositions[zoneLabel]
+            return InjectionSite(
+                zoneLabel: zoneLabel,
+                bodyRegion: ZoneCentroidStore.shared.region(for: zoneLabel) ?? "unknown",
+                viewContext: derivedViewContext,
+                worldPosition: pos.map { (x: $0.worldX, y: $0.worldY, z: $0.worldZ) },
+                viewNormal: pos.map { (x: $0.normalX, y: $0.normalY, z: $0.normalZ) },
+                lastUsedDate: now,
+                durationDays: routeClass.defaultDurationDays,
+                routeClass: routeClass.rawValue
+            )
+        }
+    }
+
     // MARK: - Step 7: Anti-Androgens
     private var antiAndrogenStep: some View {
         VStack(spacing: 28) {
@@ -771,7 +963,7 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: - Step 8: Body Type
+    // MARK: - Step 8: Body Silhouette
     private var bodyTypeStep: some View {
         VStack(spacing: 28) {
             Spacer()
@@ -1134,11 +1326,11 @@ struct OnboardingView: View {
     private var esterList: some View {
         let items: [(name: String, tHalf: Double)] = {
             if selectedType == "Estrogen" {
-                return MedicationManager.MedicationEster.allCases
+                return MedicationEster.allCases
                     .filter { $0 != .oral && $0 != .transdermal }
                     .map { ($0.rawValue, $0.halfLifeDays) }
             } else {
-                return MedicationManager.TestosteroneEster.allCases.map { ($0.rawValue, $0.halfLifeDays) }
+                return TestosteroneEster.allCases.map { ($0.rawValue, $0.halfLifeDays) }
             }
         }()
 
@@ -1229,17 +1421,25 @@ struct OnboardingView: View {
     }
 
     private func advanceStep() {
+        var nextStep = currentStep + 1
+        if currentStep == 5 && !isRouteShowsBodyPicker {
+            nextStep = 7
+        }
         withAnimation(.easeInOut(duration: 0.3)) { opacity = 0 }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            currentStep += 1
+            currentStep = nextStep
             withAnimation(.easeIn(duration: 0.3)) { opacity = 1 }
         }
     }
 
     private func previousStep() {
+        var prevStep = currentStep - 1
+        if currentStep == 7 && !isRouteShowsBodyPicker {
+            prevStep = 5
+        }
         withAnimation(.easeInOut(duration: 0.3)) { opacity = 0 }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            currentStep -= 1
+            currentStep = prevStep
             withAnimation(.easeIn(duration: 0.3)) { opacity = 1 }
         }
     }
@@ -1274,14 +1474,15 @@ struct OnboardingView: View {
         // Determine concentration to store (nil for non-injectable or if not set)
         let finalConcentration: Double? = (medMethod == .injectable && selectedConcentration > 0) ? selectedConcentration : nil
 
-        // Log first dose with concentration
+        // Log first dose with concentration + injection sites (from body picker step)
         medicationManager.addDose(
             date: lastDoseDate,
             type: medType.rawValue,
             ester: esterLabel,
             method: medMethod.rawValue,
             doseAmount: finalMg,
-            concentrationMgPerMl: finalConcentration
+            concentrationMgPerMl: finalConcentration,
+            injectionSites: selectedInjectionSites
         )
 
         // Save custom frequency from onboarding stepper

@@ -470,9 +470,11 @@ struct AdherenceView: View {
 // MARK: - Preview
 
 #Preview {
-    NavigationStack {
-        AdherenceView()
-            .environment(\.medicationManager, MedicationManager.shared)
-            .environment(\.profileManager, ProfileManager.shared)
+    SpoofPreview {
+        NavigationStack {
+            AdherenceView()
+                .environment(\.medicationManager, MedicationManager.shared)
+                .environment(\.profileManager, ProfileManager.shared)
+        }
     }
 }

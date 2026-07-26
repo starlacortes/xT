@@ -450,7 +450,7 @@ struct DoseScheduleSettingsView: View {
         if let userZones = userPreferredZones[key], !userZones.isEmpty {
             return userZones.count
         }
-        return BodySketchData.preferredZones(medication: medication, routeClass: routeClass).count
+        return ZoneCentroidStore.preferredZones(medication: medication, routeClass: routeClass).count
     }
 
     // MARK: - Save

@@ -98,18 +98,6 @@ extension DoseRecord {
     /// Convenience: first site (most common case for injections).
     var primarySite: InjectionSite? { injectionSites.first }
 
-    /// Convenience: backward-compatible single-site accessor.
-    var injectionSite: InjectionSite? {
-        get { primarySite }
-        set {
-            if let site = newValue {
-                injectionSitesJSON = InjectionSite.toJSONArray([site])
-            } else {
-                injectionSitesJSON = nil
-            }
-        }
-    }
-
     /// Original sites before correction, preserved for audit trail.
     var originalSites: [InjectionSite] {
         InjectionSite.fromJSONArray(originalSiteJSON)

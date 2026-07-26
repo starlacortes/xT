@@ -11,7 +11,6 @@ enum BodyHeatMapShader {
     texture2d<float> u_zoneTex;
     texture2d<float> u_zoneMetaTex;
     texture2d<float> u_tapTex;
-    sampler u_zoneSampler;
 
     #pragma body
 
@@ -28,9 +27,8 @@ enum BodyHeatMapShader {
 
     // ---- Heat map from stored zone data ----
     for (int i = 0; i < 64; i++) {
-        float u = (float(i) + 0.5) / 64.0;
-        float4 zd = u_zoneTex.sample(u_zoneSampler, float2(u, 0.5));
-        float4 md = u_zoneMetaTex.sample(u_zoneSampler, float2(u, 0.5));
+        float4 zd = u_zoneTex.read(uint2(i, 0));
+        float4 md = u_zoneMetaTex.read(uint2(i, 0));
 
         float3 zonePos    = zd.xyz;
         float  zoneRadius = zd.w;
@@ -90,15 +88,14 @@ enum BodyHeatMapShader {
     albedo = mix(albedo, float3(1.0, 0.18, 0.15), totalRed * 0.85);
     albedo = mix(albedo, float3(1.0, 0.95, 0.88), max(totalWhite, overlapWhite) * 0.92);
     albedo = mix(albedo, float3(0.45, 0.44, 0.50), avoidMask * 0.40);
-    albedo = mix(albedo, float3(0.60, 0.55, 0.70), recommendedMask);
+    albedo = mix(albedo, float3(0.88, 0.86, 0.92), recommendedMask);
 
     // ---- Unified tap glow (persistent dot + expanding ripple) ----
     float3 tapAccum  = float3(0.0, 0.0, 0.0);
     float  alphaAccum = 0.0;
 
     for (int t = 0; t < 4; t++) {
-        float uv = (float(t) + 0.5) / 4.0;
-        float4 td = u_tapTex.sample(u_zoneSampler, float2(uv, 0.5));
+        float4 td = u_tapTex.read(uint2(t, 0));
         float startTime = td.w;
         if (startTime == 0.0) { continue; }
 

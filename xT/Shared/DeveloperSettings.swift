@@ -27,7 +27,6 @@ final class DeveloperSettings {
     private enum Keys {
         static let developerMode = "dev.developerModeEnabled"
         static let sampleProfile = "dev.sampleProfileEnabled"
-        static let researchTab   = "dev.researchTabVisible"
     }
 
     /// Filesystem home for DEBUG-only developer artifacts (e.g. the user-data
@@ -51,23 +50,15 @@ final class DeveloperSettings {
         didSet { UserDefaults.standard.set(sampleProfileEnabled, forKey: Keys.sampleProfile) }
     }
 
-    /// When on, the Insights (Research) tab appears in `MainTabView`.
-    var researchTabVisible: Bool {
-        didSet { UserDefaults.standard.set(researchTabVisible, forKey: Keys.researchTab) }
-    }
-
     private init() {
         let defaults = UserDefaults.standard
         developerModeEnabled = defaults.bool(forKey: Keys.developerMode)
         sampleProfileEnabled = defaults.bool(forKey: Keys.sampleProfile)
-        researchTabVisible   = defaults.bool(forKey: Keys.researchTab)
     }
 #else
-    // RELEASE: hardwired off. Consumers (e.g. MainTabView) read these without
-    // any #if DEBUG of their own.
+    // RELEASE: hardwired off. Consumers read these without any #if DEBUG.
     let developerModeEnabled = false
     let sampleProfileEnabled = false
-    let researchTabVisible   = false
 
     private init() {}
 #endif

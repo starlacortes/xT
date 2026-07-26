@@ -257,6 +257,7 @@ struct InjectionSite: Codable, Equatable {
         schemaVersion: Int = currentSchemaVersion,
         zoneLabel: String,
         bodyRegion: String,
+        viewContext: String = "",
         worldPosition: (x: Double, y: Double, z: Double)?,
         viewNormal: (x: Double, y: Double, z: Double)?,
         lastUsedDate: Date = Date(),
@@ -272,7 +273,7 @@ struct InjectionSite: Codable, Equatable {
         self.sketchId = ""
         self.normalizedX = 0
         self.normalizedY = 0
-        self.viewContext = ""
+        self.viewContext = viewContext
         self.routeClass = routeClass
         // 3D fields
         self.worldPositionX = worldPosition?.x
@@ -328,10 +329,8 @@ extension InjectionSite {
 
     /// "Last dose: Upper Right Thigh (front)"
     var lastDoseSentence: String {
-        if is3DRecord {
-            return "Last dose: \(zoneLabel) (3D)"
-        }
-        return "Last dose: \(zoneLabel) (\(viewContext))"
+        let context = viewContext.isEmpty ? "3D" : viewContext
+        return "Last dose: \(zoneLabel) (\(context))"
     }
 
     /// Compact label used in pill bars, history rows, and export summaries.

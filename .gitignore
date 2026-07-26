@@ -91,3 +91,13 @@ xcuserdata
 
 # Project documentation (auto-generated, kept out of source control)
 Implementation/
+
+# Build output (should never be in source control)
+build/
+
+# macOS artifacts
+.DS_Store
+**/.DS_Store
+
+# Xcode test results
+*.xcresult

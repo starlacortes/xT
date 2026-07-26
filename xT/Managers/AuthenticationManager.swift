@@ -28,6 +28,7 @@ class AuthenticationManager: ObservableObject {
     @Published var showAuthentication = false
     @Published var lastActivityTime: Date = Date()
     private var hasExited = false
+    private var autoLockTask: Task<Void, Never>?
 
     @UserDefault(key: "requireAuthentication", defaultValue: false)
     var requireAuthentication: Bool {
@@ -36,10 +37,12 @@ class AuthenticationManager: ObservableObject {
                 isAuthenticated = true
                 showAuthentication = false
                 hasExited = false
+                stopAutoLockTimer()
             } else {
                 // Require auth immediately when turned on
                 isAuthenticated = false
                 showAuthentication = true
+                startAutoLockTimer()
             }
         }
     }
@@ -114,6 +117,46 @@ class AuthenticationManager: ObservableObject {
         if isAuthenticated { lastActivityTime = Date() }
     }
 
+    // MARK: - Auto-Lock Timer
+
+    /// Starts a polling loop that checks every second whether the idle timeout
+    /// has been exceeded. When it has, the app is locked and authentication is
+    /// required to continue.
+    private func startAutoLockTimer() {
+        stopAutoLockTimer()
+        guard autoLockTimeout > 0 else { return }
+        autoLockTask = Task { [weak self] in
+            while !Task.isCancelled {
+                guard let self else { break }
+                let elapsed = Date().timeIntervalSince(self.lastActivityTime)
+                let timeout = await self.autoLockTimeout
+                if await self.requireAuthentication,
+                   await self.isAuthenticated,
+                   elapsed >= timeout {
+                    await MainActor.run {
+                        self.lockDueToInactivity()
+                    }
+                }
+                try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+            }
+        }
+    }
+
+    private func stopAutoLockTimer() {
+        autoLockTask?.cancel()
+        autoLockTask = nil
+    }
+
+    /// Called when the idle timer fires — locks the app and presents the
+    /// authentication sheet.
+    private func lockDueToInactivity() {
+        guard requireAuthentication, isAuthenticated else { return }
+        isAuthenticated = false
+        hasExited = true
+        showAuthentication = true
+        stopAutoLockTimer()
+    }
+
     // MARK: - Scene Phase
 
     func handleScenePhase(_ phase: ScenePhase) {
@@ -122,6 +165,8 @@ class AuthenticationManager: ObservableObject {
             if requireAuthentication && hasExited {
                 showAuthentication = true
             }
+            // Resume the auto-lock timer when returning to foreground.
+            startAutoLockTimer()
         case .background:
             // Only lock when auth is required; don't lock on .inactive to avoid
             // triggering on Notification Center / Control Center pulls.
@@ -129,6 +174,7 @@ class AuthenticationManager: ObservableObject {
                 isAuthenticated = false
                 hasExited = true
             }
+            stopAutoLockTimer()
         case .inactive:
             break
         @unknown default: break

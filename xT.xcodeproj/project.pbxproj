@@ -6,11 +6,6 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		48517858301557FE00931387 /* ZoneCentroidStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48517857301557FE00931387 /* ZoneCentroidStore.swift */; };
-		4851785A301558FF00931387 /* UIColor+ThemeExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48517859301558FF00931387 /* UIColor+ThemeExtensions.swift */; };
-/* End PBXBuildFile section */
-
 /* Begin PBXContainerItemProxy section */
 		D2467CFB2DD7A2CB00C98381 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -29,8 +24,6 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		48517857301557FE00931387 /* ZoneCentroidStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoneCentroidStore.swift; sourceTree = "<group>"; };
-		48517859301558FF00931387 /* UIColor+ThemeExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIColor+ThemeExtensions.swift"; sourceTree = "<group>"; };
 		D2467CEA2DD7A2CA00C98381 /* xT.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = xT.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D2467CFA2DD7A2CB00C98381 /* xTTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = xTTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		D2467D042DD7A2CB00C98381 /* xTUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = xTUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -114,8 +107,6 @@
 				D2467CEC2DD7A2CA00C98381 /* xT */,
 				D2467CFD2DD7A2CB00C98381 /* xTTests */,
 				D2467D072DD7A2CB00C98381 /* xTUITests */,
-				48517857301557FE00931387 /* ZoneCentroidStore.swift */,
-				48517859301558FF00931387 /* UIColor+ThemeExtensions.swift */,
 				D2467CEB2DD7A2CA00C98381 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -274,8 +265,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				48517858301557FE00931387 /* ZoneCentroidStore.swift in Sources */,
-				4851785A301558FF00931387 /* UIColor+ThemeExtensions.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

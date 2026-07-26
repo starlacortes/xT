@@ -45,9 +45,11 @@ struct UnifiedStackView: View {
 }
 
 #Preview {
-    UnifiedStackView()
-        .environment(\.medicationManager, MedicationManager.shared)
-        .environment(\.journalManager, JournalManager.shared)
-        .padding()
-        .background(Theme.Gradients.brand)
+    SpoofPreview {
+        UnifiedStackView()
+            .environment(\.medicationManager, MedicationManager.shared)
+            .environment(\.journalManager, JournalManager.shared)
+            .padding()
+            .background(Theme.Gradients.brand)
+    }
 }

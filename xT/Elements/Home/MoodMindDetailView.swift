@@ -449,6 +449,13 @@ struct MoodMindDetailView: View {
                     .padding(.top, 20)
                     .padding(.bottom, 16)
 
+                    // Hormone level card (moved from main Time tab)
+                    if let insight = engine.hormoneInsight {
+                        hormoneLevelCard(insight: insight)
+                            .padding(.horizontal, 22)
+                            .padding(.bottom, 16)
+                    }
+
                     // Brain wireframe canvas
                     BrainWireframeView(months: months, selectedRegion: selectedRegion) { key in
                         withAnimation(Theme.Motion.snappy) {
@@ -519,5 +526,64 @@ struct MoodMindDetailView: View {
         }
         .navigationTitle("Mood & Mind")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func hormoneLevelCard(insight: TimeHormoneInsight) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("HORMONE LEVELS")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.accent)
+                    .tracking(0.5)
+                Spacer()
+                Text(insight.rangeLabel)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(insight.rangePalette.accent)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(insight.rangePalette.surface)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                if let pos = cyclePositionBadge {
+                    Text(pos)
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color(.tertiarySystemFill))
+                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                }
+            }
+
+            HStack(alignment: .firstTextBaseline, spacing: 5) {
+                AnimatedCounter(value: insight.level)
+                    .font(.system(size: 30, weight: .medium))
+                    .foregroundStyle(.primary)
+                    .contentTransition(.numericText())
+                Text(insight.unit)
+                    .font(Theme.Fonts.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            Text(insight.bodyDescription)
+                .font(Theme.Fonts.footnote)
+                .foregroundStyle(.secondary)
+                .lineSpacing(3)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(14)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.md))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.Radius.md)
+                .stroke(insight.rangePalette.border.opacity(0.3), lineWidth: 0.5)
+        )
+    }
+
+    private var cyclePositionBadge: String? {
+        switch engine.cyclePosition {
+        case .nearPeak: return "Peak"
+        case .midCycle: return "Mid"
+        case .trough:   return "Trough"
+        case .unknown:  return nil
+        }
     }
 }

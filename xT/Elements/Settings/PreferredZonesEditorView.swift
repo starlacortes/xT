@@ -3,7 +3,7 @@
 //  xT
 //
 //  Toggle preferred zones per medication + route class.
-//  Each sketch gets its own section; each zone gets a toggle.
+//  Flat alphabetical list from ZoneCentroidStore (3D migration — no sketch sections).
 //  On save, the full list of enabled zones is returned via callback.
 //
 
@@ -18,28 +18,14 @@ struct PreferredZonesEditorView: View {
 
     @State private var selectedZones: [String: Bool] = [:]
 
-    private let sketchOrder: [String] = [
-        "thighsFront", "thighsBack",
-        "glutesBack",
-        "armsFront", "armsBack",
-        "upperBodyFront",
-    ]
-
     var body: some View {
         NavigationStack {
             List {
-                ForEach(sketchOrder, id: \.self) { sketchId in
-                    let zones = BodySketchData.zoneLabels(for: sketchId)
-                    if !zones.isEmpty {
-                        Section(header: Text(displayName(for: sketchId))) {
-                            ForEach(zones, id: \.self) { zone in
-                                Toggle(zone, isOn: Binding(
-                                    get: { selectedZones[zone] ?? false },
-                                    set: { selectedZones[zone] = $0 }
-                                ))
-                            }
-                        }
-                    }
+                ForEach(ZoneCentroidStore.shared.labels, id: \.self) { zone in
+                    Toggle(zone, isOn: Binding(
+                        get: { selectedZones[zone] ?? false },
+                        set: { selectedZones[zone] = $0 }
+                    ))
                 }
             }
             .navigationTitle("Preferred Zones")
@@ -61,29 +47,14 @@ struct PreferredZonesEditorView: View {
             }
         }
         .onAppear {
-            let preferred = BodySketchData.preferredZones(
+            let preferred = ZoneCentroidStore.preferredZones(
                 medication: medication,
                 routeClass: routeClass
             )
             selectedZones = [:]
-            // Pre-seed all zones for all sketches
-            for sketchId in sketchOrder {
-                for zone in BodySketchData.zoneLabels(for: sketchId) {
-                    selectedZones[zone] = preferred.contains(zone)
-                }
+            for zone in ZoneCentroidStore.shared.labels {
+                selectedZones[zone] = preferred.contains(zone)
             }
-        }
-    }
-
-    private func displayName(for sketchId: String) -> String {
-        switch sketchId {
-        case "thighsFront":    return "Thighs — Front"
-        case "thighsBack":     return "Thighs — Back"
-        case "glutesBack":     return "Glutes — Back"
-        case "armsFront":      return "Arms — Front"
-        case "armsBack":       return "Arms — Back"
-        case "upperBodyFront": return "Upper Body — Front"
-        default:               return sketchId
         }
     }
 }

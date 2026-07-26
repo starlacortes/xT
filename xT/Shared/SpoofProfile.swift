@@ -97,6 +97,7 @@ enum SpoofProfile {
         UserDefaults.standard.removeObject(forKey: "nextDoseDate")
         UserDefaults.standard.removeObject(forKey: "selectedMedication")
         UserDefaults.standard.removeObject(forKey: "selectedAdministrationMethod")
+        UserDefaults.standard.removeObject(forKey: "hasSeenRecommendedZonesInfo")
 
         // Remove all DoseRecords + BloodTestRecords from SwiftData
         if let ctx = mm.modelContext {
@@ -181,6 +182,7 @@ enum SpoofProfile {
             pm.profileImageData = jpegData
             pm.profileImage = image
         }
+        pm.persistProfile()
     }
 
     // MARK: - Medication Population
@@ -248,8 +250,9 @@ enum SpoofProfile {
             mm.nextDoseDate = calendar.date(byAdding: .day, value: 5, to: lastDose.doseDate)
         }
 
-        // Persist dose dates to UserDefaults
+        // Persist dose dates + medication selection to UserDefaults
         mm.persistDoseDates()
+        mm.persistSelection()
 
         // Add 4 blood test records at various points in the HRT journey
         // addBloodTest signature: addBloodTest(drawDate:measuredLevel:hormoneType:notes:)
@@ -389,6 +392,9 @@ enum SpoofProfile {
         nm.journalReminderEnabled = true
         nm.journalReminderHour = 21
         nm.journalReminderMinute = 0
+
+        // Suppress one-time overlays for a clean preview appearance
+        defaults.set(true, forKey: "hasSeenRecommendedZonesInfo")
     }
 }
 

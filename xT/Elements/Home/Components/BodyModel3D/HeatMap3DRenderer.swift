@@ -22,15 +22,6 @@ final class HeatMap3DRenderer {
     // Positions that persist indefinitely as red dots
     private var persistentSpots: [SCNVector3] = []
 
-    private static let zoneSamplerDesc: MTLSamplerDescriptor = {
-        let d = MTLSamplerDescriptor()
-        d.minFilter = .nearest
-        d.magFilter = .nearest
-        d.sAddressMode = .clampToEdge
-        d.tAddressMode = .clampToEdge
-        return d
-    }()
-
     init(material: SCNMaterial,
          bodyType: BodyType = .neutral,
          centroidStore: ZoneCentroidStore) {
@@ -42,18 +33,30 @@ final class HeatMap3DRenderer {
 
     func attachShader(to device: MTLDevice) {
         guard let mat = material else { return }
-        mat.shaderModifiers = [SCNShaderModifierEntryPoint.surface: BodyHeatMapShader.surfaceModifier]
 
         buildTextures(device: device)
-        if let tex = zoneTex { mat.setValue(SCNMaterialProperty(contents: tex), forKey: "u_zoneTex") }
-        if let meta = zoneMetaTex { mat.setValue(SCNMaterialProperty(contents: meta), forKey: "u_zoneMetaTex") }
-        if let taps = tapTex { mat.setValue(SCNMaterialProperty(contents: taps), forKey: "u_tapTex") }
 
-        let sampler = device.makeSamplerState(descriptor: Self.zoneSamplerDesc)
-        mat.setValue(sampler, forKey: "u_zoneSampler")
+        // Data textures need nearest-neighbor filtering — read() is used in the
+        // shader, but SceneKit's implicit sampler settings still matter.
+        func dataMaterialProperty(contents tex: MTLTexture) -> SCNMaterialProperty {
+            let p = SCNMaterialProperty(contents: tex)
+            p.minificationFilter = .nearest
+            p.magnificationFilter = .nearest
+            p.wrapS = .clamp
+            p.wrapT = .clamp
+            return p
+        }
+
+        if let tex = zoneTex { mat.setValue(dataMaterialProperty(contents: tex), forKey: "u_zoneTex") }
+        if let meta = zoneMetaTex { mat.setValue(dataMaterialProperty(contents: meta), forKey: "u_zoneMetaTex") }
+        if let taps = tapTex { mat.setValue(dataMaterialProperty(contents: taps), forKey: "u_tapTex") }
 
         mat.setValue(Float(CACurrentMediaTime()), forKey: "u_currentTime")
         mat.setValue(SCNMatrix4Identity, forKey: "u_invViewMatrix")
+
+        // Assign shaderModifiers LAST so SceneKit sees all bound arguments
+        // when it compiles the combined fragment shader (commonprofile_frag).
+        mat.shaderModifiers = [SCNShaderModifierEntryPoint.surface: BodyHeatMapShader.surfaceModifier]
 
         startDisplayLinkIfNeeded()
     }

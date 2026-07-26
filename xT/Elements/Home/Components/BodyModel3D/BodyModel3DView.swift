@@ -292,6 +292,9 @@ struct BodyModel3DView: UIViewRepresentable {
         private var lastPersistentCount: Int = -1
         private var lastPersistentSpots: [SCNVector3] = []
 
+#if DEBUG
+        private var debugVizNode: SCNNode?
+#endif
 
         init(heatMapData: HeatMapData,
              avoidZones: Set<String>,
@@ -501,6 +504,46 @@ struct BodyModel3DView: UIViewRepresentable {
         lastPersistentSpots = spots
         heatMapRenderer?.setPersistentSpots(spots)
     }
+
+#if DEBUG
+    /// Renders small colored spheres at each zone centroid position so developers
+    /// can visually verify centroid placements against the 3D body mesh.
+    /// Red = zone center, radius proportional to hit-test radius.
+    func updateDebugCentroidViz() {
+        guard let store = centroidStore,
+              let scene = scene,
+              let wrapper = bodyWrapperNode else {
+            debugVizNode?.removeFromParentNode()
+            debugVizNode = nil
+            return
+        }
+
+        // Create or reuse the parent node
+        let parent: SCNNode
+        if let existing = debugVizNode {
+            parent = existing
+            // Remove old child spheres
+            parent.childNodes.forEach { $0.removeFromParentNode() }
+        } else {
+            parent = SCNNode()
+            parent.name = "__debug_centroid_viz__"
+            wrapper.addChildNode(parent)
+            debugVizNode = parent
+        }
+
+        for (label, pos) in store.centroids {
+            let radius = store.radius(forCount: heatMapData[label] ?? 0)
+            let sphere = SCNSphere(radius: CGFloat(radius))
+            sphere.firstMaterial?.diffuse.contents = UIColor.systemRed.withAlphaComponent(0.3)
+            sphere.firstMaterial?.isDoubleSided = true
+            sphere.firstMaterial?.lightingModel = .constant
+
+            let node = SCNNode(geometry: sphere)
+            node.position = pos
+            parent.addChildNode(node)
+        }
+    }
+#endif
     }
 }
 

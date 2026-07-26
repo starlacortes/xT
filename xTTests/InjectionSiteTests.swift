@@ -222,7 +222,6 @@ struct InjectionSiteTests {
         #expect(dose.injectionSites.count == 1)
         #expect(dose.injectionSites[0].zoneLabel == "Upper Right Thigh")
         #expect(dose.primarySite?.zoneLabel == "Upper Right Thigh")
-        #expect(dose.injectionSite?.zoneLabel == "Upper Right Thigh")
         #expect(dose.recordedAt != nil)
         #expect(dose.isUserCorrected == false)
         #expect(dose.originalDoseId == nil)
@@ -299,7 +298,6 @@ struct InjectionSiteTests {
             doseAmount: 4.0
         )
         #expect(dose.injectionSites.isEmpty)
-        #expect(dose.injectionSite == nil)
 
         let site = InjectionSite(
             sketchId: "thighsFront",
@@ -308,13 +306,7 @@ struct InjectionSiteTests {
             viewContext: "front", bodyRegion: "thighs",
             routeClass: "injection"
         )
-        dose.injectionSite = site
-        #expect(dose.injectionSites.count == 1)
-        #expect(dose.injectionSite?.zoneLabel == "Mid Right Thigh")
-
-        dose.injectionSite = nil
         #expect(dose.injectionSites.isEmpty)
-        #expect(dose.injectionSite == nil)
     }
 
     // MARK: - RouteClass Codable Round-Trip
@@ -364,7 +356,6 @@ struct InjectionSiteTests {
             doseAmount: 2.0
         )
         #expect(dose.injectionSites.isEmpty)
-        #expect(dose.injectionSite == nil)
         #expect(dose.primarySite == nil)
         let rc = RouteClass.from(method: "Oral")
         #expect(rc == .oral)

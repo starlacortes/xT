@@ -92,9 +92,12 @@ struct AvoidZonesEditorView: View {
                     }
                     .padding(.horizontal)
 
-                    // Sketch preview
-                    if let sketchId = BodySketchData.sketchId(for: zone) {
-                        avoidZoneSketchPreview(sketchId: sketchId, zone: zone)
+                    // Zone region label
+                    if let region = ZoneCentroidStore.shared.region(for: zone) {
+                        Text(region.capitalized)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal)
                     }
                 }
 
@@ -123,65 +126,6 @@ struct AvoidZonesEditorView: View {
         .presentationDetents([.medium, .large])
     }
 
-    @ViewBuilder
-    private func avoidZoneSketchPreview(sketchId: String, zone: String) -> some View {
-        VStack(spacing: 8) {
-            Text("Location on body")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            ZStack {
-                silhouetteView(for: sketchId)
-
-                // Highlight the avoided zone
-                if let rect = BodySketchData.zoneBoundingRects[sketchId]?[zone]
-                    ?? BodySketchData.upperBodyFrontPrecisionRects[zone] {
-                    let absRect = CGRect(
-                        x: rect.minX * 200,
-                        y: rect.minY * 200,
-                        width: rect.width * 200,
-                        height: rect.height * 200
-                    )
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.red.opacity(0.25))
-                        .frame(width: absRect.width, height: absRect.height)
-                        .position(x: absRect.midX, y: absRect.midY)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 4)
-                                .stroke(Color.red, lineWidth: 1.5)
-                                .frame(width: absRect.width, height: absRect.height)
-                                .position(x: absRect.midX, y: absRect.midY)
-                        )
-
-                    // ⚠️ icon
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.title3)
-                        .foregroundStyle(.red)
-                        .position(x: absRect.midX, y: absRect.midY)
-                }
-            }
-            .frame(width: 200, height: 200)
-            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md))
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.Radius.md)
-                    .stroke(Color(.separator), lineWidth: 0.5)
-            )
-        }
-        .padding(.horizontal)
-    }
-
-    @ViewBuilder
-    private func silhouetteView(for sketchId: String) -> some View {
-        switch sketchId {
-        case "thighsFront":    ThighsFrontSilhouette().fill(Color.gray.opacity(0.08))
-        case "thighsBack":     ThighsBackSilhouette().fill(Color.gray.opacity(0.08))
-        case "glutesBack":     GlutesBackSilhouette().fill(Color.gray.opacity(0.08))
-        case "armsFront":      ArmsFrontSilhouette().fill(Color.gray.opacity(0.08))
-        case "armsBack":       ArmsBackSilhouette().fill(Color.gray.opacity(0.08))
-        case "upperBodyFront": UpperBodyFrontSilhouette().fill(Color.gray.opacity(0.08))
-        default:               ThighsFrontSilhouette().fill(Color.gray.opacity(0.08))
-        }
-    }
 }
 
 // MARK: - Avoid Zone Row

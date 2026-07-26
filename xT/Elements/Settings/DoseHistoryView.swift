@@ -176,8 +176,10 @@ struct DoseHistoryRow: View {
 // MARK: - Preview
 
 #Preview {
-    NavigationStack {
-        DoseHistoryView()
-            .environment(\.medicationManager, MedicationManager.shared)
+    SpoofPreview {
+        NavigationStack {
+            DoseHistoryView()
+                .environment(\.medicationManager, MedicationManager.shared)
+        }
     }
 }

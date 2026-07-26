@@ -374,7 +374,9 @@ struct StreakPill: View {
 // MARK: - Preview
 
 #Preview {
-    JournalView()
-        .environment(\.journalManager, JournalManager.shared)
-        .environment(\.medicationManager, MedicationManager.shared)
+    SpoofPreview {
+        JournalView()
+            .environment(\.journalManager, JournalManager.shared)
+            .environment(\.medicationManager, MedicationManager.shared)
+    }
 }

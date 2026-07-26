@@ -62,6 +62,8 @@ enum ProfileSnapshot {
         // SpoofProfile "applied" marker — absent for a real user, so restore
         // clears it and a later Sample re-enable can re-apply Jan.
         "com.xt.spoofProfile_jan_v1",
+        // One-time overlay dismissals
+        "hasSeenRecommendedZonesInfo",
     ]
 
     // MARK: - Snapshot

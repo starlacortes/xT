@@ -17,14 +17,10 @@ struct TimeView: View {
     @Environment(\.medicationManager) private var medicationManager
 
     @State private var adherencePercent: CGFloat = 0
-    @State private var changesExpanded: Bool = false
     @State private var hasAnimatedAdherence = false
     @State private var cachedEngine: TimeContentEngine?
     @State private var lastDoseCount: Int = 0
 
-    // Lightweight view-model: rebuilds only when observed dependencies change.
-    // Reads from MedicationManager (which is @Observable-compatible via custom
-    // EnvironmentKey) and caches the derived engine to avoid PK math on every body.
     private var engine: TimeContentEngine {
         if let cached = cachedEngine, cached.months == medicationManager.monthsOnHRT,
            cached.adherenceRate == medicationManager.adherenceRate,
@@ -67,8 +63,11 @@ struct TimeView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 0) {
-                    // Hero header (now includes adherence ring + cycle compass inline)
-                    TimeHeroHeader(engine: engine, adherencePercent: $adherencePercent)
+                    TimeHeroHeader(
+                        engine: engine,
+                        doseCount: medicationManager.doseRecordedCount,
+                        adherencePercent: adherencePercent
+                    )
                         .padding(.horizontal, 22)
                         .padding(.top, 20)
                         .padding(.bottom, 10)
@@ -81,68 +80,19 @@ struct TimeView: View {
                             }
                         }
 
-                    if let insight = engine.hormoneInsight {
-                        timeDivider()
-                        TimeHormoneRow(insight: insight, medication: engine.medication, cyclePosition: engine.cyclePosition)
-                            .padding(.horizontal, 22)
-                            .padding(.vertical, 18)
-                            .entrance(delay: 0.08)
-                    }
-
-                    // Regimen Timeline Card (#3)
-                    if !engine.regimenSegments.isEmpty && engine.regimenSegments.count > 1 {
-                        timeDivider()
-                        TimeRegimenTimelineRow(
-                            segments: engine.regimenSegments,
-                            tenureTier: engine.tenureTier,
-                            months: engine.months
-                        )
-                            .padding(.horizontal, 22)
-                            .padding(.vertical, 18)
-                            .entrance(delay: 0.10)
-                    }
-
-                    // Changes section — ordered differently by tenure
-                    // Early/established: changes BEFORE body systems
-                    // Mature: changes AFTER body systems (collapsed)
-                    if !engine.changesDefaultCollapsed {
-                        timeDivider()
-                        TimeChangesRow(
-                            changes: engine.unlockedChanges,
-                            sectionLabel: engine.changesSectionLabel,
-                            summaryBadge: engine.changesSummaryBadge,
-                            intensityDisclaimer: engine.doseIntensityDisclaimer
-                        )
-                        .padding(.vertical, 18)
-                        .entrance(delay: 0.12)
-                    }
-
-                    // Body systems — tappable rows → detail pages
                     timeDivider()
-                    TimeBodySection(engine: engine)
-                        .entrance(delay: engine.changesDefaultCollapsed ? 0.12 : 0.16)
 
-                    // Collapsed changes for mature users — after body systems
-                    if engine.changesDefaultCollapsed {
-                        timeDivider()
-                        CollapsibleChangesRow(
-                            changes: engine.unlockedChanges,
-                            sectionLabel: engine.changesSectionLabel,
-                            summaryBadge: engine.changesSummaryBadge,
-                            intensityDisclaimer: engine.doseIntensityDisclaimer,
-                            isExpanded: $changesExpanded
-                        )
-                        .padding(.vertical, 18)
-                        .entrance(delay: 0.16)
-                    }
+                    TimePrimaryChoicesSection(engine: engine)
+                        .entrance(delay: 0.08)
 
-                    // Milestones — tenure-aware label
                     timeDivider()
+
+                    // Milestones
                     TimeMilestonesSection(
                         milestones: engine.upcomingMilestones,
                         sectionLabel: engine.milestonesSectionLabel
                     )
-                        .entrance(delay: engine.changesDefaultCollapsed ? 0.20 : 0.20)
+                        .entrance(delay: 0.16)
                         .padding(.bottom, 40)
                 }
             }
@@ -156,9 +106,8 @@ struct TimeView: View {
         .onChange(of: medicationManager.doseRecordedCount) { newCount in
             guard newCount > lastDoseCount else { return }
             lastDoseCount = newCount
-            cachedEngine = nil  // force engine recompute
+            cachedEngine = nil
             medicationManager.refreshState()
-            // Re-animate adherence ring
             withAnimation(.easeOut(duration: 1.0).delay(0.3)) {
                 adherencePercent = engine.adherenceRate ?? 0
             }
@@ -170,374 +119,94 @@ struct TimeView: View {
     }
 }
 
-// MARK: - Hero Header (now with adherence ring #2 + cycle compass #6)
+// MARK: - Hero Header (redesigned — tier label + large month + regimen subtitle)
 
 struct TimeHeroHeader: View {
     let engine: TimeContentEngine
-    @Binding var adherencePercent: CGFloat
+    let doseCount: Int
+    let adherencePercent: CGFloat
 
-    private var cleanTitle: String {
-        engine.timelineTitle
-            .replacingOccurrences(of: " ✦", with: "")
-            .replacingOccurrences(of: "✦", with: "")
-    }
-
-    /// Color for the cycle compass ring based on level range (#6).
-    private var cycleCompassColor: Color {
-        guard let level = engine.currentLevel else { return Color.secondary.opacity(0.3) }
-        if engine.medication == "Estrogen" {
-            if level >= 100 && level <= 400 { return .green }
-            if level >= 50 && level < 100 { return .yellow }
-            if level > 400 && level <= 500 { return .yellow }
-            return .red.opacity(0.6)
-        } else {
-            if level >= 300 && level <= 1000 { return .green }
-            if level >= 100 && level < 300 { return .yellow }
-            return .red.opacity(0.6)
-        }
+    private var medicationSubtitle: String {
+        let ester = engine.method.contains("Injectable") ? "Injectable" : engine.method
+        return "\(engine.medication) · \(ester)"
     }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 16) {
-            // Left: Title block
-            VStack(alignment: .leading, spacing: 4) {
-                Text(engine.timelineSubtitle)
-                    .font(Theme.Fonts.subheadline)
-                    .foregroundStyle(Color.secondary)
+        VStack(alignment: .leading, spacing: 6) {
+            // Tier label row — with adherence indicator when available (3+ doses)
+            HStack(spacing: 8) {
+                Text(engine.tenureTier.statusEmoji + " " + engine.tenureTier.rawValue)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.accentSecondary)
+                    .tracking(0.5)
+                    .textCase(.uppercase)
 
-                Text(cleanTitle)
-                    .font(.system(size: 34, weight: .bold))
-                    .tracking(-1.0)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: Theme.Gradients.brandColors,
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-
-                HStack(spacing: 6) {
-                    Text(engine.medication)
-                    Text("·")
-                        .foregroundStyle(Color.secondary.opacity(0.5))
-                    Text(engine.method)
+                if let rate = engine.adherenceRate, doseCount >= 3 {
+                    adherencePill(rate: rate)
                 }
-                .font(Theme.Fonts.footnote)
-                .foregroundStyle(Color.secondary)
 
-                // Anniversary marker for 10+ year veterans (plan §6.3)
-                if engine.tenureTier >= .t7Veteran {
-                    HStack(spacing: 4) {
-                        Image(systemName: "sparkle")
-                            .font(.system(size: 10))
-                        Text("A decade and counting")
-                            .font(Theme.Fonts.caption2)
-                    }
-                    .foregroundStyle(Theme.Colors.Time.cycle.base)
-                    .padding(.top, 2)
-                }
+                Spacer()
             }
 
-            Spacer()
+            // Large month number + unit
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text("\(engine.months)")
+                    .font(.system(size: 42, weight: .bold))
+                    .tracking(-1.5)
+                    .foregroundStyle(Color.primary)
 
-            // Right: Adherence ring + cycle compass stack
-            VStack(spacing: 10) {
-                // Adherence Ring (#2)
-                if let rate = engine.adherenceRate {
-                    ZStack {
-                        Circle()
-                            .stroke(Color.primary.opacity(0.1), lineWidth: 5)
-                            .frame(width: 56, height: 56)
-                        Circle()
-                            .trim(from: 0, to: adherencePercent)
-                            .stroke(
-                                rate >= 0.8 ? Color.green : rate >= 0.5 ? Color.yellow : Color.red.opacity(0.7),
-                                style: StrokeStyle(lineWidth: 5, lineCap: .round)
-                            )
-                            .frame(width: 56, height: 56)
-                            .rotationEffect(.degrees(-90))
-                            .animation(.easeOut(duration: 1.0), value: adherencePercent)
-                        Text(adherenceLabelText(rate: rate, tier: engine.tenureTier, streak: engine.onTimeStreak))
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundStyle(Color.primary)
-                    }
-                    Text(adherenceSubtitleLabel(tier: engine.tenureTier))
-                        .font(.system(size: 9))
-                        .foregroundStyle(Color.secondary)
-                }
+                Text("Months")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(Color.secondary)
+            }
 
-                // Cycle Compass (#6) — dot color reflects optimal range
-                VStack(spacing: 2) {
-                    ZStack {
-                        Circle()
-                            .fill(cycleCompassColor.opacity(0.15))
-                            .frame(width: 32, height: 32)
-                        Circle()
-                            .fill(cycleCompassColor)
-                            .frame(width: 12, height: 12)
-                    }
-                    Text(cyclePositionLabel)
-                        .font(.system(size: 9))
-                        .foregroundStyle(Color.secondary)
+            // Medication · method
+            Text(medicationSubtitle)
+                .font(.system(size: 15))
+                .foregroundStyle(Color.secondary)
+
+            // Anniversary marker for veterans
+            if engine.tenureTier >= .t7Veteran {
+                HStack(spacing: 4) {
+                    Image(systemName: "sparkle")
+                        .font(.system(size: 10))
+                    Text("A decade and counting")
+                        .font(Theme.Fonts.caption2)
                 }
+                .foregroundStyle(Theme.Colors.Time.cycle.base)
+                .padding(.top, 2)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var cyclePositionLabel: String {
-        switch engine.cyclePosition {
-        case .nearPeak: return "Near Peak"
-        case .midCycle: return "Mid-Cycle"
-        case .trough:   return "Trough"
-        case .unknown:  return ""
-        }
-    }
-
-    /// Tier-aware text inside the adherence ring (plan §6.2).
-    /// T1–T4: raw percent. T5+: streak count when available.
-    private func adherenceLabelText(rate: Double, tier: TenureTier, streak: Int) -> String {
-        if tier >= .t5Settled && streak > 0 {
-            return "\(streak)mo"
-        }
-        return "\(Int(rate * 100))%"
-    }
-
-    /// Tier-aware label under the adherence ring.
-    private func adherenceSubtitleLabel(tier: TenureTier) -> String {
-        if tier >= .t7Veteran {
-            return "Consistent"
-        } else if tier >= .t5Settled {
-            return "Streak"
-        } else {
-            return "Adherence"
-        }
-    }
-}
-
-// MARK: - Hormone Row (now with cycle position context #11)
-
-struct TimeHormoneRow: View {
-    let insight: TimeHormoneInsight
-    let medication: String
-    let cyclePosition: MedicationManager.CyclePosition
-
-    private var positionBadge: String? {
-        switch cyclePosition {
-        case .nearPeak: return "Peak"
-        case .midCycle: return "Mid"
-        case .trough:   return "Trough"
-        case .unknown:  return nil
-        }
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("HORMONE LEVELS")
-                    .font(Theme.Fonts.caption2)
-                    .foregroundStyle(Theme.Colors.accent)
-                    .tracking(0.8)
-                Spacer()
-                HStack(spacing: 6) {
-                    Text(insight.rangeLabel)
-                        .font(Theme.Fonts.caption2)
-                        .fontWeight(.medium)
-                        .foregroundStyle(insight.rangePalette.accent)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(insight.rangePalette.surface)
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                    if let pos = positionBadge {
-                        Text(pos)
-                            .font(.system(size: 9, weight: .medium))
-                            .foregroundStyle(Color.secondary)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color(.tertiarySystemFill))
-                            .clipShape(RoundedRectangle(cornerRadius: 4))
-                    }
-                }
+    private func adherencePill(rate: Double) -> some View {
+        let color: Color = rate >= 0.8 ? .green : rate >= 0.5 ? .yellow : .red.opacity(0.7)
+        let label: String = {
+            if engine.tenureTier >= .t5Settled && engine.onTimeStreak > 0 {
+                return "\(engine.onTimeStreak)mo streak"
             }
+            return "\(Int(rate * 100))% adherence"
+        }()
 
-            HStack(alignment: .firstTextBaseline, spacing: 5) {
-                AnimatedCounter(value: insight.level)
-                    .font(.system(size: 30, weight: .medium))
-                    .foregroundStyle(Color.primary)
-                    .contentTransition(.numericText())
-                Text(insight.unit)
-                    .font(Theme.Fonts.footnote)
-                    .foregroundStyle(Color.secondary)
-            }
-
-            Text(insight.bodyDescription)
-                .font(Theme.Fonts.footnote)
+        return HStack(spacing: 4) {
+            Circle()
+                .fill(color)
+                .frame(width: 6, height: 6)
+            Text(label)
+                .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(Color.secondary)
-                .lineSpacing(3)
-                .fixedSize(horizontal: false, vertical: true)
         }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 4)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 6))
     }
 }
 
-// MARK: - Changes Row (tenure-aware label + summary badge)
+// MARK: - Primary Choices Section (Two-Choice Schema)
 
-struct TimeChangesRow: View {
-    let changes: [TimeChange]
-    let sectionLabel: String
-    let summaryBadge: String?
-    let intensityDisclaimer: String?
-
-    private var unlockedCount: Int { changes.filter(\.unlocked).count }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text(sectionLabel)
-                    .font(Theme.Fonts.caption2)
-                    .foregroundStyle(Color.secondary)
-                    .tracking(0.5)
-                Spacer()
-                if let badge = summaryBadge {
-                    Text(badge)
-                        .font(Theme.Fonts.caption)
-                        .foregroundStyle(Color.secondary)
-                }
-            }
-            .padding(.horizontal, 22)
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(changes) { change in
-                        HStack(spacing: 5) {
-                            Image(systemName: change.unlocked ? "checkmark" : "clock")
-                                .font(.system(size: 10, weight: .medium))
-                            Text(change.label)
-                                .font(Theme.Fonts.caption2)
-                                .fontWeight(.medium)
-                        }
-                        .foregroundStyle(
-                            change.unlocked ? Theme.Colors.Time.cycle.base : Color.secondary
-                        )
-                        .padding(.horizontal, 11)
-                        .padding(.vertical, 7)
-                        .background(
-                            change.unlocked
-                                ? Theme.Colors.Time.cycle.surface
-                                : Color(.secondarySystemBackground)
-                        )
-                        .clipShape(Capsule())
-                    }
-                }
-                .padding(.horizontal, 22)
-                .padding(.vertical, 1)
-            }
-
-            // Dose intensity disclaimer (#13)
-            if let disclaimer = intensityDisclaimer {
-                HStack(spacing: 6) {
-                    Image(systemName: "info.circle")
-                        .font(.system(size: 10))
-                        .foregroundStyle(Color.secondary.opacity(0.6))
-                    Text(disclaimer)
-                        .font(.system(size: 10))
-                        .foregroundStyle(Color.secondary.opacity(0.7))
-                        .lineLimit(2)
-                }
-                .padding(.horizontal, 22)
-                .padding(.top, 4)
-            }
-        }
-    }
-}
-
-// MARK: - Collapsible Changes Row (mature users)
-
-struct CollapsibleChangesRow: View {
-    let changes: [TimeChange]
-    let sectionLabel: String
-    let summaryBadge: String?
-    let intensityDisclaimer: String?
-    @Binding var isExpanded: Bool
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Tappable header row
-            Button {
-                withAnimation(.easeInOut(duration: 0.25)) {
-                    isExpanded.toggle()
-                }
-            } label: {
-                HStack {
-                    Text(sectionLabel)
-                        .font(Theme.Fonts.caption2)
-                        .foregroundStyle(Color.secondary)
-                        .tracking(0.5)
-                    Spacer()
-                    if let badge = summaryBadge {
-                        Text(badge)
-                            .font(Theme.Fonts.caption)
-                            .foregroundStyle(Color.secondary)
-                    }
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 10))
-                        .foregroundStyle(Color.secondary.opacity(0.5))
-                        .padding(.leading, 4)
-                }
-                .padding(.horizontal, 22)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-
-            // Expanded content
-            if isExpanded {
-                VStack(alignment: .leading, spacing: 10) {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            ForEach(changes) { change in
-                                HStack(spacing: 5) {
-                                    Image(systemName: "checkmark")
-                                        .font(.system(size: 10, weight: .medium))
-                                    Text(change.label)
-                                        .font(Theme.Fonts.caption2)
-                                        .fontWeight(.medium)
-                                }
-                                .foregroundStyle(Theme.Colors.Time.cycle.base)
-                                .padding(.horizontal, 11)
-                                .padding(.vertical, 7)
-                                .background(Theme.Colors.Time.cycle.surface)
-                                .clipShape(Capsule())
-                            }
-                        }
-                        .padding(.horizontal, 22)
-                        .padding(.vertical, 1)
-                    }
-
-                    if let disclaimer = intensityDisclaimer {
-                        HStack(spacing: 6) {
-                            Image(systemName: "info.circle")
-                                .font(.system(size: 10))
-                                .foregroundStyle(Color.secondary.opacity(0.6))
-                            Text(disclaimer)
-                                .font(.system(size: 10))
-                                .foregroundStyle(Color.secondary.opacity(0.7))
-                                .lineLimit(2)
-                        }
-                        .padding(.horizontal, 22)
-                        .padding(.top, 4)
-                    }
-                }
-                .padding(.top, 12)
-                .transition(.opacity.combined(with: .move(edge: .top)))
-            }
-        }
-    }
-}
-
-// MARK: - Body Systems Section (Tappable Rows)
-
-struct TimeBodySection: View {
+struct TimePrimaryChoicesSection: View {
     let engine: TimeContentEngine
 
     var body: some View {
@@ -552,100 +221,151 @@ struct TimeBodySection: View {
             .padding(.horizontal, 22)
             .padding(.vertical, 18)
 
-            ForEach(engine.bodySystems) { system in
-                NavigationLink(value: system.systemKey) {
-                    TimeBodySystemRow(system: system, tenureTier: engine.tenureTier, months: engine.activeMonthsOnHRT)
-                        .padding(.horizontal, 22)
-                        .padding(.vertical, 14)
-                }
-                .buttonStyle(.pressable)
-                if system.id != engine.bodySystems.last?.id {
-                    Divider()
-                        .opacity(0.5)
-                        .padding(.horizontal, 22)
-                }
+            // Mood & Mind
+            NavigationLink(value: BodySystemKey.moodAndMind) {
+                TimePrimaryChoiceRow(
+                    title: "Mood & Mind",
+                    subtitle: mindSubtitle,
+                    progressLabel: mindProgressLabel,
+                    palette: .purple,
+                    diagram: { isPressed in
+                        ZStack {
+                            BreathingGlowView(
+                                color: Theme.Colors.Time.mind.base,
+                                isPressed: isPressed,
+                                duration: 3.0
+                            )
+                            .frame(width: 72, height: 72)
+
+                            MiniMindDiagram(months: engine.activeMonthsOnHRT)
+                                .frame(width: 90, height: 100)
+                        }
+                        .frame(width: 100, height: 110)
+                    }
+                )
+                .padding(.horizontal, 22)
+                .padding(.vertical, 14)
             }
+            .buttonStyle(.pressable)
+
+            Divider()
+                .opacity(0.5)
+                .padding(.horizontal, 22)
+
+            // Body Architecture
+            NavigationLink(value: BodySystemKey.bodyShape) {
+                TimePrimaryChoiceRow(
+                    title: "Body Architecture",
+                    subtitle: bodyArchitectureSubtitle,
+                    progressLabel: bodyArchitectureProgressLabel,
+                    palette: .amber,
+                    diagram: { isPressed in
+                        ZStack {
+                            BreathingGlowView(
+                                color: Theme.Colors.Time.body.base,
+                                isPressed: isPressed,
+                                duration: 3.5
+                            )
+                            .frame(width: 72, height: 72)
+
+                            MiniBodySilhouette(months: engine.activeMonthsOnHRT)
+                                .frame(width: 68, height: 86)
+
+                            BodySilhouetteShimmer(months: engine.activeMonthsOnHRT,
+                                                  isPressed: isPressed)
+                                .frame(width: 68, height: 86)
+                        }
+                        .frame(width: 100, height: 110)
+                    }
+                )
+                .padding(.horizontal, 22)
+                .padding(.vertical, 14)
+            }
+            .buttonStyle(.pressable)
         }
-        // Value-based navigation destination — maps BodySystemKey to detail view
         .navigationDestination(for: BodySystemKey.self) { key in
-            if let system = engine.bodySystems.first(where: { $0.systemKey == key }) {
-                switch key {
-                case .moodAndMind:
+            switch key {
+            case .moodAndMind:
+                if let system = engine.bodySystems.first(where: { $0.systemKey == .moodAndMind }) {
                     MoodMindDetailView(system: system, engine: engine)
-                case .bodyShape:
-                    BodyShapeDetailView(system: system, engine: engine)
-                default:
+                }
+            case .bodyShape:
+                BodyArchitectureDetailView(engine: engine)
+            default:
+                if let system = engine.bodySystems.first(where: { $0.systemKey == key }) {
                     TimeBodyDetailView(system: system, engine: engine)
                 }
             }
         }
     }
+
+    private var mindSubtitle: String {
+        engine.bodySystems.first(where: { $0.systemKey == .moodAndMind })?.subtitle ?? "How hormones shape your emotions"
+    }
+
+    private var mindProgressLabel: String {
+        engine.bodySystems.first(where: { $0.systemKey == .moodAndMind })?.progressLabel ?? ""
+    }
+
+    private var bodyArchitectureSubtitle: String {
+        "Body, skin, cycle & changes"
+    }
+
+    private var bodyArchitectureProgressLabel: String {
+        engine.bodySystems.first(where: { $0.systemKey == .bodyShape })?.progressLabel ?? ""
+    }
 }
 
-struct TimeBodySystemRow: View {
-    let system: TimeBodySystem
-    let tenureTier: TenureTier
-    let months: Int
+// MARK: - Primary Choice Row
+
+struct TimePrimaryChoiceRow<Diagram: View>: View {
+    let title: String
+    let subtitle: String
+    let progressLabel: String
+    let palette: TimeContentPalette
+    @ViewBuilder let diagram: (Bool) -> Diagram
+
+    @State private var isPressing = false
 
     var body: some View {
-        HStack(alignment: .center, spacing: 14) {
-            switch system.systemKey {
-            case .moodAndMind:
-                MiniMindDiagram(months: months)
-            case .bodyShape:
-                MiniBodySilhouette(months: months)
-                    .padding(.horizontal, 9)
-            default:
-                ZStack {
-                    Circle()
-                        .fill(system.palette.surface)
-                        .frame(width: 38, height: 38)
-                    Image(systemName: sfSymbol(for: system.icon))
-                        .font(.system(size: 16))
-                        .foregroundStyle(system.palette.accent)
-                }
-            }
+        HStack(alignment: .center, spacing: 16) {
+            diagram(isPressing)
+                .scaleEffect(isPressing ? 1.06 : 1.0)
+                .animation(.easeOut(duration: 0.18), value: isPressing)
 
             VStack(alignment: .leading, spacing: 5) {
                 HStack {
-                    Text(system.title)
-                        .font(Theme.Fonts.footnote)
-                        .fontWeight(.medium)
+                    Text(title)
+                        .font(.system(size: 20, weight: .semibold))
+                        .tracking(-0.3)
                         .foregroundStyle(.primary)
                     Spacer()
-                    // Status dot for ALL tiers (spec §3.4: progress bar removed entirely)
                     Circle()
-                        .fill(system.palette.progress)
+                        .fill(palette.progress)
                         .frame(width: 6, height: 6)
-                    Text(system.progressLabel)
+                    Text(progressLabel)
                         .font(Theme.Fonts.caption2)
                         .foregroundStyle(.secondary)
                 }
 
-                Text(system.subtitle)
-                    .font(Theme.Fonts.caption2)
-                    .foregroundStyle(.secondary)
+                Text(subtitle)
+                    .font(.system(size: 14))
+                    .foregroundStyle(Color.secondary)
+                    .lineLimit(2)
             }
 
-            // Chevron
             Image(systemName: "chevron.right")
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(Color.secondary.opacity(0.4))
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Color.secondary.opacity(isPressing ? 0.65 : 0.35))
+                .offset(x: isPressing ? 4 : 0)
+                .animation(.easeOut(duration: 0.18), value: isPressing)
         }
         .contentShape(Rectangle())
-    }
-
-    private func sfSymbol(for name: String) -> String {
-        switch name {
-        case "brain":              return "brain.head.profile"
-        case "sparkles":           return "sparkles"
-        case "body-scan":          return "figure.stand"
-        case "heart-rate-monitor": return "waveform.path.ecg"
-        case "microphone":         return "mic"
-        case "test-pipe":          return "flask"
-        case "clock":              return "clock"
-        default:                   return "circle"
-        }
+        .onLongPressGesture(minimumDuration: 0.5, pressing: { pressing in
+            withAnimation(.easeOut(duration: 0.15)) {
+                isPressing = pressing
+            }
+        }, perform: {})
     }
 }
 
@@ -827,9 +547,61 @@ struct TimeRegimenTimelineRow: View {
     }
 }
 
+// MARK: - Breathing Glow
+
+private struct BreathingGlowView: View {
+    let color: Color
+    let isPressed: Bool
+    let duration: Double
+
+    @State private var breathe = false
+
+    var body: some View {
+        Circle()
+            .fill(color.opacity(breathe ? 0.22 : 0.09))
+            .scaleEffect(breathe ? 1.18 : 0.82)
+            .blur(radius: 24)
+            .scaleEffect(isPressed ? 1.25 : 1.0)
+            .opacity(isPressed ? 1.35 : 1.0)
+            .animation(.easeOut(duration: 0.15), value: isPressed)
+            .onAppear {
+                withAnimation(.easeInOut(duration: duration).repeatForever(autoreverses: true)) {
+                    breathe = true
+                }
+            }
+    }
+}
+
+// MARK: - Body Silhouette Shimmer
+
+private struct BodySilhouetteShimmer: View {
+    let months: Int
+    let isPressed: Bool
+
+    var body: some View {
+        TimelineView(.animation) { timeline in
+            let t = timeline.date.timeIntervalSinceReferenceDate
+            let phase = t * 2.2
+            let opacity = 0.06 + 0.10 * abs(sin(phase))
+            let boosted = isPressed ? opacity * 2.2 : opacity
+
+            DynamicBodySilhouette(elapsedMonths: Double(months))
+                .stroke(
+                    Theme.Colors.Time.body.base.opacity(boosted),
+                    style: StrokeStyle(lineWidth: 2.0, lineCap: .round)
+                )
+                .blur(radius: 1.8)
+        }
+        .drawingGroup()
+        .animation(.easeOut(duration: 0.15), value: isPressed)
+    }
+}
+
 // MARK: - Preview
 
 #Preview {
-    TimeView()
-        .environment(\.medicationManager, MedicationManager.shared)
+    SpoofPreview {
+        TimeView()
+            .environment(\.medicationManager, MedicationManager.shared)
+    }
 }

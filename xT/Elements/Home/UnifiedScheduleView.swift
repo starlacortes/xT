@@ -330,33 +330,32 @@ struct UnifiedScheduleView: View {
     }
 
     private var bodyPickerSheet: some View {
-        BodySitePickerView(
-            medicationType: medType,
-            administrationMethod: medMethod,
-            routeClass: currentRouteClass,
-            doseHistory: medicationManager.doseHistory.filter { $0.isActive },
-            avoidZones: medicationManager.avoidZones,
-            preferredZones: Set(BodySketchData.preferredZones(medication: medType, routeClass: currentRouteClass)),
-            recentlyUsedZones: medicationManager.recentlyUsedZones(withinDays: currentRouteClass.defaultRotationWindowDays),
-            onRecord: { sites in
-                scheduledSites = sites
-                showFullBodyPicker = false
-            },
-            onBack: { showFullBodyPicker = false },
-            onMarkAvoid: { zone, reason in
-                medicationManager.markZoneAsAvoid(zone, reason: reason)
-            },
-            heatMapProvider: { rc in
-                await medicationManager.injectionSiteHeatMap(for: rc)
+        NavigationStack {
+            VStack(spacing: 16) {
+                Text("Site picker has moved to the Quick Dose sheet.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 20)
+
+                Button {
+                    showFullBodyPicker = false
+                } label: {
+                    Text("Dismiss")
+                        .font(.headline)
+                }
             }
-        )
+            .padding()
+        }
     }
 }
 
 // MARK: - Preview
 
 #Preview {
-    UnifiedScheduleView()
-        .environment(\.medicationManager, MedicationManager.shared)
-        .environment(\.profileManager, ProfileManager.shared)
+    SpoofPreview {
+        UnifiedScheduleView()
+            .environment(\.medicationManager, MedicationManager.shared)
+            .environment(\.profileManager, ProfileManager.shared)
+    }
 }

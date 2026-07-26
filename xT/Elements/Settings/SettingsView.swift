@@ -27,7 +27,6 @@ struct SettingsView: View {
     @State private var journalReminderMinute = 0
     @State private var showingDoseTimePicker = false
     @State private var showingJournalTimePicker = false
-    @AppStorage("use3DBodyPicker") private var use3DBodyPicker: Bool = false
     @AppStorage("bodyType") private var bodyTypeRaw: String = BodyType.neutral.rawValue
 
     // Therapeutic target state
@@ -48,6 +47,7 @@ struct SettingsView: View {
 
                     VStack(spacing: 32) {
                         settingsMedicationSection
+                        settingsModelSection
                         settingsHistoryInsightsSection
                         settingsTherapeuticTargetsSection
                         settingsNotificationsSection
@@ -221,62 +221,54 @@ struct SettingsView: View {
                 )
             }
             .buttonStyle(.plain)
+        }
+    }
+
+    // MARK: - Model Section
+
+    private var settingsModelSection: some View {
+        settingsSection(label: "Model") {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 14) {
+                    settingsIconView(icon: "figure.stand", bg: Theme.Colors.Time.body.surface, color: Theme.Colors.Time.body.base)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Body silhouette")
+                            .font(Theme.Fonts.callout)
+                            .foregroundStyle(.primary)
+                        Text("Silhouette used in the 3D body picker")
+                            .font(Theme.Fonts.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                }
+
+                Picker("", selection: $bodyTypeRaw) {
+                    ForEach(BodyType.allCases) { type in
+                        Text(type.displayName).tag(type.rawValue)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .padding(.leading, 50)
+            }
+            .padding(.horizontal, 22)
+            .padding(.vertical, 12)
 
             settingsDivider()
 
-            HStack(spacing: 14) {
-                settingsIconView(icon: "cube.transparent", bg: Theme.Colors.Time.body.surface, color: Theme.Colors.Time.body.base)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("3D body picker")
-                        .font(Theme.Fonts.callout)
-                        .foregroundStyle(.primary)
-                    Text("Beta — rotatable 3D model for site selection")
-                        .font(Theme.Fonts.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-
-                Toggle("", isOn: $use3DBodyPicker)
-                    .labelsHidden()
-                    .toggleStyle(SwitchToggleStyle(tint: Theme.Colors.accent))
+            Button {
+                UserDefaults.standard.set(false, forKey: "hasSeenRecommendedZonesInfo")
+            } label: {
+                settingsRowContent(
+                    icon: "lightspectral.horizontal",
+                    iconBg: Theme.Colors.accent.opacity(0.13),
+                    iconColor: Theme.Colors.accent,
+                    title: "Re-show recommended zones",
+                    subtitle: "Show the clinical zones info overlay again",
+                    trailing: { EmptyView() }
+                )
             }
-            .padding(.horizontal, 22)
-            .padding(.vertical, 16)
-            .contentShape(Rectangle())
-
-            if use3DBodyPicker {
-                settingsDivider()
-
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack(spacing: 14) {
-                        settingsIconView(icon: "figure.stand", bg: Theme.Colors.Time.body.surface, color: Theme.Colors.Time.body.base)
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Body silhouette")
-                                .font(Theme.Fonts.callout)
-                                .foregroundStyle(.primary)
-                            Text("Silhouette used in the 3D picker")
-                                .font(Theme.Fonts.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                    }
-
-                    Picker("", selection: $bodyTypeRaw) {
-                        ForEach(BodyType.allCases) { type in
-                            Text(type.displayName).tag(type.rawValue)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .padding(.leading, 50)
-                }
-                .padding(.horizontal, 22)
-                .padding(.vertical, 12)
-                .transition(.move(edge: .top).combined(with: .opacity))
-                .animation(.easeInOut(duration: 0.2), value: use3DBodyPicker)
-            }
+            .buttonStyle(.plain)
         }
     }
 
@@ -582,7 +574,7 @@ struct SettingsView: View {
                 iconColor: .secondary,
                 title: "Version",
                 subtitle: nil,
-                trailing: { Text("0.8.0").font(.system(size: 13)).foregroundStyle(.secondary) }
+                trailing: { Text("0.8.5").font(.system(size: 13)).foregroundStyle(.secondary) }
             )
 #if DEBUG
             settingsDivider()
@@ -811,22 +803,63 @@ struct SettingsView: View {
 
     private func resetAppData() {
         let defaults = UserDefaults.standard
-        defaults.dictionaryRepresentation().keys.forEach { defaults.removeObject(forKey: $0) }
-        profileManager.clearProfileImage()
-        profileManager.updateProfileName("")
-        medicationManager.clearSelection()
-        clearSwiftData()
-        UserDefaults.standard.set(false, forKey: "hasCompletedOnboarding")
-    }
 
-    private func clearSwiftData() {
-        do {
-            let schema = Schema([JournalEntry.self])
-            let container = try ModelContainer(for: schema)
-            try container.mainContext.delete(model: JournalEntry.self)
-        } catch {
-            print("Error clearing SwiftData: \(error)")
+        // 1. Clear in-memory profile state
+        profileManager.profileName = ""
+        profileManager.profileImage = nil
+        profileManager.profileImageData = nil
+        profileManager.dateOfBirth = nil
+
+        // 2. Clear in-memory medication + dose state
+        medicationManager.selectedMedication = nil
+        medicationManager.selectedAdministrationMethod = nil
+        medicationManager.selectedEster = nil
+        medicationManager.lastDoseDate = nil
+        medicationManager.nextDoseDate = nil
+        medicationManager.hrtStartDate = nil
+        medicationManager.currentHormoneLevel = nil
+        medicationManager.recentLevels = []
+        medicationManager.doseHistory = []
+        medicationManager.bloodTestHistory = []
+        medicationManager.screeningRecords = []
+        medicationManager.predictedTroughDrop = nil
+        medicationManager.avoidZones = [:]
+        medicationManager.regimenTransitionHistory = []
+        medicationManager.doseRecordedCount = 0
+        medicationManager.userTherapeuticTarget = nil
+
+        // 3. Delete all SwiftData records from the active model context
+        if let ctx = medicationManager.modelContext {
+            do {
+                for dose in try ctx.fetch(FetchDescriptor<DoseRecord>()) { ctx.delete(dose) }
+                for test in try ctx.fetch(FetchDescriptor<BloodTestRecord>()) { ctx.delete(test) }
+                for screening in try ctx.fetch(FetchDescriptor<ScreeningRecord>()) { ctx.delete(screening) }
+                for pref in try ctx.fetch(FetchDescriptor<UserPreferences>()) { ctx.delete(pref) }
+                try ctx.save()
+            } catch {
+                print("[resetAppData] SwiftData clear error: \(error)")
+            }
         }
+
+        // 4. Clear journal in-memory state + SwiftData
+        JournalManager.shared.entries = []
+        JournalManager.shared.currentSymptoms = []
+        if let ctx = JournalManager.shared.modelContext {
+            do {
+                for entry in try ctx.fetch(FetchDescriptor<JournalEntry>()) { ctx.delete(entry) }
+                try ctx.save()
+            } catch {
+                print("[resetAppData] Journal clear error: \(error)")
+            }
+        }
+        // If SpoofProfile was applied, clear its flag so a fresh start works
+        UserDefaults.standard.removeObject(forKey: "com.xt.spoofProfile_jan_v1")
+
+        // 5. Wipe ALL UserDefaults (must come LAST to clear any keys re-created by the steps above)
+        defaults.dictionaryRepresentation().keys.forEach { defaults.removeObject(forKey: $0) }
+
+        // 6. Set onboarding flag after the wipe
+        UserDefaults.standard.set(false, forKey: "hasCompletedOnboarding")
     }
 
     private static let dateFormatter: DateFormatter = {
@@ -843,7 +876,9 @@ struct SettingsView: View {
 
 // MARK: - Preview
 #Preview {
-    SettingsView()
-        .environment(\.profileManager, ProfileManager.shared)
-        .environment(\.medicationManager, MedicationManager.shared)
+    SpoofPreview {
+        SettingsView()
+            .environment(\.profileManager, ProfileManager.shared)
+            .environment(\.medicationManager, MedicationManager.shared)
+    }
 }

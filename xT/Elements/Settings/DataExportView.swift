@@ -214,10 +214,12 @@ private struct ShareSheet: UIViewControllerRepresentable {
 }
 
 #Preview {
-    NavigationStack {
-        DataExportView()
-            .environment(\.medicationManager, MedicationManager.shared)
-            .environment(\.journalManager, JournalManager.shared)
-            .environment(\.profileManager, ProfileManager.shared)
+    SpoofPreview {
+        NavigationStack {
+            DataExportView()
+                .environment(\.medicationManager, MedicationManager.shared)
+                .environment(\.journalManager, JournalManager.shared)
+                .environment(\.profileManager, ProfileManager.shared)
+        }
     }
 }

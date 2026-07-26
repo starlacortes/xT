@@ -174,4 +174,20 @@ enum TimeBodyRegions {
         if months < 60 { return "Body contours are maturing. The 2–3 year adipocyte cell-turnover cycle means subtle refinements continue, but the major structural changes in fat distribution are largely complete." }
         return "Your body composition is fully established. Fat distribution patterns are maintained through ongoing estrogen — consistent levels prevent reversion to android-pattern storage."
     }
+
+    // MARK: Body Region Callout Positions
+
+    struct BodyRegionCallout {
+        let key: String
+        let xFrac: Double
+        let yFrac: Double
+    }
+
+    static let bodyRegionCallouts: [BodyRegionCallout] = [
+        BodyRegionCallout(key: "hips",   xFrac: 0.12, yFrac: 0.68),
+        BodyRegionCallout(key: "thighs", xFrac: 0.11, yFrac: 0.88),
+        BodyRegionCallout(key: "waist",  xFrac: 0.12, yFrac: 0.52),
+        BodyRegionCallout(key: "glutes", xFrac: 0.13, yFrac: 0.78),
+        BodyRegionCallout(key: "chest",  xFrac: 0.15, yFrac: 0.38),
+    ]
 }
