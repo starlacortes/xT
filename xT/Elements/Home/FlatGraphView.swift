@@ -15,6 +15,7 @@ import SwiftUI
 
 struct FlatGraphView: View {
     @Environment(\.medicationManager) private var medicationManager
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Fraction of total height that the data curve occupies.
     /// 0.55 keeps the curve above the glass card on the home screen.
@@ -32,6 +33,9 @@ struct FlatGraphView: View {
 
     /// Pharmacokinetically-aware dense interpolation points for smooth scrubbing.
     @State private var densePoints: [(date: Date, value: Double, xFraction: CGFloat)] = []
+    @State private var drawProgress: CGFloat = 0
+    @State private var areaReveal: CGFloat = 0
+    @State private var dotSlide: CGFloat = 0
     @State private var currentDotPulsePhase: Int = 0
 
     private var points: [MedicationManager.EstimatedPoint] {
@@ -120,6 +124,7 @@ struct FlatGraphView: View {
                     scrubIndicatorLine(w: w, h: h)
                 }
             }
+            .clipped()
             .overlay {
                 if !points.isEmpty {
                     Color.clear
@@ -134,12 +139,31 @@ struct FlatGraphView: View {
                 generateDensePoints()
             }
             .onAppear {
-                guard currentDotPulsePhase == 0 else { return }
-                withAnimation(.easeInOut(duration: 0.35).repeatCount(2, autoreverses: true)) {
-                    currentDotPulsePhase = 1
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) {
+                guard drawProgress == 0 else { return }
+                if reduceMotion {
+                    drawProgress = 1; areaReveal = 1; dotSlide = 1
                     currentDotPulsePhase = 2
+                    return
+                }
+                // Line draws left → right over 0.9s
+                withAnimation(.easeInOut(duration: 0.9)) {
+                    drawProgress = 1
+                }
+                // Area falls in + dot travels the curve together, starting at 0.45s, finishing at 0.9s
+                withAnimation(.easeOut(duration: 0.45).delay(0.45)) {
+                    areaReveal = 1
+                    dotSlide = 1
+                }
+                // Pulse peaks after dot lands (0.45 + 0.45 = 0.9s) + 0.2s delay = 1.1s
+                Task {
+                    try? await Task.sleep(for: .seconds(1.1))
+                    withAnimation(.easeOut(duration: 0.35)) {
+                        currentDotPulsePhase = 1
+                    }
+                    try? await Task.sleep(for: .seconds(0.4))
+                    withAnimation(.easeInOut(duration: 0.6)) {
+                        currentDotPulsePhase = 2
+                    }
                 }
             }
             .onChange(of: points.map(\.value)) { _, newValues in
@@ -263,7 +287,11 @@ struct FlatGraphView: View {
                             endPoint: .bottom
                         )
                     )
+                    .mask(alignment: .top) {
+                        Rectangle().frame(height: h * areaReveal)
+                    }
                 AnimatableCurveShape(values: animatedValues, minV: minV, range: range, dataFraction: dataRegionFraction)
+                    .trim(from: 0, to: drawProgress)
                     .stroke(
                         levelTint,
                         style: StrokeStyle(lineWidth: 1.8, lineCap: .round, lineJoin: .round)
@@ -280,7 +308,11 @@ struct FlatGraphView: View {
                             endPoint: .bottom
                         )
                     )
+                    .mask(alignment: .top) {
+                        Rectangle().frame(height: h * areaReveal)
+                    }
                 strokePath
+                    .trim(from: 0, to: drawProgress)
                     .stroke(
                         levelTint,
                         style: StrokeStyle(lineWidth: 1.8, lineCap: .round, lineJoin: .round)
@@ -362,7 +394,7 @@ struct FlatGraphView: View {
     @ViewBuilder
     private func currentDot(bounds: (min: Double, max: Double, range: Double),
                             w: CGFloat, h: CGFloat) -> some View {
-        if let currentLevel = currentLevel,
+        if currentLevel != nil,
            !densePoints.isEmpty,
            let lastDate = densePoints.last?.date {
             let now = Date()
@@ -370,24 +402,39 @@ struct FlatGraphView: View {
             let nearest = densePoints.enumerated().min(by: {
                 abs($0.element.date.timeIntervalSince(targetDate)) < abs($1.element.date.timeIntervalSince(targetDate))
             }) ?? (offset: densePoints.count - 1, element: densePoints[densePoints.count - 1])
-            let px = CurveLayout.markerX(index: nearest.offset, count: densePoints.count, width: w)
             let (minV, _, range) = bounds
-            let py = CurveLayout.yPos(value: currentLevel, min: minV, range: range,
-                                      height: h, dataFraction: dataRegionFraction)
-            let scale: CGFloat = currentDotPulsePhase == 1 ? 1.6 : 1.0
+            let isPulsing = currentDotPulsePhase == 1
+
+            // Dot enters at the curve's right endpoint and travels leftward along
+            // the actual curve path to the "now" point. `dotSlide` 0 = right end,
+            // 1 = now. At rest (dotSlide == 1) this resolves to the "now" point on the curve.
+            let count = densePoints.count
+            let endIndex = count - 1
+            let fIndex = Double(nearest.offset) + Double(1 - dotSlide) * Double(endIndex - nearest.offset)
+            let i0 = min(max(Int(fIndex.rounded(.down)), 0), endIndex)
+            let i1 = min(i0 + 1, endIndex)
+            let frac = CGFloat(fIndex - Double(i0))
+            let x0 = CurveLayout.markerX(index: i0, count: count, width: w)
+            let x1 = CurveLayout.markerX(index: i1, count: count, width: w)
+            let dotX = x0 + (x1 - x0) * frac
+            let vInterp = densePoints[i0].value + (densePoints[i1].value - densePoints[i0].value) * Double(frac)
+            let dotY = CurveLayout.yPos(value: vInterp, min: minV, range: range,
+                                        height: h, dataFraction: dataRegionFraction)
 
             ZStack {
                 Circle()
-                    .fill(levelTint.opacity(0.25))
-                    .frame(width: 18, height: 18)
-                    .position(x: px, y: py)
+                    .fill(levelTint.opacity(isPulsing ? 0.45 : 0.22))
+                    .frame(width: 26, height: 26)
+                    .scaleEffect(isPulsing ? 1.6 : 1.0)
+                    .position(x: dotX, y: dotY)
                     .blur(radius: 6)
                 Circle()
                     .fill(levelTint)
-                    .frame(width: 8, height: 8)
-                    .position(x: px, y: py)
-                    .scaleEffect(scale)
+                    .frame(width: 12, height: 12)
+                    .position(x: dotX, y: dotY)
+                    .scaleEffect(isPulsing ? 1.7 : 1.0)
             }
+            .opacity(dotSlide)
         }
     }
 
@@ -435,13 +482,13 @@ struct FlatGraphView: View {
             let firstDate = points.first!.date
             let lastDate = points.last!.date
             let totalTime = lastDate.timeIntervalSince(firstDate)
-            if totalTime > 0 {
+            if totalTime > 0, nextDoseDate >= firstDate, nextDoseDate <= lastDate {
                 let fraction = nextDoseDate.timeIntervalSince(firstDate) / totalTime
-                let rawX = fraction * w
-                let px = min(max(rawX, 8), w - 8)
+                let px = fraction * w
                 let (minV, _, range) = bounds
-                let yValue = currentLevel ?? points.last!.value
-                let py = CurveLayout.yPos(value: yValue, min: minV, range: range,
+                let samples = densePoints.isEmpty ? points.map { (date: $0.date, value: $0.value) } : densePoints.map { (date: $0.date, value: $0.value) }
+                let nearestValue = samples.min(by: { abs($0.date.timeIntervalSince(nextDoseDate)) < abs($1.date.timeIntervalSince(nextDoseDate)) })?.value ?? points.last!.value
+                let py = CurveLayout.yPos(value: nearestValue, min: minV, range: range,
                                           height: h, dataFraction: dataRegionFraction)
 
                 ZStack {

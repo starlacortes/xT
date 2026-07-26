@@ -13,6 +13,20 @@ struct JournalView: View {
     @State private var showingComposer = false
     @State private var selectedEntry: JournalEntry?
     @State private var selectedDateKey: String?
+    @State private var showingDoses = false
+
+    private var doseRouteClass: RouteClass {
+        RouteClass.from(method: medicationManager.selectedAdministrationMethod ?? "")
+    }
+
+    private var doseButtonIcon: String {
+        switch doseRouteClass {
+        case .injection: return "syringe"
+        case .topical:   return "drop.fill"
+        case .patch:     return "rectangle.fill"
+        case .oral:      return "pills"
+        }
+    }
 
     // Group entries by calendar day, sorted most-recent first
     private var groupedEntries: [(key: String, date: Date, entries: [JournalEntry])] {
@@ -96,6 +110,32 @@ struct JournalView: View {
             .padding(.trailing, 22)
             .padding(.bottom, 32)
             .entrance(delay: 0.2)
+        }
+        .overlay(alignment: .bottomLeading) {
+            Button(action: { showingDoses = true }) {
+                Image(systemName: doseButtonIcon)
+                    .font(Theme.Fonts.title3)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Theme.Colors.accentSecondary)
+                    .frame(width: 50, height: 50)
+                    .background(.regularMaterial)
+                    .clipShape(Circle())
+                    .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
+            }
+            .buttonStyle(.pressable)
+            .padding(.leading, 22)
+            .padding(.bottom, 32)
+            .entrance(delay: 0.25)
+        }
+        .fullScreenCover(isPresented: $showingDoses) {
+            NavigationStack {
+                DoseHistoryView()
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") { showingDoses = false }
+                        }
+                    }
+            }
         }
     }
 

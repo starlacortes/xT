@@ -330,4 +330,70 @@ enum BodySketchData {
         all.formUnion(upperBodyFrontPrecisionRects.keys)
         return Array(all)
     }
+
+    /// Look up the body region for a zone label (e.g. "Left Deltoid" → "arms").
+    static func region(for zoneLabel: String) -> String? {
+        guard let sketch = zoneToSketch[zoneLabel],
+              let region = sketchToRegion[sketch] else { return nil }
+        return region
+    }
+
+    // MARK: - Recommended Zones
+
+    /// Anatomically suitable injection/patch/topical zones for each route class.
+    static func recommendedZones(for routeClass: RouteClass) -> [String] {
+        switch routeClass {
+        case .injection:
+            return [
+                // Thighs (all)
+                "Upper Left Thigh", "Mid Left Thigh", "Lower Left Thigh",
+                "Outer Left Thigh", "Inner Left Thigh",
+                "Upper Right Thigh", "Mid Right Thigh", "Lower Right Thigh",
+                "Outer Right Thigh", "Inner Right Thigh",
+                // Ventrogluteal & Glutes
+                "Left Ventrogluteal", "Right Ventrogluteal",
+                "Left Upper Glute", "Right Upper Glute",
+                "Left Lower Glute", "Right Lower Glute",
+                // Abdomen
+                "Upper Left Abdomen", "Upper Right Abdomen",
+                "Lower Left Abdomen", "Lower Right Abdomen",
+                "Periumbilical",
+                // Deltoids & Upper Arms
+                "Left Deltoid", "Right Deltoid",
+                "Left Upper Arm", "Right Upper Arm",
+            ]
+        case .topical:
+            return [
+                // Forearms & Wrists
+                "Left Forearm", "Right Forearm",
+                "Left Inner Wrist", "Right Inner Wrist",
+                // Shoulders & Upper Arms
+                "Left Shoulder", "Right Shoulder",
+                "Left Upper Arm", "Right Upper Arm",
+                // Abdomen
+                "Upper Left Abdomen", "Upper Right Abdomen",
+                "Lower Left Abdomen", "Lower Right Abdomen",
+                // Thighs & Neck
+                "Upper Left Thigh", "Upper Right Thigh",
+                "Inner Left Thigh", "Inner Right Thigh",
+                "Neck",
+            ]
+        case .patch:
+            return [
+                // Abdomen
+                "Upper Left Abdomen", "Upper Right Abdomen",
+                "Lower Left Abdomen", "Lower Right Abdomen",
+                // Upper Glutes
+                "Left Upper Glute", "Right Upper Glute",
+                // Upper Arms
+                "Left Upper Arm", "Right Upper Arm",
+                // Upper Chest & Shoulders
+                "Upper Chest",
+                "Left Upper Chest", "Right Upper Chest",
+                "Left Shoulder", "Right Shoulder",
+            ]
+        case .oral:
+            return []
+        }
+    }
 }

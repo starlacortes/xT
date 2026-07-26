@@ -7,6 +7,8 @@
 //  Contains all core types for injection site tracking:
 //  RouteClass, AvoidZoneInfo, InjectionSite, and zone helpers.
 //
+//  Schema v3 (2026-07): Added optional 3D world-space position for SceneKit body picker.
+//  Backward-compatible: pre-v3 records have nil 3D fields; zoneLabel is the migration key.
 
 import Foundation
 import SwiftUI
@@ -144,21 +146,41 @@ struct AvoidZoneInfo: Codable, Equatable {
 
 // MARK: - Injection Site Record
 
-/// Stores a single administration site record with normalized coordinates,
-/// zone classification, and metadata. Serialized as a JSON array in
-/// `DoseRecord.injectionSitesJSON` for SwiftData compatibility.
+/// Stores a single administration site record.
+///
+/// Schema v3 adds optional 3D world-space position for the SceneKit body picker.
+/// Older 2D records are preserved: `zoneLabel` serves as the migration key
+/// between v1-2 (normalized coords) and v3 (3D coordinates).
+///
+/// Serialized as a JSON array in `DoseRecord.injectionSitesJSON` for SwiftData.
 struct InjectionSite: Codable, Equatable {
+
+    // MARK: - Current Schema Version
+
+    static let currentSchemaVersion = 3
 
     // MARK: - Stored Properties
 
     let schemaVersion: Int
+
+    // v1-2 (2D) — preserved for backward compatibility
     let sketchId: String
     let normalizedX: Double
     let normalizedY: Double
-    let zoneLabel: String
     let viewContext: String
-    let bodyRegion: String
     let routeClass: String
+
+    // v3 (3D) — nil for pre-v3 records
+    let worldPositionX: Double?
+    let worldPositionY: Double?
+    let worldPositionZ: Double?
+    let viewNormalX: Double?
+    let viewNormalY: Double?
+    let viewNormalZ: Double?
+
+    // Shared across all versions
+    let zoneLabel: String
+    let bodyRegion: String
     let lastUsedDate: Date
     let durationDays: Int
 
@@ -167,24 +189,19 @@ struct InjectionSite: Codable, Equatable {
     enum CodingKeys: String, CodingKey {
         case schemaVersion
         case sketchId
-        case normalizedX
-        case normalizedY
-        case zoneLabel
-        case viewContext
-        case bodyRegion
-        case routeClass
-        case lastUsedDate
-        case durationDays
+        case normalizedX, normalizedY
+        case zoneLabel, viewContext, bodyRegion, routeClass
+        case lastUsedDate, durationDays
+        case worldPositionX, worldPositionY, worldPositionZ
+        case viewNormalX, viewNormalY, viewNormalZ
     }
 
-    // MARK: - Graceful Decoding
+    // MARK: - Graceful Decoding (all schema versions)
 
-    /// Handles missing or corrupt fields that may appear when migrating
-    /// from older schema versions or manual export edits.
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         schemaVersion  = (try? container.decode(Int.self,    forKey: .schemaVersion))  ?? 1
-        sketchId       = try  container.decode(String.self,  forKey: .sketchId)
+        sketchId       = (try? container.decode(String.self,  forKey: .sketchId))      ?? "unknown"
         normalizedX    = (try? container.decode(Double.self,  forKey: .normalizedX))   ?? 0.5
         normalizedY    = (try? container.decode(Double.self,  forKey: .normalizedY))   ?? 0.5
         zoneLabel      = (try? container.decode(String.self,  forKey: .zoneLabel))    ?? "Unknown"
@@ -193,12 +210,19 @@ struct InjectionSite: Codable, Equatable {
         routeClass     = (try? container.decode(String.self,  forKey: .routeClass))    ?? "injection"
         lastUsedDate   = (try? container.decode(Date.self,    forKey: .lastUsedDate))  ?? Date()
         durationDays   = (try? container.decode(Int.self,     forKey: .durationDays))  ?? 0
+        // v3 3D fields (nil for pre-v3 records)
+        worldPositionX = try? container.decodeIfPresent(Double.self, forKey: .worldPositionX)
+        worldPositionY = try? container.decodeIfPresent(Double.self, forKey: .worldPositionY)
+        worldPositionZ = try? container.decodeIfPresent(Double.self, forKey: .worldPositionZ)
+        viewNormalX    = try? container.decodeIfPresent(Double.self, forKey: .viewNormalX)
+        viewNormalY    = try? container.decodeIfPresent(Double.self, forKey: .viewNormalY)
+        viewNormalZ    = try? container.decodeIfPresent(Double.self, forKey: .viewNormalZ)
     }
 
-    // MARK: - Standard Initializer
+    // MARK: - v1-2 Initializer (2D, backward-compatible)
 
     init(
-        schemaVersion: Int = 1,
+        schemaVersion: Int = currentSchemaVersion,
         sketchId: String,
         normalizedX: Double,
         normalizedY: Double,
@@ -219,6 +243,63 @@ struct InjectionSite: Codable, Equatable {
         self.routeClass = routeClass
         self.lastUsedDate = lastUsedDate
         self.durationDays = durationDays
+        self.worldPositionX = nil
+        self.worldPositionY = nil
+        self.worldPositionZ = nil
+        self.viewNormalX = nil
+        self.viewNormalY = nil
+        self.viewNormalZ = nil
+    }
+
+    // MARK: - v3 Initializer (3D body picker)
+
+    init(
+        schemaVersion: Int = currentSchemaVersion,
+        zoneLabel: String,
+        bodyRegion: String,
+        worldPosition: (x: Double, y: Double, z: Double)?,
+        viewNormal: (x: Double, y: Double, z: Double)?,
+        lastUsedDate: Date = Date(),
+        durationDays: Int = 0,
+        routeClass: String = "injection"
+    ) {
+        self.schemaVersion = schemaVersion
+        self.zoneLabel = zoneLabel
+        self.bodyRegion = bodyRegion
+        self.lastUsedDate = lastUsedDate
+        self.durationDays = durationDays
+        // 2D fields set to sensible defaults for v3-only records
+        self.sketchId = ""
+        self.normalizedX = 0
+        self.normalizedY = 0
+        self.viewContext = ""
+        self.routeClass = routeClass
+        // 3D fields
+        self.worldPositionX = worldPosition?.x
+        self.worldPositionY = worldPosition?.y
+        self.worldPositionZ = worldPosition?.z
+        self.viewNormalX = viewNormal?.x
+        self.viewNormalY = viewNormal?.y
+        self.viewNormalZ = viewNormal?.z
+    }
+
+    // MARK: - 3D Accessors
+
+    /// Returns the 3D world position, or nil for pre-v3 records.
+    var worldPosition: (x: Double, y: Double, z: Double)? {
+        guard let x = worldPositionX, let y = worldPositionY, let z = worldPositionZ else { return nil }
+        return (x, y, z)
+    }
+
+    /// Returns the surface normal at the tap point, or nil for pre-v3 records.
+    var viewNormal: (x: Double, y: Double, z: Double)? {
+        guard let x = viewNormalX, let y = viewNormalY, let z = viewNormalZ else { return nil }
+        return (x, y, z)
+    }
+
+    /// Whether this record was created by the 3D body picker (has 3D coordinates).
+    var is3DRecord: Bool {
+        worldPositionX != nil
     }
 }
 
@@ -247,7 +328,10 @@ extension InjectionSite {
 
     /// "Last dose: Upper Right Thigh (front)"
     var lastDoseSentence: String {
-        "Last dose: \(zoneLabel) (\(viewContext))"
+        if is3DRecord {
+            return "Last dose: \(zoneLabel) (3D)"
+        }
+        return "Last dose: \(zoneLabel) (\(viewContext))"
     }
 
     /// Compact label used in pill bars, history rows, and export summaries.

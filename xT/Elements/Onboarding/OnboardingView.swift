@@ -56,12 +56,15 @@ struct OnboardingView: View {
     // Step 7 — anti-androgens
     @State private var antiAndrogenChoice: String = "None"
     
-    // Step 8 — profile
+    // Step 8 — body type
+    @AppStorage("bodyType") private var bodyTypeRaw: String = BodyType.neutral.rawValue
+
+    // Step 9 — profile
     @State private var profileName: String = ""
     @State private var showImagePicker: Bool = false
     @State private var showCamera: Bool = false
 
-    private let totalSteps = 9
+    private let totalSteps = 10
     
     // MARK: - Body
     var body: some View {
@@ -85,8 +88,9 @@ struct OnboardingView: View {
                         case 4: concentrationStep
                         case 5: doseStep
                         case 6: antiAndrogenStep
-                        case 7: profileStep
-                        case 8: reviewStep
+                        case 7: bodyTypeStep
+                        case 8: profileStep
+                        case 9: reviewStep
                         default: EmptyView()
                         }
                     }
@@ -767,7 +771,49 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: - Step 8: Profile
+    // MARK: - Step 8: Body Type
+    private var bodyTypeStep: some View {
+        VStack(spacing: 28) {
+            Spacer()
+            Text("Choose a body silhouette")
+                .font(.title2)
+                .fontWeight(.regular)
+                .foregroundStyle(.white.opacity(0.9))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+
+            Text("This changes the 3D injection-site picker. You can update this anytime in Settings.")
+                .font(.callout)
+                .foregroundStyle(.white.opacity(0.6))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+
+            VStack(spacing: 14) {
+                ForEach(BodyType.allCases) { type in
+                    pathCard(
+                        title: type.displayName,
+                        subtitle: type.subtitle,
+                        isSelected: bodyTypeRaw == type.rawValue
+                    ) {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            bodyTypeRaw = type.rawValue
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 40)
+
+            Spacer()
+            HStack(spacing: 16) {
+                secondaryButton("Back") { previousStep() }
+                primaryButton("Continue") { advanceStep() }
+            }
+            .padding(.horizontal, 40)
+            .padding(.bottom, 40)
+        }
+    }
+
+    // MARK: - Step 9: Profile
     private var profileStep: some View {
         VStack(spacing: 28) {
             Spacer()
@@ -829,7 +875,7 @@ struct OnboardingView: View {
         .onChange(of: profileManager.selectedPhotoItem) { _, _ in profileManager.handlePhotoSelection() }
     }
 
-    // MARK: - Step 9: Review & Start
+    // MARK: - Step 10: Review & Start
     private var reviewStep: some View {
         ScrollView {
             VStack(spacing: 24) {
@@ -853,6 +899,7 @@ struct OnboardingView: View {
                     if antiAndrogenChoice != "None" {
                         reviewRow(label: "Other meds", value: antiAndrogenChoice)
                     }
+                    reviewRow(label: "Body silhouette", value: (BodyType(rawValue: bodyTypeRaw) ?? .neutral).displayName)
                 }
                 .background(
                     RoundedRectangle(cornerRadius: Theme.Radius.md)

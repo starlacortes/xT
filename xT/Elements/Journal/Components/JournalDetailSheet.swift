@@ -48,6 +48,29 @@ struct JournalDetailSheet: View {
                             .stroke(palette.border, lineWidth: 0.5)
                     )
 
+                    // Hormone level at time of entry
+                    if let level = entry.hormoneLevel {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Label("Current level", systemImage: "chart.line.uptrend.xyaxis")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(.secondary)
+                                .textCase(.uppercase)
+                                .tracking(0.5)
+
+                            Text("\(Int(level))")
+                                .font(.system(size: 20, weight: .medium, design: .rounded))
+                                .foregroundStyle(palette.title)
+                                .padding(16)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(palette.surface)
+                                .cornerRadius(14)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 14)
+                                        .stroke(palette.border, lineWidth: 0.5)
+                                )
+                        }
+                    }
+
                     // Entry text
                     if !entry.text.isEmpty {
                         VStack(alignment: .leading, spacing: 8) {

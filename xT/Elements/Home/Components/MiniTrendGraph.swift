@@ -27,7 +27,7 @@ struct MiniTrendGraph: View {
                         drawProgress = 1
                     } else {
                         withAnimation(.easeInOut(duration: 1.0)) { drawProgress = 1 }
-                        withAnimation(.easeOut(duration: 1.6).repeatForever(autoreverses: false).delay(1.0)) {
+                        withAnimation(.easeOut(duration: 1.6).repeatForever(autoreverses: false).delay(1.2)) {
                             pulse = true
                         }
                     }

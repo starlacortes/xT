@@ -27,6 +27,8 @@ struct SettingsView: View {
     @State private var journalReminderMinute = 0
     @State private var showingDoseTimePicker = false
     @State private var showingJournalTimePicker = false
+    @AppStorage("use3DBodyPicker") private var use3DBodyPicker: Bool = false
+    @AppStorage("bodyType") private var bodyTypeRaw: String = BodyType.neutral.rawValue
 
     // Therapeutic target state
     @State private var useCustomTargets: Bool = false
@@ -219,6 +221,62 @@ struct SettingsView: View {
                 )
             }
             .buttonStyle(.plain)
+
+            settingsDivider()
+
+            HStack(spacing: 14) {
+                settingsIconView(icon: "cube.transparent", bg: Theme.Colors.Time.body.surface, color: Theme.Colors.Time.body.base)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("3D body picker")
+                        .font(Theme.Fonts.callout)
+                        .foregroundStyle(.primary)
+                    Text("Beta — rotatable 3D model for site selection")
+                        .font(Theme.Fonts.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Toggle("", isOn: $use3DBodyPicker)
+                    .labelsHidden()
+                    .toggleStyle(SwitchToggleStyle(tint: Theme.Colors.accent))
+            }
+            .padding(.horizontal, 22)
+            .padding(.vertical, 16)
+            .contentShape(Rectangle())
+
+            if use3DBodyPicker {
+                settingsDivider()
+
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(spacing: 14) {
+                        settingsIconView(icon: "figure.stand", bg: Theme.Colors.Time.body.surface, color: Theme.Colors.Time.body.base)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Body silhouette")
+                                .font(Theme.Fonts.callout)
+                                .foregroundStyle(.primary)
+                            Text("Silhouette used in the 3D picker")
+                                .font(Theme.Fonts.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                    }
+
+                    Picker("", selection: $bodyTypeRaw) {
+                        ForEach(BodyType.allCases) { type in
+                            Text(type.displayName).tag(type.rawValue)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.leading, 50)
+                }
+                .padding(.horizontal, 22)
+                .padding(.vertical, 12)
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .animation(.easeInOut(duration: 0.2), value: use3DBodyPicker)
+            }
         }
     }
 

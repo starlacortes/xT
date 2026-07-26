@@ -30,6 +30,16 @@ struct QuickDoseSheet: View {
     @State private var isCorrectionMode: Bool
     @State private var originalDose: DoseRecord?
     @State private var patchDurationDays: Int = 7
+    @State private var isCustomizing = false
+
+    // MARK: - 3D Body Picker Feature Flag
+
+    @AppStorage("use3DBodyPicker") private var use3DBodyPicker: Bool = false
+    @AppStorage("bodyType") private var bodyTypeRaw: String = BodyType.neutral.rawValue
+
+    private var bodyType: BodyType {
+        BodyType(rawValue: bodyTypeRaw) ?? .neutral
+    }
 
     // MARK: - Init
 
@@ -47,6 +57,16 @@ struct QuickDoseSheet: View {
 
     private var routeClass: RouteClass {
         RouteClass.from(method: medicationManager.selectedAdministrationMethod ?? "")
+    }
+
+    /// Dynamic label for the site selection button based on regimen type.
+    private var siteSelectionLabel: String {
+        switch routeClass {
+        case .injection: return "Injection sites"
+        case .patch:     return "Patch site"
+        case .topical:   return "Cream site"
+        case .oral:      return "Choose a Location"
+        }
     }
 
     private var isOral: Bool {
@@ -85,6 +105,10 @@ struct QuickDoseSheet: View {
         return Set(BodySketchData.preferredZones(medication: med, routeClass: routeClass))
     }
 
+    private var recommendedZones: Set<String> {
+        Set(BodySketchData.recommendedZones(for: routeClass))
+    }
+
     /// Recently used zones within the rotation safety window.
     private var recentlyUsedZones: Set<String> {
         medicationManager.recentlyUsedZones(withinDays: routeClass.defaultRotationWindowDays)
@@ -115,13 +139,38 @@ struct QuickDoseSheet: View {
     // MARK: - Step 1: Dose Details
 
     private var step1DoseDetails: some View {
+        Group {
+            if isCorrectionMode || isCustomizing {
+                doseEditView
+            } else {
+                doseSummaryView
+            }
+        }
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Cancel") { isPresented = false }
+            }
+        }
+        .onAppear {
+            prefillFromRecentDose()
+        }
+        .onChange(of: concentration) { _, _ in updateMlFromMg() }
+        .onChange(of: mgAmount) { _, _ in updateMlFromMg() }
+        .sheet(isPresented: $showLastSitePreview) {
+            if let sites = lastInjectionSites {
+                LastSitePreview(injectionSites: sites, routeClass: routeClass)
+            }
+        }
+    }
+
+    // MARK: Summary view (read-only prefill)
+
+    private var doseSummaryView: some View {
         VStack(spacing: 16) {
-            // Header
-            Text(isCorrectionMode ? "Correct Site" : "Record Dose")
+            Text("Record Dose")
                 .font(.headline)
                 .padding(.top, 8)
 
-            // Medication info
             HStack {
                 Image(systemName: "pills.fill")
                     .foregroundStyle(Theme.Colors.accent)
@@ -131,14 +180,208 @@ struct QuickDoseSheet: View {
             }
             .padding(.horizontal, 20)
 
-            // ── Last Location Panel (v2.1) ──
+            if !isOral, lastInjectionSites != nil {
+                lastLocationPanel
+            }
+
+            VStack(spacing: 12) {
+                summaryRow(label: "Dose",
+                           value: "\(String(format: "%.1f", mgAmount)) mg  (\(String(format: "%.3f", mlAmount)) mL)")
+
+                Divider()
+
+                summaryRow(label: "Concentration",
+                           value: "\(String(format: "%.0f", concentration)) mg/mL")
+
+                Divider()
+
+                summaryRow(label: "Date",
+                           value: doseDate.formatted(date: .abbreviated, time: .shortened))
+            }
+            .padding(16)
+            .background(RoundedRectangle(cornerRadius: Theme.Radius.md)
+                .fill(Color(.secondarySystemBackground)))
+            .padding(.horizontal, 20)
+
+            Button {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                    isCustomizing = true
+                }
+            } label: {
+                Text("Customize Regimen")
+                    .font(.subheadline.weight(.medium))
+            }
+
+            Spacer()
+
+            if !isOral {
+                Button {
+                    advanceToStep2()
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "mappin.and.ellipse")
+                        Text(siteSelectionLabel)
+                    }
+                    .font(.headline)
+                    .foregroundStyle(Theme.Colors.accent)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(RoundedRectangle(cornerRadius: Theme.Radius.md)
+                        .stroke(Theme.Colors.accent.opacity(0.5), lineWidth: 1.5))
+                }
+                .padding(.horizontal, 20)
+            }
+
+            Button {
+                recordDoseImmediately()
+            } label: {
+                Text("Record Dose")
+                    .font(.headline.weight(.medium))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(RoundedRectangle(cornerRadius: Theme.Radius.md)
+                        .fill(Theme.Colors.accent.opacity(0.8)))
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 20)
+            .padding(.top, 4)
+
+            if !isOral, let lastSites = lastInjectionSites, let first = lastSites.first {
+                previousDosePreview(first: first, count: lastSites.count)
+            }
+        }
+    }
+
+    private func summaryRow(label: String, value: String) -> some View {
+        HStack {
+            Text(label)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Text(value)
+                .font(.subheadline.weight(.medium))
+        }
+    }
+
+    // MARK: Previous dose preview
+
+    @ViewBuilder
+    private func previousDosePreview(first: InjectionSite, count: Int) -> some View {
+        let region = BodySketchData.region(for: first.zoneLabel) ?? first.bodyRegion
+        let zoneHasHeat = injectionHeatMap[first.zoneLabel] ?? 0 > 0
+
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Previous dose location:")
+                .font(Theme.Fonts.caption2)
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+                .tracking(0.05)
+                .padding(.leading, 20)
+
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(Theme.Colors.accentSecondary.opacity(zoneHasHeat ? 0.22 : 0.10))
+                        .frame(width: 56, height: 56)
+
+                    if zoneHasHeat {
+                        Circle()
+                            .stroke(Theme.Colors.accentSecondary.opacity(0.35), lineWidth: 2)
+                            .frame(width: 48, height: 48)
+                    }
+
+                    Image(systemName: bodyRegionIcon(for: region))
+                        .font(.system(size: 22))
+                        .foregroundStyle(Theme.Colors.accentSecondary.opacity(0.6))
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "mappin.circle.fill")
+                            .font(.caption)
+                            .foregroundStyle(Theme.Colors.accentSecondary)
+                        Text(count > 1 ? "\(first.zoneLabel) +\(count - 1)" : first.zoneLabel)
+                            .font(.subheadline.weight(.medium))
+                    }
+
+                    Text(region)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+
+                    if let lastDate = medicationManager.lastInjectionSiteDoseDate(for: routeClass) {
+                        Text(lastDate.formatted(date: .abbreviated, time: .shortened))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .background(
+                RoundedRectangle(cornerRadius: Theme.Radius.md)
+                    .fill(Color(.secondarySystemBackground))
+            )
+            .padding(.horizontal, 20)
+        }
+        .padding(.bottom, 8)
+    }
+
+    private func bodyRegionIcon(for region: String) -> String {
+        let lower = region.lowercased()
+        if lower.contains("thigh") || lower.contains("leg") { return "figure.walk" }
+        if lower.contains("glute") || lower.contains("buttock") { return "figure.strengthtraining.traditional" }
+        if lower.contains("abdomen") || lower.contains("belly") { return "figure.core.training" }
+        if lower.contains("deltoid") || lower.contains("shoulder") { return "figure.archery" }
+        if lower.contains("arm") || lower.contains("forearm") { return "figure.arms.open" }
+        if lower.contains("hip") || lower.contains("ventrogluteal") { return "figure.wave" }
+        return "figure.stand"
+    }
+
+    // MARK: Edit view (customize regimen)
+
+    private var doseEditView: some View {
+        VStack(spacing: 16) {
+            HStack {
+                if isCustomizing {
+                    Button {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                            isCustomizing = false
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left")
+                            Text("Back")
+                        }.font(.subheadline)
+                    }
+                    Spacer()
+                }
+                Text(isCorrectionMode ? "Correct Site" : "Customize Regimen")
+                    .font(.headline)
+                if isCustomizing {
+                    Spacer().frame(width: 60)
+                }
+            }
+            .padding(.top, 8)
+            .padding(.horizontal, 20)
+
+            HStack {
+                Image(systemName: "pills.fill")
+                    .foregroundStyle(Theme.Colors.accent)
+                Text(medicationManager.medicationDisplayInfo)
+                    .font(.subheadline)
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+
             if !isCorrectionMode && !isOral && lastInjectionSites != nil {
                 lastLocationPanel
             } else if isCorrectionMode, let original = originalDose, let primary = original.primarySite {
                 correctionLockPanel(site: primary)
             }
 
-            // ── Dose Unit Picker ──
             Picker("Dose Unit", selection: $doseUnit) {
                 Text("mg").tag("mg")
                 Text("mL").tag("mL")
@@ -147,7 +390,6 @@ struct QuickDoseSheet: View {
             .padding(.horizontal, 20)
             .disabled(isCorrectionMode)
 
-            // ── Dose Amount ──
             if doseUnit == "mg" {
                 HStack(spacing: 12) {
                     TextField("mg", value: $mgAmount, format: .number.precision(.fractionLength(1)))
@@ -204,7 +446,6 @@ struct QuickDoseSheet: View {
                 }
             }
 
-            // ── Concentration Picker ──
             if !isCorrectionMode {
                 VStack(spacing: 6) {
                     Text("Vial concentration")
@@ -257,7 +498,6 @@ struct QuickDoseSheet: View {
                 }
             }
 
-            // ── Date Picker ──
             if !isCorrectionMode {
                 DisclosureGroup("Change date\u{2026}") {
                     DatePicker("", selection: $doseDate, displayedComponents: [.date, .hourAndMinute])
@@ -267,7 +507,6 @@ struct QuickDoseSheet: View {
                 }
                 .padding(.horizontal, 20)
             } else {
-                // Correction mode: lock icon + immutable date
                 HStack {
                     Image(systemName: "lock.fill")
                         .font(.caption)
@@ -281,78 +520,359 @@ struct QuickDoseSheet: View {
 
             Spacer()
 
-            // ── Action Button ──
-            Button {
-                if isOral {
-                    recordDoseImmediately()
-                } else if isCorrectionMode {
-                    currentStep = 2
-                } else {
-                    advanceToStep2()
+            if isCustomizing {
+                Button {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                        isCustomizing = false
+                    }
+                } label: {
+                    Text("Done")
+                        .font(.headline.weight(.medium))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(RoundedRectangle(cornerRadius: Theme.Radius.md)
+                            .fill(Theme.Colors.accent.opacity(0.8)))
                 }
-            } label: {
-                HStack(spacing: 6) {
-                    if isCorrectionMode {
+                .padding(.horizontal, 20)
+                .padding(.bottom, 20)
+            } else if isCorrectionMode {
+                Button {
+                    currentStep = 2
+                } label: {
+                    HStack(spacing: 6) {
                         Image(systemName: "arrow.triangle.swap")
                         Text("Choose New Site")
-                    } else if isOral {
-                        Text("Record Dose")
-                    } else {
-                        Text("Next")
-                        Image(systemName: "arrow.right")
                     }
+                    .font(.headline)
+                    .fontWeight(.medium)
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(RoundedRectangle(cornerRadius: Theme.Radius.md)
+                        .fill(Theme.Colors.accent.opacity(0.8)))
                 }
-                .font(.headline)
-                .fontWeight(.medium)
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-                .background(
-                    RoundedRectangle(cornerRadius: Theme.Radius.md)
-                        .fill(Theme.Colors.accent.opacity(0.8))
-                )
-            }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 20)
-        }
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("Cancel") { isPresented = false }
-            }
-        }
-        .onAppear {
-            prefillFromRecentDose()
-        }
-        .onChange(of: concentration) { _, _ in updateMlFromMg() }
-        .onChange(of: mgAmount) { _, _ in updateMlFromMg() }
-        .sheet(isPresented: $showLastSitePreview) {
-            if let sites = lastInjectionSites {
-                LastSitePreview(injectionSites: sites, routeClass: routeClass)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 20)
             }
         }
     }
 
     // MARK: - Step 2: Body Site Picker
 
+    @State private var selectedZoneLabels3D: [String] = []
+    @State private var bodySnapAngle: BodySnapAngle = .front
+    @State private var bodySnapNonce: Int = 0
+    @State private var showOverlapDisclaimer = false
+    @State private var tapPositions: [String: BodyModel3DView.HitPosition] = [:]
+    @State private var showInfoPanel = false
+    @State private var multiSiteEnabled = false
+
+    private typealias UndoState = (labels: [String], positions: [String: BodyModel3DView.HitPosition])
+    @State private var undoStack: [UndoState] = []
+    @State private var redoStack: [UndoState] = []
+
     private var step2BodySitePicker: some View {
-        BodySitePickerView(
-            medicationType: medicationManager.selectedMedication ?? "",
-            administrationMethod: medicationManager.selectedAdministrationMethod ?? "",
-            routeClass: routeClass,
-            doseHistory: medicationManager.doseHistory,
-            avoidZones: medicationManager.avoidZones,
-            preferredZones: preferredZones,
-            recentlyUsedZones: recentlyUsedZones,
-            onRecord: { sites in
-                selectedSites = sites
-                finalizeRecording()
-            },
-            onBack: { currentStep = 1 },
-            onMarkAvoid: markZoneAsAvoid,
-            heatMapProvider: { routeClass in
-                await medicationManager.injectionSiteHeatMap(for: routeClass)
+        Group {
+            if use3DBodyPicker && routeClass == .injection {
+                step23DBodyPicker
+            } else {
+                BodySitePickerView(
+                    medicationType: medicationManager.selectedMedication ?? "",
+                    administrationMethod: medicationManager.selectedAdministrationMethod ?? "",
+                    routeClass: routeClass,
+                    doseHistory: medicationManager.doseHistory,
+                    avoidZones: medicationManager.avoidZones,
+                    preferredZones: preferredZones,
+                    recentlyUsedZones: recentlyUsedZones,
+                    onRecord: { sites in
+                        selectedSites = sites
+                        finalizeRecording()
+                    },
+                    onBack: { currentStep = 1 },
+                    onMarkAvoid: markZoneAsAvoid,
+                    heatMapProvider: { routeClass in
+                        await medicationManager.injectionSiteHeatMap(for: routeClass)
+                    }
+                )
             }
-        )
+        }
+    }
+
+    // MARK: - 3D Body Picker (experimental)
+
+    private var step23DBodyPicker: some View {
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                Button { withAnimation { currentStep = 1 } } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.left")
+                        Text("Back")
+                    }.font(.subheadline)
+                }
+                Spacer()
+                Text("3D Beta").font(.caption2)
+                    .padding(.horizontal, 6).padding(.vertical, 2)
+                    .background(Capsule().fill(Theme.Colors.accentSecondary.opacity(0.15)))
+                    .foregroundStyle(Theme.Colors.accentSecondary)
+            }
+            .padding(.horizontal, 20).padding(.vertical, 12)
+
+            // 3D body view
+            BodyModel3DView(
+                heatMapData: injectionHeatMap,
+                avoidZones: medicationManager.avoidZoneLabels,
+                preferredZones: preferredZones,
+                recommendedZones: recommendedZones,
+                selectedSites: $selectedZoneLabels3D,
+                maxSelections: multiSiteEnabled ? 2 : 1,
+                bodyType: bodyType,
+                snapAngle: bodySnapAngle,
+                snapNonce: bodySnapNonce,
+                onTapZone: { _, overlaps in
+                    if overlaps {
+                        showOverlapDisclaimer = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                            showOverlapDisclaimer = false
+                        }
+                    }
+                },
+                tapPositions: $tapPositions,
+                onPreTap: { oldLabels, oldPositions in
+                    undoStack.append((oldLabels, oldPositions))
+                    redoStack.removeAll()
+                }
+            )
+            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.lg))
+            .padding(.horizontal, 12)
+
+            // Guided orbit controls
+            body3DOrbitControls
+                .padding(.top, 10)
+
+            VStack(spacing: 8) {
+                if !selectedZoneLabels3D.isEmpty {
+                    ForEach(selectedZoneLabels3D, id: \.self) { zone in
+                        HStack {
+                            Image(systemName: "mappin.circle.fill").foregroundStyle(Theme.Colors.accent)
+                            Text(zone).font(.subheadline)
+                            Spacer()
+                            Button {
+                                selectedZoneLabels3D.removeAll { $0 == zone }
+                                tapPositions.removeValue(forKey: zone)
+                            } label: {
+                                Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(.horizontal, 12).padding(.vertical, 8)
+                        .background(RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                            .fill(Theme.Colors.accent.opacity(0.12)))
+                    }
+
+                    if showOverlapDisclaimer {
+                        Text("Site close to previous site.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .padding(.top, 2)
+                            .transition(.opacity.combined(with: .move(edge: .bottom)))
+                    }
+                } else {
+                    Text("Tap the model to set site")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(minHeight: 64, alignment: .top)
+            .padding(.horizontal, 20).padding(.top, 8)
+            .animation(.easeInOut(duration: 0.25), value: showOverlapDisclaimer)
+
+            Spacer()
+
+            Button {
+                guard !selectedZoneLabels3D.isEmpty else { return }
+                let now = Date()
+                selectedSites = selectedZoneLabels3D.map { zoneLabel in
+                    let pos = tapPositions[zoneLabel]
+                    return InjectionSite(
+                        zoneLabel: zoneLabel,
+                        bodyRegion: BodySketchData.region(for: zoneLabel) ?? "unknown",
+                        worldPosition: pos.map { (x: $0.worldX, y: $0.worldY, z: $0.worldZ) },
+                        viewNormal: pos.map { (x: $0.normalX, y: $0.normalY, z: $0.normalZ) },
+                        lastUsedDate: now,
+                        durationDays: routeClass.defaultDurationDays,
+                        routeClass: routeClass.rawValue
+                    )
+                }
+                finalizeRecording()
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "checkmark.circle.fill")
+                    Text("Record Dose")
+                }
+                .font(.headline).foregroundStyle(.white)
+                .frame(maxWidth: .infinity).padding(.vertical, 16)
+                .background(RoundedRectangle(cornerRadius: Theme.Radius.md)
+                    .fill(selectedZoneLabels3D.isEmpty ? Color(.tertiarySystemFill) : Theme.Colors.accent.opacity(0.8)))
+            }
+            .disabled(selectedZoneLabels3D.isEmpty)
+            .padding(.horizontal, 20).padding(.bottom, 20)
+        }
+    }
+
+    /// Front / Back toggle + step-left / step-right orbit arrows.
+    private var body3DOrbitControls: some View {
+        HStack(spacing: 16) {
+            // Step orbit -90°
+            Button {
+                let angles = BodySnapAngle.allCases
+                let cur = angles.firstIndex(of: bodySnapAngle) ?? 0
+                bodySnapAngle = angles[(cur + angles.count - 1) % angles.count]
+                bodySnapNonce += 1
+            } label: {
+                Image(systemName: "arrow.backward.circle.fill")
+                    .font(.title2)
+                    .foregroundStyle(Color(.tertiaryLabel))
+            }
+
+            Spacer()
+
+            // Front / Back primary toggle
+            HStack(spacing: 0) {
+                ForEach([BodySnapAngle.front, .back], id: \.rawValue) { angle in
+                    Button {
+                        bodySnapAngle = angle
+                        bodySnapNonce += 1
+                    } label: {
+                        Text(angle.label)
+                            .font(.subheadline.weight(bodySnapAngle == angle ? .semibold : .regular))
+                            .foregroundStyle(bodySnapAngle == angle
+                                             ? Theme.Colors.accent
+                                             : Color(.secondaryLabel))
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(bodySnapAngle == angle
+                                          ? Theme.Colors.accent.opacity(0.12)
+                                          : Color.clear)
+                            )
+                    }
+                }
+            }
+            .background(RoundedRectangle(cornerRadius: 10).fill(Color(.secondarySystemFill)))
+
+            Spacer()
+
+            // Info button
+            Button {
+                showInfoPanel.toggle()
+            } label: {
+                Image(systemName: "info.circle")
+                    .font(.title2)
+                    .foregroundStyle(Color(.tertiaryLabel))
+            }
+            .popover(isPresented: $showInfoPanel, arrowEdge: .bottom) {
+                infoPanel
+            }
+
+            // Step orbit +90°
+            Button {
+                let angles = BodySnapAngle.allCases
+                let cur = angles.firstIndex(of: bodySnapAngle) ?? 0
+                bodySnapAngle = angles[(cur + 1) % angles.count]
+                bodySnapNonce += 1
+            } label: {
+                Image(systemName: "arrow.forward.circle.fill")
+                    .font(.title2)
+                    .foregroundStyle(Color(.tertiaryLabel))
+            }
+        }
+        .padding(.horizontal, 28)
+    }
+
+    private var infoPanel: some View {
+        VStack(spacing: 0) {
+            Toggle(isOn: $multiSiteEnabled) {
+                Text("Multi-Site")
+                    .font(.subheadline.weight(.medium))
+            }
+            .toggleStyle(.switch)
+            .padding(.horizontal, 16).padding(.vertical, 14)
+
+            Divider()
+
+            HStack(spacing: 0) {
+                Button {
+                    undoLastTap()
+                } label: {
+                    Image(systemName: "arrow.uturn.backward")
+                        .font(.system(size: 18, weight: .medium))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                }
+                .disabled(undoStack.isEmpty)
+                .foregroundStyle(undoStack.isEmpty ? Color(.tertiaryLabel) : Theme.Colors.accent)
+
+                Divider().frame(height: 28)
+
+                Button {
+                    redoLastTap()
+                } label: {
+                    Image(systemName: "arrow.uturn.forward")
+                        .font(.system(size: 18, weight: .medium))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                }
+                .disabled(redoStack.isEmpty)
+                .foregroundStyle(redoStack.isEmpty ? Color(.tertiaryLabel) : Theme.Colors.accent)
+            }
+
+            Divider()
+
+            Button {
+                showInfoPanel = false
+            } label: {
+                Text("Done")
+                    .font(.subheadline.weight(.medium))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+            }
+            .foregroundStyle(Theme.Colors.accent)
+        }
+        .frame(width: 180)
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+    }
+
+    private func undoLastTap() {
+        guard let previous = undoStack.popLast() else { return }
+        redoStack.append((selectedZoneLabels3D, tapPositions))
+        selectedZoneLabels3D = previous.labels
+        tapPositions = previous.positions
+    }
+
+    private func redoLastTap() {
+        guard let next = redoStack.popLast() else { return }
+        undoStack.append((selectedZoneLabels3D, tapPositions))
+        selectedZoneLabels3D = next.labels
+        tapPositions = next.positions
+    }
+
+    private var injectionHeatMap: [String: Int] {
+        var heat: [String: Int] = [:]
+        let doses = medicationManager.doseHistory.filter { dose in
+            guard RouteClass.from(method: dose.administrationMethod) == routeClass else { return false }
+            guard let days = Calendar.current.dateComponents([.day], from: dose.doseDate, to: Date()).day else { return false }
+            return days <= routeClass.heatMapWindowDays
+        }
+        for dose in doses {
+            for site in dose.injectionSites {
+                guard site.routeClass == routeClass.rawValue || site.routeClass == "injection" else { continue }
+                heat[site.zoneLabel, default: 0] += 1
+            }
+        }
+        return heat
     }
 
     // MARK: - Last Location Panel

@@ -16,6 +16,7 @@ class JournalEntry: Identifiable {
     var date: Date
     var mood: Mood
     var text: String
+    var hormoneLevel: Double?
 
     private var symptomsJSON: String = "[]"
 
@@ -37,11 +38,12 @@ class JournalEntry: Identifiable {
         }
     }
 
-    init(id: UUID = UUID(), date: Date, mood: Mood, text: String, symptoms: [Symptom]) {
+    init(id: UUID = UUID(), date: Date, mood: Mood, text: String, symptoms: [Symptom], hormoneLevel: Double? = nil) {
         self.id = id
         self.date = date
         self.mood = mood
         self.text = text
+        self.hormoneLevel = hormoneLevel
         let encoded = { () -> String in
             guard let data = try? JSONEncoder().encode(symptoms),
                   let json = String(data: data, encoding: .utf8) else { return "[]" }

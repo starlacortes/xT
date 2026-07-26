@@ -76,6 +76,11 @@ class MedicationManager: ObservableObject {
     /// Persisted to UserDefaults for cross-launch durability.
     @Published var avoidZones: [String: AvoidZoneInfo] = [:]
 
+    /// Convenience accessor: returns the set of zone labels currently marked as avoid.
+    var avoidZoneLabels: Set<String> {
+        Set(avoidZones.keys)
+    }
+
     /// In-memory cache for async heat map computations.
     /// Keyed by "routeClass_windowDays". Invalidated on dose record.
     private var heatMapCache: [String: [String: Int]] = [:]
