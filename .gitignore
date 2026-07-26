@@ -101,3 +101,4 @@ build/
 
 # Xcode test results
 *.xcresult
+tools/figma-mcp-server

@@ -43,7 +43,11 @@ class MedicationManager: ObservableObject {
 
     // MARK: - SwiftData
     /// Injected from the app container so this singleton can query SwiftData.
-    var modelContext: ModelContext?
+    var modelContext: ModelContext? {
+        didSet {
+            reloadFromContext()
+        }
+    }
 
     // MARK: - Core State
     @Published var selectedMedication: String?
@@ -416,6 +420,16 @@ class MedicationManager: ObservableObject {
         refreshState() // Initialize reactive state
         recomputeCalibrationFactors()  // re-derive α from loaded blood tests
         migrateRecordedAtForLegacyRecords()
+    }
+
+    /// Reloads all state that depends on `modelContext`.
+    /// Called when `modelContext` is first assigned (which happens after `init`).
+    private func reloadFromContext() {
+        guard modelContext != nil else { return }
+        loadDoseHistory()
+        loadBloodTestHistory()
+        loadScreeningHistory()
+        refreshState()
     }
 
     // MARK: - Screening Log (plan §4.1)

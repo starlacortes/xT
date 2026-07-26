@@ -47,14 +47,13 @@ enum SpoofProfile {
 
     private static let spfKey = "com.xt.spoofProfile_jan_v1"
 
-    /// "Jan" started HRT ~18 months ago from the reference date.
-    private static let hrtStartDate: Date = {
-        var dc = DateComponents()
-        dc.year = 2024
-        dc.month = 12
-        dc.day = 15
-        return Calendar.current.date(from: dc)!
-    }()
+    /// "Jan" started HRT ~18 months ago from the current date.
+    /// Computed dynamically so the dose history, heat map, and timeline
+    /// always span from 18 months ago through today regardless of when
+    /// the profile is applied.
+    private static var hrtStartDate: Date {
+        Calendar.current.date(byAdding: .month, value: -18, to: today) ?? today
+    }
 
     /// Reference "now" for deterministic dose generation.
     private static var today: Date { Calendar.current.startOfDay(for: Date()) }

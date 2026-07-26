@@ -12,6 +12,7 @@ import SwiftUI
 struct DeveloperSettingsView: View {
     @State private var showingDeveloperModeAlert = false
     @State private var showingSampleProfileAlert = false
+    @State private var showingSampleProfileDisableAlert = false
 
     var body: some View {
         let dev = DeveloperSettings.shared
@@ -46,7 +47,7 @@ struct DeveloperSettingsView: View {
                             get: { dev.sampleProfileEnabled },
                             set: { newValue in
                                 if newValue { showingSampleProfileAlert = true }
-                                else { onSampleProfileDisabled() }
+                                else { showingSampleProfileDisableAlert = true }
                             }
                         )
                     )
@@ -73,6 +74,12 @@ struct DeveloperSettingsView: View {
             Button("Quit & Switch") { onSampleProfileEnabled() }
         } message: {
             Text("Your data is preserved and will be restored when you turn this off. The app will quit.")
+        }
+        .alert("Restore your profile?", isPresented: $showingSampleProfileDisableAlert) {
+            Button("Cancel", role: .cancel) {}
+            Button("Quit & Restore") { onSampleProfileDisabled() }
+        } message: {
+            Text("Jan's test data will be removed and your original data restored. The app will quit.")
         }
     }
 
@@ -101,6 +108,8 @@ struct DeveloperSettingsView: View {
     private func onSampleProfileDisabled() {
         ProfileSnapshot.restore()
         DeveloperSettings.shared.sampleProfileEnabled = false
+        UserDefaults.standard.synchronize()
+        exit(0)
     }
 
     // MARK: - Layout Helpers
