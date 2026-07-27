@@ -558,6 +558,10 @@ struct QuickDoseSheet: View {
     @State private var bodySnapNonce: Int = 0
     @State private var showOverlapDisclaimer = false
     @State private var tapPositions: [String: BodyModel3DView.HitPosition] = [:]
+    /// Marks taps that land on the body but outside any clinical zone.
+    @StateObject private var noZoneTaps = NoZoneTapTracker()
+    /// Live camera yaw in radians, used to record which side of the body was tapped.
+    @State private var cameraYaw: Float = 0
     @State private var showInfoPanel = false
     @State private var multiSiteEnabled = false
     @State private var showRecommendedZonesInfo = false
@@ -610,8 +614,15 @@ struct QuickDoseSheet: View {
                     onPreTap: { oldLabels, oldPositions in
                         undoStack.append((oldLabels, oldPositions))
                         redoStack.removeAll()
+                    },
+                    onNoZoneTap: { point in
+                        noZoneTaps.record(at: point)
+                    },
+                    onYawChange: { yaw in
+                        cameraYaw = yaw
                     }
                 )
+                .noZoneMarkers($noZoneTaps.taps)
 
                 if showRecommendedZonesInfo {
                     recommendedZonesOverlay
@@ -669,7 +680,9 @@ struct QuickDoseSheet: View {
             Button {
                 guard !selectedZoneLabels3D.isEmpty else { return }
                 let now = Date()
-                let derivedViewContext = bodySnapAngle.label.lowercased()
+                // Derived from the live camera yaw, not the snap-angle selection: a user can
+                // free-pan to the back without changing the selected snap angle.
+                let derivedViewContext = ZoneCentroidStore.viewContext(from: cameraYaw)
                 selectedSites = selectedZoneLabels3D.map { zoneLabel in
                     let pos = tapPositions[zoneLabel]
                     return InjectionSite(

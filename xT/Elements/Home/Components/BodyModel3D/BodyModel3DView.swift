@@ -1,5 +1,6 @@
 import SceneKit
 import SwiftUI
+import simd
 
 // MARK: - Snap angle enum (used by QuickDoseSheet controls)
 
@@ -38,6 +39,15 @@ struct BodyModel3DView: UIViewRepresentable {
     var onTapZone: ((String, Bool) -> Void)? = nil
     var tapPositions: Binding<[String: HitPosition]>
     var onPreTap: (([String], [String: HitPosition]) -> Void)? = nil
+    /// Called with the tap location in view coordinates when the user hits the body on
+    /// surface that has no clinical zone, so the host can mark the spot.
+    var onNoZoneTap: ((CGPoint) -> Void)? = nil
+    /// Reports the live camera yaw in radians whenever it changes.
+    ///
+    /// Hosts need this because the user can free-pan with a drag, which leaves the snap-angle
+    /// selection untouched. Deriving the recorded view context from the snap label meant
+    /// panning round to the back and tapping stored `viewContext: "front"`.
+    var onYawChange: ((Float) -> Void)? = nil
 
     func makeCoordinator() -> Coordinator {
         Coordinator(heatMapData: heatMapData,
@@ -48,7 +58,9 @@ struct BodyModel3DView: UIViewRepresentable {
                     maxSelections: maxSelections,
                     onTapZone: onTapZone,
                     tapPositions: tapPositions,
-                    onPreTap: onPreTap)
+                    onPreTap: onPreTap,
+                    onNoZoneTap: onNoZoneTap,
+                    onYawChange: onYawChange)
     }
 
     func makeUIView(context: Context) -> SCNView {
@@ -63,7 +75,13 @@ struct BodyModel3DView: UIViewRepresentable {
         scnView.scene = scene
 
         let cameraNode = makeCamera(in: scene)
+        scnView.pointOfView = cameraNode
         setupLighting(in: scene)
+
+        // The engine must exist before the model loads: `loadBodyModel` hands it the baked
+        // zone map, and assigning through a nil engine would silently leave taps unresolvable.
+        context.coordinator.hitTestEngine = ZoneHitTestEngine()
+
         loadBodyModel(into: scene, bodyType: bodyType, cameraNode: cameraNode, scnView: scnView, context: context)
 
         let tap = UITapGestureRecognizer(target: context.coordinator,
@@ -77,7 +95,6 @@ struct BodyModel3DView: UIViewRepresentable {
         context.coordinator.scnView        = scnView
         context.coordinator.scene          = scene
         context.coordinator.cameraNode     = cameraNode
-        context.coordinator.hitTestEngine  = ZoneHitTestEngine()
         context.coordinator.centroidStore  = ZoneCentroidStore.shared
         context.coordinator.renderHeatMap()
 
@@ -96,6 +113,8 @@ struct BodyModel3DView: UIViewRepresentable {
         c.recommendedZones   = recommendedZones
         c.maxSelections      = maxSelections
         c.tapPositions   = tapPositions
+        c.onNoZoneTap    = onNoZoneTap
+        c.onYawChange    = onYawChange
         c.renderHeatMap()
         c.heatMapRenderer?.updateCamera(c.cameraNode)
         c.syncPersistentSpots()
@@ -199,16 +218,59 @@ struct BodyModel3DView: UIViewRepresentable {
             scene.rootNode.addChildNode(wrapper)
             context.coordinator.bodyWrapperNode = wrapper
 
+            // Detect the asset's stored orientation instead of assuming it, so a corrected
+            // regeneration of the mesh cannot silently flip the body.
+            var wrapperSpace: [SIMD3<Float>] = []
+            wrapper.enumerateChildNodes { node, _ in
+                guard let src = node.geometry?.sources(for: .vertex).first else { return }
+                let M = simd_float4x4(node.worldTransform)
+                let stride = src.dataStride, offset = src.dataOffset, data = src.data
+                data.withUnsafeBytes { (ptr: UnsafeRawBufferPointer) in
+                    for i in 0..<src.vectorCount {
+                        let b = offset + i * stride
+                        guard b + 12 <= data.count else { continue }
+                        let local = SIMD4<Float>(ptr.loadUnaligned(fromByteOffset: b, as: Float.self),
+                                                 ptr.loadUnaligned(fromByteOffset: b + 4, as: Float.self),
+                                                 ptr.loadUnaligned(fromByteOffset: b + 8, as: Float.self), 1)
+                        let r = M * local
+                        wrapperSpace.append(SIMD3<Float>(r.x, r.y, r.z))
+                    }
+                }
+            }
+            let orientation = BodyOrientation(wrapperSpaceVertices: wrapperSpace) ?? .shippedAssets
+
             let (minB, maxB) = wrapper.boundingBox
-            let bodyHeight = maxB.y - minB.y
-            guard bodyHeight > 0.01 else {
+            guard let bodyTransform = BodyTransform(boundingBox: (min: minB, max: maxB),
+                                                    orientation: orientation) else {
                 print("[BodyModel3DView] \u{26A0}\u{FE0F} Degenerate bounding box")
                 return
             }
+            bodyTransform.apply(to: wrapper)
+            context.coordinator.bodyTransform = bodyTransform
 
-            let scale = Float(1.5) / bodyHeight
-            wrapper.scale    = SCNVector3(scale, -scale, scale)
-            wrapper.position = SCNVector3(0, maxB.y * scale, 0)
+            // Load the baked zone map for *this* body type. The old code loaded centroids
+            // once, in an initializer, always for `.neutral` — so feminine and masculine
+            // meshes were hit-tested against neutral geometry, off by up to 8 cm.
+            var meshNode: SCNNode?
+            var mostVertices = 0
+            wrapper.enumerateChildNodes { node, _ in
+                guard let count = node.geometry?.sources(for: .vertex).first?.vectorCount else { return }
+                if count > mostVertices { mostVertices = count; meshNode = node }
+            }
+            if let meshNode {
+                do {
+                    let map = try ZoneMap(bodyType: bodyType, meshNode: meshNode)
+                    context.coordinator.zoneMap = map
+                    context.coordinator.hitTestEngine?.zoneMap = map
+                    ZoneCentroidStore.shared.zoneMap = map
+                } catch {
+                    // Taps will report `.noZone` rather than guessing a label. Mislabelling an
+                    // injection site is worse than declining to name one.
+                    print("[BodyModel3DView] \u{26A0}\u{FE0F} zone map unavailable for \(bodyType.rawValue): \(error)")
+                }
+            } else {
+                print("[BodyModel3DView] \u{26A0}\u{FE0F} No mesh geometry found for zone map")
+            }
 
             let skin = skinMaterial()
             wrapper.enumerateChildNodes { node, _ in
@@ -230,7 +292,7 @@ struct BodyModel3DView: UIViewRepresentable {
             context.coordinator.heatMapRenderer?.attachShader(to: device)
             context.coordinator.heatMapRenderer?.updateCamera(cameraNode)
 
-            print("[BodyModel3DView] Loaded \(name): h=\(bodyHeight) s=\(scale)")
+            print("[BodyModel3DView] Loaded \(name): s=\(bodyTransform.scale) proper=\(bodyTransform.isProper)")
         } catch {
             print("[BodyModel3DView] \u{26A0}\u{FE0F} Load failed: \(error)")
         }
@@ -242,7 +304,10 @@ struct BodyModel3DView: UIViewRepresentable {
         m.diffuse.contents  = UIColor.accentSecondaryAdaptive
         m.roughness.contents = Float(0.62)
         m.metalness.contents = Float(0.0)
-        m.isDoubleSided     = true
+        // BodyTransform is a proper rotation, so triangle winding is preserved and
+        // back-face culling works. The old mirrored transform inverted winding, which
+        // is the only reason this had to be true.
+        m.isDoubleSided     = false
         return m
     }
 
@@ -274,6 +339,8 @@ struct BodyModel3DView: UIViewRepresentable {
         var onTapZone: ((String, Bool) -> Void)?
         var tapPositions: Binding<[String: HitPosition]>
         var onPreTap: (([String], [String: HitPosition]) -> Void)?
+        var onNoZoneTap: ((CGPoint) -> Void)?
+        var onYawChange: ((Float) -> Void)?
 
         weak var scnView: SCNView?
         weak var scene: SCNScene?
@@ -283,6 +350,10 @@ struct BodyModel3DView: UIViewRepresentable {
         var hitTestEngine: ZoneHitTestEngine?
         var heatMapRenderer: HeatMap3DRenderer?
         var centroidStore: ZoneCentroidStore?
+        var bodyTransform: BodyTransform?
+        /// Strong owner of the baked map. `ZoneCentroidStore` holds it weakly, so something
+        /// has to keep it alive for the lifetime of the view.
+        var zoneMap: ZoneMap?
 
         private var lastRenderSites: Set<String> = []
         private var lastRenderHeat: HeatMapData = [:]
@@ -292,10 +363,6 @@ struct BodyModel3DView: UIViewRepresentable {
         private var lastPersistentCount: Int = -1
         private var lastPersistentSpots: [SCNVector3] = []
 
-#if DEBUG
-        private var debugVizNode: SCNNode?
-#endif
-
         init(heatMapData: HeatMapData,
              avoidZones: Set<String>,
              preferredZones: Set<String>,
@@ -304,7 +371,9 @@ struct BodyModel3DView: UIViewRepresentable {
              maxSelections: Int,
              onTapZone: ((String, Bool) -> Void)?,
              tapPositions: Binding<[String: HitPosition]>,
-             onPreTap: (([String], [String: HitPosition]) -> Void)?) {
+             onPreTap: (([String], [String: HitPosition]) -> Void)?,
+             onNoZoneTap: ((CGPoint) -> Void)?,
+             onYawChange: ((Float) -> Void)?) {
             self.heatMapData      = heatMapData
             self.avoidZones       = avoidZones
             self.preferredZones   = preferredZones
@@ -373,6 +442,7 @@ struct BodyModel3DView: UIViewRepresentable {
             cam.position = Self.cameraPosition(yaw: yaw)
             cam.look(at: Self.lookAt)
             heatMapRenderer?.updateCamera(cameraNode)
+            onYawChange?(yaw)
         }
 
         // MARK: Tap
@@ -380,8 +450,14 @@ struct BodyModel3DView: UIViewRepresentable {
         @objc func handleTap(_ gesture: UITapGestureRecognizer) {
             guard let view = scnView, let engine = hitTestEngine else { return }
             let pt = gesture.location(in: view)
-            if let result = engine.hitResult(at: pt, in: view) {
+            switch engine.outcome(at: pt, in: view) {
+            case .zone(let result):
                 handleZoneHit(result)
+            case .noZone:
+                onNoZoneTap?(pt)
+                UIImpactFeedbackGenerator(style: .rigid).impactOccurred(intensity: 0.4)
+            case .miss:
+                break
             }
         }
 
@@ -505,45 +581,6 @@ struct BodyModel3DView: UIViewRepresentable {
         heatMapRenderer?.setPersistentSpots(spots)
     }
 
-#if DEBUG
-    /// Renders small colored spheres at each zone centroid position so developers
-    /// can visually verify centroid placements against the 3D body mesh.
-    /// Red = zone center, radius proportional to hit-test radius.
-    func updateDebugCentroidViz() {
-        guard let store = centroidStore,
-              let scene = scene,
-              let wrapper = bodyWrapperNode else {
-            debugVizNode?.removeFromParentNode()
-            debugVizNode = nil
-            return
-        }
-
-        // Create or reuse the parent node
-        let parent: SCNNode
-        if let existing = debugVizNode {
-            parent = existing
-            // Remove old child spheres
-            parent.childNodes.forEach { $0.removeFromParentNode() }
-        } else {
-            parent = SCNNode()
-            parent.name = "__debug_centroid_viz__"
-            wrapper.addChildNode(parent)
-            debugVizNode = parent
-        }
-
-        for (label, pos) in store.centroids {
-            let radius = store.radius(forCount: heatMapData[label] ?? 0)
-            let sphere = SCNSphere(radius: CGFloat(radius))
-            sphere.firstMaterial?.diffuse.contents = UIColor.systemRed.withAlphaComponent(0.3)
-            sphere.firstMaterial?.isDoubleSided = true
-            sphere.firstMaterial?.lightingModel = .constant
-
-            let node = SCNNode(geometry: sphere)
-            node.position = pos
-            parent.addChildNode(node)
-        }
-    }
-#endif
     }
 }
 

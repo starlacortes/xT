@@ -67,6 +67,10 @@ struct OnboardingView: View {
     // Step 6b — injection/application site (body picker)
     @State private var selectedSiteLabels3D: [String] = []
     @State private var tapPositions: [String: BodyModel3DView.HitPosition] = [:]
+    /// Marks taps that land on the body but outside any clinical zone.
+    @StateObject private var noZoneTaps = NoZoneTapTracker()
+    /// Live camera yaw in radians, used to record which side of the body was tapped.
+    @State private var cameraYaw: Float = 0
     @State private var bodySnapAngle: BodySnapAngle = .front
     @State private var bodySnapNonce: Int = 0
     @State private var selectedInjectionSites: [InjectionSite] = []
@@ -789,8 +793,15 @@ struct OnboardingView: View {
                 snapNonce: bodySnapNonce,
                 onTapZone: { _, _ in },
                 tapPositions: $tapPositions,
-                onPreTap: { _, _ in }
+                onPreTap: { _, _ in },
+                onNoZoneTap: { point in
+                    noZoneTaps.record(at: point)
+                },
+                onYawChange: { yaw in
+                    cameraYaw = yaw
+                }
             )
+            .noZoneMarkers($noZoneTaps.taps)
             .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.lg))
             .padding(.horizontal, 40)
             .frame(height: 320)
@@ -917,7 +928,9 @@ struct OnboardingView: View {
     private func commitInjectionSites() {
         guard !selectedSiteLabels3D.isEmpty else { return }
         let now = lastDoseDate
-        let derivedViewContext = bodySnapAngle.label.lowercased()
+        // Derived from the live camera yaw, not the snap-angle selection: a user can free-pan
+        // to the back without changing the selected snap angle.
+        let derivedViewContext = ZoneCentroidStore.viewContext(from: cameraYaw)
         let routeClass = RouteClass.from(method: selectedMethod)
         selectedInjectionSites = selectedSiteLabels3D.map { zoneLabel in
             let pos = tapPositions[zoneLabel]

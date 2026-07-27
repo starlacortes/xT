@@ -1,135 +1,121 @@
 import SceneKit
+import simd
 
+/// Zone metadata: the clinical tables, plus a facade over whichever `ZoneMap` is currently
+/// loaded for geometry.
+///
+/// ## What changed and why
+///
+/// This type used to own zone geometry, loading `zone_centroids_<type>.json` and answering
+/// `nearestLabel(to:within:)` by scanning 49 points in 3-D Euclidean space. That is gone.
+/// Geometry now lives in the baked `ZoneMap`, for two reasons:
+///
+/// - **The nearest-centroid scan could not partition a body surface.** 57% of the mesh
+///   resolved to no zone, `Inner Right Thigh` was unreachable, and the wrist zones claimed
+///   14% of the body because a hand is close to a thigh through the air but far along skin.
+/// - **Two sources of centroid truth is the bug that caused this.** The exporter, the app and
+///   the tests each had their own idea of where a zone was. There is now one baked map, and
+///   this type forwards to it rather than keeping a parallel copy.
+///
+/// `loadCentroids(for:)` is also gone. It had exactly one call site — `init` with `.neutral` —
+/// so the feminine and masculine meshes were hit-tested against neutral centroids, offset by up
+/// to 8 cm. `ZoneMap` is loaded per body type by `BodyModel3DView`.
 @MainActor
 final class ZoneCentroidStore {
     static let shared = ZoneCentroidStore()
 
-    private let baseRadius: Float = 0.07
+    /// Extra radius per recorded dose, so a frequently-used site glows larger.
     private let growthPerDose: Float = 0.02
     private let maxRadius: Float = 0.25
+    /// Used only when no map is loaded yet.
+    private let fallbackRadius: Float = 0.07
 
-    private(set) var centroids: [String: SCNVector3] = [:]
-    private var normals: [String: SCNVector3] = [:]
-    private var allLabels: [String] = []
+    /// The active map, set by `BodyModel3DView` once the model for the selected body type has
+    /// loaded. Nil before then; every geometry accessor degrades to nil rather than guessing.
+    weak var zoneMap: ZoneMap?
 
-    private struct CentroidData: Codable {
-        let pos: [Float]
-        let normal: [Float]
-    }
+    private init() {}
 
-    private init() {
-        loadCentroids(for: .neutral)
-    }
+    // MARK: - Labels
 
-    func loadCentroids(for bodyType: BodyType) {
-        let names = [bodyType.centroidsName, "zone_centroids_neutral", "zone_centroids"]
-        for name in names {
-            if let url  = Bundle.main.url(forResource: name, withExtension: "json"),
-               let data = try? Data(contentsOf: url),
-               let dict = try? JSONDecoder().decode([String: CentroidData].self, from: data) {
-                centroids = dict.compactMapValues { entry in
-                    guard entry.pos.count >= 3 else { return nil }
-                    return SCNVector3(entry.pos[0], entry.pos[1], entry.pos[2])
-                }
-                normals = dict.compactMapValues { entry in
-                    guard entry.normal.count >= 3 else { return nil }
-                    return SCNVector3(entry.normal[0], entry.normal[1], entry.normal[2])
-                }
-                allLabels = Array(centroids.keys).sorted()
-                #if DEBUG
-                assertCentroidsSeparated()
-                #endif
-                return
-            }
-        }
-    }
+    /// All 49 zone labels. Comes from the generated `ZoneID` enum rather than from a loaded
+    /// asset, so settings screens can list zones before any 3-D model exists.
+    nonisolated var labels: [String] { ZoneID.allCases.map(\.rawValue) }
+
+    // MARK: - Geometry (forwarded to the baked map)
 
     func centroid(for label: String) -> SCNVector3? {
-        centroids[label]
+        guard let v = zoneMap?.centroid(for: label) else { return nil }
+        return SCNVector3(v)
     }
 
     func normal(for label: String) -> SCNVector3? {
-        normals[label]
+        guard let v = zoneMap?.normal(for: label) else { return nil }
+        return SCNVector3(v)
     }
 
-    func nearestLabel(to worldPos: SCNVector3, within maxDist: Float) -> String? {
-        var bestDist = maxDist
-        var bestLabel: String?
-        for (label, pos) in centroids {
-            let dx = pos.x - worldPos.x
-            let dy = pos.y - worldPos.y
-            let dz = pos.z - worldPos.z
-            let d = sqrt(dx*dx + dy*dy + dz*dz)
-            if d < bestDist {
-                bestDist = d
-                bestLabel = label
-            }
-        }
-        return bestLabel
+    /// Glow radius for a zone: its measured patch radius, grown by recorded dose count.
+    ///
+    /// The base is the zone's real extent from the bake, replacing a flat `0.07` that bore no
+    /// relation to how big the zone actually is — a wrist and a glute were drawn the same size.
+    func radius(for label: String, count: Int) -> Float {
+        let base = zoneMap?.radius(for: label) ?? fallbackRadius
+        return min(base + growthPerDose * Float(count), maxRadius)
     }
 
-    func radius(forCount count: Int) -> Float {
-        let r = baseRadius + growthPerDose * Float(count)
-        return min(r, maxRadius)
-    }
-
+    /// Do two zones' glows overlap at their current dose counts?
     func zonesOverlap(_ a: String, _ b: String, heatMap: [String: Int]) -> Bool {
-        guard let pa = centroids[a], let pb = centroids[b] else { return false }
-        let ra = radius(forCount: heatMap[a] ?? 0)
-        let rb = radius(forCount: heatMap[b] ?? 0)
-        let dx = pa.x - pb.x
-        let dy = pa.y - pb.y
-        let dz = pa.z - pb.z
-        let dist = sqrt(dx*dx + dy*dy + dz*dz)
-        return dist < (ra + rb)
+        guard let pa = zoneMap?.centroid(for: a), let pb = zoneMap?.centroid(for: b) else { return false }
+        let ra = radius(for: a, count: heatMap[a] ?? 0)
+        let rb = radius(for: b, count: heatMap[b] ?? 0)
+        return simd_distance(pa, pb) < (ra + rb)
     }
 
-    var labels: [String] { allLabels }
+    // MARK: - Zone Metadata
 
-    // MARK: - Validation
+    /// Maps a zone label to its body region.
+    ///
+    /// This was a chain of `lowercased().contains(...)` tests whose result depended on the
+    /// order they were written in — "Left Posterior Forearm" matched on "posterior" and landed
+    /// in `arms` only because that clause happened to come before the one containing
+    /// "forearm". An explicit table cannot be reordered into a different answer.
+    nonisolated func region(for zoneLabel: String) -> String? {
+        Self.regionsByLabel[zoneLabel]
+    }
 
-    /// Asserts that no two zone centroids are near-duplicates (distance < 0.01).
-    /// Catches data-entry errors like duplicated or misplaced centroids in the
-    /// JSON without flagging anatomically adjacent zones that are intentionally
-    /// close (e.g. same-thigh alternates, abdominal quadrants, gluteal zones).
-    /// Only runs in DEBUG builds.
-    private func assertCentroidsSeparated() {
-        let entries = Array(centroids)
-        let minSeparation: Float = 0.01
-        for i in 0..<entries.count {
-            for j in (i+1)..<entries.count {
-                let a = entries[i].value
-                let b = entries[j].value
-                let dx = a.x - b.x
-                let dy = a.y - b.y
-                let dz = a.z - b.z
-                let dist = sqrt(dx*dx + dy*dy + dz*dz)
-                assert(dist >= minSeparation,
-                       "ZoneCentroidStore: \"\(entries[i].key)\" and \"\(entries[j].key)\" are near-duplicates (\(String(format: "%.3f", dist)) < \(String(format: "%.3f", minSeparation))). Check centroid JSON.")
-            }
+    nonisolated private static let regionsByLabel: [String: String] = {
+        var map: [String: String] = [:]
+        func assign(_ region: String, _ zones: [ZoneID]) {
+            for z in zones { map[z.rawValue] = region }
         }
-    }
+        assign("thighs", [
+            .upperLeftThigh, .midLeftThigh, .lowerLeftThigh, .outerLeftThigh, .innerLeftThigh,
+            .upperRightThigh, .midRightThigh, .lowerRightThigh, .outerRightThigh, .innerRightThigh,
+            .upperLeftHamstring, .midLeftHamstring, .lowerLeftHamstring,
+            .upperRightHamstring, .midRightHamstring, .lowerRightHamstring,
+        ])
+        assign("glutes", [
+            .leftUpperGlute, .rightUpperGlute, .leftLowerGlute, .rightLowerGlute,
+            .leftVentrogluteal, .rightVentrogluteal,
+        ])
+        assign("arms", [
+            .leftDeltoid, .rightDeltoid, .leftPosteriorDeltoid, .rightPosteriorDeltoid,
+            .leftUpperArm, .rightUpperArm, .leftTriceps, .rightTriceps,
+            .leftForearm, .rightForearm, .leftPosteriorForearm, .rightPosteriorForearm,
+            .leftInnerWrist, .rightInnerWrist,
+        ])
+        assign("upperBody", [
+            .neck, .upperChest, .leftUpperChest, .rightUpperChest,
+            .leftLowerChest, .rightLowerChest, .leftShoulder, .rightShoulder,
+            .upperLeftAbdomen, .upperRightAbdomen, .periumbilical,
+            .lowerLeftAbdomen, .lowerRightAbdomen,
+        ])
+        return map
+    }()
 
-    // MARK: - Zone Metadata (migrated from BodySketchData)
-
-    /// Maps a zone label to its body region (e.g. "Left Deltoid" → "arms").
-    /// Derived from zone label naming conventions.
-    func region(for zoneLabel: String) -> String? {
-        let lower = zoneLabel.lowercased()
-        if lower.contains("thigh") || lower.contains("hamstring") { return "thighs" }
-        if lower.contains("glute") || lower.contains("ventrogluteal") { return "glutes" }
-        if lower.contains("deltoid") || lower.contains("tricep") || lower.contains("forearm")
-            || lower.contains("upper arm") || lower.contains("posterior") { return "arms" }
-        if lower.contains("shoulder") || lower.contains("chest") || lower.contains("abdomen")
-            || lower.contains("periumbilical") || lower.contains("neck") || lower.contains("wrist") {
-            return "upperBody"
-        }
-        return nil
-    }
-
-    /// Derives view context (front/back) from camera yaw angle.
+    /// Derives view context from camera yaw.
     /// front = -π/4…π/4, right = π/4…3π/4, back = 3π/4…π or -π…-3π/4, left = -3π/4…-π/4
-    static func viewContext(from yaw: Float) -> String {
+    nonisolated static func viewContext(from yaw: Float) -> String {
         let angle = atan2(sin(yaw), cos(yaw)) // normalize to -π…π
         switch angle {
         case let a where a >= -.pi/4 && a <= .pi/4: return "front"
@@ -139,11 +125,11 @@ final class ZoneCentroidStore {
         }
     }
 
-    // MARK: - Preferred Zones (migrated from BodySketchData)
+    // MARK: - Preferred Zones
 
     /// Clinical consensus on preferred administration sites.
     /// Key: "MedicationName|RouteClass" (e.g. "Testosterone|injection").
-    static let preferredZones: [String: [String]] = [
+    nonisolated static let preferredZones: [String: [String]] = [
         "Testosterone|injection": [
             "Right Ventrogluteal", "Left Ventrogluteal",
             "Upper Right Thigh", "Upper Left Thigh",
@@ -194,7 +180,7 @@ final class ZoneCentroidStore {
     ]
 
     /// Returns the preferred zone labels for a given medication + route class.
-    static func preferredZones(medication: String, routeClass: RouteClass) -> [String] {
+    nonisolated static func preferredZones(medication: String, routeClass: RouteClass) -> [String] {
         let key = "\(medication)|\(routeClass.rawValue)"
         return preferredZones[key] ?? []
     }
@@ -202,7 +188,7 @@ final class ZoneCentroidStore {
     // MARK: - Recommended Zones
 
     /// Anatomically suitable injection/patch/topical zones for each route class.
-    static func recommendedZones(for routeClass: RouteClass) -> [String] {
+    nonisolated static func recommendedZones(for routeClass: RouteClass) -> [String] {
         switch routeClass {
         case .injection:
             return [

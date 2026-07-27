@@ -209,7 +209,7 @@ final class HeatMap3DRenderer {
             let preferred = preferredZones.contains(label)
             let recommended = recommendedZones.contains(label)
 
-            let r = centroidStore.radius(forCount: count)
+            let r = centroidStore.radius(for: label, count: count)
             let wr: Float = (count >= 2) ? r * 0.4472 : 0.0
 
             var flags: Int32 = 0

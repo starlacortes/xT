@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 """
-Blender Pipeline: Human Body → Segmented USDZ + zone_centroids.json for xT
+Blender Pipeline: Human Body → USDZ for xT
+
+Produces the body meshes only. Injection-zone mapping is NOT done here — see
+tools/zonebake, which bakes a per-vertex zone map from the exported USDZ. After
+regenerating a mesh you must re-run zonebake, because the baked map is keyed to the
+mesh's vertex order.
 
 Run headlessly (all 3 types):
   /opt/homebrew/bin/blender --background --python scripts/blender_generate_body.py
@@ -17,7 +22,9 @@ Source priority (per type):
 
 Outputs (per type):
   xT/Resources/Models/body_{type}.usdz
-  xT/Resources/Models/zone_centroids_{type}.json
+
+The mesh is emitted in a canonical orientation — Z up, head at max Z, feet on Z = 0,
+facing +Y — and normalize_body asserts it rather than assuming it.
 
 Install MPFB2 first (one-time):
   scripts/install_mpfb.sh
@@ -90,79 +97,33 @@ TORSO_LENGTH  = 0.50
 SUBDIV_LEVELS = 2
 
 # ---------------------------------------------------------------------------
-# Zone definitions — used for vertex-group proximity assignment
-# (label, _part_hint, cx, cy, cz, cr) — cx/cy/cz are normalized in full-body bbox
-# For a T-pose MakeHuman mesh (Z-up, Y-front):
-#   nx=0 → body's right side, nx=1 → body's left side
-#   ny=0 → back, ny=1 → front
-#   nz=0 → feet, nz=1 → head
+# Zone definitions have moved.
+#
+# This script no longer maps injection zones. Zone assignment now lives in
+# tools/zonebake, which partitions the exported mesh surface by geodesic distance
+# from seeds authored in absolute world metres (tools/zonebake/Sources/zonebake/ZoneSeeds.swift).
+#
+# The table that used to live here placed each zone as a sphere centre in coordinates
+# normalized to the mesh bounding box, and assigned any vertex within `cr * 1.2` to it.
+# That approach was the bug:
+#
+#   * The bounding box is not centred on the body — measured world X runs -0.289..+0.262,
+#     so the midline sits at fraction 0.5245 and every zone authored at "0.50" was 1.4 cm
+#     onto the body's right.
+#   * The documented depth convention (ny=0 back, ny=1 front) did not match the mesh,
+#     mirroring every zone about the coronal mid-plane.
+#   * Fractions cannot express pose. The arms hang at the sides, so at forearm height the
+#     arm's entire depth range is negative; a "front of forearm" authored as a high depth
+#     fraction lands behind the body.
+#   * Euclidean proximity is wrong on a surface. A hand is ~4 cm from a thigh through the
+#     air but most of a metre away along skin, which let the wrist zones claim 14% of the
+#     whole mesh.
+#
+# The 49 zone labels themselves are a storage contract (InjectionSite.zoneLabel is the
+# migration key for dose history) and are generated into xT/Shared/ZoneID.swift by zonebake.
 # ---------------------------------------------------------------------------
 
-# Coordinates calibrated from live diagnostic on MakeHuman GUI OBJ exports (neutral body).
-# MH arm span dominates bbox X (torso is ~48% of total width) so torso zones
-# cluster around nx 0.28–0.72.  Arm zones reach only ~nx 0.78–0.90, not 0.90–0.95.
-# ny: front = HIGH (close to 1), back = LOW (close to 0)
-# nz: feet = 0, head = 1
-ZONES = [
-    # Torso — upper (chest / shoulders / neck)
-    ("Left Shoulder",          "_", 0.69, 0.85, 0.80, 0.10),
-    ("Right Shoulder",         "_", 0.31, 0.85, 0.80, 0.10),
-    ("Upper Chest",            "_", 0.50, 0.82, 0.78, 0.20),
-    ("Left Upper Chest",       "_", 0.70, 0.83, 0.78, 0.11),
-    ("Right Upper Chest",      "_", 0.29, 0.83, 0.78, 0.11),
-    ("Left Lower Chest",       "_", 0.68, 0.80, 0.73, 0.11),
-    ("Right Lower Chest",      "_", 0.31, 0.80, 0.68, 0.12),
-    ("Neck",                   "_", 0.50, 0.72, 0.82, 0.15),
-    # Torso — lower (abdomen / glutes / ventrogluteal)
-    ("Upper Left Abdomen",     "_", 0.61, 0.87, 0.53, 0.10),
-    ("Upper Right Abdomen",    "_", 0.42, 0.90, 0.52, 0.10),
-    ("Periumbilical",          "_", 0.50, 0.90, 0.59, 0.08),
-    ("Lower Left Abdomen",     "_", 0.57, 0.90, 0.48, 0.09),
-    ("Lower Right Abdomen",    "_", 0.43, 0.90, 0.48, 0.09),
-    ("Left Upper Glute",       "_", 0.60, 0.45, 0.55, 0.09),
-    ("Right Upper Glute",      "_", 0.40, 0.45, 0.55, 0.09),
-    ("Left Ventrogluteal",     "_", 0.55, 0.67, 0.60, 0.09),
-    ("Right Ventrogluteal",    "_", 0.45, 0.67, 0.60, 0.09),
-    ("Left Lower Glute",       "_", 0.60, 0.38, 0.49, 0.10),
-    ("Right Lower Glute",      "_", 0.40, 0.38, 0.49, 0.10),
-    # Arms — left (character's left = positive X)
-    # MH GUI T-pose: forearm at nx~0.79, wrist at nx~0.89, nz drops to ~0.55/0.42
-    ("Left Deltoid",           "_", 0.75, 0.74, 0.77, 0.09),
-    ("Left Upper Arm",         "_", 0.84, 0.70, 0.62, 0.08),
-    ("Left Forearm",           "_", 0.79, 0.64, 0.55, 0.09),
-    ("Left Inner Wrist",       "_", 0.89, 0.72, 0.42, 0.09),
-    ("Left Posterior Deltoid", "_", 0.75, 0.55, 0.77, 0.10),
-    ("Left Triceps",           "_", 0.84, 0.55, 0.62, 0.08),
-    ("Left Posterior Forearm", "_", 0.80, 0.52, 0.55, 0.09),
-    # Arms — right (character's right = negative X)
-    ("Right Deltoid",           "_", 0.25, 0.74, 0.77, 0.09),
-    ("Right Upper Arm",         "_", 0.16, 0.70, 0.62, 0.08),
-    ("Right Forearm",           "_", 0.21, 0.64, 0.55, 0.09),
-    ("Right Inner Wrist",       "_", 0.11, 0.72, 0.42, 0.09),
-    ("Right Posterior Deltoid", "_", 0.25, 0.55, 0.77, 0.10),
-    ("Right Triceps",           "_", 0.16, 0.55, 0.62, 0.08),
-    ("Right Posterior Forearm", "_", 0.20, 0.52, 0.55, 0.09),
-    # Thighs — left (hamstrings shift to nx~0.65–0.68, not 0.60)
-    ("Upper Left Thigh",       "_", 0.60, 0.87, 0.40, 0.09),
-    ("Mid Left Thigh",         "_", 0.60, 0.87, 0.33, 0.08),
-    ("Lower Left Thigh",       "_", 0.60, 0.87, 0.26, 0.08),
-    ("Outer Left Thigh",       "_", 0.64, 0.81, 0.35, 0.08),
-    ("Inner Left Thigh",       "_", 0.56, 0.78, 0.35, 0.09),
-    ("Upper Left Hamstring",   "_", 0.66, 0.51, 0.37, 0.09),
-    ("Mid Left Hamstring",     "_", 0.66, 0.51, 0.30, 0.09),
-    ("Lower Left Hamstring",   "_", 0.64, 0.50, 0.23, 0.09),
-    # Thighs — right
-    ("Upper Right Thigh",      "_", 0.40, 0.87, 0.40, 0.09),
-    ("Mid Right Thigh",        "_", 0.40, 0.87, 0.33, 0.08),
-    ("Lower Right Thigh",      "_", 0.40, 0.87, 0.26, 0.08),
-    ("Outer Right Thigh",      "_", 0.36, 0.81, 0.35, 0.08),
-    ("Inner Right Thigh",      "_", 0.44, 0.78, 0.35, 0.09),
-    ("Upper Right Hamstring",  "_", 0.34, 0.51, 0.37, 0.09),
-    ("Mid Right Hamstring",    "_", 0.34, 0.51, 0.30, 0.09),
-    ("Lower Right Hamstring",  "_", 0.36, 0.50, 0.23, 0.09),
-]
 
-ZONE_LABELS = {z[0] for z in ZONES}
 
 
 # ---------------------------------------------------------------------------
@@ -180,9 +141,70 @@ def clear_scene():
 # ---------------------------------------------------------------------------
 # Shared normalizer: scale to TOTAL_HEIGHT, feet at Z=0, clean normals
 # ---------------------------------------------------------------------------
+def detect_orientation(verts):
+    """Determines which end of a Z-up mesh is the head, and which way it faces.
+
+    Returns (head_at_max_z, front_y_sign).
+
+    Both tests use measured geometry rather than assumptions, because assuming is what
+    caused the zone-mapping bug this pipeline is being repaired for:
+
+      * The feet end is much wider laterally than the head end — two feet spread apart
+        versus a crown. Measured on the source meshes: 4.67 vs 1.67 units, a 2.8x ratio.
+      * The feet point forward: the sole/toe slice reaches ~10 cm further forward than
+        the ankle slice above it, while reaching only ~0.5 mm further back. (A nose
+        protrusion test at head height is *not* reliable — the occiput extends about as
+        far back as the nose does forward.)
+    """
+    zs = [v.z for v in verts]
+    lo_z, hi_z = min(zs), max(zs)
+    height = hi_z - lo_z
+    if height <= 0.01:
+        raise RuntimeError("degenerate mesh height; cannot determine orientation")
+
+    def lateral_width(z0, z1):
+        xs = [v.x for v in verts if z0 <= v.z <= z1]
+        return (max(xs) - min(xs)) if xs else 0.0
+
+    band = height * 0.06
+    width_low = lateral_width(lo_z, lo_z + band)
+    width_high = lateral_width(hi_z - band, hi_z)
+    head_at_max_z = width_high < width_low
+
+    def depth_range(frac_a, frac_b):
+        """Depth extent of a slice, measured as fractions of height up from the feet."""
+        if head_at_max_z:
+            z0, z1 = lo_z + height * frac_a, lo_z + height * frac_b
+        else:
+            z0, z1 = hi_z - height * frac_b, hi_z - height * frac_a
+        ys = [v.y for v in verts if z0 <= v.z <= z1]
+        return (min(ys), max(ys)) if ys else None
+
+    foot = depth_range(0.0, 0.035)
+    ankle = depth_range(0.035, 0.075)
+    if foot is None or ankle is None:
+        raise RuntimeError("could not sample foot/ankle slices; cannot determine facing")
+    front_y_sign = 1.0 if (foot[1] - ankle[1]) >= (ankle[0] - foot[0]) else -1.0
+
+    return head_at_max_z, front_y_sign
+
+
 def normalize_body(body, apply_y_rotation=False):
-    """Normalizes any body mesh to TOTAL_HEIGHT.
-    apply_y_rotation=True for Y-up OBJ imports (MakeHuman .obj), not MPFB."""
+    """Normalizes any body mesh to TOTAL_HEIGHT in a canonical orientation.
+
+    Canonical means: Z up with the head at max Z, feet on Z = 0, and the body facing +Y.
+    This is asserted, not assumed.
+
+    The previous version simply pinned the mesh's minimum Z to zero to "put the feet on
+    the floor", never checking which end was the head. The meshes that shipped are in fact
+    stored upside down and facing -Y, which mirrored every injection zone about the coronal
+    mid-plane: fitting all eight axis-sign combinations against the shipped centroids cut
+    mean placement error from 0.108 to 0.047 once the depth axis was flipped. Nothing caught
+    it because a second inversion in the app cancelled the first for the height axis alone,
+    so heights looked plausible while depth and normals were wrong.
+
+    apply_y_rotation=True for Y-up OBJ imports (MakeHuman .obj), not MPFB.
+    """
     bpy.context.view_layer.objects.active = body
     bpy.ops.object.mode_set(mode='OBJECT')
 
@@ -190,16 +212,50 @@ def normalize_body(body, apply_y_rotation=False):
         body.rotation_euler.x = math.radians(-90)
         bpy.ops.object.transform_apply(rotation=True)
 
-    body_verts = [body.matrix_world @ v.co for v in body.data.vertices]
-    min_z = min(v.z for v in body_verts)
-    max_z = max(v.z for v in body_verts)
+    verts = [body.matrix_world @ v.co for v in body.data.vertices]
+    head_at_max_z, front_y_sign = detect_orientation(verts)
+    print(f"  orientation: head at {'max' if head_at_max_z else 'min'} Z, "
+          f"front at {'+' if front_y_sign > 0 else '-'}Y")
+
+    # Canonicalize with proper rotations only. A 180 degree rotation flips exactly two axes,
+    # so it can never mirror the mesh — unlike negating a single scale component, which
+    # inverts winding order and the normal matrix.
+    if not head_at_max_z and front_y_sign > 0:
+        # Upside down, facing +Y: flip Z and X together.
+        body.rotation_euler = (0.0, math.radians(180), 0.0)
+    elif not head_at_max_z and front_y_sign < 0:
+        # Upside down, facing -Y: flip Z and Y together.
+        body.rotation_euler = (math.radians(180), 0.0, 0.0)
+    elif head_at_max_z and front_y_sign < 0:
+        # Upright but facing backwards: spin about Z.
+        body.rotation_euler = (0.0, 0.0, math.radians(180))
+    if tuple(body.rotation_euler) != (0.0, 0.0, 0.0):
+        bpy.ops.object.transform_apply(rotation=True)
+
+    verts = [body.matrix_world @ v.co for v in body.data.vertices]
+    min_z = min(v.z for v in verts)
+    max_z = max(v.z for v in verts)
     current_height = max_z - min_z
     if current_height > 0.01 and abs(current_height - TOTAL_HEIGHT) > 0.01:
         s = TOTAL_HEIGHT / current_height
         body.scale = (s, s, s)
-    # Feet to Z = 0
+    # Feet to Z = 0. Safe now that the head is known to be at max Z.
     body.location.z = -min_z * body.scale.z
     bpy.ops.object.transform_apply(location=True, scale=True)
+
+    # Assert the canonical result rather than trusting the steps above.
+    verts = [body.matrix_world @ v.co for v in body.data.vertices]
+    head_at_max_z, front_y_sign = detect_orientation(verts)
+    zs = [v.z for v in verts]
+    if not head_at_max_z:
+        raise RuntimeError("normalize_body: head is still at min Z after canonicalization")
+    if front_y_sign < 0:
+        raise RuntimeError("normalize_body: body still faces -Y after canonicalization")
+    if abs(min(zs)) > 1e-3:
+        raise RuntimeError(f"normalize_body: feet are at Z={min(zs):.4f}, expected 0")
+    if abs((max(zs) - min(zs)) - TOTAL_HEIGHT) > 1e-3:
+        raise RuntimeError(f"normalize_body: height is {max(zs) - min(zs):.4f}, expected {TOTAL_HEIGHT}")
+    print(f"  canonical: head at max Z, front +Y, feet at Z=0, height {max(zs) - min(zs):.4f}")
 
     bpy.ops.object.mode_set(mode='EDIT')
     bpy.ops.mesh.select_all(action='SELECT')
@@ -213,11 +269,18 @@ def normalize_body(body, apply_y_rotation=False):
 # ---------------------------------------------------------------------------
 def import_base_mesh(obj_path, body_type_name):
     """Import a manually-placed OBJ base mesh. Returns mesh object."""
-    # Blender's default wm.obj_import treats OBJ as Y-up, forward=-Z:
-    #   OBJ Y (height)  → Blender Z  ✓
-    #   OBJ X           → Blender X  ✓  (character's left = +X, matches MPFB2)
-    #   OBJ +Z (front)  → Blender -Y ✗  (body front ends up at negative Y)
-    # Fix: flip Y axis so front = +Y, matching MPFB2 zone conventions.
+    # Blender's default wm.obj_import treats OBJ as Y-up, forward=-Z, and expresses the
+    # conversion as an *unapplied* rotation on the object rather than baking it into the mesh.
+    #
+    # That detail is the origin of the whole zone-mapping bug. This function used to "fix the
+    # facing" with `for v in body.data.vertices: v.co.y = -v.co.y`, intending to move the front
+    # from -Y to +Y. But `v.co` is *local*, and with the import's 90 degree X rotation still
+    # pending, local Y is the height axis in world space. So the flip turned the body upside
+    # down and left the facing untouched — which is precisely how the shipped assets came to be
+    # stored head-down and still facing -Y.
+    #
+    # The fix is to stop hand-flipping axes. Apply the import transform so local and world
+    # agree, then let normalize_body detect the orientation and canonicalize it.
     bpy.ops.wm.obj_import(filepath=obj_path)
     objs = [o for o in bpy.context.selected_objects if o.type == 'MESH']
     if not objs:
@@ -230,11 +293,9 @@ def import_base_mesh(obj_path, body_type_name):
         bpy.ops.object.join()
     body = bpy.context.active_object
     body.name = f"body_{body_type_name}"
-    # Flip Y: negate every vertex's Y coordinate, then restore outward normals
-    for v in body.data.vertices:
-        v.co.y = -v.co.y
-    for p in body.data.polygons:
-        p.flip()
+    # Bake the importer's axis conversion into the mesh so local == world from here on.
+    bpy.context.view_layer.objects.active = body
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
     normalize_body(body, apply_y_rotation=False)
     return body
 
@@ -368,111 +429,6 @@ def create_procedural_body(body_type_name="neutral"):
 # ---------------------------------------------------------------------------
 # Zone vertex groups
 # ---------------------------------------------------------------------------
-def create_zone_vertex_groups(body):
-    bpy.context.view_layer.objects.active = body
-    bpy.ops.object.mode_set(mode='OBJECT')
-
-    verts_ws = [body.matrix_world @ v.co for v in body.data.vertices]
-    min_x = min(v.x for v in verts_ws); max_x = max(v.x for v in verts_ws)
-    min_y = min(v.y for v in verts_ws); max_y = max(v.y for v in verts_ws)
-    min_z = min(v.z for v in verts_ws); max_z = max(v.z for v in verts_ws)
-    rx = max_x - min_x; ry = max_y - min_y; rz = max_z - min_z
-
-    zone_groups = {label: body.vertex_groups.new(name=label) for label, *_ in ZONES}
-
-    # Build normalized vertex array for fast nearest-neighbour lookup
-    norm_verts = []
-    for v in body.data.vertices:
-        wco = body.matrix_world @ v.co
-        norm_verts.append((
-            (wco.x - min_x) / rx if rx > 0 else 0.5,
-            (wco.y - min_y) / ry if ry > 0 else 0.5,
-            (wco.z - min_z) / rz if rz > 0 else 0.5,
-        ))
-
-    for i, (nx, ny, nz) in enumerate(norm_verts):
-        for label, _, cx, cy, cz, cr in ZONES:
-            d = math.sqrt((nx - cx) ** 2 + (ny - cy) ** 2 + (nz - cz) ** 2)
-            if d < cr * 1.2:
-                w = max(0.0, 1.0 - d / (cr * 1.2))
-                zone_groups[label].add([i], w, 'ADD')
-
-    # Diagnostic: for any zone with no assigned vertices, show nearest vertex coords
-    gidx_map = {vg.name: vg.index for vg in body.vertex_groups if vg.name in ZONE_LABELS}
-    has_verts = set()
-    for v in body.data.vertices:
-        for g in v.groups:
-            for name, idx in gidx_map.items():
-                if g.group == idx and g.weight > 0.01:
-                    has_verts.add(name)
-    empty_zones = [z for z in ZONE_LABELS if z not in has_verts]
-    if empty_zones:
-        print(f"  DIAG: {len(empty_zones)} empty zones — nearest vertex (nx,ny,nz):")
-        for label, _, cx, cy, cz, cr in ZONES:
-            if label not in empty_zones:
-                continue
-            best = min(range(len(norm_verts)),
-                       key=lambda i: (norm_verts[i][0]-cx)**2+(norm_verts[i][1]-cy)**2+(norm_verts[i][2]-cz)**2)
-            bx, by, bz = norm_verts[best]
-            dist = math.sqrt((bx-cx)**2+(by-cy)**2+(bz-cz)**2)
-            print(f"    {label:28s}: want({cx:.2f},{cy:.2f},{cz:.2f}) nearest({bx:.2f},{by:.2f},{bz:.2f}) d={dist:.3f} cr={cr}")
-
-
-# ---------------------------------------------------------------------------
-# Export zone centroids (Blender Z-up → SceneKit Y-up)
-# SceneKit: X = Blender X, Y = Blender Z, Z = -Blender Y
-# Scale: multiply by (1.5 / TOTAL_HEIGHT) to match the app's 1.5 m target height
-# ---------------------------------------------------------------------------
-def export_zone_centroids(body, output_path):
-    bpy.context.view_layer.objects.active = body
-    bpy.ops.object.mode_set(mode='OBJECT')
-
-    scenekit_scale = 1.5 / TOTAL_HEIGHT
-    mesh = body.data
-    # calc_normals_split() removed in Blender 5.x — normals are auto-maintained
-
-    centroids = {}
-    for vg in body.vertex_groups:
-        label = vg.name
-        if label not in ZONE_LABELS:
-            continue
-        gidx = vg.index
-        positions, normals = [], []
-        for v in mesh.vertices:
-            for g in v.groups:
-                if g.group == gidx and g.weight > 0.01:
-                    wco = body.matrix_world @ v.co
-                    positions.append((wco.x * scenekit_scale,
-                                      wco.z * scenekit_scale,
-                                      -wco.y * scenekit_scale))
-                    wn = body.matrix_world.to_3x3() @ v.normal
-                    wn.normalize()
-                    normals.append((wn.x, wn.z, -wn.y))
-                    break
-        if not positions:
-            continue
-        n   = len(positions)
-        cx  = sum(p[0] for p in positions) / n
-        cy  = sum(p[1] for p in positions) / n
-        cz  = sum(p[2] for p in positions) / n
-        nx  = sum(v[0] for v in normals) / n
-        ny  = sum(v[1] for v in normals) / n
-        nz  = sum(v[2] for v in normals) / n
-        length = math.sqrt(nx*nx + ny*ny + nz*nz)
-        if length > 0:
-            nx, ny, nz = nx / length, ny / length, nz / length
-        centroids[label] = {
-            "pos":    [round(cx, 4), round(cy, 4), round(cz, 4)],
-            "normal": [round(nx, 4), round(ny, 4), round(nz, 4)],
-        }
-
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    with open(output_path, "w") as f:
-        json.dump(centroids, f, indent=2)
-    print(f"✓ {len(centroids)} zone centroids → {output_path}")
-
-
-# ---------------------------------------------------------------------------
 # UV + Material
 # ---------------------------------------------------------------------------
 def uv_unwrap(body):
@@ -506,6 +462,10 @@ def assign_material(body):
 # USDZ export
 # ---------------------------------------------------------------------------
 def export_usdz(body, output_path):
+    # No vertex groups exist any more, so the exporter can no longer emit the 49
+    # `primvars:<Zone_Name>` weight arrays the shipped assets carry. Those were dead payload:
+    # no Swift code referenced `primvar`, `faceIndex`, or `textureCoordinates`, so nothing
+    # ever read them. Zone membership now lives in the baked zone map instead.
     bpy.context.view_layer.objects.active = body
     bpy.ops.object.select_all(action='DESELECT')
     body.select_set(True)
@@ -536,53 +496,40 @@ def build_body_type(body_type_name):
     clear_scene()
 
     output_usdz      = os.path.join(OUTPUT_DIR, f"body_{body_type_name}.usdz")
-    output_centroids = os.path.join(OUTPUT_DIR, f"zone_centroids_{body_type_name}.json")
     obj_path         = os.path.join(ASSETS_DIR, f"base_body_{body_type_name}.obj")
 
     mpfb_used = False
     if os.path.isfile(obj_path):
-        print(f"\n[1/6] Importing manual base mesh: {obj_path}")
+        print(f"\n[1/4] Importing manual base mesh: {obj_path}")
         body = import_base_mesh(obj_path, body_type_name)
         print(f"  Imported: {len(body.data.vertices):,} verts, {len(body.data.polygons):,} faces")
     elif MPFB_AVAILABLE:
-        print(f"\n[1/6] Generating MakeHuman body via MPFB2 ({body_type_name})...")
+        print(f"\n[1/4] Generating MakeHuman body via MPFB2 ({body_type_name})...")
         body = create_mpfb_body(body_type_name)
         print(f"  MPFB: {len(body.data.vertices):,} verts, {len(body.data.polygons):,} faces")
         mpfb_used = True
     else:
-        print(f"\n[1/6] MPFB unavailable — building procedural body (fallback)...")
+        print(f"\n[1/4] MPFB unavailable — building procedural body (fallback)...")
         print(f"       Install MPFB2 with: scripts/install_mpfb.sh")
         body = create_procedural_body(body_type_name)
         print(f"  Procedural: {len(body.data.vertices):,} verts, {len(body.data.polygons):,} faces")
 
-    print(f"\n[2/6] Creating {len(ZONES)} injection zone vertex groups...")
-    create_zone_vertex_groups(body)
-    gidx_map = {vg.name: vg.index for vg in body.vertex_groups if vg.name in ZONE_LABELS}
-    covered_set = set()
-    for v in body.data.vertices:
-        for g in v.groups:
-            for name, idx in gidx_map.items():
-                if g.group == idx and g.weight > 0.01:
-                    covered_set.add(name)
-    print(f"  {len(covered_set)} / {len(ZONES)} zones have assigned vertices")
-
     if not mpfb_used:
         # MPFB meshes already have clean MakeHuman UVs — skip re-unwrap
-        print("\n[3/6] UV unwrapping...")
+        print("\n[2/4] UV unwrapping...")
         uv_unwrap(body)
     else:
-        print("\n[3/6] UV unwrap skipped (MPFB mesh already has UVs)")
+        print("\n[2/4] UV unwrap skipped (MPFB mesh already has UVs)")
 
-    print("\n[4/6] Assigning skin material...")
+    print("\n[3/4] Assigning skin material...")
     assign_material(body)
 
-    print("\n[5/6] Exporting USDZ...")
+    print("\n[4/4] Exporting USDZ...")
     export_usdz(body, output_usdz)
 
-    print("\n[6/6] Exporting zone centroids JSON...")
-    export_zone_centroids(body, output_centroids)
-
     print(f"\n  ✓ {body_type_name} done")
+    print(f"    Next: run `swift run zonebake {body_type_name}` from tools/zonebake to")
+    print(f"    rebake the zone map against this mesh, and check its report and previews.")
 
 
 # ---------------------------------------------------------------------------

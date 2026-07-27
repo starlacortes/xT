@@ -1,0 +1,50 @@
+zone colours for masculine
+  #E53D3D  Neck 167 verts
+  #3D8CE5  Upper Chest 49 verts
+  #4CC659  Left Upper Chest 125 verts
+  #F4B228  Right Upper Chest 125 verts
+  #A559D8  Left Shoulder 19 verts
+  #33CCC6  Right Shoulder 19 verts
+  #F272B2  Left Lower Chest 36 verts
+  #8CBF33  Right Lower Chest 36 verts
+  #D87F33  Upper Left Abdomen 38 verts
+  #6666D8  Upper Right Abdomen 39 verts
+  #BF337F  Periumbilical 39 verts
+  #33A58C  Lower Left Abdomen 29 verts
+  #8E2525  Lower Right Abdomen 29 verts
+  #25568E  Left Upper Glute 31 verts
+  #2F7B37  Right Upper Glute 32 verts
+  #976E19  Left Lower Glute 45 verts
+  #663786  Right Lower Glute 46 verts
+  #1F7E7B  Left Ventrogluteal 39 verts
+  #96476E  Right Ventrogluteal 39 verts
+  #56761F  Left Deltoid 38 verts
+  #864F1F  Left Posterior Deltoid 38 verts
+  #3F3F86  Left Upper Arm 36 verts
+  #761F4F  Left Triceps 39 verts
+  #1F6656  Left Forearm 31 verts
+  #E53D3D  Left Posterior Forearm 32 verts
+  #3D8CE5  Left Inner Wrist 73 verts
+  #4CC659  Right Deltoid 38 verts
+  #F4B228  Right Posterior Deltoid 38 verts
+  #A559D8  Right Upper Arm 36 verts
+  #33CCC6  Right Triceps 39 verts
+  #F272B2  Right Forearm 31 verts
+  #8CBF33  Right Posterior Forearm 32 verts
+  #D87F33  Right Inner Wrist 83 verts
+  #6666D8  Upper Left Thigh 27 verts
+  #BF337F  Mid Left Thigh 11 verts
+  #33A58C  Lower Left Thigh 43 verts
+  #8E2525  Outer Left Thigh 33 verts
+  #25568E  Inner Left Thigh 18 verts
+  #2F7B37  Upper Left Hamstring 25 verts
+  #976E19  Mid Left Hamstring 29 verts
+  #663786  Lower Left Hamstring 35 verts
+  #1F7E7B  Upper Right Thigh 27 verts
+  #96476E  Mid Right Thigh 11 verts
+  #56761F  Lower Right Thigh 43 verts
+  #864F1F  Outer Right Thigh 33 verts
+  #3F3F86  Inner Right Thigh 18 verts
+  #761F4F  Upper Right Hamstring 25 verts
+  #1F6656  Mid Right Hamstring 29 verts
+  #E53D3D  Lower Right Hamstring 35 verts
