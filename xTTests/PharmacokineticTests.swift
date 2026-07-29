@@ -119,8 +119,11 @@ struct EsterConstantsTests {
         }
     }
 
-    @Test("E2 scaling constants are in clinical range (1000–15000)")
+    @Test("E2 scaling constants are in clinical range (100–15000)")
     func estrogenScalingConstants() {
+        // Range widened 2026-07-28 to include the recalibrated Oral (1250) and
+        // Transdermal (155) constants — see PharmacokineticConstants.swift for
+        // why the old values (12000 / 8000) were never actually validated.
         let constants = [
             MedicationEster.valerate.scalingConstant,
             MedicationEster.cypionate.scalingConstant,
@@ -128,13 +131,16 @@ struct EsterConstantsTests {
             MedicationEster.transdermal.scalingConstant,
         ]
         for c in constants {
-            #expect(c >= 1000 && c <= 15000,
+            #expect(c >= 100 && c <= 15000,
                     "Scaling constant \(c) outside clinical range")
         }
     }
 
-    @Test("T scaling constants are in clinical range (3–25)")
+    @Test("T scaling constants are in clinical range (100–1500)")
     func testosteroneScalingConstants() {
+        // Range corrected 2026-07-28: the old bounds (3-25) matched the old,
+        // miscalibrated constants (11/11/18/5), which produced peak T levels
+        // ~20-98x below clinical targets. See PharmacokineticConstants.swift.
         let constants = [
             TestosteroneEster.cypionate.scalingConstant,
             TestosteroneEster.enanthate.scalingConstant,
@@ -142,15 +148,24 @@ struct EsterConstantsTests {
             TestosteroneEster.undecanoate.scalingConstant,
         ]
         for c in constants {
-            #expect(c >= 3 && c <= 25,
+            #expect(c >= 100 && c <= 1500,
                     "Scaling constant \(c) outside clinical range")
         }
     }
 
-    @Test("T propionate scaling > cypionate (shorter half-life → higher peak)")
-    func propionateHigherScalingThanCypionate() {
-        #expect(TestosteroneEster.propionate.scalingConstant > TestosteroneEster.cypionate.scalingConstant,
-                "Shorter half-life ester should have higher scaling constant to match peak levels")
+    @Test("T propionate scaling < cypionate (shorter half-life → larger Bateman shape factor, needs LESS scaling)")
+    func propionateLowerScalingThanCypionate() {
+        // Corrected 2026-07-28. The old test asserted the opposite relationship,
+        // based on the same flawed intuition ("shorter half-life should need a
+        // bigger multiplier to reach a higher peak") that produced the original
+        // miscalibration bug. In reality, under flip-flop kinetics the Bateman
+        // shape factor ka/(ka-ke)*(e^-ke·t - e^-ka·t) evaluated at t_max grows
+        // *larger* as ka approaches ke (i.e. as the ester's half-life shortens),
+        // so a shorter-half-life ester needs LESS scaling per mg to hit an
+        // equal-or-higher peak, not more. Verified numerically in
+        // .pk_analysis/run_scenarios.py (Part B).
+        #expect(TestosteroneEster.propionate.scalingConstant < TestosteroneEster.cypionate.scalingConstant,
+                "Shorter half-life ester has a larger Bateman shape factor, so it needs a SMALLER scaling constant")
     }
 
     @Test("T undecanoate scaling < cypionate (longer half-life → flatter profile)")
@@ -1352,5 +1367,238 @@ struct ContextualRangeTests {
         // Unknown fallback uses troughMin and peakCeiling
         #expect(unknown.min == trough.min,
                 "Unknown should use troughMin (\(trough.min)) for safety, got \(unknown.min)")
+    }
+}
+
+
+// MARK: - Regression Tests for 2026-07-28 QA Fixes
+
+/// Covers the testosterone scalingConstant recalibration (previously ~20-98x
+/// too low — see PharmacokineticConstants.swift for the derivation).
+@Suite("Testosterone Ester — Absolute Peak Accuracy (post-recalibration)")
+struct TestosteronePeakAccuracyTests {
+
+    @MainActor
+    @Test("TE 100mg produces clinically plausible peak ~600–900 ng/dL")
+    func teSingleDosePeak() {
+        let mgr = MedicationManager.shared
+        mgr.clearSelection()
+        mgr.selectedMedication = "Testosterone"
+        mgr.selectedAdministrationMethod = "Injectable"
+        mgr.antiAndrogenInUse = false
+        mgr.hrtStartDate = Calendar.current.date(byAdding: .year, value: -3, to: Date())
+        mgr.bloodTestHistory = []
+
+        let now = Date()
+        let record = DoseRecord(doseDate: now, medicationType: "Testosterone",
+                                 ester: TestosteroneEster.enanthate.rawValue,
+                                 administrationMethod: "Injectable", doseAmount: 100.0, doseStatus: .taken)
+        mgr.doseHistory = [record]
+
+        let points = mgr.estimatedLevels(from: now, to: now.addingTimeInterval(14 * 86400),
+                                          stepDays: 0.25, applyCalibration: false)
+        let maxLevel = points.map(\.value).max() ?? 0
+        #expect(maxLevel > 400 && maxLevel < 1200,
+                "TE 100mg peak should be 400-1200 ng/dL (target ~600-900), got \(maxLevel)")
+    }
+
+    @MainActor
+    @Test("TP 50mg produces clinically plausible peak ~800–1200 ng/dL")
+    func tpSingleDosePeak() {
+        let mgr = MedicationManager.shared
+        mgr.clearSelection()
+        mgr.selectedMedication = "Testosterone"
+        mgr.selectedAdministrationMethod = "Injectable"
+        mgr.antiAndrogenInUse = false
+        mgr.hrtStartDate = Calendar.current.date(byAdding: .year, value: -3, to: Date())
+        mgr.bloodTestHistory = []
+
+        let now = Date()
+        let record = DoseRecord(doseDate: now, medicationType: "Testosterone",
+                                 ester: TestosteroneEster.propionate.rawValue,
+                                 administrationMethod: "Injectable", doseAmount: 50.0, doseStatus: .taken)
+        mgr.doseHistory = [record]
+
+        let points = mgr.estimatedLevels(from: now, to: now.addingTimeInterval(7 * 86400),
+                                          stepDays: 0.1, applyCalibration: false)
+        let maxLevel = points.map(\.value).max() ?? 0
+        #expect(maxLevel > 500 && maxLevel < 1600,
+                "TP 50mg peak should be roughly 500-1600 ng/dL (target ~800-1200), got \(maxLevel)")
+    }
+
+    @MainActor
+    @Test("TU 1000mg produces a non-trivial, clinically plausible peak (not ~13 ng/dL)")
+    func tuSingleDosePeak() {
+        let mgr = MedicationManager.shared
+        mgr.clearSelection()
+        mgr.selectedMedication = "Testosterone"
+        mgr.selectedAdministrationMethod = "Injectable"
+        mgr.antiAndrogenInUse = false
+        mgr.hrtStartDate = Calendar.current.date(byAdding: .year, value: -3, to: Date())
+        mgr.bloodTestHistory = []
+
+        let now = Date()
+        let record = DoseRecord(doseDate: now, medicationType: "Testosterone",
+                                 ester: TestosteroneEster.undecanoate.rawValue,
+                                 administrationMethod: "Injectable", doseAmount: 1000.0, doseStatus: .taken)
+        mgr.doseHistory = [record]
+
+        let points = mgr.estimatedLevels(from: now, to: now.addingTimeInterval(21 * 86400),
+                                          stepDays: 0.5, applyCalibration: false)
+        let maxLevel = points.map(\.value).max() ?? 0
+        #expect(maxLevel > 300 && maxLevel < 900,
+                "TU 1000mg peak should be roughly 300-900 ng/dL (target ~400-700), got \(maxLevel)")
+    }
+}
+
+/// Covers the oral/transdermal routing bug: previously, the main superposition
+/// loop's `isInjectable && event.ke > 0` guard checked the manager's GLOBAL
+/// selected route, not each event's own kinetics, so oral and transdermal
+/// dose contributions fell through to an unscaled branch and were effectively
+/// invisible (< 1 pg/mL regardless of dose).
+@Suite("Oral & Transdermal Routes — Dose Response Is No Longer Negligible")
+struct RouteDoseResponseTests {
+
+    @MainActor
+    @Test("Oral E2 2mg produces a real, dose-responsive peak (not <1 pg/mL)")
+    func oralProducesRealPeak() {
+        let mgr = MedicationManager.shared
+        mgr.clearSelection()
+        mgr.selectedMedication = "Estrogen"
+        mgr.selectedAdministrationMethod = "Oral"
+        mgr.antiAndrogenInUse = false
+        mgr.hrtStartDate = Calendar.current.date(byAdding: .year, value: -3, to: Date())
+        mgr.bloodTestHistory = []
+
+        let now = Date()
+        let record = DoseRecord(doseDate: now, medicationType: "Estrogen",
+                                 ester: MedicationEster.oral.rawValue,
+                                 administrationMethod: "Oral", doseAmount: 2.0, doseStatus: .taken)
+        mgr.doseHistory = [record]
+
+        let points = mgr.estimatedLevels(from: now, to: now.addingTimeInterval(24 * 3600),
+                                          stepDays: 1.0 / 24.0, applyCalibration: false)
+        let maxLevel = points.map(\.value).max() ?? 0
+        let baseline = MedicationManager.MedicationType.estrogen.suppressedBaseline
+        #expect(maxLevel > baseline + 20,
+                "Oral 2mg should meaningfully raise the level above baseline (target ~60 pg/mL peak), got \(maxLevel)")
+    }
+
+    @MainActor
+    @Test("Transdermal E2 1mg/day produces a real, dose-responsive steady level (not <1 pg/mL)")
+    func transdermalProducesRealLevel() {
+        let mgr = MedicationManager.shared
+        mgr.clearSelection()
+        mgr.selectedMedication = "Estrogen"
+        mgr.selectedAdministrationMethod = "Cream"
+        mgr.antiAndrogenInUse = false
+        mgr.hrtStartDate = Calendar.current.date(byAdding: .year, value: -3, to: Date())
+        mgr.bloodTestHistory = []
+
+        let now = Date()
+        var doses: [DoseRecord] = []
+        for day in 0..<10 {
+            let date = Calendar.current.date(byAdding: .day, value: -9 + day, to: now)!
+            doses.append(DoseRecord(doseDate: date, medicationType: "Estrogen",
+                                     ester: MedicationEster.transdermal.rawValue,
+                                     administrationMethod: "Cream", doseAmount: 1.0, doseStatus: .taken))
+        }
+        mgr.doseHistory = doses
+
+        let points = mgr.estimatedLevels(from: now.addingTimeInterval(-3600), to: now,
+                                          stepDays: 1.0 / 24.0, applyCalibration: false)
+        let level = points.last?.value ?? 0
+        let baseline = MedicationManager.MedicationType.estrogen.suppressedBaseline
+        #expect(level > baseline + 20,
+                "Daily transdermal 1mg at steady state should meaningfully raise the level (target ~50 pg/mL), got \(level)")
+    }
+}
+
+/// Covers the skipped-dose bug: `estimatedLevels()` used to include ANY active
+/// (non-deleted) dose record regardless of `doseStatus`, so a dose explicitly
+/// logged as `.skipped` still contributed to the predicted curve exactly as if
+/// it had been taken.
+@Suite("Skipped Doses — Excluded From The PK Curve")
+struct SkippedDoseExclusionTests {
+
+    @MainActor
+    @Test("A skipped dose contributes nothing to predicted levels")
+    func skippedDoseContributesNothing() {
+        let mgr = MedicationManager.shared
+        mgr.clearSelection()
+        mgr.selectedMedication = "Testosterone"
+        mgr.selectedAdministrationMethod = "Injectable"
+        mgr.antiAndrogenInUse = false
+        mgr.hrtStartDate = Calendar.current.date(byAdding: .year, value: -3, to: Date())
+        mgr.bloodTestHistory = []
+
+        let now = Date()
+        let taken = DoseRecord(doseDate: now.addingTimeInterval(-7 * 86400), medicationType: "Testosterone",
+                                ester: TestosteroneEster.cypionate.rawValue,
+                                administrationMethod: "Injectable", doseAmount: 100.0, doseStatus: .taken)
+        let skipped = DoseRecord(doseDate: now, medicationType: "Testosterone",
+                                  ester: TestosteroneEster.cypionate.rawValue,
+                                  administrationMethod: "Injectable", doseAmount: 100.0, doseStatus: .skipped)
+
+        // Baseline run: only the taken dose exists.
+        mgr.doseHistory = [taken]
+        let withoutSkip = mgr.estimatedLevels(from: now, to: now.addingTimeInterval(3600),
+                                               stepDays: 1.0, applyCalibration: false)
+
+        // Add the skipped dose on top — level should be unchanged.
+        mgr.doseHistory = [taken, skipped]
+        let withSkip = mgr.estimatedLevels(from: now, to: now.addingTimeInterval(3600),
+                                            stepDays: 1.0, applyCalibration: false)
+
+        guard let a = withoutSkip.first?.value, let b = withSkip.first?.value else {
+            Issue.record("Failed to get level values")
+            return
+        }
+        #expect(abs(a - b) < 0.5,
+                "A skipped dose should not change predicted levels: without=\(a), with=\(b)")
+    }
+}
+
+/// Covers the per-dose route bug: DoseEvent construction used to gate on the
+/// manager's globally-selected administration method rather than each dose's
+/// own `administrationMethod`, so historical doses logged under a route the
+/// user has since switched away from were silently re-modeled with the wrong
+/// kinetics every time the curve was recomputed.
+@Suite("Route Switching — Historical Doses Keep Their Own Kinetics")
+struct RouteSwitchConsistencyTests {
+
+    @MainActor
+    @Test("An oral dose retains oral-scale kinetics even after switching the app's selected route to Injectable")
+    func oralDoseUnaffectedByLaterRouteSwitch() {
+        let mgr = MedicationManager.shared
+        mgr.clearSelection()
+        mgr.selectedMedication = "Estrogen"
+        mgr.antiAndrogenInUse = false
+        mgr.hrtStartDate = Calendar.current.date(byAdding: .year, value: -3, to: Date())
+        mgr.bloodTestHistory = []
+
+        let now = Date()
+        let oralDose = DoseRecord(doseDate: now, medicationType: "Estrogen",
+                                   ester: MedicationEster.oral.rawValue,
+                                   administrationMethod: "Oral", doseAmount: 2.0, doseStatus: .taken)
+        mgr.doseHistory = [oralDose]
+
+        // Case 1: still selected as Oral.
+        mgr.selectedAdministrationMethod = "Oral"
+        let stillOral = mgr.estimatedLevels(from: now.addingTimeInterval(10 * 3600), to: now.addingTimeInterval(10 * 3600),
+                                             stepDays: 1.0, applyCalibration: false)
+
+        // Case 2: user has since switched their selected route to Injectable,
+        // but this dose was logged while they were on Oral.
+        mgr.selectedAdministrationMethod = "Injectable"
+        let afterSwitch = mgr.estimatedLevels(from: now.addingTimeInterval(10 * 3600), to: now.addingTimeInterval(10 * 3600),
+                                               stepDays: 1.0, applyCalibration: false)
+
+        guard let a = stillOral.first?.value, let b = afterSwitch.first?.value else {
+            Issue.record("Failed to get level values")
+            return
+        }
+        #expect(abs(a - b) < 1.0,
+                "A historical oral dose's contribution should not change just because the currently-selected route changed: while-still-Oral=\(a), after-switch-to-Injectable=\(b)")
     }
 }

@@ -132,7 +132,7 @@ extension MedicationManager {
               let method = AdministrationMethod(rawValue: methodStr),
               method == .injectable,
               let lastDose = doseHistory
-                  .filter({ $0.isActive && $0.medicationType == medication })
+                  .filter({ $0.isActive && $0.medicationType == medication && DoseStatus(rawValue: $0.doseStatus) == .taken })
                   .sorted(by: { $0.doseDate > $1.doseDate })
                   .first
         else {
@@ -197,7 +197,7 @@ extension MedicationManager {
         // Auto‑compute hours since last matching dose
         let hoursSince: Double? = {
             guard let lastDose = doseHistory
-                .filter({ $0.isActive && $0.medicationType == hormoneType })
+                .filter({ $0.isActive && $0.medicationType == hormoneType && DoseStatus(rawValue: $0.doseStatus) == .taken })
                 .sorted(by: { $0.doseDate > $1.doseDate })
                 .first
             else { return nil }
@@ -611,16 +611,29 @@ extension MedicationManager {
         }
         
         if !doseHistory.isEmpty {
+            // QA fix (2026‑07‑28): only doses actually TAKEN should contribute to the
+            // PK curve. Previously this filter admitted `.skipped` (and any future
+            // `.missed`) records too, so a dose the user explicitly logged as skipped
+            // was modeled exactly as if it had been injected/swallowed — inflating
+            // predicted levels right after a skip. See xTTests/PharmacokineticTests.swift
+            // "Skipped doses do not contribute to predicted levels".
             let activeDoses = doseHistory
-                .filter { $0.isActive && $0.medicationType == medication }
+                .filter { $0.isActive && $0.medicationType == medication && DoseStatus(rawValue: $0.doseStatus) == .taken }
                 .sorted { $0.doseDate < $1.doseDate }
-            
+
             for dose in activeDoses {
                 let effAmount = dose.doseAmount * dosePotencyFactor(for: dose)
                 let isOralRoute = dose.administrationMethod == "Oral"
                 let isTransdermalRoute = dose.administrationMethod == "Cream"
-                
-                if isInjectable, let pk = pkParams(ester: dose.ester, medication: medication) {
+
+                // QA fix (2026‑07‑28): branch on THIS dose's own administration method,
+                // not the manager's currently-selected global route. Previously a user
+                // who switched routes (e.g. oral → injectable) would have their older
+                // doses silently re-modeled with the wrong kinetics whenever the
+                // globally-selected route didn't match the historical route of that
+                // specific dose. See xTTests/PharmacokineticTests.swift
+                // "Historical doses use their own administration method, not the current selection".
+                if dose.administrationMethod == "Injectable", let pk = pkParams(ester: dose.ester, medication: medication) {
                     // Depot injectable: full Bateman biexponential
                     doseEvents.append(DoseEvent(date: dose.doseDate, amount: effAmount,
                                                 ka: pk.ka, ke: pk.ke, scaling: pk.scaling))
@@ -666,8 +679,31 @@ extension MedicationManager {
             }
 
             // When dose history is sparse (1 active dose — fresh onboarding),
-            // generate synthetic backward and forward doses so the graph shows
-            // a smooth, continuous curve centered on the user's last dose.
+            // generate synthetic FORWARD-only doses so the chart can preview the
+            // user's projected trajectory if they stay on schedule.
+            //
+            // QA fix (2026-07-28): this used to ALSO backfill synthetic doses
+            // BACKWARD up to 90 days before the user's one real dose, at full
+            // dose strength, on a weekly/daily cadence. For a genuinely new
+            // user (their first-ever logged dose), that fabricated up to ~13
+            // full-strength phantom prior doses that never happened — and
+            // because `estimatedLevels()` sums every dose event regardless of
+            // the requested date range, those phantom doses fed directly into
+            // `getCurrentHormoneLevel()`, not just the chart. The user's very
+            // first injection would report a "current level" computed as if
+            // they'd already been on a stable regimen for three months.
+            // Under the old, severely miscalibrated scaling constants this was
+            // numerically invisible; once those were corrected (see the
+            // testosterone/oral/transdermal fixes above) it became a large,
+            // clearly wrong overstatement (confirmed via xTTests — see
+            // teSingleDosePeak/tuSingleDosePeak/evSingleDosePeak/
+            // tcSingleDosePeak/oralE2Kinetics/veryOldDose, which all assume a
+            // single logged dose means exactly one dose contributing).
+            // Forward-filling is left in place: it only affects points at or
+            // after `end`/future dates (dt < 0 doses are skipped), so it can't
+            // distort "now", and it lets the chart preview an upcoming
+            // trajectory the user hasn't actually experienced yet — which is
+            // clearly labeled as projection, unlike fabricated history.
             if activeDoses.count == 1 {
                 let freqDays: Int = {
                     if let custom = customFrequencyDays, custom > 0 { return custom }
@@ -675,31 +711,13 @@ extension MedicationManager {
                        let method = AdministrationMethod(rawValue: methodStr) { return method.frequencyDays }
                     return 7
                 }()
-                let earliestReal = activeDoses.map(\.doseDate).min() ?? start
                 let latestReal = activeDoses.map(\.doseDate).max() ?? start
                 let refDose = activeDoses.first
                 let effAmount = refDose.map { $0.doseAmount * dosePotencyFactor(for: $0) } ?? (baseLevel * 0.5)
                 let refEster = refDose?.ester ?? defaultEsterName
 
-                let lookbackLimit = calendar.date(byAdding: .day, value: -90, to: start) ?? start
-                var cursor = calendar.date(byAdding: .day, value: -freqDays, to: earliestReal) ?? earliestReal
-                while cursor >= lookbackLimit {
-                    if !doseEvents.contains(where: { abs($0.date.timeIntervalSince(cursor)) < 3600 }) {
-                        if isInjectable, let pk = pkParams(ester: refEster, medication: medication) {
-                            doseEvents.append(DoseEvent(date: cursor, amount: effAmount,
-                                                        ka: pk.ka, ke: pk.ke, scaling: pk.scaling))
-                        } else {
-                            let lam = log(2) / defaultHalfLife
-                            doseEvents.append(DoseEvent(date: cursor, amount: effAmount,
-                                                        ka: lam, ke: 0.0, scaling: 1.0))
-                        }
-                    }
-                    guard let prev = calendar.date(byAdding: .day, value: -freqDays, to: cursor) else { break }
-                    cursor = prev
-                }
-
                 let lookaheadLimit = calendar.date(byAdding: .day, value: 90, to: end) ?? end
-                cursor = calendar.date(byAdding: .day, value: freqDays, to: latestReal) ?? latestReal
+                var cursor = calendar.date(byAdding: .day, value: freqDays, to: latestReal) ?? latestReal
                 while cursor <= lookaheadLimit {
                     if !doseEvents.contains(where: { abs($0.date.timeIntervalSince(cursor)) < 3600 }) {
                         if isInjectable, let pk = pkParams(ester: refEster, medication: medication) {
@@ -750,8 +768,24 @@ extension MedicationManager {
                 let dt = cursor.timeIntervalSince(event.date) / 86400.0  // days since dose
                 if dt < 0 { continue }  // future doses not yet administered
                 
-                if isInjectable && event.ke > 0 {
-                    // Bateman biexponential for depot injectables
+                // QA fix (2026‑07‑28): this used to read `if isInjectable && event.ke > 0`,
+                // gating the Bateman branch on the manager's GLOBAL selected route rather
+                // than on this event's own shape. Since oral dose-events are built with a
+                // real ke (oralKe = 1.386, see above) specifically so they get the Bateman
+                // rise‑then‑decay shape, but `isInjectable` is false for anyone whose
+                // current route is Oral/Cream, oral (and — because the `else` branch below
+                // never applied `event.scaling` — transdermal) contributions ALWAYS fell
+                // through to a bare, unscaled `amount * exp(-ka*dt)`. In practice this made
+                // predicted levels for oral and transdermal users flat at baseline
+                // regardless of dose (contributions ~100–1000× smaller than intended).
+                // `event.ke > 0` alone is the correct discriminator: depot injectables and
+                // oral doses set a real ke (→ Bateman), while transdermal micro-doses and
+                // the generic fallback set ke = 0 by design (→ single-exponential). Both
+                // branches now apply `event.scaling` so a route's calibration constant is
+                // never silently dropped. See xTTests/PharmacokineticTests.swift
+                // "Oral and transdermal routes produce non-negligible, scaled dose response".
+                if event.ke > 0 {
+                    // Bateman biexponential (depot injectables, and oral's fast-absorption case)
                     let denom = event.ka - event.ke
                     if abs(denom) < 0.0001 {
                         // ka ≈ ke edge case: use limit approximation
@@ -761,8 +795,8 @@ extension MedicationManager {
                             (event.ka / denom) * (exp(-event.ke * dt) - exp(-event.ka * dt))
                     }
                 } else {
-                    // Simple single‑exponential for oral/transdermal / fallback
-                    cumulativeSpike += event.amount * exp(-event.ka * dt)
+                    // Simple single‑exponential for transdermal micro-doses / generic fallback
+                    cumulativeSpike += event.amount * event.scaling * exp(-event.ka * dt)
                 }
             }
             let rawValue = baseLevel + cumulativeSpike

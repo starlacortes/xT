@@ -78,14 +78,26 @@ enum MedicationEster: String, CaseIterable {
     /// observed peak E2 concentration. Recalibrated 2026‑06‑30.
     ///   - EV 2 mg → peak E2 ~250 pg/mL  (S = 3150)
     ///   - EC 2 mg → peak E2 ~180 pg/mL  (S = 2700)
-    ///   - Oral 2 mg → peak E2 ~60 pg/mL (S = 12000)
-    ///   - TD 1 mg → steady E2 ~50 pg/mL (S = 8000)
+    ///   - Oral 2 mg → peak E2 ~60 pg/mL (S = 1250)
+    ///   - TD 1 mg → steady E2 ~50 pg/mL (S = 155)
+    ///
+    /// Re‑recalibrated 2026‑07‑28 (QA pass): `.oral` and `.transdermal` were
+    /// previously 12000 / 8000. Those values were never actually validated end
+    /// to end — a separate bug in `estimatedLevels()` routed all non‑injectable
+    /// dose contributions through a code path that ignored `scalingConstant`
+    /// entirely, so oral/transdermal predictions were silently flat at
+    /// baseline regardless of dose. Now that the routing bug is fixed
+    /// (MedicationManager+Pharmacokinetics.swift), the old constants would
+    /// overshoot the documented targets by ~9.6× (oral) and ~52× (transdermal).
+    /// These values were re‑derived numerically so the documented targets above
+    /// are actually reproduced by the corrected code path. See
+    /// `.pk_analysis/run_scenarios.py` for the derivation.
     var scalingConstant: Double {
         switch self {
         case .valerate: return 3150.0
         case .cypionate: return 2700.0
-        case .oral: return 12000.0
-        case .transdermal: return 8000.0
+        case .oral: return 1250.0
+        case .transdermal: return 155.0
         }
     }
 
@@ -160,12 +172,23 @@ enum TestosteroneEster: String, CaseIterable {
     ///   - TP 50 mg  → peak T ~800–1200 ng/dL
     ///   - TU 1000 mg → peak T ~400–700 ng/dL (very flat profile)
     /// Used in the Bateman biexponential to convert mg → concentration.
+    ///
+    /// Recalibrated 2026‑07‑28 (QA pass): the previous values (11 / 11 / 18 / 5)
+    /// were miscalibrated by ~20–98×. Under flip‑flop kinetics the Bateman
+    /// "shape factor" ka/(ka−ke)·(e^(−ke·t) − e^(−ka·t)) evaluated at t_max is
+    /// small (~0.01 for these esters) — the estrogen esters' constants correctly
+    /// account for this, but these testosterone constants did not, so a 100 mg
+    /// TC dose previously produced a peak of ~8 ng/dL instead of ~750 ng/dL
+    /// (>99% below both the target above and this file's own unit tests in
+    /// xTTests/PharmacokineticTests.swift, which assert 400–1200 ng/dL for a
+    /// 100 mg TC dose). Values re‑derived numerically to reproduce the targets
+    /// above; see `.pk_analysis/run_scenarios.py` for the derivation.
     var scalingConstant: Double {
         switch self {
-        case .cypionate: return 11.0
-        case .enanthate: return 11.0
-        case .propionate: return 18.0
-        case .undecanoate: return 5.0
+        case .cypionate: return 1081.0
+        case .enanthate: return 923.0
+        case .propionate: return 359.0
+        case .undecanoate: return 214.0
         }
     }
 
