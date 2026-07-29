@@ -23,6 +23,9 @@ struct HomeView: View {
     @State private var scrubValue: Double? = nil
     @State private var scrubDate: Date? = nil
 
+    // Background depth: starts slightly darkened, then lightens.
+    @State private var backgroundDepthOpacity: Double = 0.25
+
     // Scalable metrics
     @ScaledMetric private var minHorizontalPad: CGFloat = 18
     @ScaledMetric private var maxHorizontalPad: CGFloat = 60
@@ -38,6 +41,11 @@ struct HomeView: View {
                 ZStack(alignment: .top) {
                     HomeGradientBackground()
                         .ignoresSafeArea()
+
+                    // Darkening veil that fades out as the chart comes to life.
+                    Color.black.opacity(backgroundDepthOpacity)
+                        .ignoresSafeArea()
+                        .allowsHitTesting(false)
 
                     if medicationManager.isFullyConfigured {
                         FlatGraphView(dataRegionFraction: 0.55,
@@ -107,6 +115,11 @@ struct HomeView: View {
         .onAppear {
             medicationManager.refreshState()
             lastRecordedCount = medicationManager.doseRecordedCount
+
+            // Lighten the background over the same period as the chart entrance.
+            withAnimation(.easeOut(duration: 1.5)) {
+                backgroundDepthOpacity = 0
+            }
         }
         .onChange(of: medicationManager.doseRecordedCount) { _, newCount in
             guard newCount > lastRecordedCount else { return }
@@ -158,13 +171,7 @@ private enum IrisPhase: CaseIterable, Equatable {
     }
 }
 
-#Preview {
-    SpoofPreview {
-        HomeView()
-            .environment(\.medicationManager, MedicationManager.shared)
-            .environment(\.journalManager, JournalManager.shared)
-    }
-}
+// MARK: - Background Gradient
 
 /// Full-bleed gradient background — dark purple gradient with ambient rose/purple glows.
 private struct HomeGradientBackground: View {
@@ -198,5 +205,15 @@ private struct HomeGradientBackground: View {
                 endPoint: .leading
             )
         }
+    }
+}
+
+// MARK: - Preview
+
+#Preview {
+    SpoofPreview {
+        HomeView()
+            .environment(\.medicationManager, MedicationManager.shared)
+            .environment(\.journalManager, JournalManager.shared)
     }
 }
