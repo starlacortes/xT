@@ -18,9 +18,11 @@ struct EsterConstantsTests {
 
     @Test("All E2 ester half-lives are positive and within expected ranges")
     func estrogenHalfLives() {
+        // EV/EC recalibrated 2026-07-29 so the modeled steady-state trough matches
+        // transfemscience Table 10 (5 mg weekly). See .pk_analysis/fit_constants.py.
         let expected: [String: Double] = [
-            "Valerate (EV)": 2.0,
-            "Cypionate (EC)": 8.5,
+            "Valerate (EV)": 2.60,
+            "Cypionate (EC)": 6.47,
             "Oral": 0.5,
             "Transdermal": 1.5
         ]
@@ -52,11 +54,21 @@ struct EsterConstantsTests {
         }
     }
 
-    @Test("E2 elimination half-lives are consistent (3 hours for all esters)")
+    /// These are apparent curve-fit constants, not physiological clearance. The
+    /// injectables are fit per-ester so Tmax matches the published time-to-peak;
+    /// oral/transdermal remain elimination-dominated at the original 3 h.
+    /// See .pk_analysis/fit_constants.py.
+    @Test("E2 elimination half-lives match their per-ester fitted values")
     func estrogenEliminationHalfLife() {
+        let expected: [String: Double] = [
+            "Valerate (EV)": 21.5,
+            "Cypionate (EC)": 38.6,
+            "Oral": 3.0,
+            "Transdermal": 3.0
+        ]
         for ester in MedicationEster.allCases {
-            #expect(ester.eliminationHalfLifeHours == 3.0,
-                    "\(ester.rawValue) elimination half-life must be 3.0 hours")
+            #expect(ester.eliminationHalfLifeHours == expected[ester.rawValue],
+                    "\(ester.rawValue) elimination half-life changed from expected \(expected[ester.rawValue]!) to \(ester.eliminationHalfLifeHours)")
         }
     }
 
@@ -276,17 +288,21 @@ struct FlipFlopKineticsTests {
 
     @Test("Depot esters exhibit flip-flop: kₐ ≪ kₑ")
     func depotEstersKaMuchLessThanKe() {
-        // EV: ka = 0.347, ke = 5.545 → ratio ka/ke ≈ 0.063
+        // Flip-flop (ka < ke) still holds after the 2026-07-29 recalibration, but the
+        // separation is far less extreme: ke is no longer pinned to a physiological
+        // 3 h, so the ratios moved from ~0.06/0.02 into the ~0.25–0.35 band.
+        //
+        // EV: ka = 0.267, ke = 0.774 → ratio ≈ 0.345
         let ev_ka = log(2) / MedicationEster.valerate.halfLifeDays
         let ev_ke = log(2) / (MedicationEster.valerate.eliminationHalfLifeHours / 24.0)
         #expect(ev_ka < ev_ke, "EV should have ka < ke")
-        #expect(ev_ka / ev_ke < 0.2, "EV: ka/ke ratio \(ev_ka / ev_ke) should be < 0.2 (flip-flop)")
+        #expect(ev_ka / ev_ke < 0.5, "EV: ka/ke ratio \(ev_ka / ev_ke) should be < 0.5 (flip-flop)")
 
-        // EC: ka = 0.082, ke = 5.545 → ratio ≈ 0.015
+        // EC: ka = 0.107, ke = 0.431 → ratio ≈ 0.249
         let ec_ka = log(2) / MedicationEster.cypionate.halfLifeDays
         let ec_ke = log(2) / (MedicationEster.cypionate.eliminationHalfLifeHours / 24.0)
         #expect(ec_ka < ec_ke, "EC should have ka < ke")
-        #expect(ec_ka / ec_ke < 0.05, "EC: ka/ke ratio \(ec_ka / ec_ke) should be < 0.05")
+        #expect(ec_ka / ec_ke < 0.5, "EC: ka/ke ratio \(ec_ka / ec_ke) should be < 0.5")
 
         // TC: ka = 0.087, ke = 8.318 → ratio ≈ 0.010
         let tc_ka = log(2) / TestosteroneEster.cypionate.halfLifeDays
@@ -315,29 +331,31 @@ struct FlipFlopKineticsTests {
 @Suite("Time to Peak — Pharmacodynamic Accuracy")
 struct TimeToPeakTests {
 
+    /// Retargeted 2026-07-29 to the published Tmax windows. These are the observable
+    /// proof that the ke recalibration worked: before it, ke was pinned to 3 h and
+    /// every depot ester peaked at ~0.5 d regardless of its ester.
     @MainActor
-    @Test("EV t_max ≈ 0.5 days (12 hours)")
+    @Test("EV t_max matches literature 1.9–2.1 d (transfemscience/Tiong)")
     func valeratePeakTime() {
         let mgr = MedicationManager.shared
         mgr.clearSelection()
         mgr.selectedMedication = "Estrogen"
         let tMax = mgr.expectedTimeToPeak(for: MedicationEster.valerate)
-        // EV: ka=0.347, ke=5.545 → t_max = ln(0.347/5.545)/(0.347-5.545) ≈ 0.52
-        #expect(tMax > 0.3 && tMax < 0.8,
-                "EV t_max should be ~0.5 days, got \(tMax)")
+        // EV: ka=0.267, ke=0.774 → t_max ≈ 2.10 (was ~0.52 with the 3 h ke)
+        #expect(tMax > 1.5 && tMax < 2.5,
+                "EV t_max should be within the 1.5–2.5 d literature window, got \(tMax)")
     }
 
     @MainActor
-    @Test("EC t_max ≈ 1.5–2.5 days (slower absorption)")
+    @Test("EC t_max matches literature 3.1–4.3 d (transfemscience)")
     func cypionatePeakTime() {
         let mgr = MedicationManager.shared
         mgr.clearSelection()
         mgr.selectedMedication = "Estrogen"
         let tMax = mgr.expectedTimeToPeak(for: MedicationEster.cypionate)
-        // EC: ka=0.082, ke=5.545 → t_max ≈ 1/ka = 12.2 days? No, watch:
-        // t_max = ln(0.082/5.545)/(0.082-5.545) = ln(0.0148)/(-5.463) = -4.211/-5.463 ≈ 0.77
-        #expect(tMax > 0.5 && tMax < 3.0,
-                "EC t_max should be 0.5–3.0 days, got \(tMax)")
+        // EC: ka=0.107, ke=0.431 → t_max ≈ 4.30 (was ~0.77 with the 3 h ke)
+        #expect(tMax > 3.0 && tMax < 4.5,
+                "EC t_max should be within the 3.0–4.5 d literature window, got \(tMax)")
     }
 
     @MainActor
@@ -831,10 +849,13 @@ struct PKEngineNominalTests {
         #expect(points.first!.value > points.last!.value,
                 "Level should decrease from peak to end of week")
 
-        // Peak should be within 200–300 pg/mL for 2mg EV (S=3150, effective=1.528mg)
+        // Retargeted 2026-07-29. Amplitude is now anchored to the transfemscience
+        // Table 10 steady-state peak rather than the app's legacy 2mg→250 target,
+        // which was 2.1x the corresponding Table 9 figure. Single-dose Cmax is now a
+        // derived value: ~119 pg/mL for 2 mg EV (S=396.4, effective=1.528mg).
         let maxLevel = points.map(\.value).max() ?? 0
-        #expect(maxLevel > 150 && maxLevel < 400,
-                "EV 2mg peak should be 150–400 pg/mL, got \(maxLevel)")
+        #expect(maxLevel > 90 && maxLevel < 180,
+                "EV 2mg peak should be 90–180 pg/mL, got \(maxLevel)")
 
         // After 7 days, should be approaching baseline (~5 pg/mL fully suppressed)
         let troughLevel = points.last!.value

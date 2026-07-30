@@ -30,8 +30,10 @@ from dataclasses import dataclass
 # ----------------------------------------------------------------------
 
 E2_ESTERS = {
-    "Valerate (EV)":    dict(half_life_days=2.0, elim_h=3.0, ewf=0.764, F=1.00, S=3150.0),
-    "Cypionate (EC)":   dict(half_life_days=8.5, elim_h=3.0, ewf=0.687, F=1.00, S=2700.0),
+    # EV/EC recalibrated 2026-07-29 -- see fit_constants.py. ka fit to the Table 10
+    # trough, ke fit to the published Tmax, S anchored to the Table 10 steady-state peak.
+    "Valerate (EV)":    dict(half_life_days=2.60, elim_h=21.5, ewf=0.764, F=1.00, S=396.4),
+    "Cypionate (EC)":   dict(half_life_days=6.47, elim_h=38.6, ewf=0.687, F=1.00, S=273.0),
     "Oral":             dict(half_life_days=0.5, elim_h=3.0, ewf=1.000, F=0.05, S=1250.0),
     "Transdermal":      dict(half_life_days=1.5, elim_h=3.0, ewf=1.000, F=0.15, S=155.0),
 }

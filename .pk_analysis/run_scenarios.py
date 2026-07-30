@@ -68,8 +68,9 @@ for ester, lit in lit_ss.items():
     e2 = (cmin - lit["cmin"]) / lit["cmin"] * 100
     e3 = (cavg - lit["cavg"]) / lit["cavg"] * 100
     print(f"{ester:<18}{cmax:>11.1f}{lit['cmax']:>9.1f}{e1:>+6.1f}%{cmin:>11.1f}{lit['cmin']:>9.1f}{e2:>+6.1f}%{cavg:>11.1f}{lit['cavg']:>9.1f}{e3:>+6.1f}%")
-print("(Kept as-shipped: internally consistent with the app's own single-dose target and within the")
-print(" right order of magnitude at steady state; flagged in report as a refinement opportunity, not a bug.)")
+print("(Recalibrated 2026-07-29: ka fit to the Table 10 trough, ke to the published Tmax, S anchored")
+print(" to the Table 10 steady-state peak. Single-dose Cmax above was NOT a fit target -- it lands")
+print(" within ~1% (EV) / ~5% (EC) of Table 9 independently, which cross-validates the shape.)")
 
 print()
 print("=" * 108)
@@ -149,5 +150,6 @@ for (med, ester), (lo, hi, note) in lit_tmax.items():
     status = "OK" if lo <= tmax <= hi else "MODEL UNDERESTIMATES" if tmax < lo else "MODEL OVERESTIMATES"
     print(f"{med:<14}{ester:<20} model={tmax:.2f}d  lit_window={lo}-{hi}d  [{status}]   ({note})")
 print()
-print("Note: the model systematically predicts an earlier Tmax than clinical studies report for")
-print("depot esters. This is a known simplification of the two-parameter Bateman fit; see report.")
+print("Note: EV/EC were recalibrated 2026-07-29 and now match their literature windows. The")
+print("testosterone esters still underestimate Tmax -- their ke is untouched pending published")
+print("steady-state trough data to fit ka against (see fit_constants.py, T-ester section).")

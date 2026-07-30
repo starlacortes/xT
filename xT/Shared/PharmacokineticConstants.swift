@@ -16,25 +16,40 @@ enum MedicationEster: String, CaseIterable {
     case oral = "Oral"
     case transdermal = "Transdermal"
 
+    /// Apparent terminal half-life (days) — sets the Bateman `ka` (ka = ln2 / halfLifeDays).
+    /// Under flip-flop kinetics for depot esters this is the absorption-limited terminal
+    /// slope, and it is what governs the entire inter-dose peak→trough decay.
+    ///
+    /// Recalibrated 2026‑07‑29: EV 2.0 → 2.60 d and EC 8.5 → 6.47 d, fit so the modeled
+    /// steady-state trough reproduces transfemscience.org Table 10 (5 mg weekly). The
+    /// previous values undershot the published trough by 45% (EV) and 31% (EC).
+    /// Oral/transdermal are elimination-dominated and were left as-is (already validated).
+    /// See `.pk_analysis/fit_constants.py`.
     var halfLifeDays: Double {
         switch self {
-        case .valerate: return 2.0
-        case .cypionate: return 8.5
+        case .valerate: return 2.60
+        case .cypionate: return 6.47
         case .oral: return 0.5
         case .transdermal: return 1.5
         }
     }
 
-    /// Terminal half-life (days) is the effective clinical half-life.
-    /// Under flip-flop kinetics for depot esters, this ≈ ln(2) / ka (absorption-limited).
-    /// For oral/transdermal, this is the elimination-dominated half-life.
-
-    /// Elimination half-life of free estradiol (hours) — used for Bateman ke parameter.
-    /// Free E2 is cleared rapidly; the depot ester's slow absorption dominates the terminal slope.
+    /// Apparent absorption half-life (hours) — sets the Bateman `ke` (ke = ln2 / (h/24)).
+    ///
+    /// NOTE: despite the name, this is an *empirical curve-fit constant*, not the
+    /// physiological clearance of free estradiol. Under flip-flop kinetics the fast
+    /// exponential is unidentifiable from clinical data: with the previous fixed 3 h,
+    /// exp(-ke·t) decayed within ~2 h and contributed nothing to the observable curve
+    /// except to force Tmax to ~0.5 d for every ester. It is now fit per-ester so that
+    /// Tmax = ln(ka/ke)/(ka−ke) lands on the published time-to-peak.
+    ///
+    /// Recalibrated 2026‑07‑29: EV 3 h → 21.5 h (Tmax 0.53 → 2.10 d, lit 2.1 d),
+    /// EC 3 h → 38.6 h (Tmax 0.77 → 4.30 d, lit 3.1–4.3 d).
+    /// See `.pk_analysis/fit_constants.py`.
     var eliminationHalfLifeHours: Double {
         switch self {
-        case .valerate: return 3.0
-        case .cypionate: return 3.0
+        case .valerate: return 21.5
+        case .cypionate: return 38.6
         case .oral: return 3.0
         case .transdermal: return 3.0
         }
@@ -92,10 +107,27 @@ enum MedicationEster: String, CaseIterable {
     /// These values were re‑derived numerically so the documented targets above
     /// are actually reproduced by the corrected code path. See
     /// `.pk_analysis/run_scenarios.py` for the derivation.
+    ///
+    /// **Re‑anchored 2026‑07‑29 (injectables only).** The single‑dose targets listed
+    /// above are not reachable simultaneously with the published steady‑state curve:
+    /// EV 2 mg → 250 pg/mL is 2.1× and EC 2 mg → 180 pg/mL is 3.1× the corresponding
+    /// transfemscience.org Table 9 figures. Holding them put steady state ~+110% (EV)
+    /// and ~+206% (EC) above Table 10. EV and EC are therefore now anchored to the
+    /// published *steady‑state* peak (5 mg weekly: EV 384, EC 339 pg/mL), which the
+    /// model reproduces to within 0.0% on both Cmax and Cmin. Single‑dose Cmax is now
+    /// a derived value: EV 2 mg → ~119 pg/mL, EC 2 mg → ~59 pg/mL.
+    ///
+    /// Note this also corrects a latent inconsistency: at S = 2700 the shipped EC
+    /// constant produced 51 pg/mL for a 2 mg dose, not the 180 pg/mL its own comment
+    /// claimed (−71.5%). Every other ester matched its stated target to within 0.1%.
+    ///
+    /// Oral and transdermal are unchanged — they are elimination‑dominated, already
+    /// validated end to end, and have no flip‑flop identifiability problem.
+    /// See `.pk_analysis/fit_constants.py`.
     var scalingConstant: Double {
         switch self {
-        case .valerate: return 3150.0
-        case .cypionate: return 2700.0
+        case .valerate: return 396.4
+        case .cypionate: return 273.0
         case .oral: return 1250.0
         case .transdermal: return 155.0
         }
@@ -128,8 +160,44 @@ enum TestosteroneEster: String, CaseIterable {
     /// Terminal half-life (days) is the effective clinical half-life.
     /// Under flip-flop kinetics for depot esters, this ≈ ln(2) / ka (absorption-limited).
 
+    // MARK: Deliberately NOT recalibrated (2026‑07‑29)
+    //
+    // The estrogen esters were refit on this date so Tmax and steady-state trough
+    // match published curves (see MedicationEster above). The same treatment was
+    // scoped for testosterone and then **deliberately not applied**, because the
+    // evidence base did not support it. Recording why, so this isn't re-litigated:
+    //
+    //  1. TC has no usable published weekly-IM steady-state Cmax/Cmin pair. What
+    //     exists is a single-dose study (200 mg IM, n=11 hypogonadal men, Cmax
+    //     1112±297 ng/dL) and the Endocrine Society trough target of 400–700 ng/dL
+    //     measured one week post-dose. Neither pins `ka`.
+    //
+    //  2. **The Tmax target currently encoded in `.pk_analysis/run_scenarios.py`
+    //     for TC (1.0–2.0 d, cited as "24-48h") looks wrong.** That figure appears
+    //     to describe when levels rise into the supraphysiologic range, not when
+    //     they peak — the measured Cmax in the study above falls on **day 4–5**.
+    //     Fitting `ke` to the encoded window would bake in a ~3-day error. Resolve
+    //     this before any TC refit.
+    //
+    //  3. TE does have a usable steady-state profile (100 mg/week, week 6:
+    //     Cmax 1427, Cmin 584, Cavg 895.5 ng/dL, Tmax 33.9 h → Cmin/Cmax ≈ 0.409)
+    //     — but it is **subcutaneous**, and SC absorbs more slowly and flatter than
+    //     the IM route modeled here, so its `ka` does not transfer unjustified.
+    //
+    //  4. Both sources are paywalled (Wiley / ScienceDirect). The figures above come
+    //     from secondary summaries, not primary tables. That is below the bar for
+    //     constants in a health app — verify against the papers before using them.
+    //
+    // Net effect: TC/TE/TP/TU keep the 2 h `ke` below, and therefore still
+    // underestimate Tmax (~0.55 d modeled vs 1.5–7 d published). This is a known,
+    // accepted gap — not an oversight.
+
     /// Elimination half-life of free testosterone (hours) — used for Bateman ke parameter.
     /// Free T is cleared rapidly (~2 hrs); depot absorption dominates the terminal slope.
+    ///
+    /// NOTE: as with estradiol, this is an *apparent* constant, and pinning it to a
+    /// physiological 2 h forces Tmax to ~0.55 d for every T ester regardless of ester.
+    /// See the "Deliberately NOT recalibrated" note above for why it is unchanged.
     var eliminationHalfLifeHours: Double {
         switch self {
         case .cypionate: return 2.0
@@ -167,10 +235,22 @@ enum TestosteroneEster: String, CaseIterable {
 
     /// Pre‑tuned scaling constant F/Vd (arbitrary units) that produces clinically
     /// expected peak levels for a reference dose. Calibrated from published PK data:
-    ///   - TC 100 mg → peak T ~600–900 ng/dL
-    ///   - TE 100 mg → peak T ~600–900 ng/dL
-    ///   - TP 50 mg  → peak T ~800–1200 ng/dL
-    ///   - TU 1000 mg → peak T ~400–700 ng/dL (very flat profile)
+    ///   - TC 100 mg → peak T ~600–900 ng/dL   [well anchored]
+    ///   - TE 100 mg → peak T ~600–900 ng/dL   [well anchored]
+    ///   - TP 50 mg  → peak T ~800–1200 ng/dL  [LOW CONFIDENCE — internally
+    ///     consistent estimate; published TG pharmacokinetic data is sparse]
+    ///   - TU 1000 mg → peak T ~400–700 ng/dL  [LOW CONFIDENCE — single-source]
+    ///
+    /// TU is **not** the flat profile this comment previously claimed. A two-parameter
+    /// Bateman over a 70-day interval produces a peak/trough ratio of ~11×, where the
+    /// real drug is ~2–3×. The 2-param model structurally cannot represent that
+    /// flatness; a genuine fit needs a 3-parameter or population-PK model. Logged as a
+    /// future enhancement — deliberately not attempted here.
+    ///
+    /// The TU target range above (400–700 ng/dL) also sits well below the ~1100 ng/dL
+    /// Cmax reported for a single 1000 mg injection (Wang et al. 2010). The range may
+    /// be describing an intended steady-state trough rather than a single-dose peak.
+    /// Flagged for product/clinical confirmation; deliberately NOT changed here.
     /// Used in the Bateman biexponential to convert mg → concentration.
     ///
     /// Recalibrated 2026‑07‑28 (QA pass): the previous values (11 / 11 / 18 / 5)
