@@ -1602,3 +1602,60 @@ struct RouteSwitchConsistencyTests {
                 "A historical oral dose's contribution should not change just because the currently-selected route changed: while-still-Oral=\(a), after-switch-to-Injectable=\(b)")
     }
 }
+
+/// Covers the chart-window sizing bug: `refreshState()` sized the visible date
+/// window from every active dose regardless of `doseStatus`, while the level
+/// computation only ever plots `.taken` doses. A skipped (or otherwise
+/// non-taken) record could therefore stretch the x-axis into a region that has
+/// no plotted contribution behind it.
+@Suite("Chart Window — Not Stretched By Non-Taken Doses")
+struct ChartWindowSkippedDoseTests {
+
+    @MainActor
+    @Test("A skipped dose does not stretch the chart's date window")
+    func skippedDoseDoesNotStretchWindow() {
+        let mgr = MedicationManager.shared
+        mgr.clearSelection()
+        mgr.selectedMedication = "Estrogen"
+        // Non-injectable route: the injectable branch of refreshState() hard-codes
+        // its own window, so it never consults the dose list at all.
+        mgr.selectedAdministrationMethod = "Oral"
+        mgr.customFrequencyDays = nil
+        mgr.antiAndrogenInUse = false
+        mgr.hrtStartDate = Calendar.current.date(byAdding: .year, value: -3, to: Date())
+        mgr.bloodTestHistory = []
+
+        let now = Date()
+        let anchor = now.addingTimeInterval(-2 * 86400)
+        let taken = DoseRecord(doseDate: anchor, medicationType: "Estrogen",
+                               ester: MedicationEster.oral.rawValue,
+                               administrationMethod: "Oral", doseAmount: 2.0, doseStatus: .taken)
+        let skipped = DoseRecord(doseDate: now, medicationType: "Estrogen",
+                                 ester: MedicationEster.oral.rawValue,
+                                 administrationMethod: "Oral", doseAmount: 2.0, doseStatus: .skipped)
+
+        // Baseline run: only the taken dose exists.
+        mgr.lastDoseDate = anchor
+        mgr.doseHistory = [taken]
+        mgr.refreshState()
+        let withoutSkip = mgr.recentLevels
+
+        // Add the skipped dose on top. It contributes nothing to the curve, so it
+        // must not move the window either.
+        mgr.lastDoseDate = anchor
+        mgr.doseHistory = [taken, skipped]
+        mgr.refreshState()
+        let withSkip = mgr.recentLevels
+
+        guard let startA = withoutSkip.first?.date, let startB = withSkip.first?.date else {
+            Issue.record("refreshState() produced no chart points")
+            return
+        }
+        #expect(abs(startA.timeIntervalSince(startB)) < 60,
+                "A skipped dose should not move the chart's window start: without=\(startA), with=\(startB)")
+        #expect(withoutSkip.count == withSkip.count,
+                "A skipped dose should not change the number of plotted points: without=\(withoutSkip.count), with=\(withSkip.count)")
+
+        mgr.clearSelection()
+    }
+}

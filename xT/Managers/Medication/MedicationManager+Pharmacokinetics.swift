@@ -61,7 +61,12 @@ extension MedicationManager {
     func refreshState() {
         currentHormoneLevel = getCurrentHormoneLevel()
         let now = Date()
-        let activeDoses = doseHistory.filter { $0.isActive && $0.medicationType == selectedMedication }
+        // Size the chart's date window from the same doses that actually contribute to the
+        // computed levels, so a skipped/pending dose can't stretch the x-axis into a window
+        // containing no plotted contribution. Matches the `.taken`-only filter used by
+        // `estimatedLevels`. See xTTests/PharmacokineticTests.swift
+        // "A skipped dose does not stretch the chart's date window".
+        let activeDoses = doseHistory.filter { $0.isActive && $0.medicationType == selectedMedication && DoseStatus(rawValue: $0.doseStatus) == .taken }
 
         var start: Date
         var end: Date
