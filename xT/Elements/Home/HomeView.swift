@@ -14,9 +14,10 @@ struct HomeView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
-    // Celebration iris state
+    // Celebration state
     @State private var celebrateDose: Bool = false
     @State private var lastRecordedCount: Int = 0
+    @State private var confettiTrigger: Int = 0
 
     // Scrub state — bound to FlatGraphView, read by LevelOverlayView
     @State private var scrubFraction: CGFloat? = nil
@@ -59,26 +60,10 @@ struct HomeView: View {
                     }
 
                     if celebrateDose {
-                        if #available(iOS 17.0, *) {
-                            Color.clear
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                .phaseAnimator(
-                                    IrisPhase.allCases
-                                ) { _, phase in
-                                    Circle()
-                                        .stroke(Color.primary.opacity(phase.ringOpacity),
-                                                lineWidth: phase.ringWidth)
-                                        .frame(width: phase.diameter, height: phase.diameter)
-                                        .blur(radius: phase.blur)
-                                } animation: { phase in
-                                    switch phase {
-                                    case .appear: return nil
-                                    case .expand: return .spring(response: 0.5, dampingFraction: 0.65)
-                                    case .vanish: return .easeOut(duration: 0.35)
-                                    }
-                                }
-                                .allowsHitTesting(false)
-                        }
+                        HomeConfettiBurst(size: geo.size)
+                            .id(confettiTrigger)
+                            .frame(width: geo.size.width, height: geo.size.height)
+                            .allowsHitTesting(false)
                     }
                 }
                 .frame(width: geo.size.width, height: geo.size.height)
@@ -125,49 +110,72 @@ struct HomeView: View {
             guard newCount > lastRecordedCount else { return }
             lastRecordedCount = newCount
             medicationManager.refreshState()
+            confettiTrigger &+= 1
             celebrateDose = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
                 celebrateDose = false
             }
         }
     }
 }
 
-// MARK: - Iris Celebration Phases
+// MARK: - Dose Celebration Confetti
 
-private enum IrisPhase: CaseIterable, Equatable {
-    case appear, expand, vanish
+/// Full-screen confetti burst played when a dose is recorded.
+/// Particles fan out from the centre of `size`, drift downward, then fade.
+/// Re-mount (via `.id`) to replay.
+private struct HomeConfettiBurst: View {
+    let size: CGSize
 
-    var diameter: CGFloat {
-        switch self {
-        case .appear: return 10
-        case .expand:  return 280
-        case .vanish:  return 340
+    private let particleCount = 24
+
+    var body: some View {
+        ZStack {
+            ForEach(0..<particleCount, id: \.self) { index in
+                HomeConfettiParticle(index: index, total: particleCount)
+                    .position(x: size.width / 2, y: size.height / 2)
+            }
         }
+        .frame(width: size.width, height: size.height)
+    }
+}
+
+/// A single confetti dot: fans out on a random heading, falls slightly, shrinks and fades.
+private struct HomeConfettiParticle: View {
+    let index: Int
+    let total: Int
+
+    @State private var opacity: Double = 1
+    @State private var scale: Double = 0.3
+    @State private var offset: CGSize = .zero
+    @State private var diameter: CGFloat = .random(in: 5...9)
+
+    /// Alternate palette colours so the burst reads as confetti, not a single-hue puff.
+    private var color: Color {
+        index.isMultiple(of: 2) ? Theme.Colors.accent : Theme.Colors.accentSecondary
     }
 
-    var ringWidth: CGFloat {
-        switch self {
-        case .appear: return 1.5
-        case .expand:  return 0.8
-        case .vanish:  return 0.3
-        }
-    }
+    var body: some View {
+        Circle()
+            .fill(color.opacity(opacity))
+            .frame(width: diameter, height: diameter)
+            .scaleEffect(scale)
+            .offset(offset)
+            .onAppear {
+                // Evenly spread the base heading, then jitter so the ring never looks mechanical.
+                let spread = (.pi * 2) / Double(max(total, 1))
+                let angle = (Double(index) * spread) + Double.random(in: -spread / 2...spread / 2)
+                let radius = Double.random(in: 60...170)
+                let gravity = Double.random(in: 30...90)
 
-    var ringOpacity: CGFloat {
-        switch self {
-        case .appear: return 0.25
-        case .expand:  return 0.12
-        case .vanish:  return 0
-        }
-    }
-
-    var blur: CGFloat {
-        switch self {
-        case .appear: return 0
-        case .expand:  return 4
-        case .vanish:  return 8
-        }
+                withAnimation(.easeOut(duration: Double.random(in: 0.9...1.1))
+                    .delay(Double.random(in: 0...0.14))) {
+                    offset = CGSize(width: cos(angle) * radius,
+                                    height: sin(angle) * radius + gravity)
+                    scale = 0
+                    opacity = 0
+                }
+            }
     }
 }
 

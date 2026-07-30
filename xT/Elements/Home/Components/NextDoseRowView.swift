@@ -14,7 +14,6 @@ import SwiftUI
 struct NextDoseRowView: View {
     @Environment(\.medicationManager) private var medicationManager
     @State private var showingRecordDose = false
-    @State private var confettiTrigger = 0
     @State private var isPulsing = false
     @State private var todayDotPulsing = false
 
@@ -81,7 +80,6 @@ struct NextDoseRowView: View {
         }
         .onChange(of: isToday) { _, today in
             if today {
-                confettiTrigger += 1
                 startTodayPulse()
             }
         }
@@ -203,18 +201,7 @@ struct NextDoseRowView: View {
                 .frame(width: dotWidth, height: dotHeight)
                 .scaleEffect(todayDotPulsing ? 1.6 : 0.9)
                 .opacity(todayDotPulsing ? 0 : 0.7)
-
-            confettiEmitter
         }
-    }
-
-    private var confettiEmitter: some View {
-        ZStack {
-            ForEach(0..<10, id: \.self) { i in
-                ConfettiParticle(index: i, total: 10)
-            }
-        }
-        .id("confetti-\(confettiTrigger)")
     }
 
     // MARK: - Missed Days Badge
@@ -305,33 +292,6 @@ struct NextDoseRowView: View {
         }
         .padding(Theme.Spacing.card)
         .padding(.vertical, 4)
-    }
-}
-
-// MARK: - Confetti Particle
-
-private struct ConfettiParticle: View {
-    let index: Int
-    let total: Int
-    @State private var opacity: Double = 1
-    @State private var scale: Double = 0.3
-    @State private var offset: CGSize = .zero
-
-    var body: some View {
-        Circle()
-            .fill(Theme.Colors.accentSecondary.opacity(opacity))
-            .frame(width: 4, height: 4)
-            .scaleEffect(scale)
-            .offset(offset)
-            .onAppear {
-                let angle = (Double(index) / Double(total)) * .pi * 2
-                let radius = Double.random(in: 8...20)
-                withAnimation(.easeOut(duration: 0.55).delay(Double.random(in: 0...0.12))) {
-                    offset = CGSize(width: cos(angle) * radius, height: sin(angle) * radius)
-                    scale = 0
-                    opacity = 0
-                }
-            }
     }
 }
 
