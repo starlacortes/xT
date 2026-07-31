@@ -166,19 +166,20 @@ struct InjectionSiteTests {
         #expect(site.durationDays == 0)
     }
 
-    @Test func gracefulDecodeMissingRequired() throws {
-        // sketchId is required; decoding should throw
-        let badJSON = """
+    @Test func gracefulDecodeMissingSketchId() throws {
+        // sketchId decodes leniently — missing key falls back to "unknown"
+        let json = """
         [
             {
                 "zoneLabel": "Test"
             }
         ]
         """
-        let data = badJSON.data(using: .utf8)!
-        #expect(throws: DecodingError.self) {
-            try JSONDecoder().decode([InjectionSite].self, from: data)
-        }
+        let data = json.data(using: .utf8)!
+        let sites = try JSONDecoder().decode([InjectionSite].self, from: data)
+        #expect(sites.count == 1)
+        #expect(sites[0].sketchId == "unknown")
+        #expect(sites[0].zoneLabel == "Test")
     }
 
     // MARK: - InjectionSite Formatting

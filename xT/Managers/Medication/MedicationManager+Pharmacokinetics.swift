@@ -722,8 +722,18 @@ extension MedicationManager {
                 let refEster = refDose?.ester ?? defaultEsterName
 
                 let lookaheadLimit = calendar.date(byAdding: .day, value: 90, to: end) ?? end
+                let now = Date()
                 var cursor = calendar.date(byAdding: .day, value: freqDays, to: latestReal) ?? latestReal
                 while cursor <= lookaheadLimit {
+                    // Only project future doses. When the single real dose is old, this loop
+                    // would otherwise generate phantom past doses (latestReal + freqDays…now)
+                    // that contribute non-zero Bateman values at current cursor positions,
+                    // inflating the predicted level as if the user had never missed a dose.
+                    guard cursor > now else {
+                        guard let next = calendar.date(byAdding: .day, value: freqDays, to: cursor) else { break }
+                        cursor = next
+                        continue
+                    }
                     if !doseEvents.contains(where: { abs($0.date.timeIntervalSince(cursor)) < 3600 }) {
                         if isInjectable, let pk = pkParams(ester: refEster, medication: medication) {
                             doseEvents.append(DoseEvent(date: cursor, amount: effAmount,

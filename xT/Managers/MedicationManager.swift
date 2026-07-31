@@ -469,6 +469,26 @@ class MedicationManager: ObservableObject {
         modelContext?.insert(record)
         try? modelContext?.save()
     }
+    // MARK: - Dose Deletion
+
+    func softDeleteDose(id: String) {
+        guard let index = doseHistory.firstIndex(where: { $0.id == id }) else { return }
+
+        doseHistory[index].isDeleted = true
+        try? modelContext?.save()
+
+        // Reload from SwiftData to ensure the in-memory array is consistent
+        // with the persisted state – the deleted record is filtered out by loadDoseHistory.
+        loadDoseHistory()
+
+        let active = doseHistory.filter {
+            $0.isActive && $0.doseStatus == DoseStatus.taken.rawValue
+        }
+        lastDoseDate = active.max(by: { $0.doseDate < $1.doseDate })?.doseDate
+        nextDoseDate = lastDoseDate.map { calculateNextDoseDate(from: $0) }
+
+        refreshState()
+    }
     // MARK: - Regimen & Adherence Properties
     
     @Published var regimenTransitionHistory: [RegimenSegment] = []

@@ -2,8 +2,7 @@
 //  DoseHistoryView.swift
 //  xT
 //
-//  Dose history list with swipe-to-correct-site action for v2.1
-//  injection site tracking feature.
+//  Dose history list with swipe-to-correct-site and swipe-to-delete actions.
 //
 
 import SwiftUI
@@ -14,6 +13,10 @@ struct DoseHistoryView: View {
     @State private var correctionTarget: DoseRecord? = nil
     @State private var showCorrectionAlert: Bool = false
     @State private var showCorrectionSheet: Bool = false
+
+    // Delete confirmation state
+    @State private var doseToDelete: DoseRecord? = nil
+    @State private var showDeleteConfirmation = false
 
     // MARK: - Grouped Doses
 
@@ -41,6 +44,14 @@ struct DoseHistoryView: View {
                     ForEach(group.doses) { dose in
                         DoseHistoryRow(dose: dose)
                             .swipeActions(edge: .trailing) {
+                                Button(role: .destructive) {
+                                    doseToDelete = dose
+                                    showDeleteConfirmation = true
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                                .tint(.red)
+
                                 if RouteClass.from(method: dose.administrationMethod) != .oral {
                                     Button("Edit Site") {
                                         correctionTarget = dose
@@ -54,11 +65,20 @@ struct DoseHistoryView: View {
             }
         }
         .navigationTitle("Dose History")
-        .alert("Edit Administration Site", isPresented: $showCorrectionAlert) {
-            Button("Cancel", role: .cancel) { }
-            Button("Continue") {
-                showCorrectionSheet = true
+        .alert("Delete Dose?", isPresented: $showDeleteConfirmation, presenting: doseToDelete) { dose in
+            Button("Delete", role: .destructive) {
+                medicationManager.softDeleteDose(id: dose.id)
+                doseToDelete = nil
             }
+            Button("Cancel", role: .cancel) {
+                doseToDelete = nil
+            }
+        } message: { dose in
+            Text(deleteAlertMessage(for: dose))
+        }
+        .alert("Edit Administration Site", isPresented: $showCorrectionAlert) {
+            Button("Continue") { showCorrectionSheet = true }
+            Button("Cancel", role: .cancel) { }
         } message: {
             Text("Editing the site will delete the original record and create a new one tagged as user-corrected. The original date, dose details, and original site are preserved for audit.")
         }
@@ -69,6 +89,16 @@ struct DoseHistoryView: View {
                 originalDose: correctionTarget
             )
         }
+    }
+
+    // MARK: - Delete alert message
+
+    private func deleteAlertMessage(for dose: DoseRecord) -> String {
+        """
+        This will permanently remove the dose from "\(dose.medicationType)" \
+        logged on \(dose.doseDate.formatted(date: .abbreviated, time: .shortened)).
+        The record is retained for audit but will no longer appear in charts or history.
+        """
     }
 }
 
@@ -94,7 +124,6 @@ struct DoseHistoryRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            // Top line: medication + amount
             HStack {
                 Image(systemName: routeIcon)
                     .foregroundStyle(routeIconColor)
@@ -105,7 +134,6 @@ struct DoseHistoryRow: View {
                 Spacer()
             }
 
-            // Bottom line: date + site + correction badge
             HStack(spacing: 6) {
                 Text(dose.doseDate.formatted(date: .abbreviated, time: .shortened))
                     .font(.caption)
@@ -135,7 +163,6 @@ struct DoseHistoryRow: View {
                 }
             }
 
-            // Correction audit trail (only on corrected records)
             if dose.isUserCorrected, !dose.originalSites.isEmpty {
                 HStack(spacing: 4) {
                     Image(systemName: "clock.arrow.circlepath")

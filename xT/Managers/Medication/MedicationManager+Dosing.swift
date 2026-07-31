@@ -240,6 +240,9 @@ extension MedicationManager {
         if let index = doseHistory.firstIndex(where: { $0.id == id }) {
             doseHistory[index].isDeleted = true
             try? modelContext?.save()
+            var updated = doseHistory
+            updated.remove(at: index)
+            doseHistory = updated
             refreshState()
         }
     }
