@@ -278,3 +278,94 @@ enum TestosteroneEster: String, CaseIterable {
         return effectiveDoseFactor
     }
 }
+// MARK: - Model Constants
+
+/// Named constants for the pharmacokinetic and scheduling model.
+///
+/// These values were previously written as bare literals inside
+/// `MedicationManager+Pharmacokinetics.swift`, `+Dosing.swift` and `+Schedule.swift`,
+/// in several cases duplicated across files with values that had drifted apart.
+/// Collecting them here makes the model's assumptions reviewable in one place and
+/// gives the unit tests a symbol to assert against instead of a magic number.
+enum PKConstants {
+
+    // MARK: Endogenous suppression
+
+    /// Weeks of continuous HRT after which endogenous production is treated as fully
+    /// suppressed and the dynamic baseline stops decaying.
+    static let fullSuppressionWeeks = 104
+
+    /// Exponential decay rate applied to the endogenous baseline as suppression
+    /// progresses. Larger values suppress faster.
+    static let suppressionTaperRate = 2.5
+
+    /// Fraction of administered testosterone modeled as aromatizing to estradiol.
+    static let aromatizationFraction = 0.002
+
+    // MARK: Safety thresholds
+
+    /// Estradiol (pg/mL) above which a level is flagged as high / very high.
+    static let estradiolHighThreshold = 1000.0
+    static let estradiolVeryHighThreshold = 1500.0
+
+    /// Estradiol (pg/mL) below which a level is flagged as low / very low.
+    static let estradiolLowThreshold = 80.0
+    static let estradiolVeryLowThreshold = 50.0
+
+    // MARK: Oral & transdermal kinetics
+
+    /// First-order absorption rate constant for oral administration (per day).
+    static let oralAbsorptionRate = 2.5
+
+    /// Elimination rate constant for oral administration (per day), equivalent to a
+    /// ~12-hour half-life (`log(2) / 0.5`).
+    static let oralEliminationRate = 1.386
+
+    /// Absorption half-life for transdermal administration, in days. Matches
+    /// `MedicationEster.transdermal.halfLifeDays`.
+    static let transdermalAbsorptionHalfLifeDays = 1.5
+
+    /// Number of micro-doses a single transdermal application is expanded into when
+    /// integrating the model, one per hour of the application day.
+    static let transdermalMicroDoseCount = 24
+
+    // MARK: Scheduling windows
+
+    /// Rolling window, in days, over which the adherence rate is computed.
+    static let adherenceWindowDays = 30
+
+    /// Default grace period, in hours, before a dose counts as missed.
+    static let missedDoseGraceHours = 12.0
+
+    /// Grace window for on-time streak accounting: tighter for daily regimens.
+    static let onTimeGraceHoursDaily = 12.0
+    static let onTimeGraceHoursPeriodic = 24.0
+
+    /// A blood test older than this many days is no longer considered representative
+    /// when suggesting the next draw.
+    static let bloodTestRelevanceDays = 75
+
+    /// How far ahead scheduled doses are projected, in days.
+    static let scheduleLookaheadDays = 90
+
+    // MARK: Volume & syringe sizing
+
+    /// Injection volumes below this (mL) cannot be measured reliably on a standard syringe.
+    static let minMeasurableVolumeMl = 0.1
+
+    /// Injection volume (mL) above which a single intramuscular site is discouraged.
+    static let highVolumeWarningMl = 2.5
+
+    /// Injection volume (mL) treated as unsafe for a single site.
+    static let maxVolumePerSiteMl = 4.5
+
+    /// Barrel sizes (mL) offered when recommending a syringe, smallest first.
+    static let syringeSizesMl: [Double] = [0.3, 1.0, 3.0]
+
+    // MARK: Reference dosing
+
+    /// Reference dose (mg) and concentration (mg/mL) used to normalize relative dose
+    /// intensity for estrogen valerate.
+    static let referenceEstrogenDoseMg = 2.0
+    static let referenceEstrogenConcentrationMgPerMl = 40.0
+}

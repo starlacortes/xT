@@ -59,6 +59,10 @@ extension MedicationManager {
 
     /// The heart of the reactivity: Recalculates everything and broadcasts changes.
     func refreshState() {
+        // Bulk callers (sample-profile seeding, multi-dose imports) suppress the per-mutation
+        // recompute and refresh once at the end. See `MedicationManager.performBatch(_:)`.
+        guard !suppressRefresh else { return }
+
         currentHormoneLevel = getCurrentHormoneLevel()
         let now = Date()
         // Size the chart's date window from the same doses that actually contribute to the

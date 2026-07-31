@@ -89,6 +89,29 @@ class MedicationManager: ObservableObject {
     /// Keyed by "routeClass_windowDays". Invalidated on dose record.
     var heatMapCache: [String: [String: Int]] = [:]
 
+    // MARK: - Batch mutation
+
+    /// When `true`, `refreshState()` returns immediately without recomputing.
+    ///
+    /// Recording a dose triggers a full pharmacokinetic re-integration over the entire
+    /// dose history plus a SwiftData save, which is the right behaviour for a single user
+    /// action but quadratic when seeding many doses at once (the sample profile logs ~110).
+    /// Wrap bulk work in `performBatch(_:)` so the recompute happens once at the end.
+    var suppressRefresh: Bool = false
+
+    /// Runs `body` with `refreshState()` suppressed, then refreshes exactly once.
+    ///
+    /// Safe to nest: only the outermost call performs the trailing refresh.
+    func performBatch(_ body: () throws -> Void) rethrows {
+        let wasSuppressed = suppressRefresh
+        suppressRefresh = true
+        defer {
+            suppressRefresh = wasSuppressed
+            if !wasSuppressed { refreshState() }
+        }
+        try body()
+    }
+
     // MARK: - Endogenous Suppression Settings
     /// Whether the user takes an anti‑androgen (spironolactone, cyproterone, GnRH agonist).
     /// When true, endogenous testosterone baseline is aggressively suppressed to near‑zero.
