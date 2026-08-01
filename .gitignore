@@ -102,3 +102,4 @@ build/
 # Xcode test results
 *.xcresult
 tools/figma-mcp-server
+time-screen-animation.mp4
