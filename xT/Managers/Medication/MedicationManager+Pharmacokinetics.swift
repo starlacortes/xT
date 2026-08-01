@@ -566,10 +566,13 @@ extension MedicationManager {
         let baseLevel: Double = medicationEnum.map { dynamicBaseline(for: $0) } ?? 100.0
         let alpha = (applyCalibration ? (calibrationFactor ?? 1.0) : 1.0)  // user‑specific calibration multiplier
         
-        // Determine if we should use the Bateman biexponential (injectable) or
-        // the simpler single‑exponential (oral/transdermal)
-        let isInjectable = AdministrationMethod(rawValue: methodStr) == .injectable
-        
+        // NOTE (2026‑07‑31): the manager's globally-selected route is deliberately NOT
+        // consulted when building dose events. Every dose carries its own
+        // `administrationMethod`, and `makeDoseEvents` branches on that. The former
+        // `isInjectable` flag derived from `methodStr` was the root of three separate
+        // route-mismatch defects; `methodStr` is now only used to label output points
+        // and to pick a route for the no-history fallback, where no dose exists to ask.
+
         // Get the most recent active dose for logging context
         _ = doseHistory
             .filter { $0.isActive && $0.medicationType == medication }
@@ -603,6 +606,10 @@ extension MedicationManager {
         
         /// Helper to extract PK parameters for a given ester string.
         /// Applies spironolactone clearance adjustment to ke when applicable.
+        ///
+        /// Callers must pass the *effective* ester (see `effectiveEsterName`), not the
+        /// dose's stored ester, so that non-injectable routes resolve to their own
+        /// pseudo-ester constants rather than to the injectable ester's.
         func pkParams(ester: String, medication: String) -> (ka: Double, ke: Double, scaling: Double)? {
             if medication == "Estrogen", let e = MedicationEster(rawValue: ester) {
                 let ka = log(2) / e.halfLifeDays
@@ -619,27 +626,50 @@ extension MedicationManager {
             return nil
         }
 
-        /// The scaling constant (F/Vd) for a non-injectable dose.
+        /// Builds the dose event(s) for a single administration, choosing the shape
+        /// from the route and the constants from the *effective* ester for that route.
         ///
-        /// Prefers the calibrated constant for the dose's own ester, for whichever
-        /// hormone it records. Only a dose whose ester string matches neither enum falls
-        /// back, and it falls back to the constant calibrated for the *route*.
-        ///
-        /// The two literals this replaces (12000 oral, 8000 transdermal) predate the
-        /// 2026-07-28 recalibration. They were never validated, because a routing bug
-        /// meant non-injectable doses ignored `scalingConstant` entirely; once that was
-        /// fixed they overshot the documented targets by ~9.6× and ~52× respectively.
-        /// A testosterone user on an oral or cream route reached them on every dose.
-        func scalingConstant(
-            for dose: DoseRecord, medication: String, routeDefault: MedicationEster
-        ) -> Double {
-            if medication == "Estrogen", let e = MedicationEster(rawValue: dose.ester) {
-                return e.scalingConstant
+        /// Injectable → one Bateman event. Oral → one Bateman event with the route's
+        /// own (fast) rates. Cream → 24 hourly single-exponential micro-doses forming
+        /// a square-wave release over the day. Anything unrecognized → a single
+        /// exponential at the ester's terminal half-life.
+        func makeDoseEvents(date: Date, ester: String, route: String, amount: Double) -> [DoseEvent] {
+            let effEster = Self.effectiveEsterName(ester: ester, route: route)
+
+            func genericFallback() -> [DoseEvent] {
+                let halfLife: Double
+                if medication == "Estrogen", let e = MedicationEster(rawValue: effEster) {
+                    halfLife = e.halfLifeDays
+                } else if medication == "Testosterone", let e = TestosteroneEster(rawValue: effEster) {
+                    halfLife = e.halfLifeDays
+                } else {
+                    halfLife = defaultHalfLife
+                }
+                return [DoseEvent(date: date, amount: amount,
+                                  ka: log(2) / halfLife, ke: 0.0, scaling: 1.0)]
             }
-            if medication == "Testosterone", let t = TestosteroneEster(rawValue: dose.ester) {
-                return t.scalingConstant
+
+            guard let pk = pkParams(ester: effEster, medication: medication) else {
+                return genericFallback()
             }
-            return routeDefault.scalingConstant
+
+            switch route {
+            case "Injectable", "Oral":
+                // Depot injectable and oral both use the full Bateman biexponential;
+                // only the rate constants differ, and those now come from the ester.
+                return [DoseEvent(date: date, amount: amount,
+                                  ka: pk.ka, ke: pk.ke, scaling: pk.scaling)]
+            case "Cream":
+                // Transdermal: 24h square wave via hourly micro-doses, each decaying
+                // single-exponentially (ke = 0 selects that branch in the sum below).
+                let microAmount = amount / 24.0
+                return (0..<24).map { hour in
+                    DoseEvent(date: date.addingTimeInterval(Double(hour) * 3600.0),
+                              amount: microAmount, ka: pk.ka, ke: 0.0, scaling: pk.scaling)
+                }
+            default:
+                return genericFallback()
+            }
         }
 
         if !doseHistory.isEmpty {
@@ -653,60 +683,19 @@ extension MedicationManager {
                 .filter { $0.isActive && $0.medicationType == medication && DoseStatus(rawValue: $0.doseStatus) == .taken }
                 .sorted { $0.doseDate < $1.doseDate }
 
+            // QA fix (2026‑07‑28): branch on THIS dose's own administration method,
+            // not the manager's currently-selected global route. Previously a user
+            // who switched routes (e.g. oral → injectable) would have their older
+            // doses silently re-modeled with the wrong kinetics whenever the
+            // globally-selected route didn't match the historical route of that
+            // specific dose. See xTTests/PharmacokineticTests.swift
+            // "Historical doses use their own administration method, not the current selection".
             for dose in activeDoses {
                 let effAmount = dose.doseAmount * dosePotencyFactor(for: dose)
-                let isOralRoute = dose.administrationMethod == "Oral"
-                let isTransdermalRoute = dose.administrationMethod == "Cream"
-
-                // QA fix (2026‑07‑28): branch on THIS dose's own administration method,
-                // not the manager's currently-selected global route. Previously a user
-                // who switched routes (e.g. oral → injectable) would have their older
-                // doses silently re-modeled with the wrong kinetics whenever the
-                // globally-selected route didn't match the historical route of that
-                // specific dose. See xTTests/PharmacokineticTests.swift
-                // "Historical doses use their own administration method, not the current selection".
-                if dose.administrationMethod == "Injectable", let pk = pkParams(ester: dose.ester, medication: medication) {
-                    // Depot injectable: full Bateman biexponential
-                    doseEvents.append(DoseEvent(date: dose.doseDate, amount: effAmount,
-                                                ka: pk.ka, ke: pk.ke, scaling: pk.scaling))
-                } else if isOralRoute {
-                    // Oral: fast Bateman with ka = 2.5 d⁻¹ (≈1h absorption), ke = 1.386 d⁻¹
-                    // Models the rapid spike ~1‑2h after ingestion followed by fast drop
-                    doseEvents.append(DoseEvent(date: dose.doseDate, amount: effAmount,
-                                                ka: PKConstants.oralAbsorptionRate,
-                                                ke: PKConstants.oralEliminationRate,
-                                                scaling: scalingConstant(
-                                                    for: dose, medication: medication,
-                                                    routeDefault: MedicationEster.oral)))
-                } else if isTransdermalRoute {
-                    // Transdermal: 24h square-wave via hourly micro‑doses
-                    // Each micro‑dose = effAmount / 24, spread over 24 hours from application
-                    let microCount = PKConstants.transdermalMicroDoseCount
-                    let microAmount = effAmount / Double(microCount)
-                    let tdKa = log(2) / PKConstants.transdermalAbsorptionHalfLifeDays
-                    let tdScaling = scalingConstant(
-                        for: dose, medication: medication,
-                        routeDefault: MedicationEster.transdermal
-                    )
-                    for hour in 0..<microCount {
-                        let microDate = dose.doseDate.addingTimeInterval(Double(hour) * 3600.0)
-                        doseEvents.append(DoseEvent(date: microDate, amount: microAmount,
-                                                    ka: tdKa, ke: 0.0, scaling: tdScaling))
-                    }
-                } else {
-                    // Generic fallback: single‑exponential
-                    let halfLife: Double
-                    if medication == "Estrogen", let e = MedicationEster(rawValue: dose.ester) {
-                        halfLife = e.halfLifeDays
-                    } else if medication == "Testosterone", let e = TestosteroneEster(rawValue: dose.ester) {
-                        halfLife = e.halfLifeDays
-                    } else {
-                        halfLife = defaultHalfLife
-                    }
-                    let ka = log(2) / halfLife
-                    doseEvents.append(DoseEvent(date: dose.doseDate, amount: effAmount,
-                                                ka: ka, ke: 0.0, scaling: 1.0))
-                }
+                doseEvents.append(contentsOf: makeDoseEvents(date: dose.doseDate,
+                                                             ester: dose.ester,
+                                                             route: dose.administrationMethod,
+                                                             amount: effAmount))
             }
 
             // When dose history is sparse (1 active dose — fresh onboarding),
@@ -736,16 +725,36 @@ extension MedicationManager {
             // trajectory the user hasn't actually experienced yet — which is
             // clearly labeled as projection, unlike fabricated history.
             if activeDoses.count == 1 {
-                let freqDays: Int = {
-                    if let custom = customFrequencyDays, custom > 0 { return custom }
-                    if let methodStr = selectedAdministrationMethod,
-                       let method = AdministrationMethod(rawValue: methodStr) { return method.frequencyDays }
-                    return 7
-                }()
                 let latestReal = activeDoses.map(\.doseDate).max() ?? start
                 let refDose = activeDoses.first
                 let effAmount = refDose.map { $0.doseAmount * dosePotencyFactor(for: $0) } ?? (baseLevel * 0.5)
                 let refEster = refDose?.ester ?? defaultEsterName
+                // Project on the reference dose's OWN route. Previously this gated on
+                // `isInjectable` (the manager's global selection) and otherwise emitted
+                // an unscaled single-exponential, so oral and transdermal users got a
+                // projected trajectory that was effectively flat at baseline.
+                let refRoute = refDose?.administrationMethod ?? methodStr
+
+                // Projection interval. A user-set frequency always wins. Failing that,
+                // this used to fall straight to `AdministrationMethod.frequencyDays`,
+                // which is 7 for *every* injectable — so a single logged 1000 mg TU dose
+                // was projected forward as weekly 1000 mg injections, roughly 2.4× the
+                // level a correctly-spaced regimen reaches. Ask the ester instead; it is
+                // the thing that determines a sane interval. See `typicalIntervalDays`.
+                let freqDays: Int = {
+                    if let custom = customFrequencyDays, custom > 0 { return custom }
+                    let effEster = Self.effectiveEsterName(ester: refEster, route: refRoute)
+                    if medication == "Estrogen", let e = MedicationEster(rawValue: effEster) {
+                        return e.typicalIntervalDays
+                    }
+                    if medication == "Testosterone", let e = TestosteroneEster(rawValue: effEster) {
+                        return e.typicalIntervalDays
+                    }
+                    if let method = AdministrationMethod(rawValue: refRoute) {
+                        return method.frequencyDays
+                    }
+                    return 7
+                }()
 
                 let lookaheadLimit = calendar.date(byAdding: .day, value: 90, to: end) ?? end
                 let now = Date()
@@ -761,14 +770,10 @@ extension MedicationManager {
                         continue
                     }
                     if !doseEvents.contains(where: { abs($0.date.timeIntervalSince(cursor)) < 3600 }) {
-                        if isInjectable, let pk = pkParams(ester: refEster, medication: medication) {
-                            doseEvents.append(DoseEvent(date: cursor, amount: effAmount,
-                                                        ka: pk.ka, ke: pk.ke, scaling: pk.scaling))
-                        } else {
-                            let lam = log(2) / defaultHalfLife
-                            doseEvents.append(DoseEvent(date: cursor, amount: effAmount,
-                                                        ka: lam, ke: 0.0, scaling: 1.0))
-                        }
+                        doseEvents.append(contentsOf: makeDoseEvents(date: cursor,
+                                                                     ester: refEster,
+                                                                     route: refRoute,
+                                                                     amount: effAmount))
                     }
                     guard let next = calendar.date(byAdding: .day, value: freqDays, to: cursor) else { break }
                     cursor = next
@@ -780,23 +785,14 @@ extension MedicationManager {
                 let lookbackStart = calendar.date(byAdding: .day, value: -60, to: start) ?? start
                 var d = last
                 let accumulatedDose = baseLevel * 0.5
-                if isInjectable, let pk = pkParams(ester: defaultEsterName, medication: medication) {
-                    while d >= lookbackStart {
-                        doseEvents.append(DoseEvent(date: d, amount: accumulatedDose,
-                                                    ka: pk.ka, ke: pk.ke, scaling: pk.scaling))
-                        let prev = calendar.date(byAdding: .day, value: -7, to: d) ?? d
-                        if prev >= last { break }
-                        d = prev
-                    }
-                } else {
-                    let lam = log(2) / defaultHalfLife
-                    while d >= lookbackStart {
-                        doseEvents.append(DoseEvent(date: d, amount: accumulatedDose,
-                                                    ka: lam, ke: 0.0, scaling: 1.0))
-                        let prev = calendar.date(byAdding: .day, value: -7, to: d) ?? d
-                        if prev >= last { break }
-                        d = prev
-                    }
+                while d >= lookbackStart {
+                    doseEvents.append(contentsOf: makeDoseEvents(date: d,
+                                                                 ester: defaultEsterName,
+                                                                 route: methodStr,
+                                                                 amount: accumulatedDose))
+                    let prev = calendar.date(byAdding: .day, value: -7, to: d) ?? d
+                    if prev >= last { break }
+                    d = prev
                 }
             }
         }
@@ -849,11 +845,41 @@ extension MedicationManager {
         return points
     }
     
+    /// Resolves which ester's constants actually govern a dose, given its route.
+    ///
+    /// Both `MedicationEster` and `TestosteroneEster` carry `"Oral"` and `"Transdermal"`
+    /// pseudo-ester cases whose constants describe a *route*, not a chemical ester. A
+    /// dose administered orally or as a cream is governed by those, regardless of which
+    /// injectable ester happens to be stored on the record.
+    ///
+    /// Added 2026‑07‑31 to close a live overprediction defect. Previously the route
+    /// branches in `estimatedLevels` looked up their scaling constant behind a
+    /// `medication == "Estrogen"` guard and otherwise fell through to hardcoded literals
+    /// (12000.0 oral / 8000.0 transdermal — the pre-2026‑07‑28 *estrogen* values, already
+    /// documented as ~9.6× and ~52× too large even for estrogen). A testosterone dose on
+    /// the Oral or Cream route therefore predicted roughly 1100× high: 50 mg/day of
+    /// testosterone gel returned ≈610,000 ng/dL against a clinical expectation near 550.
+    /// Both routes are reachable from the UI, so this was user-visible, not theoretical.
+    ///
+    /// It also fixes two quieter mismatches on the same lookup:
+    ///   * `dosePotencyFactor` resolved EDF from the stored ester alone, so a testosterone
+    ///     gel dose used cypionate's EWF 0.699 and F 1.0 instead of the gel's 1.0 × 0.10.
+    ///   * A dose recorded under one route and later viewed after a route switch kept the
+    ///     old route's ester constants.
+    static func effectiveEsterName(ester: String, route: String) -> String {
+        switch route {
+        case "Oral": return "Oral"
+        case "Cream": return "Transdermal"
+        default: return ester
+        }
+    }
+
     /// Returns the effective dose factor (EWF × bioavailability) for a specific dose record.
     private func dosePotencyFactor(for dose: DoseRecord) -> Double {
-        if dose.medicationType == "Estrogen", let ester = MedicationEster(rawValue: dose.ester) {
+        let name = Self.effectiveEsterName(ester: dose.ester, route: dose.administrationMethod)
+        if dose.medicationType == "Estrogen", let ester = MedicationEster(rawValue: name) {
             return ester.effectiveDoseFactor
-        } else if dose.medicationType == "Testosterone", let tesEster = TestosteroneEster(rawValue: dose.ester) {
+        } else if dose.medicationType == "Testosterone", let tesEster = TestosteroneEster(rawValue: name) {
             return tesEster.effectiveDoseFactor
         }
         return 1.0

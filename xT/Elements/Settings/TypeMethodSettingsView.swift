@@ -29,23 +29,26 @@ struct TypeMethodSettingsView: View {
         MedicationManager.AdministrationMethod.allCases
     }
 
+    /// Testosterone previously returned `TestosteroneEster.allCases` for Injectable —
+    /// which now includes the Oral/Transdermal route pseudo-esters — and `[]` for the
+    /// Oral and Cream methods, leaving whatever injectable ester was already selected
+    /// silently in place. Both enums now expose `injectableCases`, and every
+    /// medication/method pair resolves to the pseudo-ester the PK engine will actually
+    /// use (see `MedicationManager.effectiveEsterName`).
     private var availableEsters: [(name: String, halfLife: String)] {
         let isEstrogen = selectedType == "Estrogen"
-        if selectedMethod == "Injectable" {
-            if isEstrogen {
-                return MedicationEster.allCases
-                    .filter { $0 != .oral && $0 != .transdermal }
-                    .map { ($0.rawValue, halfLifeLabel($0.halfLifeDays)) }
-            } else {
-                return TestosteroneEster.allCases
-                    .map { ($0.rawValue, halfLifeLabel($0.halfLifeDays)) }
-            }
-        } else if selectedMethod == "Oral" && isEstrogen {
+        switch selectedMethod {
+        case "Injectable":
+            return isEstrogen
+                ? MedicationEster.injectableCases.map { ($0.rawValue, halfLifeLabel($0.halfLifeDays)) }
+                : TestosteroneEster.injectableCases.map { ($0.rawValue, halfLifeLabel($0.halfLifeDays)) }
+        case "Oral":
             return [("Oral", "Rapid absorption")]
-        } else if selectedMethod == "Cream" && isEstrogen {
+        case "Cream":
             return [("Transdermal", "Sustained 24h release")]
+        default:
+            return []
         }
-        return []
     }
 
     init() {
@@ -272,10 +275,13 @@ struct TypeMethodSettingsView: View {
             default: return "Valerate (EV)"
             }
         } else {
+            // Cream/Oral must not default to an injectable ester: the PK engine resolves
+            // those routes to the Transdermal/Oral pseudo-esters, and leaving "Cypionate
+            // (TC)" on the record made the stored ester disagree with what was modeled.
             switch method {
             case "Injectable": return "Cypionate (TC)"
-            case "Cream": return "Cypionate (TC)"
-            case "Oral": return "Cypionate (TC)"
+            case "Cream": return "Transdermal"
+            case "Oral": return "Oral"
             default: return "Cypionate (TC)"
             }
         }
