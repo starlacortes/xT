@@ -7,11 +7,14 @@
 
 import Foundation
 import UserNotifications
-import SwiftData
 
-/// Manages all local notification scheduling and permission state.
+/// Manages all local notification scheduling, permission state and tap handling.
+///
+/// The manager is also the app's `UNUserNotificationCenterDelegate`; `registerNotificationHandling()`
+/// must be called once during startup or notifications will neither appear in the foreground nor
+/// route anywhere when tapped.
 @MainActor
-class NotificationManager: ObservableObject {
+final class NotificationManager: NSObject, ObservableObject {
     static let shared = NotificationManager()
 
     enum NotificationType: String {
@@ -19,8 +22,18 @@ class NotificationManager: ObservableObject {
         case journalReminder = "journal_reminder"
     }
 
+    /// A screen the user asked for by acting on a notification.
+    enum Route: String {
+        case logDose
+        case journal
+    }
+
     // MARK: - Properties
-    var modelContext: ModelContext?
+
+    /// Set when the user taps a reminder (or its action button); cleared by `consumePendingRoute()`
+    /// once the UI has navigated. Observe with `@ObservedObject`/`@StateObject` — the
+    /// `\.notificationManager` environment key carries the instance, not its change publisher.
+    @Published private(set) var pendingRoute: Route?
 
     @Published var isDoseNotificationsAuthorized = false
     @Published var isJournalNotificationsAuthorized = false
@@ -31,25 +44,19 @@ class NotificationManager: ObservableObject {
     @Published var journalReminderHour = UserDefaults.standard.integer(forKey: "journalReminderHour")
     @Published var journalReminderMinute = UserDefaults.standard.integer(forKey: "journalReminderMinute")
 
-    /// The dosing frequency in days, derived from MedicationManager.
-    /// Drives whether the dose reminder is daily or on specific days.
-    var doseFrequencyDays: Int {
-        let mgr = MedicationManager.shared
-        if let custom = mgr.customFrequencyDays, custom > 0 {
-            return custom
-        }
-        if let methodStr = mgr.selectedAdministrationMethod,
-           let method = MedicationManager.AdministrationMethod(rawValue: methodStr) {
-            return method.frequencyDays
-        }
-        return 1 // default to daily if unconfigured
-    }
+    /// The dosing frequency in days. Drives whether the dose reminder is daily or on
+    /// specific days. Single derivation lives on `MedicationManager`.
+    var doseFrequencyDays: Int { MedicationManager.shared.effectiveFrequencyDays }
 
     private let doseNotificationRequestKey = "dose_reminder_request"
     private let journalNotificationRequestKey = "journal_reminder_request"
 
+    /// Identifier of the "Log Dose" button attached to dose reminders.
+    private static let logDoseActionIdentifier = "dose_action_log"
+
     // MARK: - Initialization
-    init() {
+    override init() {
+        super.init()
         loadSettings()
         Task { await checkAuthorizationStatus() }
     }
@@ -187,9 +194,7 @@ class NotificationManager: ObservableObject {
             if let error = error {
                 print("[NotificationManager] Error rescheduling dose reminder: \(error.localizedDescription)")
             } else {
-                let formatter = DateFormatter()
-                formatter.dateFormat = "MMM d 'at' h:mm a"
-                print("[NotificationManager] Dose reminder rescheduled for \(formatter.string(from: nextDoseDate))")
+                print("[NotificationManager] Dose reminder rescheduled for \(AppDateFormatters.dateTime.string(from: nextDoseDate))")
             }
         }
     }
@@ -266,20 +271,6 @@ class NotificationManager: ObservableObject {
         }
     }
 
-    /// Cancel a specific type of notification.
-    func cancelReminder(for type: NotificationType) {
-        let center = UNUserNotificationCenter.current()
-        let requestId = type == .doseReminder ? doseNotificationRequestKey : journalNotificationRequestKey
-        center.removePendingNotificationRequests(withIdentifiers: [requestId])
-        print("[NotificationManager] Cancelled \(type.rawValue) reminder")
-    }
-
-    /// Cancel all scheduled notifications.
-    func cancelAllReminders() {
-        UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
-        print("[NotificationManager] All reminders cancelled")
-    }
-
     /// Calculate the count of active reminders.
     var activeRemindersCount: Int {
         return (doseReminderEnabled ? 1 : 0) + (journalReminderEnabled ? 1 : 0)
@@ -287,32 +278,34 @@ class NotificationManager: ObservableObject {
 
     // MARK: - Notification Response Handling
 
-    /// Handle when the user taps on a notification.
-    func handleNotificationResponse(_ response: UNNotificationResponse) async {
-        let identifier = response.notification.request.content.categoryIdentifier
+    /// Translate a notification the user acted on into a `pendingRoute` for the UI.
+    ///
+    /// Takes plain identifiers rather than the `UNNotificationResponse` so the delegate
+    /// callback — which arrives off the main actor — has nothing non-`Sendable` to hand over.
+    func handleNotificationResponse(category: String, actionIdentifier: String) {
+        // Swiping a reminder away is an explicit "not now" — never navigate on it.
+        guard actionIdentifier != UNNotificationDismissActionIdentifier else { return }
 
-        switch identifier {
+        // The "Log Dose" button goes to dose logging regardless of which reminder carried it.
+        if actionIdentifier == Self.logDoseActionIdentifier {
+            pendingRoute = .logDose
+            return
+        }
+
+        switch category {
         case NotificationType.doseReminder.rawValue:
-            // Open the dose recording interface
-            await handleDoseNotificationTap()
+            pendingRoute = .logDose
         case NotificationType.journalReminder.rawValue:
-            // Open the journal interface
-            await handleJournalNotificationTap()
+            pendingRoute = .journal
         default:
-            print("[NotificationManager] Unknown notification tapped: \(identifier)")
+            print("[NotificationManager] Unknown notification tapped: \(category)")
         }
     }
 
-    private func handleDoseNotificationTap() async {
-        print("[NotificationManager] Opening dose recording screen")
-        // In a real app, this would navigate to the dose recording view
-        // For now, we can't easily control navigation from the manager
-        // This could be enhanced with a coordinator pattern or app delegate
-    }
-
-    private func handleJournalNotificationTap() async {
-        print("[NotificationManager] Opening journal screen")
-        // In a real app, this would navigate to the journal view
+    /// Clear the pending route once the UI has navigated, so a later re-render
+    /// does not navigate a second time.
+    func consumePendingRoute() {
+        pendingRoute = nil
     }
 
     // MARK: - Settings Management
@@ -371,19 +364,26 @@ class NotificationManager: ObservableObject {
         journalReminderMinute = UserDefaults.standard.integer(forKey: "journalReminderMinute")
     }
 
-    /// Get current medication context for notification content.
+    /// A short description of the configured dose, for the reminder body.
+    ///
+    /// Returns `nil` until a medication is chosen, in which case the generic copy stands.
     private func getMedicationContext() -> String? {
-        // This would ideally come from MedicationManager
-        // For now, return a generic string or medication info if accessible
-        return nil
+        let mgr = MedicationManager.shared
+        guard let medication = mgr.selectedMedication else { return nil }
+        guard let amount = mgr.defaultDoseAmount, amount > 0 else { return medication }
+        return "\(String(format: "%.1f", amount)) mg \(medication)"
     }
 
     // MARK: - Notification Categories
 
-    /// Set up notification categories for actions (future feature).
-    func setupNotificationCategories() {
+    /// Install the delegate and notification categories. Call once during app startup —
+    /// without the delegate, foreground reminders are suppressed and taps go nowhere.
+    func registerNotificationHandling() {
+        let center = UNUserNotificationCenter.current()
+        center.delegate = self
+
         let doseAction = UNNotificationAction(
-            identifier: "dose_action_log",
+            identifier: Self.logDoseActionIdentifier,
             title: "Log Dose",
             options: [.foreground]
         )
@@ -395,43 +395,45 @@ class NotificationManager: ObservableObject {
             hiddenPreviewsBodyPlaceholder: "Dose reminder"
         )
 
-        let center = UNUserNotificationCenter.current()
-        center.setNotificationCategories([doseCategory])
+        let journalCategory = UNNotificationCategory(
+            identifier: NotificationType.journalReminder.rawValue,
+            actions: [],
+            intentIdentifiers: [],
+            hiddenPreviewsBodyPlaceholder: "Journal reminder"
+        )
+
+        center.setNotificationCategories([doseCategory, journalCategory])
+    }
+}
+
+// MARK: - UNUserNotificationCenterDelegate
+
+extension NotificationManager: UNUserNotificationCenterDelegate {
+
+    /// Show reminders even while the app is open. Without this the system drops any
+    /// notification that fires in the foreground, so a user with xT on screen at
+    /// dose time is never told.
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .list, .sound])
     }
 
-    // MARK: - Utility
+    /// Entry point for every notification tap and action button.
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        // `UNNotificationResponse` is not Sendable — read what we need before hopping.
+        let category = response.notification.request.content.categoryIdentifier
+        let actionIdentifier = response.actionIdentifier
 
-    /// Get the next scheduled dose reminder time (for display in settings).
-    var nextDoseReminderDate: Date? {
-        guard doseReminderEnabled else { return nil }
-
-        let calendar = Calendar.current
-        var components = DateComponents()
-        components.hour = doseReminderHour
-        components.minute = doseReminderMinute
-        components.second = 0
-
-        var candidate = calendar.nextDate(after: Date(), matching: components, matchingPolicy: .nextTime) ?? Date()
-
-        // If the time is already past today, move to tomorrow
-        if candidate.timeIntervalSinceNow < 0 {
-            candidate = calendar.date(byAdding: .day, value: 1, to: candidate) ?? candidate
+        Task { @MainActor in
+            self.handleNotificationResponse(category: category, actionIdentifier: actionIdentifier)
+            completionHandler()
         }
-
-        return candidate
-    }
-
-    /// Get the next scheduled journal reminder time (for display in settings).
-    var nextJournalReminderDate: Date? {
-        guard journalReminderEnabled else { return nil }
-
-        let calendar = Calendar.current
-        var components = DateComponents()
-        components.hour = journalReminderHour
-        components.minute = journalReminderMinute
-        components.second = 0
-
-        let candidate = calendar.nextDate(after: Date(), matching: components, matchingPolicy: .nextTime) ?? Date()
-        return candidate >= Date() ? candidate : calendar.date(byAdding: .day, value: 1, to: candidate)
     }
 }

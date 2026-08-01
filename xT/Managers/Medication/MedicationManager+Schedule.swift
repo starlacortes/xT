@@ -105,19 +105,6 @@ extension MedicationManager {
         regimenTransitionHistory = segments
     }
     
-    /// Human-readable summary of regimen transitions (e.g., "Jun 1 – Jun 20: EV 2.0 mg | Jun 21 – Present: EC 4.0 mg")
-    var regimenTimelineSummary: String {
-        guard !regimenTransitionHistory.isEmpty else { return "No regimen history yet." }
-        let df = DateFormatter()
-        df.dateFormat = "MMM d"
-        return regimenTransitionHistory.map { segment in
-            let start = df.string(from: segment.startDate)
-            let end = segment.endDate.map { df.string(from: $0) } ?? "Present"
-            let concInfo = segment.concentrationMgPerMl.map { " @ \(String(format: "%.0f", $0)) mg/mL" } ?? ""
-            return "\(start) – \(end): \(segment.ester) \(String(format: "%.1f", segment.doseAmount)) mg\(concInfo)"
-        }.joined(separator: " | ")
-    }
-    
     // MARK: - Monthly Adherence Rate (#2)
 
     func recomputeAdherenceRate() {
@@ -127,28 +114,19 @@ extension MedicationManager {
         }
         
         let now = Date()
-        let thirtyDaysAgo = Calendar.current.date(byAdding: .day, value: -30, to: now) ?? now
-        
-        // Count taken doses in the last 30 days
+        let windowDays = PKConstants.adherenceWindowDays
+        let windowStart = Calendar.current.date(byAdding: .day, value: -windowDays, to: now) ?? now
+
+        // Count taken doses inside the adherence window
         let takenDoses = doseHistory
             .filter { $0.isActive && $0.medicationType == (selectedMedication ?? "") }
-            .filter { $0.doseDate >= thirtyDaysAgo && $0.doseDate <= now }
+            .filter { $0.doseDate >= windowStart && $0.doseDate <= now }
             .filter { DoseStatus(rawValue: $0.doseStatus) == .taken }
             .count
-        
-        // Calculate how many doses SHOULD have been scheduled in the last 30 days
-        let intervalDays: Double = {
-            if let custom = customFrequencyDays, custom > 0 { return Double(custom) }
-            if let methodStr = selectedAdministrationMethod,
-               let method = AdministrationMethod(rawValue: methodStr) {
-                return Double(method.frequencyDays)
-            }
-            return 7
-        }()
-        
-        let scheduledCount = max(1, Int(ceil(30.0 / intervalDays)))
-        let rate = min(1.0, Double(takenDoses) / Double(scheduledCount))
-        adherenceRate = rate
+
+        // Calculate how many doses SHOULD have been scheduled in that window
+        let scheduledCount = max(1, Int(ceil(Double(windowDays) / effectiveFrequencyDaysValue)))
+        adherenceRate = min(1.0, Double(takenDoses) / Double(scheduledCount))
     }
     
     // MARK: - On-Time Streak (#20)
@@ -169,17 +147,12 @@ extension MedicationManager {
             return
         }
         
-        // Determine grace window based on dosing frequency
-        let intervalDays: Double = {
-            if let custom = customFrequencyDays, custom > 0 { return Double(custom) }
-            if let methodStr = selectedAdministrationMethod,
-               let method = AdministrationMethod(rawValue: methodStr) {
-                return Double(method.frequencyDays)
-            }
-            return 7
-        }()
-        let graceHours = intervalDays <= 1 ? 12.0 : 24.0  // ±12h for daily, ±1d for weekly+
-        
+        // Determine grace window based on dosing frequency: tighter for daily regimens.
+        let intervalDays = effectiveFrequencyDaysValue
+        let graceHours = intervalDays <= 1
+            ? PKConstants.onTimeGraceHoursDaily
+            : PKConstants.onTimeGraceHoursPeriodic
+
         var streak = 1  // most recent dose counts
         for i in 1..<activeDoses.count {
             let expectedInterval = activeDoses[i-1].doseDate.timeIntervalSince(activeDoses[i].doseDate)
@@ -196,47 +169,46 @@ extension MedicationManager {
         onTimeStreak = streak
     }
     
+    // MARK: - Blood-Test Scheduling (#14)
+
+    /// The newest blood test for the selected medication that is still recent enough to
+    /// describe current levels (`PKConstants.bloodTestRelevanceDays`).
+    ///
+    /// Shared by `suggestedBloodTestMonth` and `bloodTestSchedulingText`, which each used
+    /// to run their own filter-and-sort — and, because the text also reads the suggested
+    /// month, scanned the history three times per render.
+    private var mostRecentRelevantBloodTest: BloodTestRecord? {
+        let cutoff = Calendar.current.date(
+            byAdding: .day, value: -PKConstants.bloodTestRelevanceDays, to: Date()
+        ) ?? Date()
+        return bloodTestHistory
+            .filter { $0.hormoneType == (selectedMedication ?? "") && $0.drawDate >= cutoff }
+            .max(by: { $0.drawDate < $1.drawDate })
+    }
+
     /// Returns the suggested month for the next blood test based on actual lab history.
-    /// If a test exists within the last 2.5 months, suggests 3 months after that draw.
+    /// If a recent test exists, suggests 3 months after that draw.
     /// Otherwise falls back to the next multiple of 3 months from HRT start.
     var suggestedBloodTestMonth: Int {
-        let now = Date()
-        // Use ~75 days (~2.5 months) as the cutoff window
-        let cutoff = Calendar.current.date(byAdding: .day, value: -75, to: now) ?? now
-        
-        // Check for a recent blood test
-        if let mostRecentTest = bloodTestHistory
-            .filter({ $0.hormoneType == (selectedMedication ?? "") })
-            .sorted(by: { $0.drawDate > $1.drawDate })
-            .first,
-           mostRecentTest.drawDate >= cutoff {
-            // Suggest 3 months after most recent draw
-            let nextDraw = Calendar.current.date(byAdding: .month, value: 3, to: mostRecentTest.drawDate) ?? now
-            let monthsFromNow = Calendar.current.dateComponents([.month], from: now, to: nextDraw).month ?? 3
-            return max(monthsFromNow, 1)
+        guard let mostRecentTest = mostRecentRelevantBloodTest else {
+            // Fallback: next multiple of 3 months from HRT start
+            return ((monthsOnHRT / 3) + 1) * 3
         }
-        
-        // Fallback: next multiple of 3 months from HRT start
-        let m = monthsOnHRT
-        return ((m / 3) + 1) * 3
+        // Suggest 3 months after most recent draw
+        let now = Date()
+        let nextDraw = Calendar.current.date(byAdding: .month, value: 3, to: mostRecentTest.drawDate) ?? now
+        let monthsFromNow = Calendar.current.dateComponents([.month], from: now, to: nextDraw).month ?? 3
+        return max(monthsFromNow, 1)
     }
-    
+
     /// Human-readable blood-test scheduling text (#14).
     var bloodTestSchedulingText: String {
-        let now = Date()
-        let cutoff = Calendar.current.date(byAdding: .day, value: -75, to: now) ?? now
-        
-        if let mostRecentTest = bloodTestHistory
-            .filter({ $0.hormoneType == (selectedMedication ?? "") })
-            .sorted(by: { $0.drawDate > $1.drawDate })
-            .first,
-           mostRecentTest.drawDate >= cutoff {
-            let df = DateFormatter()
-            df.dateFormat = "MMM d, yyyy"
-            let monthsAway = suggestedBloodTestMonth
-            return "Your last test was \(df.string(from: mostRecentTest.drawDate)). Schedule your next one in \(monthsAway) month\(monthsAway == 1 ? "" : "s")."
+        let monthsAway = suggestedBloodTestMonth
+        guard let mostRecentTest = mostRecentRelevantBloodTest else {
+            return "Schedule your next blood test around month \(monthsAway)."
         }
-        return "Schedule your next blood test around month \(suggestedBloodTestMonth)."
+        let lastDrawText = AppDateFormatters.monthDayYear.string(from: mostRecentTest.drawDate)
+        return "Your last test was \(lastDrawText). Schedule your next one in \(monthsAway) month\(monthsAway == 1 ? "" : "s")."
     }
 
 }

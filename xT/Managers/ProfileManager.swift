@@ -16,6 +16,17 @@ import CryptoKit
 class ProfileManager: ObservableObject {
     static let shared = ProfileManager()
 
+    // MARK: - Constants
+
+    /// JPEG quality used whenever a profile photo is encoded for storage.
+    static let imageCompressionQuality: CGFloat = 0.8
+
+    /// Longest accepted profile name, in characters.
+    static let maxProfileNameLength = 50
+
+    /// Largest accepted profile image payload (5 MB).
+    static let maxProfileImageBytes = 5 * 1024 * 1024
+
     // Profile information
     @Published var profileName: String = ""
     @Published var profileImage: UIImage?
@@ -35,10 +46,6 @@ class ProfileManager: ObservableObject {
         !profileName.isEmpty || profileImageData != nil
     }
 
-    var profileSummary: String {
-        "\(profileDisplayName) - \(hasProfileData ? "Complete" : "Incomplete")"
-    }
-
     // Image picker state
     @Published var showImagePicker: Bool = false
     @Published var showCamera: Bool = false
@@ -48,17 +55,34 @@ class ProfileManager: ObservableObject {
         loadProfile()
     }
 
-    /// Update profile name
-    func updateProfileName(_ name: String) {
+    /// Update profile name.
+    /// - Returns: `false` when `name` fails validation, in which case the stored
+    ///   profile is left untouched.
+    @discardableResult
+    func updateProfileName(_ name: String) -> Bool {
+        guard validateProfileName(name) else {
+            print("[ProfileManager] Rejected profile name: must be 1–\(Self.maxProfileNameLength) characters")
+            return false
+        }
         profileName = name
         persistProfile()
+        return true
     }
 
-    /// Update profile image
-    func updateProfileImage(_ image: UIImage) {
-        profileImageData = image.jpegData(compressionQuality: 0.8)
+    /// Update profile image.
+    /// - Returns: `false` when the encoded image fails validation (unencodable or
+    ///   over `maxProfileImageBytes`), in which case the stored profile is left untouched.
+    @discardableResult
+    func updateProfileImage(_ image: UIImage) -> Bool {
+        let data = image.jpegData(compressionQuality: Self.imageCompressionQuality)
+        guard validateProfileImageData(data) else {
+            print("[ProfileManager] Rejected profile image: unencodable or over \(Self.maxProfileImageBytes) bytes")
+            return false
+        }
+        profileImageData = data
         profileImage = image
         persistProfile()
+        return true
     }
 
     /// Clear profile image (use default)
