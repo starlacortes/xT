@@ -20,10 +20,13 @@ struct EsterConstantsTests {
     func estrogenHalfLives() {
         // EV/EC recalibrated 2026-07-29 so the modeled steady-state trough matches
         // transfemscience Table 10 (5 mg weekly). See .pk_analysis/fit_constants.py.
+        // Oral restated 2026-07-31 from 0.5 to 0.2773 d. Behaviour-neutral: the engine
+        // hardcoded ka = 2.5 for oral doses and never read this field, and S = 1250 was
+        // fit against that rate. ln2/0.2773 = 2.5, so oral E2 predictions are unchanged.
         let expected: [String: Double] = [
             "Valerate (EV)": 2.60,
             "Cypionate (EC)": 6.47,
-            "Oral": 0.5,
+            "Oral": 0.2773,
             "Transdermal": 1.5
         ]
         for ester in MedicationEster.allCases {
@@ -36,15 +39,19 @@ struct EsterConstantsTests {
         }
     }
 
-    @Test("All T ester half-lives are positive and within expected ranges")
+    @Test("All injectable T ester half-lives are positive and within expected ranges")
     func testosteroneHalfLives() {
+        // TC recalibrated 2026-07-31 from 8.0 to 3.839 d, = ln2/(CL/V) from Bi et al.
+        // 2018 Table 2. Deliberately not the commonly quoted 7-8 d: that figure assumes
+        // zero endogenous secretion, and xT models endogenous production separately as
+        // `baseLevel`. See PharmacokineticConstants.swift for the full note.
         let expected: [String: Double] = [
-            "Cypionate (TC)": 8.0,
+            "Cypionate (TC)": 3.839,
             "Enanthate (TE)": 7.0,
             "Propionate (TP)": 1.0,
             "Undecanoate (TU)": 20.0
         ]
-        for ester in TestosteroneEster.allCases {
+        for ester in TestosteroneEster.injectableCases {
             let halfLife = ester.halfLifeDays
             #expect(halfLife > 0, "\(ester.rawValue) half-life must be positive")
             #expect(halfLife >= 0.5 && halfLife <= 25.0,
@@ -54,16 +61,34 @@ struct EsterConstantsTests {
         }
     }
 
+    /// The two non-injectable cases describe a *route*, not a chemical ester, and are
+    /// resolved from the dose's administration method rather than chosen by the user.
+    /// They are excluded from `injectableCases` and carry sub-day kinetics, so they must
+    /// not be swept into the injectable range checks above.
+    @Test("T route pseudo-esters carry their own fitted kinetics")
+    func testosteroneRoutePseudoEsters() {
+        #expect(TestosteroneEster.oral.halfLifeDays == 0.09,
+                "Oral TU slow half-life, fit jointly with ke to Tmax 3 h (Jatenzo)")
+        #expect(TestosteroneEster.transdermal.halfLifeDays == 0.5784,
+                "Gel half-life from the AndroGel 1% washout statement (5% at 60 h)")
+        #expect(!TestosteroneEster.injectableCases.contains(.oral))
+        #expect(!TestosteroneEster.injectableCases.contains(.transdermal))
+        #expect(TestosteroneEster.injectableCases.count == 4)
+        #expect(MedicationEster.injectableCases == [.valerate, .cypionate])
+    }
+
     /// These are apparent curve-fit constants, not physiological clearance. The
     /// injectables are fit per-ester so Tmax matches the published time-to-peak;
     /// oral/transdermal remain elimination-dominated at the original 3 h.
     /// See .pk_analysis/fit_constants.py.
     @Test("E2 elimination half-lives match their per-ester fitted values")
     func estrogenEliminationHalfLife() {
+        // Oral restated 2026-07-31 from 3.0 to 12.0035 h — behaviour-neutral, see the
+        // half-life test above. ln2/(12.0035/24) = 1.386, the engine's old hardcoded ke.
         let expected: [String: Double] = [
             "Valerate (EV)": 21.5,
             "Cypionate (EC)": 38.6,
-            "Oral": 3.0,
+            "Oral": 12.0035,
             "Transdermal": 3.0
         ]
         for ester in MedicationEster.allCases {
@@ -72,11 +97,17 @@ struct EsterConstantsTests {
         }
     }
 
-    @Test("T elimination half-lives are consistent (2 hours for all esters)")
+    /// TC was refit from Bi et al. 2018 on 2026-07-31 (2.0 → 13.64 h = ln2/Ka 1.22).
+    /// TE, TP and TU keep the placeholder 2 h value, which is why their Tmax is still
+    /// wrong (0.3–0.7 d against published 1.5–7 d) even though their *magnitude* was
+    /// corrected in the same pass. This test is the guard that the gap stays visible.
+    @Test("T elimination half-lives: TC is fitted, the rest are still placeholders")
     func testosteroneEliminationHalfLife() {
-        for ester in TestosteroneEster.allCases {
+        #expect(TestosteroneEster.cypionate.eliminationHalfLifeHours == 13.64,
+                "TC ke comes from Bi et al. Ka = 1.22/day")
+        for ester in [TestosteroneEster.enanthate, .propionate, .undecanoate] {
             #expect(ester.eliminationHalfLifeHours == 2.0,
-                    "\(ester.rawValue) elimination half-life must be 2.0 hours")
+                    "\(ester.rawValue) still carries the uncalibrated 2.0 h placeholder — see OPEN_CONCERNS.md §3")
         }
     }
 
@@ -111,10 +142,17 @@ struct EsterConstantsTests {
         #expect(MedicationEster.oral.bioavailability == 0.05)
         // Transdermal = skin barrier limits absorption
         #expect(MedicationEster.transdermal.bioavailability == 0.15)
-        // All T esters are injectable
-        for ester in TestosteroneEster.allCases {
+        // T depot injectables: near-complete absorption from the oil depot
+        for ester in TestosteroneEster.injectableCases {
             #expect(ester.bioavailability == 1.0)
         }
+        // Gel: stated outright by the AndroGel 1% label §12.3 — "approximately 10% of
+        // the testosterone dose applied on the skin surface ... is absorbed".
+        #expect(TestosteroneEster.transdermal.bioavailability == 0.10)
+        // Oral TU: absolute bioavailability is not established in the source, so F is
+        // folded into `scalingConstant` rather than invented. Only the product is
+        // identified by the published data, so predictions are unaffected by the split.
+        #expect(TestosteroneEster.oral.bioavailability == 1.0)
     }
 
     @Test("Effective dose factor = EWF × bioavailability")
@@ -148,42 +186,59 @@ struct EsterConstantsTests {
         }
     }
 
-    @Test("T scaling constants are in clinical range (100–1500)")
+    @Test("T scaling constants are in the range implied by testosterone clearance")
     func testosteroneScalingConstants() {
-        // Range corrected 2026-07-28: the old bounds (3-25) matched the old,
-        // miscalibrated constants (11/11/18/5), which produced peak T levels
-        // ~20-98x below clinical targets. See PharmacokineticConstants.swift.
-        let constants = [
-            TestosteroneEster.cypionate.scalingConstant,
-            TestosteroneEster.enanthate.scalingConstant,
-            TestosteroneEster.propionate.scalingConstant,
-            TestosteroneEster.undecanoate.scalingConstant,
-        ]
-        for c in constants {
-            #expect(c >= 100 && c <= 1500,
-                    "Scaling constant \(c) outside clinical range")
+        // Bounds widened 2026-07-31 (lower bound 100 → 10). The scaling constant is no
+        // longer a free parameter with a plausibility range: it is pinned by ke and
+        // clearance (see the identity test below), and TC's fitted ke of 13.64 h puts
+        // its S at 67.13, legitimately below the old floor.
+        for ester in TestosteroneEster.allCases {
+            let c = ester.scalingConstant
+            #expect(c >= 10 && c <= 1500,
+                    "\(ester.rawValue) scaling constant \(c) outside clinical range")
         }
     }
 
-    @Test("T propionate scaling < cypionate (shorter half-life → larger Bateman shape factor, needs LESS scaling)")
-    func propionateLowerScalingThanCypionate() {
-        // Corrected 2026-07-28. The old test asserted the opposite relationship,
-        // based on the same flawed intuition ("shorter half-life should need a
-        // bigger multiplier to reach a higher peak") that produced the original
-        // miscalibration bug. In reality, under flip-flop kinetics the Bateman
-        // shape factor ka/(ka-ke)*(e^-ke·t - e^-ka·t) evaluated at t_max grows
-        // *larger* as ka approaches ke (i.e. as the ester's half-life shortens),
-        // so a shorter-half-life ester needs LESS scaling per mg to hit an
-        // equal-or-higher peak, not more. Verified numerically in
-        // .pk_analysis/run_scenarios.py (Part B).
-        #expect(TestosteroneEster.propionate.scalingConstant < TestosteroneEster.cypionate.scalingConstant,
-                "Shorter half-life ester has a larger Bateman shape factor, so it needs a SMALLER scaling constant")
+    /// Replaces two ordering tests (`propionateLowerScalingThanCypionate` and
+    /// `undecanoateLowerScaling`) that asserted S ordering by half-life. Both were
+    /// inverted by the 2026-07-31 refit, and both were reasoning from the wrong
+    /// quantity: S does not track the ester's half-life at all.
+    ///
+    /// Integrating the app's own expression over a dosing interval gives exactly
+    /// Cavg = Dose·EDF·S/(τ·ke), because ∫₀^∞ (ka/(ka−ke))(e^(−ke·t) − e^(−ka·t)) dt
+    /// = 1/ke. The true steady-state average is (mg testosterone/day)/CL, and clearance
+    /// belongs to testosterone rather than to the ester carrying it. Equating them, the
+    /// ester weight factor cancels and S = 1e5·ke/(CL_T·F) — a function of `ke` and
+    /// clearance only, with `ka` (and therefore the ester's half-life) absent entirely.
+    ///
+    /// This is a much stronger guard than an ordering check: it fails on any drift in
+    /// any injectable T constant, and it is what caught TE being 2× too high.
+    @Test("T scaling constants satisfy S = 1e5·ke/(CL_T·F) — steady-state conservation")
+    func testosteroneScalingSatisfiesClearanceIdentity() {
+        // Bi et al. 2018 Table 2 reports CL/F = 2.6 kL/day per mg of *cypionate*.
+        // Per mg of testosterone: 2600 × EWF_TC.
+        let clearanceLPerDay = 2600.0 * TestosteroneEster.cypionate.esterWeightFactor
+        for ester in TestosteroneEster.injectableCases {
+            let ke = log(2) / (ester.eliminationHalfLifeHours / 24.0)
+            let implied = 1e5 * ke / (clearanceLPerDay * ester.bioavailability)
+            let err = abs(ester.scalingConstant - implied) / implied
+            #expect(err < 0.01,
+                    "\(ester.rawValue): S = \(ester.scalingConstant) but clearance implies \(implied) (\(err * 100)% off). See PharmacokineticConstants.swift.")
+        }
     }
 
-    @Test("T undecanoate scaling < cypionate (longer half-life → flatter profile)")
-    func undecanoateLowerScaling() {
-        #expect(TestosteroneEster.undecanoate.scalingConstant < TestosteroneEster.cypionate.scalingConstant,
-                "Longer half-life ester should have lower scaling constant (flatter profile)")
+    /// TC's S was derived independently — analytically, from Bi's V/F and Ka, without
+    /// reference to the clearance identity above. The two agreeing is what makes the
+    /// identity trustworthy enough to have been applied to TE/TP/TU.
+    @Test("TC scaling matches its analytic derivation from Bi et al. V/F and Ka")
+    func cypionateScalingMatchesAnalyticForm() {
+        let V_L = 14400.0                              // Bi Table 2: V/F = 14.4 kL
+        let Ka = 1.22                                  // Bi Table 2: Ka = 1.22 /day
+        let ke = log(2) / TestosteroneEster.cypionate.halfLifeDays   // = CL/V = 0.1806
+        let edf = TestosteroneEster.cypionate.effectiveDoseFactor
+        let implied = 1e5 * Ka / (V_L * edf * ke)      // = 67.13
+        #expect(abs(TestosteroneEster.cypionate.scalingConstant - implied) / implied < 0.01,
+                "TC S = \(TestosteroneEster.cypionate.scalingConstant), analytic form gives \(implied)")
     }
 
     @Test("EV half-life < EC half-life")
@@ -306,11 +361,14 @@ struct FlipFlopKineticsTests {
         #expect(ec_ka < ec_ke, "EC should have ka < ke")
         #expect(ec_ka / ec_ke < 0.5, "EC: ka/ke ratio \(ec_ka / ec_ke) should be < 0.5")
 
-        // TC: ka = 0.087, ke = 8.318 → ratio ≈ 0.010
+        // TC: ka = 0.181, ke = 1.220 → ratio ≈ 0.148, after the 2026-07-31 refit from
+        // Bi et al. Flip-flop still holds, but the separation narrows from ~0.010 to
+        // ~0.148 for the same reason it narrowed for EV/EC on 2026-07-29: ke is no
+        // longer pinned to an arbitrary 2 h, so it no longer exaggerates the ratio.
         let tc_ka = log(2) / TestosteroneEster.cypionate.halfLifeDays
         let tc_ke = log(2) / (TestosteroneEster.cypionate.eliminationHalfLifeHours / 24.0)
         #expect(tc_ka < tc_ke, "TC should have ka < ke")
-        #expect(tc_ka / tc_ke < 0.05, "TC: ka/ke ratio \(tc_ka / tc_ke) should be < 0.05")
+        #expect(tc_ka / tc_ke < 0.5, "TC: ka/ke ratio \(tc_ka / tc_ke) should be < 0.5 (flip-flop)")
 
         // TP: ka = 0.693, ke = 8.318 → ratio ≈ 0.083 (borderline flip-flop)
         let tp_ka = log(2) / TestosteroneEster.propionate.halfLifeDays
@@ -360,16 +418,25 @@ struct TimeToPeakTests {
                 "EC t_max should be within the 3.0–4.5 d literature window, got \(tMax)")
     }
 
+    /// Resolves OPEN_CONCERNS.md §2, which suspected the encoded 1–2 d window was wrong
+    /// because a secondary source put TC's Cmax on day 4–5. Bi et al. 2018 Table 2 gives
+    /// Ka = 1.22/day against a disposition rate of 0.1806/day, i.e. Tmax = 1.84 d —
+    /// inside the encoded window. Propagating the published 95% CI on Ka (0.785–2.67)
+    /// gives a Tmax band of 1.08–2.43 d, which never reaches day 4–5. Bi's own limitation
+    /// statement (1–2 absorption-phase samples per subject, Ka RSE 44.9%) explains why
+    /// that estimate is imprecise, so TC Tmax reads as 1.84 d ± ~0.7 d.
     @MainActor
-    @Test("TC t_max ≈ 1–2 days")
+    @Test("TC t_max = 1.84 d, matching Bi et al. 2018 Table 2")
     func cypionateTPeakTime() {
         let mgr = MedicationManager()
         mgr.clearSelection()
         mgr.selectedMedication = "Testosterone"
-        // ka = ln2/8.0 ≈ 0.0866, ke = ln2/(2/24) = ln2/0.0833 ≈ 8.318
+        // ka = ln2/3.839 = 0.1806 (= CL/V), ke = ln2/(13.64/24) = 1.2196 (= Bi's Ka)
         let tMax = mgr.expectedTimeToPeak(for: TestosteroneEster.cypionate)
-        #expect(tMax > 0.5 && tMax < 3.0,
-                "TC t_max should be 0.5–3.0 days, got \(tMax)")
+        #expect(abs(tMax - 1.84) < 0.05,
+                "TC t_max should be 1.84 d per Bi Table 2, got \(tMax)")
+        #expect(tMax > 1.08 && tMax < 2.43,
+                "TC t_max should sit inside the CI band implied by Ka's 95% CI, got \(tMax)")
     }
 
     @MainActor
@@ -384,16 +451,32 @@ struct TimeToPeakTests {
                 "TP t_max should be 0.1–0.6 days, got \(tMax)")
     }
 
+    /// This test previously asserted TU t_max > TC t_max, which is clinically true —
+    /// TU genuinely peaks weeks after TC — but is NOT true of the encoded constants,
+    /// and stopped passing on 2026-07-31 when TC's Tmax moved from 0.55 d to a
+    /// primary-sourced 1.84 d while TU kept the placeholder 2 h `ke` that pins it to
+    /// 0.66 d. The test was passing before only because TC was also wrong, in the same
+    /// direction, by more.
+    ///
+    /// Rewritten to assert what is actually true of the model and to fail loudly if
+    /// anyone tries to reconcile the two by moving TC back. TU's absorption rate is the
+    /// thing that needs a source; until it has one, this documents the known-wrong
+    /// ordering rather than hiding it. OPEN_CONCERNS.md §3 and §4.
     @MainActor
-    @Test("TU t_max > TC t_max (longer half-life → later peak)")
-    func undecanoatePeakTimeLongerThanCypionate() {
+    @Test("KNOWN GAP: TU t_max is earlier than TC's, because TU's ka is uncalibrated")
+    func undecanoatePeakTimeIsUncalibrated() {
         let mgr = MedicationManager()
         mgr.clearSelection()
         mgr.selectedMedication = "Testosterone"
         let tcMax = mgr.expectedTimeToPeak(for: TestosteroneEster.cypionate)
         let tuMax = mgr.expectedTimeToPeak(for: TestosteroneEster.undecanoate)
-        #expect(tuMax > tcMax,
-                "TU t_max (\(tuMax)) should be > TC t_max (\(tcMax))")
+
+        #expect(tuMax < tcMax,
+                "Documented inversion: TU t_max \(tuMax) d vs TC \(tcMax) d. If this now fails because TU was given a real absorption rate, delete the test and restore the clinical ordering assertion.")
+        #expect(tuMax > 0.5 && tuMax < 1.0,
+                "TU t_max is pinned near 0.66 d by the placeholder 2 h ke, got \(tuMax)")
+        #expect(TestosteroneEster.undecanoate.eliminationHalfLifeHours == 2.0,
+                "The inversion above is caused by this placeholder; they must move together")
     }
 }
 
@@ -1402,6 +1485,13 @@ struct ContextualRangeTests {
 
 /// Covers the testosterone scalingConstant recalibration (previously ~20-98x
 /// too low — see PharmacokineticConstants.swift for the derivation).
+/// NOTE on what these tests actually measure. Each sets up a *single* logged dose, which
+/// puts `estimatedLevels` into its forward-projection branch: with one dose and no custom
+/// frequency it projects future doses on the ester's typical interval so the chart can
+/// preview a trajectory. So the peak seen inside a multi-interval window is the peak of a
+/// projected *regimen*, not of one injection. Before 2026-07-31 that interval was 7 days
+/// for every injectable, which is why the TU expectation below moved: TU is dosed every
+/// 10 weeks, and projecting it weekly reached ~2850 ng/dL against a single-dose ~1190.
 @Suite("Testosterone Ester — Absolute Peak Accuracy (post-recalibration)")
 struct TestosteronePeakAccuracyTests {
 
@@ -1424,9 +1514,12 @@ struct TestosteronePeakAccuracyTests {
 
         let points = mgr.estimatedLevels(from: now, to: now.addingTimeInterval(14 * 86400),
                                           stepDays: 0.25, applyCalibration: false)
+        // TE's scaling constant was corrected 2026-07-31 from 923 to 457.67 by the
+        // clearance identity; on the old value this same scenario read ~1160 ng/dL.
+        // 100 mg weekly is a standard regimen and should land mid-band, not near the top.
         let maxLevel = points.map(\.value).max() ?? 0
-        #expect(maxLevel > 400 && maxLevel < 1200,
-                "TE 100mg peak should be 400-1200 ng/dL (target ~600-900), got \(maxLevel)")
+        #expect(maxLevel > 400 && maxLevel < 900,
+                "TE 100mg q7d projected peak should be 400-900 ng/dL, got \(maxLevel)")
     }
 
     @MainActor
@@ -1448,9 +1541,13 @@ struct TestosteronePeakAccuracyTests {
 
         let points = mgr.estimatedLevels(from: now, to: now.addingTimeInterval(7 * 86400),
                                           stepDays: 0.1, applyCalibration: false)
+        // TP projects every 2 days, not weekly (see `typicalIntervalDays`), so across a
+        // 7-day window this is a 50 mg EOD regimen — roughly 146 mg of testosterone per
+        // week, a deliberately high dose. The peak is correspondingly high. Range widened
+        // 2026-07-31 to match; the old 500-1600 was written against a weekly projection.
         let maxLevel = points.map(\.value).max() ?? 0
-        #expect(maxLevel > 500 && maxLevel < 1600,
-                "TP 50mg peak should be roughly 500-1600 ng/dL (target ~800-1200), got \(maxLevel)")
+        #expect(maxLevel > 900 && maxLevel < 2200,
+                "TP 50mg EOD projected peak should be 900-2200 ng/dL, got \(maxLevel)")
     }
 
     @MainActor
@@ -1477,6 +1574,12 @@ struct TestosteronePeakAccuracyTests {
         // overstates the peak/trough ratio (~11× observed vs. ~2-3× real). The peak
         // amplitude is roughly consistent with Wang et al. 2010 (~1100 ng/dL for 1000mg IM);
         // the range below is a plausibility check, not a calibration target.
+        //
+        // Two 2026-07-31 changes pull in opposite directions here and roughly cancel:
+        // S rose 214 → 457.67 (clearance identity), while the forward projection moved
+        // from weekly to the ester's real 10-week interval. Net effect on this scenario
+        // is ~1190 ng/dL, against ~1050 before. Had only the first landed it would read
+        // ~2850, which is why `typicalIntervalDays` exists.
         #expect(maxLevel > 800 && maxLevel < 2000,
                 "TU 1000mg peak should be in the plausible range 800–2000 ng/dL, got \(maxLevel)")
     }
