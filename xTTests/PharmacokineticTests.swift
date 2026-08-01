@@ -1690,3 +1690,104 @@ struct ChartWindowSkippedDoseTests {
         mgr.clearSelection()
     }
 }
+
+
+// MARK: - Non-Injectable Scaling Constants
+
+/// The oral and transdermal branches of `estimatedLevels` used to carry their own
+/// hard-coded scaling constants (12000 and 8000) and only replaced them when the dose
+/// recorded an *estradiol* ester. A testosterone user on an oral or cream route therefore
+/// hit the literals on every dose. Those literals predate the 2026-07-28 recalibration and
+/// overshoot the documented targets by ~9.6× (oral) and ~52× (transdermal).
+///
+/// Asserting the absolute peak would just restate the constants. These tests instead check
+/// that the curve actually *responds* to the per-ester constant: two testosterone esters
+/// given by the same non-injectable route differ only in `scalingConstant` and
+/// `effectiveDoseFactor` (the route fixes ka and ke), so the ratio of their peaks above
+/// baseline must equal the ratio of those two factors. Under the old code both esters were
+/// scaled by the same literal and the ratio collapsed to `effectiveDoseFactor` alone.
+@Suite("Non-Injectable Routes — Per-Ester Scaling")
+struct NonInjectableScalingTests {
+
+    @MainActor
+    private func peakAboveBaseline(
+        ester: TestosteroneEster, method: String, hours: Double
+    ) -> Double {
+        let mgr = MedicationManager()
+        mgr.clearSelection()
+        mgr.selectedMedication = "Testosterone"
+        mgr.selectedAdministrationMethod = method
+        mgr.antiAndrogenInUse = false
+        mgr.hrtStartDate = Calendar.current.date(byAdding: .year, value: -3, to: Date())
+        mgr.bloodTestHistory = []
+
+        let now = Date()
+        mgr.doseHistory = [
+            DoseRecord(
+                doseDate: now,
+                medicationType: "Testosterone",
+                ester: ester.rawValue,
+                administrationMethod: method,
+                doseAmount: 2.0,
+                doseStatus: .taken
+            )
+        ]
+
+        let points = mgr.estimatedLevels(
+            from: now,
+            to: now.addingTimeInterval(hours * 3600),
+            stepDays: 1.0 / 24.0,
+            applyCalibration: false
+        )
+        mgr.clearSelection()
+
+        guard let baseline = points.first?.value,
+              let peak = points.map(\.value).max() else { return 0 }
+        return peak - baseline
+    }
+
+    /// Expected peak ratio between two esters given by the same non-injectable route.
+    private func expectedRatio(_ a: TestosteroneEster, _ b: TestosteroneEster) -> Double {
+        (a.scalingConstant * a.effectiveDoseFactor) / (b.scalingConstant * b.effectiveDoseFactor)
+    }
+
+    @MainActor
+    @Test("Oral testosterone scales by the dose's own ester constant")
+    func oralUsesPerEsterScaling() {
+        let tc = peakAboveBaseline(ester: .cypionate, method: "Oral", hours: 24)
+        let tu = peakAboveBaseline(ester: .undecanoate, method: "Oral", hours: 24)
+
+        #expect(tc > 0 && tu > 0, "both esters should produce a peak above baseline")
+
+        let ratio = tc / tu
+        let expected = expectedRatio(.cypionate, .undecanoate)
+        #expect(abs(ratio - expected) < expected * 0.02,
+                "oral peaks should track scalingConstant × effectiveDoseFactor: got \(ratio), expected \(expected)")
+    }
+
+    @MainActor
+    @Test("Transdermal testosterone scales by the dose's own ester constant")
+    func transdermalUsesPerEsterScaling() {
+        let tc = peakAboveBaseline(ester: .cypionate, method: "Cream", hours: 48)
+        let tu = peakAboveBaseline(ester: .undecanoate, method: "Cream", hours: 48)
+
+        #expect(tc > 0 && tu > 0, "both esters should produce a peak above baseline")
+
+        let ratio = tc / tu
+        let expected = expectedRatio(.cypionate, .undecanoate)
+        #expect(abs(ratio - expected) < expected * 0.02,
+                "transdermal peaks should track scalingConstant × effectiveDoseFactor: got \(ratio), expected \(expected)")
+    }
+
+    @MainActor
+    @Test("Non-injectable peaks stay in a physiological range")
+    func nonInjectablePeaksArePlausible() {
+        // The retired literals were 11× (oral) and 5× (transdermal) the calibrated
+        // constants for TC, which pushed a 2 mg dose far past any real serum level.
+        for method in ["Oral", "Cream"] {
+            let peak = peakAboveBaseline(ester: .cypionate, method: method, hours: 48)
+            #expect(peak < 2000,
+                    "\(method) TC 2 mg peak of \(peak) ng/dL is not physiological")
+        }
+    }
+}

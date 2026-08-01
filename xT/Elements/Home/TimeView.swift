@@ -18,9 +18,6 @@ struct TimeView: View {
     @Environment(\.medicationManager) private var medicationManager
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    @State private var cachedEngine: TimeContentEngine?
-    @State private var lastDoseCount: Int = 0
-
     // Constellation fields — generated once, regenerated only when months change.
     @State private var brainField: ConstellationField = .empty
     @State private var bodyField: ConstellationField = .empty
@@ -31,13 +28,17 @@ struct TimeView: View {
 
     private let peekHeight: CGFloat = 54
 
+    /// The content model for this screen, derived from the manager's published state.
+    ///
+    /// This used to memoize into an `@State` property, assigning to it from inside a
+    /// computed property that `body` reads — a write to view state during the view update
+    /// pass, which SwiftUI flags as "Modifying state during view update" and which can
+    /// invalidate the view it is being read from. The cache also bought nothing:
+    /// `TimeContentEngine` is a struct of stored `let`s, so building one only copies its
+    /// fields, and the expensive parts (`bodySystems`, `upcomingMilestones`,
+    /// `unlockedChanges`) are computed properties that re-ran on every access whether or
+    /// not the instance was reused.
     private var engine: TimeContentEngine {
-        if let cached = cachedEngine, cached.months == medicationManager.monthsOnHRT,
-           cached.adherenceRate == medicationManager.adherenceRate,
-           cached.currentLevel == medicationManager.currentHormoneLevel?.value,
-           cached.cyclePosition == medicationManager.currentCyclePosition {
-            return cached
-        }
         let cycleDay: Int = {
             guard let last = medicationManager.lastDoseDate,
                   let methodStr = medicationManager.selectedAdministrationMethod,
@@ -45,7 +46,7 @@ struct TimeView: View {
             let elapsed = Calendar.current.dateComponents([.day], from: last, to: Date()).day ?? 0
             return (elapsed % adm.frequencyDays) + 1
         }()
-        let newEngine = TimeContentEngine(
+        return TimeContentEngine(
             medication: medicationManager.selectedMedication ?? "Estrogen",
             method: medicationManager.selectedAdministrationMethod ?? "Injectable",
             months: medicationManager.monthsOnHRT,
@@ -65,8 +66,6 @@ struct TimeView: View {
             suggestedBloodTestMonth: medicationManager.suggestedBloodTestMonth,
             calibrationContext: nil
         )
-        cachedEngine = newEngine
-        return newEngine
     }
 
     private var cloudMonths: Int { engine.activeMonthsOnHRT }
@@ -118,15 +117,13 @@ struct TimeView: View {
                 }
             }
             .onAppear {
-                lastDoseCount = medicationManager.doseRecordedCount
                 medicationManager.refreshState()
                 regenerateFieldsIfNeeded()
             }
         }
-        .onChange(of: medicationManager.doseRecordedCount) { _, newCount in
-            guard newCount > lastDoseCount else { return }
-            lastDoseCount = newCount
-            cachedEngine = nil
+        // `engine` is derived fresh from the manager, so a recorded dose only needs the
+        // manager's own state refreshed — there is no view-side cache left to invalidate.
+        .onChange(of: medicationManager.doseRecordedCount) { _, _ in
             medicationManager.refreshState()
         }
         .onChange(of: cloudMonths) { _, _ in

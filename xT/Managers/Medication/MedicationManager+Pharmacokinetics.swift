@@ -618,7 +618,30 @@ extension MedicationManager {
             }
             return nil
         }
-        
+
+        /// The scaling constant (F/Vd) for a non-injectable dose.
+        ///
+        /// Prefers the calibrated constant for the dose's own ester, for whichever
+        /// hormone it records. Only a dose whose ester string matches neither enum falls
+        /// back, and it falls back to the constant calibrated for the *route*.
+        ///
+        /// The two literals this replaces (12000 oral, 8000 transdermal) predate the
+        /// 2026-07-28 recalibration. They were never validated, because a routing bug
+        /// meant non-injectable doses ignored `scalingConstant` entirely; once that was
+        /// fixed they overshot the documented targets by ~9.6× and ~52× respectively.
+        /// A testosterone user on an oral or cream route reached them on every dose.
+        func scalingConstant(
+            for dose: DoseRecord, medication: String, routeDefault: MedicationEster
+        ) -> Double {
+            if medication == "Estrogen", let e = MedicationEster(rawValue: dose.ester) {
+                return e.scalingConstant
+            }
+            if medication == "Testosterone", let t = TestosteroneEster(rawValue: dose.ester) {
+                return t.scalingConstant
+            }
+            return routeDefault.scalingConstant
+        }
+
         if !doseHistory.isEmpty {
             // QA fix (2026‑07‑28): only doses actually TAKEN should contribute to the
             // PK curve. Previously this filter admitted `.skipped` (and any future
@@ -649,24 +672,23 @@ extension MedicationManager {
                 } else if isOralRoute {
                     // Oral: fast Bateman with ka = 2.5 d⁻¹ (≈1h absorption), ke = 1.386 d⁻¹
                     // Models the rapid spike ~1‑2h after ingestion followed by fast drop
-                    let oralKa = 2.5
-                    let oralKe = 1.386   // ln(2) / 0.5d elimination half-life
-                    var oralScaling: Double = 12000.0
-                    if medication == "Estrogen", let e = MedicationEster(rawValue: dose.ester) {
-                        oralScaling = e.scalingConstant  // already calibrated for oral
-                    }
                     doseEvents.append(DoseEvent(date: dose.doseDate, amount: effAmount,
-                                                ka: oralKa, ke: oralKe, scaling: oralScaling))
+                                                ka: PKConstants.oralAbsorptionRate,
+                                                ke: PKConstants.oralEliminationRate,
+                                                scaling: scalingConstant(
+                                                    for: dose, medication: medication,
+                                                    routeDefault: MedicationEster.oral)))
                 } else if isTransdermalRoute {
                     // Transdermal: 24h square-wave via hourly micro‑doses
                     // Each micro‑dose = effAmount / 24, spread over 24 hours from application
-                    let microAmount = effAmount / 24.0
-                    let tdKa = log(2) / 1.5     // 1.5d terminal half-life for transdermal
-                    var tdScaling: Double = 8000.0
-                    if medication == "Estrogen", let e = MedicationEster(rawValue: dose.ester) {
-                        tdScaling = e.scalingConstant
-                    }
-                    for hour in 0..<24 {
+                    let microCount = PKConstants.transdermalMicroDoseCount
+                    let microAmount = effAmount / Double(microCount)
+                    let tdKa = log(2) / PKConstants.transdermalAbsorptionHalfLifeDays
+                    let tdScaling = scalingConstant(
+                        for: dose, medication: medication,
+                        routeDefault: MedicationEster.transdermal
+                    )
+                    for hour in 0..<microCount {
                         let microDate = dose.doseDate.addingTimeInterval(Double(hour) * 3600.0)
                         doseEvents.append(DoseEvent(date: microDate, amount: microAmount,
                                                     ka: tdKa, ke: 0.0, scaling: tdScaling))

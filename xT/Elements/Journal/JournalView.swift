@@ -344,32 +344,6 @@ struct EmptyJournalView: View {
     }
 }
 
-// MARK: - Streak Pill
-
-struct StreakPill: View {
-    let days: Int
-
-    var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "flame.fill")
-                .font(.system(size: 14))
-                .foregroundStyle(Theme.Colors.Time.body.base)
-
-            AnimatedCounter(value: Double(days), format: { "\(Int($0.rounded())) days" })
-                .font(Theme.Fonts.caption)
-                .fontWeight(.semibold)
-                .foregroundStyle(Theme.Colors.Time.body.base)
-        }
-        .padding(.horizontal, Theme.Spacing.md)
-        .padding(.vertical, 5)
-        .background(Theme.Colors.Time.body.surface)
-        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
-        .overlay(
-            RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                .stroke(Theme.Colors.Time.body.border, lineWidth: 0.5)
-        )
-    }
-}
 
 // MARK: - Preview
 

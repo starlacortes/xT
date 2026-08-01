@@ -202,88 +202,94 @@ enum SpoofProfile {
         mm.customFrequencyDays = 5
         mm.missedDoseGracePeriodHours = 12.0
 
-        // Generate ~18 months of dose history at 5-day intervals
-        // addDose signature: addDose(date:type:ester:method:doseAmount:concentrationMgPerMl:notes:)
-        var doseDate = hrtStartDate
-        let endDate = today
-        var doseCount = 0
+        // Generate ~18 months of dose history at 5-day intervals.
+        //
+        // `addDose` re-runs the full pharmacokinetic model on every call, so seeding ~110
+        // doses one at a time integrated the whole (growing) history ~110 times — the
+        // seed was quadratic in dose count and took seconds. `performBatch` holds the
+        // recompute until the end, leaving a single pass over the finished history.
+        mm.performBatch {
+            var doseDate = hrtStartDate
+            let endDate = today
+            var doseCount = 0
 
-        while doseDate <= endDate {
-            let doseAmount = Double.random(in: 4.5...5.5)
+            while doseDate <= endDate {
+                let doseAmount = Double.random(in: 4.5...5.5)
 
-            if doseCount > 10 && Double.random(in: 0...1) < 0.05 {
-                // Log a dose then mark it as skipped
-                mm.addDose(
-                    date: doseDate,
-                    type: "Estrogen",
-                    ester: "Valerate (EV)",
-                    method: "Injectable",
-                    doseAmount: doseAmount,
-                    concentrationMgPerMl: 20.0,
-                    notes: nil
-                )
-                // skipDose creates a separate skipped record; it uses selectedMedication/selectedAdministrationMethod
-                mm.skipDose(on: doseDate, reason: "Forgot — took next day")
-            } else {
-                mm.addDose(
-                    date: doseDate,
-                    type: "Estrogen",
-                    ester: "Valerate (EV)",
-                    method: "Injectable",
-                    doseAmount: doseAmount,
-                    concentrationMgPerMl: 20.0,
-                    notes: doseCount == 0 ? "First injection — starting HRT! 🎉" : nil
+                if doseCount > 10 && Double.random(in: 0...1) < 0.05 {
+                    // Log a dose then mark it as skipped
+                    mm.addDose(
+                        date: doseDate,
+                        type: "Estrogen",
+                        ester: "Valerate (EV)",
+                        method: "Injectable",
+                        doseAmount: doseAmount,
+                        concentrationMgPerMl: 20.0,
+                        notes: nil
+                    )
+                    // skipDose creates a separate skipped record; it uses selectedMedication/selectedAdministrationMethod
+                    mm.skipDose(on: doseDate, reason: "Forgot — took next day")
+                } else {
+                    mm.addDose(
+                        date: doseDate,
+                        type: "Estrogen",
+                        ester: "Valerate (EV)",
+                        method: "Injectable",
+                        doseAmount: doseAmount,
+                        concentrationMgPerMl: 20.0,
+                        notes: doseCount == 0 ? "First injection — starting HRT! 🎉" : nil
+                    )
+                }
+
+                doseDate = calendar.date(byAdding: .day, value: 5, to: doseDate)!
+                doseCount += 1
+            }
+
+            // Set last/next from the most recent taken dose. `doseHistory` is ascending,
+            // so the newest taken dose is the last match rather than the first.
+            let lastTaken = mm.doseHistory.last {
+                $0.doseStatus == DoseStatus.taken.rawValue && !$0.isDeleted
+            }
+            if let lastTaken {
+                mm.lastDoseDate = lastTaken.doseDate
+                mm.nextDoseDate = calendar.date(byAdding: .day, value: 5, to: lastTaken.doseDate)
+            }
+
+            // Persist dose dates + medication selection to UserDefaults
+            mm.persistDoseDates()
+            mm.persistSelection()
+
+            // Add 4 blood test records at various points in the HRT journey
+            // addBloodTest signature: addBloodTest(drawDate:measuredLevel:hormoneType:notes:)
+            let bloodTests: [(monthsAfter: Int, e2: Double, notes: String)] = [
+                (3,  180, "3-month baseline — good initial response"),
+                (6,  230, "6-month check — levels in target range"),
+                (12, 195, "12-month annual labs — consistent"),
+                (16, 210, "16-month follow-up — maintaining well"),
+            ]
+
+            for test in bloodTests {
+                guard let drawDate = calendar.date(
+                    byAdding: .month, value: test.monthsAfter, to: hrtStartDate
+                ) else { continue }
+
+                mm.addBloodTest(
+                    drawDate: drawDate,
+                    measuredLevel: Double(test.e2),
+                    hormoneType: "Estrogen",
+                    notes: test.notes
                 )
             }
 
-            doseDate = calendar.date(byAdding: .day, value: 5, to: doseDate)!
-            doseCount += 1
-        }
-
-        // Set last/next from the most recent taken dose
-        let activeDoses = mm.doseHistory.filter {
-            $0.doseStatus == DoseStatus.taken.rawValue && !$0.isDeleted
-        }
-        if let lastDose = activeDoses.sorted(by: { $0.doseDate > $1.doseDate }).first {
-            mm.lastDoseDate = lastDose.doseDate
-            mm.nextDoseDate = calendar.date(byAdding: .day, value: 5, to: lastDose.doseDate)
-        }
-
-        // Persist dose dates + medication selection to UserDefaults
-        mm.persistDoseDates()
-        mm.persistSelection()
-
-        // Add 4 blood test records at various points in the HRT journey
-        // addBloodTest signature: addBloodTest(drawDate:measuredLevel:hormoneType:notes:)
-        let bloodTests: [(monthsAfter: Int, e2: Double, notes: String)] = [
-            (3,  180, "3-month baseline — good initial response"),
-            (6,  230, "6-month check — levels in target range"),
-            (12, 195, "12-month annual labs — consistent"),
-            (16, 210, "16-month follow-up — maintaining well"),
-        ]
-
-        for test in bloodTests {
-            guard let drawDate = calendar.date(
-                byAdding: .month, value: test.monthsAfter, to: hrtStartDate
-            ) else { continue }
-
-            mm.addBloodTest(
-                drawDate: drawDate,
-                measuredLevel: Double(test.e2),
-                hormoneType: "Estrogen",
-                notes: test.notes
+            // Set therapeutic targets
+            mm.userTherapeuticTarget = MedicationManager.TherapeuticTarget(
+                troughMin: 100,
+                troughMax: 200,
+                peakCeiling: 600
             )
         }
-
-        // Set therapeutic targets
-        mm.userTherapeuticTarget = MedicationManager.TherapeuticTarget(
-            troughMin: 100,
-            troughMax: 200,
-            peakCeiling: 600
-        )
-
-        // Recompute derived state (estimated levels, adherence, etc.)
-        mm.refreshState()
+        // `performBatch` recomputes derived state (estimated levels, adherence, …) once
+        // on the way out, so no explicit `refreshState()` is needed here.
     }
 
     // MARK: - Journal Population
