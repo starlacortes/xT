@@ -258,6 +258,19 @@ enum ProfileSnapshot {
         var preferences: [PreferencesPayload]
     }
 
+    /// A `DoseRecord` reduced to plain values.
+    ///
+    /// This must cover **every** stored property on `DoseRecord`. Restore deletes the
+    /// live records and reinserts these, then consumes the snapshot file — so any field
+    /// missing here is destroyed permanently the first time the user toggles the Sample
+    /// profile off. It previously carried 12 of the 17, which silently erased every
+    /// injection-site record and the whole dose-correction audit trail.
+    ///
+    /// The two site collections are carried as their raw JSON rather than as decoded
+    /// `[InjectionSite]`. `InjectionSite`'s decoder is deliberately lenient — it
+    /// substitutes defaults for anything it cannot read — so a decode/re-encode round
+    /// trip would quietly rewrite older records into the current schema. Moving the
+    /// stored string through untouched cannot lose anything.
     private struct DosePayload: Codable {
         var id: String
         var doseDate: Date
@@ -271,6 +284,15 @@ enum ProfileSnapshot {
         var doseStatus: String
         var skipReason: String?
         var injectionTime: Date?
+        var injectionSitesJSON: String?
+        var recordedAt: Date?
+        /// Optional purely for decoding: a snapshot written before these fields existed
+        /// has no key for it, and the synthesized `Codable` initialiser throws on a
+        /// missing non-optional — which would make the old snapshot unreadable and strand
+        /// the user's real data behind the Sample profile. Absent means `false`.
+        var isUserCorrected: Bool?
+        var originalDoseId: String?
+        var originalSiteJSON: String?
 
         init(_ record: DoseRecord) {
             id = record.id
@@ -285,6 +307,11 @@ enum ProfileSnapshot {
             doseStatus = record.doseStatus
             skipReason = record.skipReason
             injectionTime = record.injectionTime
+            injectionSitesJSON = record.injectionSitesJSON
+            recordedAt = record.recordedAt
+            isUserCorrected = record.isUserCorrected
+            originalDoseId = record.originalDoseId
+            originalSiteJSON = record.originalSiteJSON
         }
 
         var record: DoseRecord {
@@ -302,6 +329,11 @@ enum ProfileSnapshot {
                 injectionTime: injectionTime
             )
             r.isDeleted = isDeleted
+            r.injectionSitesJSON = injectionSitesJSON
+            r.recordedAt = recordedAt
+            r.isUserCorrected = isUserCorrected ?? false
+            r.originalDoseId = originalDoseId
+            r.originalSiteJSON = originalSiteJSON
             return r
         }
     }
@@ -313,6 +345,7 @@ enum ProfileSnapshot {
         var hormoneType: String
         var hoursSinceLastDose: Double?
         var notes: String?
+        var calibrationFactor: Double?
 
         init(_ record: BloodTestRecord) {
             id = record.id
@@ -321,10 +354,11 @@ enum ProfileSnapshot {
             hormoneType = record.hormoneType
             hoursSinceLastDose = record.hoursSinceLastDose
             notes = record.notes
+            calibrationFactor = record.calibrationFactor
         }
 
         var record: BloodTestRecord {
-            BloodTestRecord(
+            let r = BloodTestRecord(
                 id: id,
                 drawDate: drawDate,
                 measuredLevel: measuredLevel,
@@ -332,6 +366,10 @@ enum ProfileSnapshot {
                 hoursSinceLastDose: hoursSinceLastDose,
                 notes: notes
             )
+            // `recomputeCalibrationFactors()` would rederive this during rehydration, but
+            // carrying it keeps the restored store byte-identical to what was captured.
+            r.calibrationFactor = calibrationFactor
+            return r
         }
     }
 
@@ -364,6 +402,9 @@ enum ProfileSnapshot {
         var mood: Mood
         var text: String
         var symptoms: [Symptom]
+        /// The modelled hormone level at the time of writing. Omitting it dropped the
+        /// data point every journal-vs-level correlation is drawn from.
+        var hormoneLevel: Double?
 
         init(_ entry: JournalEntry) {
             id = entry.id
@@ -371,10 +412,12 @@ enum ProfileSnapshot {
             mood = entry.mood
             text = entry.text
             symptoms = entry.symptoms
+            hormoneLevel = entry.hormoneLevel
         }
 
         var record: JournalEntry {
-            JournalEntry(id: id, date: date, mood: mood, text: text, symptoms: symptoms)
+            JournalEntry(id: id, date: date, mood: mood, text: text,
+                         symptoms: symptoms, hormoneLevel: hormoneLevel)
         }
     }
 

@@ -71,37 +71,51 @@ struct xTApp: App {
         } catch {
             print("[xTApp] Failed to create ModelContainer: \(error)")
             print("[xTApp] Deleting corrupted store and retrying...")
-            
-            let supportDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-            let storeURL = supportDir.appendingPathComponent("xT.store")
-            let shmURL   = URL(fileURLWithPath: storeURL.path + "-shm")
-            let walURL   = URL(fileURLWithPath: storeURL.path + "-wal")
-            
-            do {
-                try FileManager.default.removeItem(at: storeURL)
-                try? FileManager.default.removeItem(at: shmURL)
-                try? FileManager.default.removeItem(at: walURL)
-            } catch {
-                print("[xTApp] Could not remove store: \(error)")
+
+            // No application support directory means there is no store to delete;
+            // fall through and let the retry below report the real failure.
+            if let supportDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
+                let storeURL = supportDir.appendingPathComponent("xT.store")
+                for url in [storeURL,
+                            URL(fileURLWithPath: storeURL.path + "-shm"),
+                            URL(fileURLWithPath: storeURL.path + "-wal")] {
+                    do {
+                        try FileManager.default.removeItem(at: url)
+                    } catch CocoaError.fileNoSuchFile {
+                        continue // nothing to clean up
+                    } catch {
+                        print("[xTApp] Could not remove \(url.lastPathComponent): \(error)")
+                    }
+                }
+            } else {
+                print("[xTApp] No application support directory — skipping store cleanup")
             }
-            
+
+            // Retry on disk first: with the corrupt store gone this normally succeeds, and
+            // the user keeps a persisting app instead of one that silently forgets on quit.
+            if let recovered = try? ModelContainer(for: schema, configurations: [modelConfiguration]) {
+                return recovered
+            }
+
             let memoryConfig = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
             do {
                 return try ModelContainer(for: schema, configurations: [memoryConfig])
             } catch {
-                fatalError("Could not create ModelContainer: \(error)")
+                // Last resort. An in-memory container fails only if the schema itself is
+                // invalid — a build-time programmer error, not a runtime condition — and
+                // every screen reads through this container, so there is nothing to degrade to.
+                fatalError("Could not create in-memory ModelContainer from schema: \(error)")
             }
         }
     }()
-    
+
     init() {
         // Wire the container's context into managers.
         MedicationManager.shared.modelContext = Self.modelContainer.mainContext
         JournalManager.shared.modelContext = Self.modelContainer.mainContext
-        NotificationManager.shared.modelContext = Self.modelContainer.mainContext
 
-        // Set up notification categories and schedule any pending reminders.
-        NotificationManager.shared.setupNotificationCategories()
+        // Install the notification delegate + categories, then schedule pending reminders.
+        NotificationManager.shared.registerNotificationHandling()
         NotificationManager.shared.scheduleAllReminders()
 
 #if DEBUG

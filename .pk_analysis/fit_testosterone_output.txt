@@ -1,0 +1,105 @@
+==========================================================================
+1. TESTOSTERONE CYPIONATE (TC)  --  source: Bi et al. 2018, Table 2
+==========================================================================
+  CL/F = 2.6 kL/day, V/F = 14.4 kL, Ka = 1.22 /day
+  -> disposition rate      ke = CL/V = 0.180556 /day
+  -> terminal half-life       = 3.8390 d   (paper's post hoc median: 4.05 d, agreement 5.2% )
+  -> absorption half-life     = 13.636 h
+  -> Tmax = ln(ka/ke)/(ka-ke) = 1.8381 d
+     95% CI on Ka (0.785-2.67) -> Tmax in [1.08, 2.43] d
+  -> S = 1e5*Ka / (V_L * EDF * ke) = 67.13   (was 1081.0)
+
+  Single 100 mg dose  -> Cmax 498.3 ng/dL at t=1.84 d
+     cross-check vs 200 mg -> 1112 ng/dL scaled to 100 mg = 556 ng/dL  (model 498, -10.4%)
+
+  Weekly 100 mg at steady state (exogenous contribution only):
+     Cmax   735.8 ng/dL at t=1.52 d
+     Cmin   320.8 ng/dL
+     Cavg   549.5 ng/dL
+     peak/trough ratio 2.29
+
+  Bi basal secretion b_base=6.24 mg/d / CL -> endogenous floor 240 ng/dL
+     total predicted = 976 peak / 561 trough
+     Figure 2 (100 mg intensive panel) observed ~1100-1200 peak / ~400-500 late
+
+==========================================================================
+2. TESTOSTERONE TRANSDERMAL  --  source: AndroGel 1% label, Table 5
+==========================================================================
+  target 50 mg/d: Cavg 555.0, Cmax 830.0, Cmin 371.0 ng/dL  (Cmax/Cmin = 2.237)
+  EWF = 1.0 (unesterified), F = 0.1 (label), EDF = 0.1
+     [ratio probe] half-life 0.0500 d -> Cmax/Cmin 1.782
+     [ratio probe] half-life 0.2500 d -> Cmax/Cmin 1.122
+     [ratio probe] half-life 0.5788 d -> Cmax/Cmin 1.051
+     [ratio probe] half-life 1.0000 d -> Cmax/Cmin 1.029
+     [ratio probe] half-life 1.5000 d -> Cmax/Cmin 1.019
+     -> observed 2.237 is unreachable above ~0.05 d; anchoring to washout instead
+  -> washout anchor: 5% remaining at 60 h -> lambda 1.1983/d, half-life 0.5784 d (13.88 h)
+     sensitivity: washout 48 h -> half-life 11.11 h
+     sensitivity: washout 72 h -> half-life 16.66 h
+     achieved Cmax/Cmin = 1.051  vs observed 2.237  <-- KNOWN UNDER-PREDICTION of ripple
+  -> S = 132.98   (previously fell through to the hardcoded 8000.0)
+
+  Reproduction check at each label dose (S anchored to 50 mg only):
+       dose  Cavg pred    obs      err
+         50        555    555    +0.0%
+         75        833    601   +38.5%
+        100       1110    713   +55.7%
+
+     least-squares alternative across all 3 doses: S = 95.26
+          50 mg ->    398 (obs 555, -28.4%)
+          75 mg ->    596 (obs 601, -0.8%)
+         100 mg ->    795 (obs 713, +11.5%)
+     -> anchored to 50 mg; sublinearity is a titration artifact in the
+        source data, documented rather than fitted around.
+
+==========================================================================
+3. ORAL TESTOSTERONE UNDECANOATE  --  source: Swerdloff 2020 (Jatenzo)
+==========================================================================
+  237 mg TU BID -> Cavg 488.7, Cmax 1008.3 ng/dL, Tmax 3.0 h
+  EWF = 0.631  (label: 237 mg TU = 150 mg T equiv -> 0.633, agrees)
+  targets: Tmax 0.1250 d, Cmax/Cavg 2.063
+     feasible Cmax/Cavg given Tmax = 3 h:
+       slow half-life 0.09 d ( 2.16 h) -> Cmax/Cavg 1.615
+       slow half-life 0.12 d ( 2.88 h) -> Cmax/Cavg 1.580
+       slow half-life 0.15 d ( 3.60 h) -> Cmax/Cavg 1.526
+       slow half-life 0.20 d ( 4.80 h) -> Cmax/Cavg 1.444
+       slow half-life 0.30 d ( 7.20 h) -> Cmax/Cavg 1.330
+       slow half-life 0.50 d (12.00 h) -> Cmax/Cavg 1.216
+       slow half-life 1.00 d (24.00 h) -> Cmax/Cavg 1.116
+     target 2.063 exceeds the achievable maximum 1.615.
+     The reported ratio is inflated by mean-of-maxima bias: Cmax is the
+     mean of per-subject maxima (E[max] >= max[E]) and carries SD +-581
+     on a mean of 1008. Anchor to Tmax and Cavg -- the label's own
+     primary endpoint and the quantity clinicians titrate on -- and
+     accept a documented under-prediction of peak fluctuation.
+  -> slow half-life = 0.0900 d (2.16 h)
+  -> fast half-life = 2.003 h
+  -> Tmax = 3.00 h
+  -> S = 13.57   (previously fell through to the hardcoded 12000.0)
+
+  Steady state 237 mg BID: Cavg 489 (obs 488.7), Cmax 789 (obs 1008.3), Cmin 149
+  NOTE: F is set to 1.0 because absolute oral TU bioavailability is not
+        established in the source. F and S are confounded -- only their
+        product is identified by these data.
+
+==========================================================================
+SWIFT CONSTANTS
+==========================================================================
+  TestosteroneEster.cypionate:
+      halfLifeDays              3.839   (was 8.0)
+      eliminationHalfLifeHours  13.64   (was 2.0)
+      scalingConstant           67.13   (was 1081.0)
+  TestosteroneEster.transdermal (NEW):
+      halfLifeDays              0.5784
+      esterWeightFactor         1.0
+      bioavailability           0.1
+      scalingConstant           132.98
+  TestosteroneEster.oral (NEW):
+      halfLifeDays              0.0900
+      eliminationHalfLifeHours  2.003
+      esterWeightFactor         0.631
+      bioavailability           1.0
+      scalingConstant           13.57
+
+  TE / TP / TU injectable: UNCHANGED. No primary-quality source was
+  reached for these; see OPEN_CONCERNS.md sections 3-4.

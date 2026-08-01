@@ -89,16 +89,35 @@ class MedicationManager: ObservableObject {
     /// Keyed by "routeClass_windowDays". Invalidated on dose record.
     var heatMapCache: [String: [String: Int]] = [:]
 
+    // MARK: - Batch mutation
+
+    /// When `true`, `refreshState()` returns immediately without recomputing.
+    ///
+    /// Recording a dose triggers a full pharmacokinetic re-integration over the entire
+    /// dose history plus a SwiftData save, which is the right behaviour for a single user
+    /// action but quadratic when seeding many doses at once (the sample profile logs ~110).
+    /// Wrap bulk work in `performBatch(_:)` so the recompute happens once at the end.
+    var suppressRefresh: Bool = false
+
+    /// Runs `body` with `refreshState()` suppressed, then refreshes exactly once.
+    ///
+    /// Safe to nest: only the outermost call performs the trailing refresh.
+    func performBatch(_ body: () throws -> Void) rethrows {
+        let wasSuppressed = suppressRefresh
+        suppressRefresh = true
+        defer {
+            suppressRefresh = wasSuppressed
+            if !wasSuppressed { refreshState() }
+        }
+        try body()
+    }
+
     // MARK: - Endogenous Suppression Settings
     /// Whether the user takes an anti‑androgen (spironolactone, cyproterone, GnRH agonist).
     /// When true, endogenous testosterone baseline is aggressively suppressed to near‑zero.
     @Published var antiAndrogenInUse: Bool = false {
         didSet { UserDefaults.standard.set(antiAndrogenInUse, forKey: Keys.antiAndrogenInUse) }
     }
-
-    /// Number of weeks after HRT start for endogenous production to reach suppressed levels.
-    /// Clinical consensus: 4–6 weeks for gonadal suppression.
-    let hrtSuppressionWeeks: Int = 4
 
     /// Spironolactone is a known enzyme inducer (CYP3A4) that can modestly increase
     /// estradiol clearance. When the user is on spiro, we apply a small multiplier to ke
@@ -153,20 +172,28 @@ class MedicationManager: ObservableObject {
 
     /// Health screening log (DEXA, breast, cardio, liver, CBC, etc.).
     /// Drives milestone completion tracking for long-term tenure tiers (plan §4.1).
-    @Published var screeningRecords: [ScreeningRecord] = []
-    
+    @Published var screeningRecords: [ScreeningRecord] = [] {
+        didSet { rebuildScreeningLog() }
+    }
+
     /// The current calibration factor derived from the most recent blood test.
     /// α = measured / predicted. Applied as a multiplier to all model outputs.
     /// Returns nil if no blood tests have been entered yet.
+    ///
+    /// Read once per `estimatedLevels(...)` call, so it stays a single allocation-free
+    /// pass rather than the `filter` + `sorted` + `first` chain it replaces.
+    ///
+    /// Deliberately **not** memoized: `computeCalibrationFactor(for:)` writes
+    /// `calibrationFactor` straight onto a record without touching `bloodTestHistory`,
+    /// so there is no mutation hook a cache could hang invalidation off — a stale
+    /// entry would silently drop a freshly entered lab result from the model.
     var calibrationFactor: Double? {
-        // Return the most recent valid calibration factor
-        if let latest = bloodTestHistory
-            .filter({ $0.isCalibrated })
-            .sorted(by: { $0.drawDate > $1.drawDate })
-            .first {
-            return latest.calibrationFactor
+        var latest: BloodTestRecord?
+        for record in bloodTestHistory where record.isCalibrated {
+            if let current = latest, current.drawDate >= record.drawDate { continue }
+            latest = record
         }
-        return nil
+        return latest?.calibrationFactor
     }
 
     // MARK: - Research Models
@@ -212,19 +239,6 @@ class MedicationManager: ObservableObject {
             case .cream, .oral: return 1
             }
         }
-
-        var isImplemented: Bool {
-            switch self {
-            case .injectable, .cream, .oral: return true
-            }
-        }
-    }
-
-    struct HormoneRange: Codable {
-        let label: String
-        let min: Double
-        let max: Double
-        let colorName: String
     }
 
     struct EstimatedPoint: Identifiable {
@@ -270,29 +284,6 @@ class MedicationManager: ObservableObject {
 
     // MARK: - Configuration & UI Helpers
 
-    /// Estrogen ranges in pg/mL (typical for trans women on HRT)
-    /// Ranges based on clinical targets: 100-200 pg/mL is standard
-    private let estrogenRanges: [HormoneRange] = [
-        HormoneRange(label: "Very Low", min: 0, max: 50, colorName: "bloomBodyColor"),
-        HormoneRange(label: "Low", min: 50, max: 100, colorName: "bloomBodyColor"),
-        HormoneRange(label: "Optimal", min: 100, max: 200, colorName: "successColor"),
-        HormoneRange(label: "High", min: 200, max: 500, colorName: "bloomCycleColor"),
-        HormoneRange(label: "Very High", min: 500, max: 1000, colorName: "bloomCycleColor")
-    ]
-
-    /// Testosterone ranges in ng/dL (typical for trans women on HRT)
-    /// Suppression target: < 50 ng/dL (castrate range)
-    private let testosteroneRanges: [HormoneRange] = [
-        HormoneRange(label: "Suppressed", min: 0, max: 50, colorName: "successColor"),
-        HormoneRange(label: "Low (Feminizing)", min: 50, max: 100, colorName: "successColor"),
-        HormoneRange(label: "Moderate", min: 100, max: 300, colorName: "warningColor"),
-        HormoneRange(label: "Male Range Low", min: 300, max: 500, colorName: "bloomCycleColor"),
-        HormoneRange(label: "Male Range", min: 500, max: 1000, colorName: "bloomCycleColor"),
-        HormoneRange(label: "Very High", min: 1000, max: 9999, colorName: "bloomCycleColor")
-    ]
-
-    var medicationName: String { selectedMedication ?? "None Selected" }
-
     var medicationDisplayInfo: String {
         if let medication = selectedMedication, let method = selectedAdministrationMethod {
             return "\(medication) via \(method)"
@@ -314,8 +305,10 @@ class MedicationManager: ObservableObject {
     }
 
     var scheduleSummary: String {
+        // `effectiveFrequencyDays` honours the user's custom interval; the method default
+        // this used to read ignored it, so the summary contradicted the actual schedule.
         if let medication = selectedMedication, let method = selectedAdministrationMethod {
-            return "\(medication) via \(method) every \(AdministrationMethod(rawValue: method)?.frequencyDays ?? 7) days"
+            return "\(medication) via \(method) every \(effectiveFrequencyDays) days"
         } else {
             return "Not configured"
         }
@@ -334,13 +327,6 @@ class MedicationManager: ObservableObject {
         guard let next = nextDoseDate else { return false }
         let graceSeconds = missedDoseGracePeriodHours * 3600
         return Date() > next.addingTimeInterval(graceSeconds)
-    }
-
-    /// True when the dose window is open but within the grace period (not yet "Missed").
-    var isDoseDueSoon: Bool {
-        guard let next = nextDoseDate else { return false }
-        let graceSeconds = missedDoseGracePeriodHours * 3600
-        return Date() > next && Date() <= next.addingTimeInterval(graceSeconds)
     }
 
     var daysSinceMissedDose: Int? {
@@ -387,48 +373,44 @@ class MedicationManager: ObservableObject {
         return age
     }
 
-    var currentStreakDays: Int? {
-        guard let last = lastDoseDate else { return nil }
-        let days = Calendar.current.dateComponents([.day], from: last, to: Date()).day ?? 0
-        return max(0, days)
-    }
-
-    func availableMethods(for medicationType: MedicationType) -> [AdministrationMethod] {
-        // For now, return all available methods
-        // In a real app, this might be more sophisticated based on medication type
-        return [.injectable, .cream, .oral]
-    }
-
-    func configureMedication(type: MedicationType, method: AdministrationMethod, firstDoseDate: Date) {
-        updateSelection(type: type, method: method)
-        recordDose(on: firstDoseDate)
-    }
-
-
-
     // MARK: - Initialization
 
     init() {
+        // UserDefaults-backed state — available immediately.
+        // (`loadTransientPreferences()` also restores the avoid zones.)
         loadTransientPreferences()
         loadSelection()
         loadDoseDates()
-        loadDoseHistory()
-        loadBloodTestHistory()
-        loadScreeningHistory()
-        loadAvoidZones()
         migrateToEncryptedStorage()
-        refreshState() // Initialize reactive state
-        recomputeCalibrationFactors()  // re-derive α from loaded blood tests
-        migrateRecordedAtForLegacyRecords()
+
+        // SwiftData-backed state. `modelContext` is injected by `xTApp` *after* this
+        // initialiser returns, so this call is a no-op on the real launch path and the
+        // `modelContext` didSet re-runs it for real. It stays here so a manager built
+        // without a container (tests, previews) still follows the same code path.
+        reloadFromContext()
+        refreshState() // Initialize reactive state even when there is no context yet.
     }
 
     /// Reloads all state that depends on `modelContext`.
-    /// Called when `modelContext` is first assigned (which happens after `init`).
+    ///
+    /// `init()` runs before `xTApp` injects the context, so every context-backed step in
+    /// it hits its `guard let context = modelContext` and bails. This hook is the only
+    /// place those steps actually execute, so it must mirror `init()` in full — omitting
+    /// `loadUserPreferences()`, `recomputeCalibrationFactors()` or the legacy migration
+    /// meant the user's default dose/time, the dose-intensity toggle, blood-test
+    /// calibration and `recordedAt` backfill were silently dropped on every cold launch.
+    ///
+    /// Order matters: preferences and history first, then the legacy backfill, then the
+    /// values derived from them, and `refreshState()` last so the published chart state
+    /// reflects the recomputed calibration.
     private func reloadFromContext() {
         guard modelContext != nil else { return }
+        loadUserPreferences()
         loadDoseHistory()
         loadBloodTestHistory()
         loadScreeningHistory()
+        migrateRecordedAtForLegacyRecords()
+        recomputeCalibrationFactors()
         refreshState()
     }
 
@@ -444,21 +426,30 @@ class MedicationManager: ObservableObject {
     }
 
     /// Returns the most recent screening date for the given type, or nil if none exists.
+    ///
+    /// Reads the cached log rather than scanning `screeningRecords`, which is only sorted
+    /// by insertion order — `first(where:)` on it returned whichever record happened to be
+    /// at the front, not the most recent one.
     func lastScreening(_ type: ScreeningType) -> Date? {
-        screeningRecords.first(where: { $0.type == type })?.date
+        screeningLog[type]
     }
 
     /// Compact lookup table: last-done date for each screening type that has one.
     /// Passed to `TimeContentEngine` so it can flip milestone badges.
-    var screeningLog: [ScreeningType: Date] {
-        var dict: [ScreeningType: Date] = [:]
+    ///
+    /// Cached rather than computed: `TimeView` reads it from `body`, so as a computed
+    /// property it rebuilt the whole dictionary on every render pass.
+    private(set) var screeningLog: [ScreeningType: Date] = [:]
+
+    /// Recomputes ``screeningLog``. Called from `screeningRecords`' observer, which is the
+    /// only thing the log derives from.
+    func rebuildScreeningLog() {
+        var log: [ScreeningType: Date] = [:]
         for record in screeningRecords {
-            let existing = dict[record.type]
-            if existing == nil || record.date > existing! {
-                dict[record.type] = record.date
-            }
+            if let existing = log[record.type], existing >= record.date { continue }
+            log[record.type] = record.date
         }
-        return dict
+        screeningLog = log
     }
 
     /// Adds a screening record and persists to SwiftData.
@@ -468,6 +459,26 @@ class MedicationManager: ObservableObject {
         screeningRecords.insert(record, at: 0)
         modelContext?.insert(record)
         try? modelContext?.save()
+    }
+    // MARK: - Dose Deletion
+
+    func softDeleteDose(id: String) {
+        guard let index = doseHistory.firstIndex(where: { $0.id == id }) else { return }
+
+        doseHistory[index].isDeleted = true
+        try? modelContext?.save()
+
+        // Reload from SwiftData to ensure the in-memory array is consistent
+        // with the persisted state – the deleted record is filtered out by loadDoseHistory.
+        loadDoseHistory()
+
+        let active = doseHistory.filter {
+            $0.isActive && $0.doseStatus == DoseStatus.taken.rawValue
+        }
+        lastDoseDate = active.max(by: { $0.doseDate < $1.doseDate })?.doseDate
+        nextDoseDate = lastDoseDate.map { calculateNextDoseDate(from: $0) }
+
+        refreshState()
     }
     // MARK: - Regimen & Adherence Properties
     

@@ -15,7 +15,7 @@ class MissedDoseTest: XCTestCase {
 
     @MainActor override func setUp() {
         super.setUp()
-        medicationManager = MedicationManager.shared
+        medicationManager = MedicationManager()
 
         // Reset to clean state
         medicationManager.clearSelection()
@@ -32,10 +32,13 @@ class MissedDoseTest: XCTestCase {
             type: .estrogen,
             method: .injectable
         )
+        medicationManager.missedDoseGracePeriodHours = 24.0
 
-        // Set last dose to 8 days ago (missed the weekly dose)
+        // Set last dose to 8 days ago, next dose was due 7 days ago (missed weekly dose).
+        // hasMissedDose requires nextDoseDate to be non-nil and past the grace period.
         let eightDaysAgo = Calendar.current.date(byAdding: .day, value: -8, to: Date())!
-        medicationManager.updateDoseDates(last: eightDaysAgo, next: nil)
+        let sevenDaysAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date())!
+        medicationManager.updateDoseDates(last: eightDaysAgo, next: sevenDaysAgo)
 
         // Test: Should detect missed dose
         XCTAssertTrue(medicationManager.hasMissedDose, "Should detect missed dose when next dose date is in the past")
@@ -72,9 +75,11 @@ class MissedDoseTest: XCTestCase {
             type: .estrogen,
             method: .injectable
         )
+        medicationManager.missedDoseGracePeriodHours = 24.0
 
         let eightDaysAgo = Calendar.current.date(byAdding: .day, value: -8, to: Date())!
-        medicationManager.updateDoseDates(last: eightDaysAgo, next: nil)
+        let sevenDaysAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date())!
+        medicationManager.updateDoseDates(last: eightDaysAgo, next: sevenDaysAgo)
 
         // Verify missed dose is detected
         XCTAssertTrue(medicationManager.hasMissedDose)

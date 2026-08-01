@@ -43,7 +43,7 @@ struct LevelOverlayView: View {
             if let value = displayLevel {
                 AnimatedCounter(value: value)
                     .font(.system(size: 52, weight: .regular))
-                    .foregroundStyle(Theme.Colors.Graph.levelText)
+                    .foregroundStyle(isScrubbing ? accent : Theme.Colors.Graph.levelText)
                     .tracking(-0.04 * 52)
 
                 if let level = level {
@@ -52,7 +52,10 @@ struct LevelOverlayView: View {
                             .font(Theme.Fonts.callout)
                             .foregroundStyle(isScrubbing ? accent : Theme.Colors.Graph.levelTextSecondary)
 
-                        RangePill(text: statusLabel(level), color: statusColor(level))
+                        // Hide the status moniker while the user is scrubbing.
+                        if !isScrubbing {
+                            RangePill(text: statusLabel(level), color: statusColor(level))
+                        }
                     }
                 }
             }

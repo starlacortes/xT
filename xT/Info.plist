@@ -4,8 +4,6 @@
 <dict>
 	<key>CFBundleIconName</key>
 	<string>xTGlassIcon</string>
-	<key>NSCalendarsUsageDescription</key>
-	<string>xT syncs your scheduled dose dates to your calendar so you can see them alongside your other events.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>xT saves timeline photos to track physical changes during HRT.</string>
 	<key>NSCameraUsageDescription</key>

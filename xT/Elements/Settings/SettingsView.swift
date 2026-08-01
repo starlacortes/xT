@@ -47,9 +47,9 @@ struct SettingsView: View {
 
                     VStack(spacing: 32) {
                         settingsMedicationSection
-                        settingsModelSection
-                        settingsHistoryInsightsSection
-                        settingsTherapeuticTargetsSection
+                        settingsBodyZonesSection
+                        settingsLevelsTargetsSection
+                        settingsHistorySection
                         settingsNotificationsSection
                         settingsPrivacySection
                         settingsAboutSection
@@ -201,22 +201,8 @@ struct SettingsView: View {
                     icon: "flask",
                     iconBg: Theme.Colors.Time.mind.surface,
                     iconColor: Theme.Colors.Time.mind.base,
-                    title: "Dose & Frequency",
+                    title: "Dose & frequency",
                     subtitle: nextDoseSubtitle,
-                    trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(.secondary) }
-                )
-            }
-            .buttonStyle(.plain)
-
-            settingsDivider()
-
-            NavigationLink(destination: AvoidZonesEditorView()) {
-                settingsRowContent(
-                    icon: "exclamationmark.shield",
-                    iconBg: Theme.Colors.warning.opacity(0.13),
-                    iconColor: Theme.Colors.warning,
-                    title: "Avoid zones",
-                    subtitle: avoidZonesSubtitle,
                     trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(.secondary) }
                 )
             }
@@ -224,10 +210,10 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - Model Section
+    // MARK: - Body & Zones Section
 
-    private var settingsModelSection: some View {
-        settingsSection(label: "Model") {
+    private var settingsBodyZonesSection: some View {
+        settingsSection(label: "Body & zones") {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 14) {
                     settingsIconView(icon: "figure.stand", bg: Theme.Colors.Time.body.surface, color: Theme.Colors.Time.body.base)
@@ -256,6 +242,34 @@ struct SettingsView: View {
 
             settingsDivider()
 
+            NavigationLink(destination: PreferredZonesListView()) {
+                settingsRowContent(
+                    icon: "star",
+                    iconBg: Theme.Colors.accent.opacity(0.13),
+                    iconColor: Theme.Colors.accent,
+                    title: "Preferred zones",
+                    subtitle: "Favoured injection & application sites",
+                    trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(.secondary) }
+                )
+            }
+            .buttonStyle(.plain)
+
+            settingsDivider()
+
+            NavigationLink(destination: AvoidZonesEditorView()) {
+                settingsRowContent(
+                    icon: "exclamationmark.shield",
+                    iconBg: Theme.Colors.warning.opacity(0.13),
+                    iconColor: Theme.Colors.warning,
+                    title: "Avoid zones",
+                    subtitle: avoidZonesSubtitle,
+                    trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(.secondary) }
+                )
+            }
+            .buttonStyle(.plain)
+
+            settingsDivider()
+
             Button {
                 UserDefaults.standard.set(false, forKey: "hasSeenRecommendedZonesInfo")
             } label: {
@@ -272,10 +286,10 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - History & Insights Section
+    // MARK: - History Section
 
-    private var settingsHistoryInsightsSection: some View {
-        settingsSection(label: "History & Insights") {
+    private var settingsHistorySection: some View {
+        settingsSection(label: "History") {
             NavigationLink(destination: AdherenceView()) {
                 settingsRowContent(
                     icon: "chart.line.uptrend.xyaxis",
@@ -301,10 +315,14 @@ struct SettingsView: View {
                 )
             }
             .buttonStyle(.plain)
+        }
+    }
 
-            settingsDivider()
+    // MARK: - Levels & Targets Section
 
-            // Dose-intensity insights toggle (plan §4.4)
+    private var settingsLevelsTargetsSection: some View {
+        settingsSection(label: "Levels & targets") {
+            // Dose-intensity insights toggle
             HStack(spacing: 14) {
                 settingsIconView(icon: "gauge.with.dots.needle.33percent",
                                  bg: Theme.Colors.Time.mind.surface,
@@ -335,13 +353,9 @@ struct SettingsView: View {
             .padding(.horizontal, 22)
             .padding(.vertical, 16)
             .contentShape(Rectangle())
-        }
-    }
 
-    // MARK: - Therapeutic Targets Section
+            settingsDivider()
 
-    private var settingsTherapeuticTargetsSection: some View {
-        settingsSection(label: "Therapeutic targets") {
             // Toggle to enable custom targets
             HStack(spacing: 14) {
                 settingsIconView(icon: "target", bg: Theme.Colors.Time.body.surface, color: Theme.Colors.Time.body.base)
@@ -628,27 +642,6 @@ struct SettingsView: View {
             content()
             Divider().opacity(0.5)
         }
-    }
-
-    private func settingsRow<Destination: View>(
-        icon: String,
-        iconBg: Color,
-        iconColor: Color,
-        title: String,
-        subtitle: String,
-        @ViewBuilder destination: () -> Destination
-    ) -> some View {
-        NavigationLink(destination: destination()) {
-            settingsRowContent(
-                icon: icon,
-                iconBg: iconBg,
-                iconColor: iconColor,
-                title: title,
-                subtitle: subtitle,
-                trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(.secondary) }
-            )
-        }
-        .buttonStyle(.plain)
     }
 
     private func settingsRowContent<Trailing: View>(

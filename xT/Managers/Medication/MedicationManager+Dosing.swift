@@ -6,88 +6,77 @@
 //
 
 import Foundation
+import SwiftData
 
 extension MedicationManager {
-
-
-
-
 
     // MARK: - Dose Helpers
 
     /// The currently selected ester (derived from the most recent logged dose, or default).
+    ///
+    /// `doseHistory` is ordered oldest-first, so this resolves the newest dose through
+    /// `latestActiveDose()` rather than indexing into the array directly.
     var currentEster: (ester: String, halfLifeDays: Double)? {
-        if let medication = selectedMedication, medication == "Estrogen" {
-            if let recent = doseHistory
-                .first(where: { $0.isActive && $0.medicationType == medication })
-            {
-                if let e = MedicationEster(rawValue: recent.ester) {
-                    return (recent.ester, e.halfLifeDays)
-                }
+        guard let medication = selectedMedication else { return nil }
+        let recentEster = latestActiveDose()?.ester
+
+        switch medication {
+        case "Estrogen":
+            if let raw = recentEster, let ester = MedicationEster(rawValue: raw) {
+                return (raw, ester.halfLifeDays)
             }
             // Default for new setups
             let defaultE = MedicationEster.valerate
             return (defaultE.rawValue, defaultE.halfLifeDays)
-        } else if let medication = selectedMedication, medication == "Testosterone" {
-            if let recent = doseHistory
-                .first(where: { $0.isActive && $0.medicationType == medication })
-            {
-                if let e = TestosteroneEster(rawValue: recent.ester) {
-                    return (recent.ester, e.halfLifeDays)
-                }
+        case "Testosterone":
+            if let raw = recentEster, let ester = TestosteroneEster(rawValue: raw) {
+                return (raw, ester.halfLifeDays)
             }
-            let defaultE = TestosteroneEster.cypionate
-            return (defaultE.rawValue, defaultE.halfLifeDays)
+            let defaultT = TestosteroneEster.cypionate
+            return (defaultT.rawValue, defaultT.halfLifeDays)
+        default:
+            return nil
         }
-        return nil
-    }
-
-    /// Returns the effective dose factor (EWF × bioavailability) for the currently configured ester.
-    var currentPotencyFactor: Double {
-        guard let medication = selectedMedication else { return 1.0 }
-        if medication == "Estrogen", let recent = doseHistory
-            .first(where: { $0.isActive && $0.medicationType == medication })
-        {
-            return MedicationEster(rawValue: recent.ester)?.effectiveDoseFactor ?? 1.0
-        } else if medication == "Testosterone", let recent = doseHistory
-            .first(where: { $0.isActive && $0.medicationType == medication })
-        {
-            return TestosteroneEster(rawValue: recent.ester)?.effectiveDoseFactor ?? 1.0
-        }
-        return 1.0
-    }
-
-    /// Returns the actual dose amount for the most recent logged dose.
-    /// Falls back to default if no dose is logged.
-    var actualDoseAmount: Double {
-        guard let lastDose = doseHistory.last(where: { $0.isActive && $0.medicationType == selectedMedication })
-        else { return (MedicationType(rawValue: selectedMedication ?? "")?.baselineValue ?? 100.0) * 0.5 }
-        return lastDose.doseAmount
     }
 
     /// Returns the last logged dose record for the current medication.
-    var lastLoggedDose: DoseRecord? {
-        doseHistory.first(where: { $0.isActive && $0.medicationType == selectedMedication })
-    }
+    var lastLoggedDose: DoseRecord? { latestActiveDose() }
 
     // MARK: - Concentration & Volume Helpers
 
     /// Returns the default vial concentration (mg/mL) for the currently selected medication type.
-    /// Reads from the most recent dose's concentration, or falls back to a sensible default.
+    ///
+    /// Resolution order: the most recently logged dose that recorded a concentration, then
+    /// the default the user chose during onboarding, then the most commonly stocked vial
+    /// strength for the medication.
     var defaultConcentrationMgPerMl: Double? {
-        // First, check the most recent dose with a recorded concentration
-        if let recent = doseHistory
-            .first(where: { $0.isActive && $0.medicationType == selectedMedication && $0.concentrationMgPerMl != nil })
-        {
+        if let recent = latestDose(matching: {
+            $0.isActive && $0.medicationType == selectedMedication && $0.concentrationMgPerMl != nil
+        }) {
             return recent.concentrationMgPerMl
         }
-        // Fall back to sensible defaults per medication type
-        if selectedMedication == "Estrogen" {
-            return 40.0   // EV 40 mg/mL is most common
-        } else if selectedMedication == "Testosterone" {
-            return 200.0  // TC 200 mg/mL is most common
+        switch selectedMedication {
+        case "Estrogen":
+            return storedDefaultConcentration(\.defaultEstrogenConcentration) ?? 40.0   // EV 40 mg/mL is most common
+        case "Testosterone":
+            return storedDefaultConcentration(\.defaultTestosteroneConcentration) ?? 200.0  // TC 200 mg/mL is most common
+        default:
+            return nil
         }
-        return nil
+    }
+
+    /// Reads one of the per-medication default concentrations captured during onboarding.
+    ///
+    /// These preferences were written by the onboarding flow but never read back, so the
+    /// user's choice silently had no effect. Only reached when no logged dose carries a
+    /// concentration, so the fetch is off the hot path.
+    private func storedDefaultConcentration(
+        _ keyPath: KeyPath<UserPreferences, Double?>
+    ) -> Double? {
+        guard let context = modelContext,
+              let prefs = try? context.fetch(FetchDescriptor<UserPreferences>()).first
+        else { return nil }
+        return prefs[keyPath: keyPath]
     }
 
     /// Common vial concentrations (mg/mL) for a given ester string.
@@ -113,31 +102,30 @@ extension MedicationManager {
     }
 
     /// True if the computed injection volume is below the practical measurement threshold.
-    /// Volumes below 0.1 mL are extremely difficult to measure accurately even with
-    /// a 0.3 mL insulin syringe.
+    /// Volumes below `PKConstants.minMeasurableVolumeMl` are extremely difficult to measure
+    /// accurately even with the smallest insulin syringe.
     static func isVolumeTooSmall(_ volumeMl: Double) -> Bool {
-        return volumeMl < 0.1
+        return volumeMl < PKConstants.minMeasurableVolumeMl
     }
 
     /// True if the volume is large enough to cause injection discomfort for frequent dosing.
-    /// For long-acting esters (TU), volumes up to 4 mL are normal.
-    /// For short/medium-acting esters, > 2-3 mL per injection is impractical.
+    /// For long-acting esters (TU), larger depots are normal; for short/medium-acting esters
+    /// anything past the high-volume warning threshold is impractical.
     static func isVolumeTooLarge(_ volumeMl: Double, isLongActing: Bool = false) -> Bool {
-        let threshold = isLongActing ? 4.5 : 2.5
+        let threshold = isLongActing ? PKConstants.maxVolumePerSiteMl : PKConstants.highVolumeWarningMl
         return volumeMl > threshold
     }
 
-    /// Recommends a syringe size based on injection volume.
+    /// Recommends the smallest stocked syringe barrel that can hold the given volume.
+    /// Volumes past the largest stocked size fall through to a 5 mL barrel.
     static func recommendedSyringe(for volumeMl: Double) -> String {
-        if volumeMl <= 0.3 {
-            return "0.3 mL insulin syringe"
-        } else if volumeMl <= 1.0 {
-            return "1 mL syringe"
-        } else if volumeMl <= 3.0 {
-            return "3 mL syringe"
-        } else {
+        guard let barrelMl = PKConstants.syringeSizesMl.first(where: { volumeMl <= $0 }) else {
             return "5 mL syringe"
         }
+        // Sub-millilitre barrels are insulin syringes, which carry unit markings.
+        let isInsulin = barrelMl < 1.0
+        let size = String(format: isInsulin ? "%.1f" : "%.0f", barrelMl)
+        return "\(size) mL \(isInsulin ? "insulin syringe" : "syringe")"
     }
 
     /// Generates a warning message (or nil) for a given volume.
@@ -240,6 +228,9 @@ extension MedicationManager {
         if let index = doseHistory.firstIndex(where: { $0.id == id }) {
             doseHistory[index].isDeleted = true
             try? modelContext?.save()
+            var updated = doseHistory
+            updated.remove(at: index)
+            doseHistory = updated
             refreshState()
         }
     }
@@ -291,19 +282,10 @@ extension MedicationManager {
         refreshState()
     }
 
-    /// Calculates the next dose date using the custom frequency if set (#18),
-    /// otherwise falls back to the administration method's default frequency.
+    /// Calculates the next dose date from `effectiveFrequencyDays` — the user's custom
+    /// frequency when set (#18), otherwise the administration method's default.
     func calculateNextDoseDate(from lastDose: Date) -> Date {
-        let interval: Int
-        if let custom = customFrequencyDays, custom > 0 {
-            interval = custom
-        } else if let methodStr = selectedAdministrationMethod,
-                  let method = AdministrationMethod(rawValue: methodStr) {
-            interval = method.frequencyDays
-        } else {
-            interval = 7
-        }
-        return Calendar.current.date(byAdding: .day, value: interval, to: lastDose) ?? Date()
+        Calendar.current.date(byAdding: .day, value: effectiveFrequencyDays, to: lastDose) ?? Date()
     }
 
 }

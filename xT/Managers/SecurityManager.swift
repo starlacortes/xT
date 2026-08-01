@@ -1,23 +1,22 @@
 import Foundation
 import Security
-import LocalAuthentication
 import CryptoKit
 import OSLog
 
 private let log = Logger(subsystem: "com.starlacortes.xT", category: "security")
 
 enum SecurityError: Error {
-    case keyGenerationFailed
     case keychainSaveFailed(OSStatus)
     case keychainReadFailed(OSStatus)
-    case keychainDeleteFailed(OSStatus)
     case encryptionFailed(Error)
     case decryptionFailed(Error)
-    case biometricNotAvailable
-    case authenticationFailed(Error)
-    case passcodeNotSet
+    /// AES-GCM produced a sealed box with no `combined` representation.
+    case sealedBoxUnavailable
 }
 
+/// Owns the app's data-at-rest encryption key and the AES-GCM envelope used for
+/// every piece of persisted health data. Interactive authentication lives in
+/// ``AuthenticationManager``.
 final class SecurityManager: Sendable {
     static let shared = SecurityManager()
 
@@ -38,7 +37,15 @@ final class SecurityManager: Sendable {
         let key = try getEncryptionKey()
         do {
             let sealedBox = try AES.GCM.seal(data, using: key)
-            return sealedBox.combined!
+            // `combined` is nil only for nonces that are not 96 bits. `seal` without an
+            // explicit nonce always produces one, so this is unreachable — but health
+            // data is not worth a force unwrap.
+            guard let combined = sealedBox.combined else {
+                throw SecurityError.sealedBoxUnavailable
+            }
+            return combined
+        } catch let error as SecurityError {
+            throw error
         } catch {
             throw SecurityError.encryptionFailed(error)
         }
@@ -52,52 +59,6 @@ final class SecurityManager: Sendable {
         } catch {
             throw SecurityError.decryptionFailed(error)
         }
-    }
-
-    func canUseBiometrics() -> Bool {
-        LAContext().canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: nil)
-    }
-
-    func authenticateWithBiometrics(reason: String) async throws {
-        let context = LAContext()
-        var error: NSError?
-        guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) else {
-            if let error {
-                throw SecurityError.authenticationFailed(error)
-            }
-            throw SecurityError.biometricNotAvailable
-        }
-        do {
-            let success = try await context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: reason)
-            guard success else {
-                throw SecurityError.authenticationFailed(LAError(.userCancel))
-            }
-        } catch {
-            throw SecurityError.authenticationFailed(error)
-        }
-    }
-
-    func authenticateWithDevicePasscode(reason: String) async throws {
-        let context = LAContext()
-        var error: NSError?
-        guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else {
-            if context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: nil) {
-                try await authenticateWithBiometrics(reason: reason)
-            }
-            throw SecurityError.passcodeNotSet
-        }
-        do {
-            let success = try await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason)
-            guard success else {
-                throw SecurityError.authenticationFailed(LAError(.userCancel))
-            }
-        } catch {
-            throw SecurityError.authenticationFailed(error)
-        }
-    }
-
-    func isPasscodeSet() -> Bool {
-        LAContext().canEvaluatePolicy(.deviceOwnerAuthentication, error: nil)
     }
 
     // MARK: - Keychain
@@ -133,15 +94,4 @@ final class SecurityManager: Sendable {
         return data
     }
 
-    private func deleteKeyFromKeychain() throws {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: serviceName,
-            kSecAttrAccount as String: encryptionKeyTag
-        ]
-        let status = SecItemDelete(query as CFDictionary)
-        guard status == errSecSuccess else {
-            throw SecurityError.keychainDeleteFailed(status)
-        }
-    }
 }

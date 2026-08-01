@@ -1338,12 +1338,12 @@ struct OnboardingView: View {
 
     private var esterList: some View {
         let items: [(name: String, tHalf: Double)] = {
+            // `injectableCases` excludes the Oral/Transdermal route pseudo-esters, which
+            // must never appear here — this list is only shown for the Injectable route.
             if selectedType == "Estrogen" {
-                return MedicationEster.allCases
-                    .filter { $0 != .oral && $0 != .transdermal }
-                    .map { ($0.rawValue, $0.halfLifeDays) }
+                return MedicationEster.injectableCases.map { ($0.rawValue, $0.halfLifeDays) }
             } else {
-                return TestosteroneEster.allCases.map { ($0.rawValue, $0.halfLifeDays) }
+                return TestosteroneEster.injectableCases.map { ($0.rawValue, $0.halfLifeDays) }
             }
         }()
 
@@ -1472,11 +1472,21 @@ struct OnboardingView: View {
         medicationManager.antiAndrogenInUse = antiAndrogenChoice == "Spiro" || antiAndrogenChoice == "Other AA"
         medicationManager.spironolactoneInUse = antiAndrogenChoice == "Spiro"
 
-        // Determine ester label
-        var esterLabel = medMethod.rawValue
-        if medMethod == .injectable && !selectedEster.isEmpty {
-            esterLabel = selectedEster
-        }
+        // Determine ester label.
+        //
+        // Fixed 2026‑07‑31: non-injectable routes stored the raw method name, so a cream
+        // dose was saved with ester "Cream" — which matches no case in either ester enum.
+        // The PK engine's transdermal branch then failed its `MedicationEster(rawValue:)`
+        // lookup and fell through to a hardcoded scaling constant of 8000, roughly 52×
+        // the calibrated transdermal value, for every user who onboarded onto a cream.
+        // Users who set the same route from Settings stored "Transdermal" and were fine.
+        // Store the pseudo-ester the engine actually resolves to, so record and model agree.
+        let esterLabel: String = {
+            if medMethod == .injectable {
+                return selectedEster.isEmpty ? medMethod.rawValue : selectedEster
+            }
+            return MedicationManager.effectiveEsterName(ester: selectedEster, route: medMethod.rawValue)
+        }()
 
         // Configure medication
         medicationManager.updateSelection(type: medType, method: medMethod)

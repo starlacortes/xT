@@ -14,9 +14,20 @@ struct BodyArchitectureDetailView: View {
     let engine: TimeContentEngine
 
     @State private var selectedRegion: String? = nil
+    @State private var field: ConstellationField = .empty
+    @State private var showDetails = false
 
     private var months: Int { engine.activeMonthsOnHRT }
     private var tier: TenureTier { engine.tenureTier }
+
+    /// Screen-fractional anchor points for each region's floating label.
+    private let regionAnchors: [String: CGPoint] = [
+        "chest":  CGPoint(x: 0.62, y: 0.34),
+        "waist":  CGPoint(x: 0.66, y: 0.46),
+        "hips":   CGPoint(x: 0.68, y: 0.56),
+        "glutes": CGPoint(x: 0.32, y: 0.58),
+        "thighs": CGPoint(x: 0.60, y: 0.72),
+    ]
 
     private var physicalSystems: [TimeBodySystem] {
         engine.bodySystems.filter { $0.systemKey != .moodAndMind }
@@ -30,105 +41,222 @@ struct BodyArchitectureDetailView: View {
     }
 
     var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 0) {
+        ZStack {
+            constellationBackground
 
-                    // Hero
-                    heroSection
-                        .padding(.horizontal, 22)
-                        .padding(.top, 20)
-                        .padding(.bottom, 16)
-
-                    // Body silhouette canvas + callout dots
-                    bodySilhouetteSection
-                        .frame(height: 320)
-                        .background(
-                            RoundedRectangle(cornerRadius: 0)
-                                .fill(Theme.Colors.Time.body.base.opacity(0.04))
-                        )
-
-                    Text("Tap a region to explore")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary.opacity(0.5))
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 8)
-                        .padding(.bottom, 4)
-
-                    // Stats row
-                    BodySystemStatsRow(
-                        stats: TimeBodyRegions.bodyStats(months: months),
-                        accentColor: Theme.Colors.Time.body.base
-                    )
-                    .padding(.horizontal, 22)
-                    .padding(.top, 20)
-
-                    KeyInsightBanner(
-                        text: TimeBodyRegions.bodyInsight(months: months),
-                        accentColor: Theme.Colors.Time.body.base
-                    )
-                    .padding(.horizontal, 22)
-                    .padding(.top, 14)
-
-                    // Body region cards
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text("BODY REGIONS")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                            .tracking(0.5)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 22)
-                            .padding(.top, 28)
-                            .padding(.bottom, 10)
-
-                        ForEach(TimeBodyRegions.bodyRegions) { region in
-                            RegionDetailCard(
-                                region: region,
-                                months: months,
-                                isSelected: selectedRegion == region.key,
-                                palette: .amber,
-                                onTap: {
-                                    withAnimation(Theme.Motion.snappy) {
-                                        selectedRegion = selectedRegion == region.key ? nil : region.key
-                                    }
-                                }
-                            )
-                            .id(region.key)
-                            .padding(.horizontal, 22)
-                            .padding(.bottom, 8)
-                        }
+            ConstellationView(
+                field: field,
+                tint: Theme.Colors.Time.body.base,
+                selectedRegion: selectedRegion,
+                regionActivity: { ConstellationCloud.activity(regionKey: $0, months: months) }
+            )
+            .ignoresSafeArea()
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 18)
+                    .onEnded { value in
+                        if value.translation.height < -55 { showDetails = true }
                     }
+            )
 
-                    // Physical changes capsule pills
-                    if !physicalChanges.isEmpty {
-                        changesSection
-                            .padding(.horizontal, 22)
-                            .padding(.top, 24)
-                    }
+            regionLabels
 
-                    // Other body system sections (Skin, Cycle, etc.)
-                    otherBodySystemsSections
-
-                    // Regimen timeline
-                    if !engine.regimenSegments.isEmpty && engine.regimenSegments.count > 1 {
-                        regimenTimelineSection
-                            .padding(.horizontal, 22)
-                            .padding(.top, 24)
-                    }
-
-                    // Dose intensity disclaimer
-                    if let disclaimer = engine.doseIntensityDisclaimer {
-                        doseIntensityNote(disclaimer)
-                            .padding(.horizontal, 22)
-                            .padding(.top, 16)
-                    }
-
-                    Color.clear.frame(height: 40)
-                }
-            }
+            adornmentOverlay
         }
         .navigationTitle("Body Architecture")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            if field.nodes.isEmpty {
+                field = ConstellationCloud.body(months: months)
+            }
+        }
+        .sheet(isPresented: $showDetails) { detailsSheet }
+    }
+
+    // MARK: - Immersive Background
+
+    private var constellationBackground: some View {
+        ZStack {
+            LinearGradient(
+                colors: [Theme.Colors.Time.body.surface, Color(.systemBackground)],
+                startPoint: .top, endPoint: .bottom
+            )
+            RadialGradient(
+                colors: [Theme.Colors.Time.body.base.opacity(0.16), .clear],
+                center: .center, startRadius: 8, endRadius: 340
+            )
+        }
+        .ignoresSafeArea()
+    }
+
+    // MARK: - Floating Region Labels
+
+    private var regionLabels: some View {
+        GeometryReader { geo in
+            ForEach(TimeBodyRegions.bodyRegions) { region in
+                if let anchor = regionAnchors[region.key] {
+                    ConstellationRegionTag(
+                        label: region.label,
+                        color: Theme.Colors.Time.body.base,
+                        isSelected: selectedRegion == region.key
+                    )
+                    .position(x: geo.size.width * anchor.x,
+                              y: geo.size.height * anchor.y)
+                    .onTapGesture { selectRegion(region.key) }
+                }
+            }
+        }
+    }
+
+    // MARK: - Adornments (hero + stats + hint)
+
+    private var adornmentOverlay: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            heroSection
+                .padding(.horizontal, 22)
+                .padding(.top, 8)
+
+            Spacer()
+
+            floatingStats
+                .padding(.horizontal, 22)
+                .padding(.bottom, 14)
+
+            detailsHint
+                .padding(.bottom, 10)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var floatingStats: some View {
+        let stats = TimeBodyRegions.bodyStats(months: months)
+        return HStack(spacing: 10) {
+            ForEach(stats.indices, id: \.self) { i in
+                VStack(spacing: 2) {
+                    Text(stats[i].value)
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .foregroundStyle(Theme.Colors.Time.body.base)
+                    Text(stats[i].label)
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+            }
+        }
+    }
+
+    private var detailsHint: some View {
+        Button { showDetails = true } label: {
+            VStack(spacing: 3) {
+                Image(systemName: "chevron.up")
+                    .font(.system(size: 12, weight: .semibold))
+                Text("Details")
+                    .font(.system(size: 12, weight: .medium))
+            }
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func selectRegion(_ key: String) {
+        withAnimation(Theme.Motion.snappy) { selectedRegion = key }
+        showDetails = true
+    }
+
+    // MARK: - Details Sheet
+
+    private var detailsSheet: some View {
+        NavigationStack {
+            ScrollViewReader { proxy in
+                ScrollView(showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        BodySystemStatsRow(
+                            stats: TimeBodyRegions.bodyStats(months: months),
+                            accentColor: Theme.Colors.Time.body.base
+                        )
+                        .padding(.horizontal, 22)
+                        .padding(.top, 16)
+
+                        KeyInsightBanner(
+                            text: TimeBodyRegions.bodyInsight(months: months),
+                            accentColor: Theme.Colors.Time.body.base
+                        )
+                        .padding(.horizontal, 22)
+                        .padding(.top, 14)
+
+                        // Body region cards
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text("BODY REGIONS")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                                .tracking(0.5)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 22)
+                                .padding(.top, 28)
+                                .padding(.bottom, 10)
+
+                            ForEach(TimeBodyRegions.bodyRegions) { region in
+                                RegionDetailCard(
+                                    region: region,
+                                    months: months,
+                                    isSelected: selectedRegion == region.key,
+                                    palette: .amber,
+                                    onTap: {
+                                        withAnimation(Theme.Motion.snappy) {
+                                            selectedRegion = selectedRegion == region.key ? nil : region.key
+                                        }
+                                    }
+                                )
+                                .id(region.key)
+                                .padding(.horizontal, 22)
+                                .padding(.bottom, 8)
+                            }
+                        }
+
+                        // Physical changes capsule pills
+                        if !physicalChanges.isEmpty {
+                            changesSection
+                                .padding(.horizontal, 22)
+                                .padding(.top, 24)
+                        }
+
+                        // Other body system sections (Skin, Cycle, etc.)
+                        otherBodySystemsSections
+
+                        // Regimen timeline
+                        if !engine.regimenSegments.isEmpty && engine.regimenSegments.count > 1 {
+                            regimenTimelineSection
+                                .padding(.horizontal, 22)
+                                .padding(.top, 24)
+                        }
+
+                        // Dose intensity disclaimer
+                        if let disclaimer = engine.doseIntensityDisclaimer {
+                            doseIntensityNote(disclaimer)
+                                .padding(.horizontal, 22)
+                                .padding(.top, 16)
+                        }
+
+                        Color.clear.frame(height: 40)
+                    }
+                }
+                .onAppear {
+                    if let sel = selectedRegion {
+                        withAnimation { proxy.scrollTo(sel, anchor: .center) }
+                    }
+                }
+            }
+            .navigationTitle("Details")
+            .navigationBarTitleDisplayMode(.inline)
+        }
+        .presentationDetents([.fraction(0.55), .large])
+        .presentationBackgroundInteraction(.enabled(upThrough: .fraction(0.55)))
+        .presentationDragIndicator(.visible)
     }
 
     // MARK: - Hero Section

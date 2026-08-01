@@ -36,7 +36,6 @@ struct FlatGraphView: View {
     @State private var drawProgress: CGFloat = 0
     @State private var areaReveal: CGFloat = 0
     @State private var dotSlide: CGFloat = 0
-    @State private var currentDotPulsePhase: Int = 0
 
     private var points: [MedicationManager.EstimatedPoint] {
         medicationManager.recentLevels
@@ -142,28 +141,17 @@ struct FlatGraphView: View {
                 guard drawProgress == 0 else { return }
                 if reduceMotion {
                     drawProgress = 1; areaReveal = 1; dotSlide = 1
-                    currentDotPulsePhase = 2
                     return
                 }
-                // Line draws left → right over 0.9s
-                withAnimation(.easeInOut(duration: 0.9)) {
+                // Line draws left → right, decelerating gently into place.
+                withAnimation(.easeOut(duration: 1.0)) {
                     drawProgress = 1
                 }
-                // Area falls in + dot travels the curve together, starting at 0.45s, finishing at 0.9s
-                withAnimation(.easeOut(duration: 0.45).delay(0.45)) {
+                // Area falls in + dot travels the curve together on a soft spring so the
+                // dot settles naturally onto "now". Starts once the line is mostly drawn.
+                withAnimation(Theme.Motion.entrance.delay(0.4)) {
                     areaReveal = 1
                     dotSlide = 1
-                }
-                // Pulse peaks after dot lands (0.45 + 0.45 = 0.9s) + 0.2s delay = 1.1s
-                Task {
-                    try? await Task.sleep(for: .seconds(1.1))
-                    withAnimation(.easeOut(duration: 0.35)) {
-                        currentDotPulsePhase = 1
-                    }
-                    try? await Task.sleep(for: .seconds(0.4))
-                    withAnimation(.easeInOut(duration: 0.6)) {
-                        currentDotPulsePhase = 2
-                    }
                 }
             }
             .onChange(of: points.map(\.value)) { _, newValues in
@@ -258,7 +246,7 @@ struct FlatGraphView: View {
                 }
             }
             .onEnded { _ in
-                withAnimation(.easeOut(duration: 0.15)) {
+                withAnimation(.easeOut(duration: 0.08)) {
                     scrubFraction = nil
                     scrubValue = nil
                     scrubDate = nil
@@ -411,7 +399,6 @@ struct FlatGraphView: View {
                 abs($0.element.date.timeIntervalSince(targetDate)) < abs($1.element.date.timeIntervalSince(targetDate))
             }) ?? (offset: densePoints.count - 1, element: densePoints[densePoints.count - 1])
             let (minV, _, range) = bounds
-            let isPulsing = currentDotPulsePhase == 1
 
             // Dot enters at the curve's right endpoint and travels leftward along
             // the actual curve path to the "now" point. `dotSlide` 0 = right end,
@@ -426,21 +413,20 @@ struct FlatGraphView: View {
             let x1 = CurveLayout.markerX(index: i1, count: count, width: w)
             let dotX = x0 + (x1 - x0) * frac
             let vInterp = densePoints[i0].value + (densePoints[i1].value - densePoints[i0].value) * Double(frac)
+            // The dot rides directly on the curve (x and y) as it slides in from the right.
             let dotY = CurveLayout.yPos(value: vInterp, min: minV, range: range,
                                         height: h, dataFraction: dataRegionFraction)
 
             ZStack {
                 Circle()
-                    .fill(levelTint.opacity(isPulsing ? 0.45 : 0.22))
+                    .fill(levelTint.opacity(0.22))
                     .frame(width: 26, height: 26)
-                    .scaleEffect(isPulsing ? 1.6 : 1.0)
                     .position(x: dotX, y: dotY)
                     .blur(radius: 6)
                 Circle()
                     .fill(levelTint)
                     .frame(width: 12, height: 12)
                     .position(x: dotX, y: dotY)
-                    .scaleEffect(isPulsing ? 1.7 : 1.0)
             }
             .opacity(dotSlide)
         }

@@ -20,58 +20,93 @@ public enum XAuthenticationError: Error {
     case biometricNotAvailable
 }
 
+// MARK: - AutoLockTimeout
+
+/// How long the app may stay in the background before it re-locks.
+///
+/// The raw value is the grace period in seconds, which is what gets persisted
+/// to `UserDefaults` — so this enum is source-compatible with the raw
+/// `TimeInterval` the settings screen has always written.
+enum AutoLockTimeout: TimeInterval, CaseIterable, Identifiable, Sendable {
+    case immediately    = 0
+    case oneMinute      = 60
+    case fiveMinutes    = 300
+    case fifteenMinutes = 900
+    case thirtyMinutes  = 1800
+    case oneHour        = 3600
+
+    /// Applied when nothing has been stored yet, or when a stored value doesn't
+    /// match any supported option (e.g. written by an older build).
+    static let fallback: AutoLockTimeout = .fiveMinutes
+
+    var id: TimeInterval { rawValue }
+
+    var label: String {
+        switch self {
+        case .immediately:    return "Immediately"
+        case .oneMinute:      return "1 minute"
+        case .fiveMinutes:    return "5 minutes"
+        case .fifteenMinutes: return "15 minutes"
+        case .thirtyMinutes:  return "30 minutes"
+        case .oneHour:        return "1 hour"
+        }
+    }
+
+    /// Maps a persisted interval onto a supported option, falling back to
+    /// ``fallback`` for values this build doesn't recognise.
+    init(storedValue: TimeInterval) {
+        self = AutoLockTimeout(rawValue: storedValue) ?? .fallback
+    }
+}
+
+// MARK: - AuthenticationManager
+
 @MainActor
 class AuthenticationManager: ObservableObject {
     static let shared = AuthenticationManager()
 
     @Published var isAuthenticated = false
     @Published var showAuthentication = false
-    @Published var lastActivityTime: Date = Date()
-    private var hasExited = false
-    private var autoLockTask: Task<Void, Never>?
+
+    /// The moment the app most recently entered the background, or `nil` while
+    /// it is in the foreground. Drives the auto-lock grace period.
+    private var backgroundedAt: Date?
 
     @UserDefault(key: "requireAuthentication", defaultValue: false)
     var requireAuthentication: Bool {
         didSet {
+            backgroundedAt = nil
             if !requireAuthentication {
                 isAuthenticated = true
                 showAuthentication = false
-                hasExited = false
-                stopAutoLockTimer()
             } else {
                 // Require auth immediately when turned on
                 isAuthenticated = false
                 showAuthentication = true
-                startAutoLockTimer()
             }
         }
     }
 
-    @UserDefault(key: "autoLockTimeout", defaultValue: 300.0)
+    @UserDefault(key: "autoLockTimeout", defaultValue: AutoLockTimeout.fallback.rawValue)
     var autoLockTimeout: TimeInterval
+
+    /// Type-safe view of ``autoLockTimeout`` for pickers and labels.
+    var autoLockTimeoutOption: AutoLockTimeout {
+        get { AutoLockTimeout(storedValue: autoLockTimeout) }
+        set { autoLockTimeout = newValue.rawValue }
+    }
 
     var allowPasscodeFallback: Bool {
         get { UserDefaults.standard.bool(forKey: "allowPasscodeFallback") }
         set { UserDefaults.standard.set(newValue, forKey: "allowPasscodeFallback") }
     }
-    
-    var timeoutLabel: String {
-        switch autoLockTimeout {
-        case 0: return "Immediately"
-        case 60: return "1 minute"
-        case 300: return "5 minutes"
-        case 900: return "15 minutes"
-        case 1800: return "30 minutes"
-        case 3600: return "1 hour"
-        default: return "5 minutes"
-        }
-    }
+
+    var timeoutLabel: String { autoLockTimeoutOption.label }
 
     init() {
         if requireAuthentication {
             // Require auth on cold launch
             isAuthenticated = false
-            hasExited = true
             showAuthentication = true
         } else {
             isAuthenticated = true
@@ -94,8 +129,7 @@ class AuthenticationManager: ObservableObject {
 
         isAuthenticated = true
         showAuthentication = false
-        lastActivityTime = Date()
-        hasExited = false
+        backgroundedAt = nil
     }
 
     func authenticateWithPasscode(reason: String = "Access your health data") async throws {
@@ -109,52 +143,48 @@ class AuthenticationManager: ObservableObject {
         
         isAuthenticated = true
         showAuthentication = false
-        lastActivityTime = Date()
-        hasExited = false
+        backgroundedAt = nil
     }
 
-    func recordActivity() {
-        if isAuthenticated { lastActivityTime = Date() }
+    @available(*, deprecated, message: "Auto-lock is driven by time spent in the background; this call is a no-op and can be removed.")
+    func recordActivity() {}
+
+    // MARK: - Auto-Lock
+
+    /// What returning to the foreground should do to the lock state.
+    enum ForegroundLockDecision: Equatable {
+        /// Stay unlocked — either lock is off, or the grace period hasn't elapsed.
+        case stayUnlocked
+        /// Already locked; make sure the authentication cover is on screen.
+        case presentExistingLock
+        /// Was unlocked, but the app spent longer than the timeout in the background.
+        case lock
     }
 
-    // MARK: - Auto-Lock Timer
-
-    /// Starts a polling loop that checks every second whether the idle timeout
-    /// has been exceeded. When it has, the app is locked and authentication is
-    /// required to continue.
-    private func startAutoLockTimer() {
-        stopAutoLockTimer()
-        guard autoLockTimeout > 0 else { return }
-        autoLockTask = Task { [weak self] in
-            while !Task.isCancelled {
-                guard let self else { break }
-                let elapsed = Date().timeIntervalSince(self.lastActivityTime)
-                let timeout = await self.autoLockTimeout
-                if await self.requireAuthentication,
-                   await self.isAuthenticated,
-                   elapsed >= timeout {
-                    await MainActor.run {
-                        self.lockDueToInactivity()
-                    }
-                }
-                try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
-            }
-        }
+    /// Pure auto-lock policy, split out so it can be exercised without a UI.
+    ///
+    /// The app locks after spending `awayDuration` seconds in the background,
+    /// rather than after a fixed period of "idleness" — a quick hop to another
+    /// app no longer forces a re-authentication, and there is no polling loop.
+    ///
+    /// - Parameter awayDuration: seconds spent in the background, or `nil` when
+    ///   the app hasn't been backgrounded since the last unlock (e.g. cold launch).
+    static func foregroundLockDecision(
+        requireAuthentication: Bool,
+        isAuthenticated: Bool,
+        awayDuration: TimeInterval?,
+        timeout: TimeInterval
+    ) -> ForegroundLockDecision {
+        guard requireAuthentication else { return .stayUnlocked }
+        guard isAuthenticated else { return .presentExistingLock }
+        guard let awayDuration, awayDuration >= timeout else { return .stayUnlocked }
+        return .lock
     }
 
-    private func stopAutoLockTimer() {
-        autoLockTask?.cancel()
-        autoLockTask = nil
-    }
-
-    /// Called when the idle timer fires — locks the app and presents the
-    /// authentication sheet.
-    private func lockDueToInactivity() {
-        guard requireAuthentication, isAuthenticated else { return }
+    /// Locks the app and presents the authentication cover.
+    private func lock() {
         isAuthenticated = false
-        hasExited = true
         showAuthentication = true
-        stopAutoLockTimer()
     }
 
     // MARK: - Scene Phase
@@ -162,19 +192,26 @@ class AuthenticationManager: ObservableObject {
     func handleScenePhase(_ phase: ScenePhase) {
         switch phase {
         case .active:
-            if requireAuthentication && hasExited {
-                showAuthentication = true
+            let awayDuration = backgroundedAt.map { Date().timeIntervalSince($0) }
+            backgroundedAt = nil
+            switch Self.foregroundLockDecision(
+                requireAuthentication: requireAuthentication,
+                isAuthenticated: isAuthenticated,
+                awayDuration: awayDuration,
+                timeout: autoLockTimeout
+            ) {
+            case .stayUnlocked:        break
+            case .presentExistingLock: showAuthentication = true
+            case .lock:                lock()
             }
-            // Resume the auto-lock timer when returning to foreground.
-            startAutoLockTimer()
         case .background:
-            // Only lock when auth is required; don't lock on .inactive to avoid
-            // triggering on Notification Center / Control Center pulls.
-            if requireAuthentication {
-                isAuthenticated = false
-                hasExited = true
+            // Stamp when we left so the grace period can be measured on return.
+            // Keep the earliest stamp if `.background` arrives more than once,
+            // and don't act on `.inactive` — that also fires for the app
+            // switcher and Notification Center / Control Center pulls.
+            if requireAuthentication, backgroundedAt == nil {
+                backgroundedAt = Date()
             }
-            stopAutoLockTimer()
         case .inactive:
             break
         @unknown default: break
@@ -196,8 +233,6 @@ class AuthenticationManager: ObservableObject {
         default:        return .none
         }
     }
-
-    func canUseBiometrics() -> Bool { biometricType() != .none }
 }
 
 // MARK: - BiometricType
@@ -224,19 +259,7 @@ enum BiometricType {
     }
 }
 
-// MARK: - View Modifiers
-
-struct AuthenticationRequiredModifier: ViewModifier {
-    @Environment(\.authenticationManager) var authManager
-    var reason: String = "Access your health data"
-
-    func body(content: Content) -> some View {
-        content
-            .onAppear {
-                authManager.recordActivity()
-            }
-    }
-}
+// MARK: - Authentication View
 
 struct AuthenticationView: View {
     @Environment(\.authenticationManager) var authManager

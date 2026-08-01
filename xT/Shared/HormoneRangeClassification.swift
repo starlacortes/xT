@@ -11,6 +11,28 @@ import SwiftUI
 
 enum HormoneRangeClassification {
 
+    /// A level's classification, resolved once.
+    ///
+    /// Prefer this over calling `label(for:medication:)` and `color(for:medication:)`
+    /// separately: it evaluates the thresholds a single time and additionally supplies the
+    /// tinted background used by pills and badges, so every surface that displays a level
+    /// agrees on the wording *and* the color.
+    struct Classification {
+        let label: String
+        /// Foreground / stroke tint.
+        let color: Color
+        /// Tinted background for a pill or badge behind `label`.
+        var background: Color { color.opacity(0.15) }
+    }
+
+    /// Classify a level for the given medication.
+    ///
+    /// Returns `nil` when the medication is unknown, matching `label(for:medication:)`.
+    static func classify(level: Double, medication: String?) -> Classification? {
+        guard let label = label(for: level, medication: medication) else { return nil }
+        return Classification(label: label, color: color(for: level, medication: medication))
+    }
+
     /// Human-readable label for the given level and medication.
     static func label(for level: Double, medication: String?) -> String? {
         guard let med = medication else { return nil }

@@ -7,50 +7,44 @@
 
 import Foundation
 
+/// A dose's site usage reduced to plain values, so it can safely cross an actor boundary.
+///
+/// `DoseRecord` is a SwiftData `@Model` bound to the main context, and reading
+/// `injectionSites` decodes `injectionSitesJSON` off the managed object — that has to
+/// happen on the main actor before any background work touches it.
+private struct SiteUsageSnapshot {
+    let doseDate: Date
+    let sites: [InjectionSite]
+}
+
 extension MedicationManager {
 
 // MARK: - Injection Site Tracking Methods
     /// Returns the injection sites from the most recent dose (if any).
-    var lastInjectionSites: [InjectionSite]? {
-        doseHistory
-            .filter { $0.isActive && !$0.injectionSites.isEmpty }
-            .sorted { $0.doseDate > $1.doseDate }
-            .first?
-            .injectionSites
-    }
+    var lastInjectionSites: [InjectionSite]? { latestSitedDose()?.injectionSites }
 
     /// Returns the doseDate of the most recent dose that has injection sites.
     /// Use this instead of InjectionSite.lastUsedDate for rotation-safety timing.
-    var lastInjectionSiteDoseDate: Date? {
-        doseHistory
-            .filter { $0.isActive && !$0.injectionSites.isEmpty }
-            .sorted { $0.doseDate > $1.doseDate }
-            .first?
-            .doseDate
-    }
+    var lastInjectionSiteDoseDate: Date? { latestSitedDose()?.doseDate }
 
     /// Route-scoped variant: returns only sites from doses matching the given route class.
     func lastInjectionSites(for routeClass: RouteClass) -> [InjectionSite]? {
-        doseHistory
-            .filter { $0.isActive && !$0.injectionSites.isEmpty }
-            .filter { RouteClass.from(method: $0.administrationMethod) == routeClass }
-            .sorted { $0.doseDate > $1.doseDate }
-            .first?
-            .injectionSites
+        latestSitedDose(routeClass: routeClass)?.injectionSites
     }
 
-    /// Route-scoped variant of lastInjectionSiteDoseDate.
+    /// Route-scoped variant of `lastInjectionSiteDoseDate`.
     func lastInjectionSiteDoseDate(for routeClass: RouteClass) -> Date? {
-        doseHistory
-            .filter { $0.isActive && !$0.injectionSites.isEmpty }
-            .filter { RouteClass.from(method: $0.administrationMethod) == routeClass }
-            .sorted { $0.doseDate > $1.doseDate }
-            .first?
-            .doseDate
+        latestSitedDose(routeClass: routeClass)?.doseDate
     }
 
     /// Async background precompute of injection site usage heat map.
     /// Cached by routeClass + windowDays; invalidated after each dose record.
+    ///
+    /// Main-actor isolated on purpose. It touches `doseHistory` (SwiftData `@Model`
+    /// objects, which are bound to the main context) and mutates `heatMapCache`, so both
+    /// the setup before the detached task and the cache write after it must run on the
+    /// main actor. Only the pure counting work crosses to the background.
+    @MainActor
     func injectionSiteHeatMap(for routeClass: RouteClass) async -> [String: Int] {
         let windowDays = routeClass.heatMapWindowDays
         guard windowDays > 0 else { return [:] }
@@ -58,13 +52,18 @@ extension MedicationManager {
         let cacheKey = "\(routeClass.rawValue)_\(windowDays)"
         if let cached = heatMapCache[cacheKey] { return cached }
 
-        let history = doseHistory
+        // Decode the managed objects here, on the main actor, and hand the background task
+        // nothing but value types.
+        let snapshot = doseHistory
+            .filter { $0.isActive }
+            .map { SiteUsageSnapshot(doseDate: $0.doseDate, sites: $0.injectionSites) }
+
         let counts = await Task.detached(priority: .utility) {
             let cutoff = Calendar.current.date(byAdding: .day, value: -windowDays, to: Date()) ?? Date()
             var counts: [String: Int] = [:]
 
-            for dose in history where dose.isActive {
-                for site in dose.injectionSites {
+            for dose in snapshot {
+                for site in dose.sites {
                     let activeEnd = Calendar.current.date(
                         byAdding: .day, value: site.durationDays, to: dose.doseDate
                     ) ?? dose.doseDate
@@ -76,7 +75,7 @@ extension MedicationManager {
             return counts
         }.value
 
-        await MainActor.run { heatMapCache[cacheKey] = counts }
+        heatMapCache[cacheKey] = counts
         return counts
     }
 

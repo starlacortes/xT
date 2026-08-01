@@ -75,30 +75,54 @@ struct Theme {
             let base: Color     // icon / progress fill
             let surface: Color  // card background
             let border: Color   // card stroke
+            let text: Color     // on-surface text / emphasis, readable on `surface`
         }
 
         struct Time {
             static let mind = TimePalette(
                 base:    Color(lightHex: "#534AB7", darkHex: "#7E74D8"),
                 surface: Color(lightHex: "#EEEDFE", darkHex: "#1E1C3A"),
-                border:  Color(lightHex: "#CECBF6", darkHex: "#3D3880")
+                border:  Color(lightHex: "#CECBF6", darkHex: "#3D3880"),
+                text:    Color(lightHex: "#3C3489", darkHex: "#ABA7F0")
             )
             static let skin = TimePalette(
                 base:    Color(lightHex: "#0F6E56", darkHex: "#2DB88E"),
                 surface: Color(lightHex: "#E1F5EE", darkHex: "#0C2420"),
-                border:  Color(lightHex: "#9FE1CB", darkHex: "#1A5C46")
+                border:  Color(lightHex: "#9FE1CB", darkHex: "#1A5C46"),
+                text:    Color(lightHex: "#0A4F3E", darkHex: "#7FE0C4")
             )
             static let body = TimePalette(
                 base:    Color(lightHex: "#854F0B", darkHex: "#D4862B"),
                 surface: Color(lightHex: "#FAEEDA", darkHex: "#2E1C05"),
-                border:  Color(lightHex: "#FAC775", darkHex: "#6B3D08")
+                border:  Color(lightHex: "#FAC775", darkHex: "#6B3D08"),
+                text:    Color(lightHex: "#5C360A", darkHex: "#EFB25F")
             )
             static let cycle = TimePalette(
                 base:    Color(lightHex: "#D4537E", darkHex: "#E8709A"),
                 surface: Color(lightHex: "#FBEAF0", darkHex: "#2E1018"),
-                border:  Color(lightHex: "#F4C0D1", darkHex: "#7A2846")
+                border:  Color(lightHex: "#F4C0D1", darkHex: "#7A2846"),
+                text:    Color(lightHex: "#993554", darkHex: "#F4A8C0")
             )
         }
+
+        // MARK: On-accent
+
+        /// Text and fills that sit on top of the brand gradient or an accent surface —
+        /// the Onboarding flow and the app-lock screens. Replaces the raw
+        /// `.white.opacity(_:)` literals that previously used six different alphas
+        /// for the same semantic role.
+        struct OnAccent {
+            static let primary        = Color.white
+            static let secondary      = Color.white.opacity(0.9)
+            static let tertiary       = Color.white.opacity(0.7)
+            static let disabled       = Color.white.opacity(0.5)
+            static let fill           = Color.white.opacity(0.15)  // chip / control backgrounds
+            static let stroke         = Color.white.opacity(0.3)   // chip borders
+            static let strokeSelected = Color.white.opacity(0.5)
+        }
+
+        /// The de facto hairline stroke width used across the app (27 sites).
+        static let hairlineWidth: CGFloat = 0.5
     }
 
     // MARK: Fonts
@@ -125,18 +149,60 @@ struct Theme {
         // Journal serif flourishes
         static let serifTitle   = Font.system(.title2, design: .serif)
         static let serifBody    = Font.system(.body, design: .serif)
+
+        // MARK: Role tokens
+        //
+        // These name the fixed sizes that recur across the app. Each was derived from a
+        // frequency count of raw `.system(size:)` literals — the number in the comment is
+        // how many hand-written sites the token replaces.
+
+        /// Uppercase section eyebrow — "TIME · BODY SYSTEMS", card captions. (23 sites)
+        static let eyebrow    = Font.system(size: 11, weight: .semibold)
+        /// Pill / chip label. (part of the 23 at size 11)
+        static let pill       = Font.system(size: 11, weight: .medium)
+        /// Row detail text and disclosure chevrons. (23 sites)
+        static let detail     = Font.system(size: 13)
+        /// Dense secondary label. (16 sites)
+        static let label      = Font.system(size: 12)
+        /// Caption under a floating stat. (10 sites)
+        static let statLabel  = Font.system(size: 9, weight: .medium)
+        /// Leading icon in a list row. (10 sites)
+        static let icon       = Font.system(size: 18)
+        /// Value of a floating stat. (MoodMind / BodyArchitecture overlays)
+        static let statValue  = Font.system(size: 18, weight: .bold, design: .rounded)
+        /// Detail-screen title. (3 sites)
+        static let hero       = Font.system(size: 34, weight: .bold)
+        /// Dose steppers and other editable numerics. (6 sites)
+        static let numeric    = Font.system(size: 32, weight: .medium, design: .rounded)
+        /// Large single-value readout — level overlay, journal streak. (2 sites)
+        static let readout    = Font.system(size: 52, weight: .regular)
     }
 
     // MARK: Spacing
 
     struct Spacing {
-        static let xs: CGFloat   = 4
-        static let sm: CGFloat   = 8
-        static let md: CGFloat   = 12
-        static let lg: CGFloat   = 16
-        static let xl: CGFloat   = 20
-        static let xxl: CGFloat  = 24
-        static let card: CGFloat = 14  // dominant card content padding
+        static let xs: CGFloat      = 4
+        static let sm: CGFloat      = 8
+        static let md: CGFloat      = 12
+        static let lg: CGFloat      = 16
+        static let xl: CGFloat      = 20
+        static let xxl: CGFloat     = 24
+        static let card: CGFloat    = 14  // dominant card content padding
+
+        // Added from the measured spacing histogram.
+        static let xxs: CGFloat     = 2   // 29 stack + 8 padding sites
+        static let tiny: CGFloat    = 6   // 29 stack + 8 padding sites
+        static let row: CGFloat     = 10  // 19 stack + 10 padding sites
+        static let section: CGFloat = 28  // 5 stack + 3 padding sites
+        static let jumbo: CGFloat   = 32  // 4 stack + 9 padding sites
+
+        /// Horizontal page gutters. Previously three competing literals (40 / 22 / 20)
+        /// applied inconsistently; Home, Settings, Journal and the dose sheet now share
+        /// one `screen` value and only Onboarding keeps its wider gradient inset.
+        struct Gutter {
+            static let screen: CGFloat     = 22
+            static let onboarding: CGFloat = 40
+        }
     }
 
     // MARK: Radius
@@ -146,6 +212,13 @@ struct Theme {
         static let md: CGFloat = 16
         static let lg: CGFloat = 20
         static let xl: CGFloat = 24
+
+        // Added from the measured corner-radius histogram.
+        static let hairline: CGFloat = 2   // dot tracks / progress rails (7 sites)
+        static let xs: CGFloat       = 4   // mini chips, progress bars (2 sites)
+        static let chip: CGFloat     = 6   // most common raw radius (12 sites)
+        static let control: CGFloat  = 8   // icon tiles, small buttons (6 sites)
+        static let tile: CGFloat     = 10  // stat tiles (9 sites)
     }
 
     // MARK: Gradients
@@ -173,6 +246,43 @@ struct Theme {
         static let smooth = Animation.easeInOut(duration: 0.4)
         /// Per-card delay used to stagger a vertical stack on appear.
         static let stagger: Double = 0.07
+
+        // Added from the measured duration histogram, which had 12 distinct raw values
+        // clustering into four bands plus a repeating pulse.
+
+        /// Near-immediate feedback — field focus, inline toggles. (0.08–0.15 → 8 sites)
+        static let instant  = Animation.easeInOut(duration: 0.15)
+        /// Standard tap / selection response. (0.2–0.25 → 13 sites)
+        static let quick    = Animation.easeInOut(duration: 0.22)
+        /// Section expand / collapse. (0.3 → 6 sites)
+        static let standard = Animation.easeInOut(duration: 0.3)
+        /// Slow reveal for charts and rings drawing themselves in. (1.0–1.5 → 4 sites)
+        static let reveal   = Animation.easeOut(duration: 1.0)
+        /// Continuous attention pulse — the "dose due" indicator. (2 sites)
+        static let pulse    = Animation.easeInOut(duration: 1.3).repeatForever(autoreverses: true)
+    }
+
+    // MARK: Shadows
+
+    /// Named elevation styles. Previously 16 hand-written `.shadow(...)` calls with no
+    /// shared vocabulary, several of which were byte-identical across files.
+    struct Shadows {
+        struct Style {
+            let color: Color
+            let radius: CGFloat
+            let x: CGFloat
+            let y: CGFloat
+        }
+
+        /// Neutral lift for a floating control over content.
+        static let floating = Style(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
+        /// Accent-tinted glow under a primary floating action button.
+        static let accentFab = Style(color: Colors.accent.opacity(0.35), radius: 12, x: 0, y: 6)
+        /// Soft tinted halo under a constellation node or body marker.
+        static func nodeGlow(_ tint: Color, selected: Bool) -> Style {
+            Style(color: tint.opacity(selected ? 0.5 : 0.25),
+                  radius: selected ? 6 : 3, x: 0, y: 1)
+        }
     }
 }
 
@@ -246,5 +356,10 @@ extension View {
     /// Style as a full-width rose accent button.
     func asAccentButton() -> some View {
         modifier(AccentButtonModifier())
+    }
+
+    /// Apply a named elevation style from `Theme.Shadows`.
+    func themeShadow(_ style: Theme.Shadows.Style) -> some View {
+        shadow(color: style.color, radius: style.radius, x: style.x, y: style.y)
     }
 }

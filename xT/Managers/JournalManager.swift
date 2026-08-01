@@ -37,27 +37,9 @@ class JournalManager {
         }
     }
 
-    func updateCurrentMood(_ mood: Mood) {
-        currentMood = mood
-    }
-
-    func updateCurrentSymptoms(_ symptoms: [Symptom]) {
-        currentSymptoms = symptoms
-    }
-
+    /// Most recent entry (`entries` is kept newest-first).
     var lastEntry: JournalEntry? {
         entries.first
-    }
-
-    // Create a new entry with current state
-    func createNewEntry(text: String) -> JournalEntry {
-        let entry = JournalEntry(
-            date: Date(),
-            mood: currentMood,
-            text: text,
-            symptoms: currentSymptoms
-        )
-        return entry
     }
 
     // MARK: - Persistence
@@ -79,75 +61,6 @@ class JournalManager {
             currentMood = lastEntry.mood
             currentSymptoms = lastEntry.symptoms
         }
-    }
-
-    // Clear all journal data (for testing)
-    func clearAllData() {
-        guard let context = modelContext else { return }
-        let all = try? context.fetch(FetchDescriptor<JournalEntry>())
-        for entry in all ?? [] {
-            context.delete(entry)
-        }
-        entries.removeAll()
-        currentMood = .neutral
-        currentSymptoms = []
-        try? context.save()
-    }
-
-    // Create sample entries for demo purposes
-    func createSampleEntries() {
-        let calendar = Calendar.current
-
-        // Today's entry
-        let todayEntry = JournalEntry(
-            date: Date(),
-            mood: .happy,
-            text: "Skin has been so soft this week. Noticed my mood staying really level throughout the day too.",
-            symptoms: [Symptom.commonSymptoms[0], Symptom.commonSymptoms[4]] // skin changes, energy boost
-        )
-
-        // Yesterday's entry
-        let yesterday = calendar.date(byAdding: .day, value: -1, to: Date()) ?? Date()
-        let yesterdayEntry = JournalEntry(
-            date: yesterday,
-            mood: .calm,
-            text: "A bit tired after work but overall okay. Hot flash in the afternoon that was a bit uncomfortable.",
-            symptoms: [Symptom.commonSymptoms[1], Symptom.commonSymptoms[2]] // hot flashes, fatigue
-        )
-
-        // Entry from 2 days ago
-        let twoDaysAgo = calendar.date(byAdding: .day, value: -2, to: Date()) ?? Date()
-        let twoDaysAgoEntry = JournalEntry(
-            date: twoDaysAgo,
-            mood: .energetic,
-            text: "Woke up feeling genuinely good. Dose day — remembered on time!",
-            symptoms: [Symptom.commonSymptoms[4]] // energy boost
-        )
-
-        // Entry from 5 days ago
-        let fiveDaysAgo = calendar.date(byAdding: .day, value: -5, to: Date()) ?? Date()
-        let fiveDaysAgoEntry = JournalEntry(
-            date: fiveDaysAgo,
-            mood: .neutral,
-            text: "Quiet day, not much to report. Mood was stable throughout.",
-            symptoms: []
-        )
-
-        // Entry from 6 days ago
-        let sixDaysAgo = calendar.date(byAdding: .day, value: -6, to: Date()) ?? Date()
-        let sixDaysAgoEntry = JournalEntry(
-            date: sixDaysAgo,
-            mood: .happy,
-            text: "Really good energy today, went for a walk and enjoyed the sunshine.",
-            symptoms: [Symptom.commonSymptoms[4]] // energy boost
-        )
-
-        // Add entries in reverse chronological order
-        entries = [todayEntry, yesterdayEntry, twoDaysAgoEntry, fiveDaysAgoEntry, sixDaysAgoEntry]
-        for entry in entries {
-            modelContext?.insert(entry)
-        }
-        try? modelContext?.save()
     }
 }
 

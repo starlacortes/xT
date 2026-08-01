@@ -37,31 +37,9 @@ struct DoseScheduleSettingsView: View {
 
         doseUnit = mgr.selectedMedication == "Testosterone" ? "mg" : "mg"
         medicationName = mgr.selectedMedication ?? "Medication"
-
-        if let data = UserDefaults.standard.data(forKey: userPreferredZonesKey),
-           let decoded = try? JSONDecoder().decode([String: [String]].self, from: data) {
-            _userPreferredZones = State(initialValue: decoded)
-        } else {
-            _userPreferredZones = State(initialValue: [:])
-        }
     }
 
     @State private var showAvoidZones = false
-
-    private let userPreferredZonesKey = "mm.userPreferredZones"
-    @State private var userPreferredZones: [String: [String]] = [:]
-
-    private var medicationRouteCombos: [(medication: String, routeClass: RouteClass)] {
-        let medications = ["Estrogen", "Testosterone", "Progesterone"]
-        let routes = RouteClass.allCases.filter { $0 != .oral }
-        var combos: [(String, RouteClass)] = []
-        for med in medications {
-            for route in routes {
-                combos.append((med, route))
-            }
-        }
-        return combos
-    }
 
     var body: some View {
         NavigationStack {
@@ -391,66 +369,35 @@ struct DoseScheduleSettingsView: View {
         VStack(alignment: .leading, spacing: 8) {
             sectionLabel("Preferred Administration Zones")
 
-            VStack(spacing: 0) {
-                ForEach(Array(medicationRouteCombos.enumerated()), id: \.offset) { idx, combo in
-                    let count = preferredZonesCount(
-                        medication: combo.medication,
-                        routeClass: combo.routeClass
-                    )
-                    NavigationLink(destination: PreferredZonesEditorView(
-                        medication: combo.medication,
-                        routeClass: combo.routeClass,
-                        onSave: { zones in
-                            let key = "\(combo.medication)|\(combo.routeClass.rawValue)"
-                            userPreferredZones[key] = zones
-                            if let data = try? JSONEncoder().encode(userPreferredZones) {
-                                UserDefaults.standard.set(data, forKey: userPreferredZonesKey)
-                            }
-                        }
-                    )) {
-                        HStack(spacing: 12) {
-                            Image(systemName: combo.routeClass.iconName)
-                                .font(.title3)
-                                .foregroundStyle(combo.routeClass.tintColor)
-                                .frame(width: 28)
+            NavigationLink(destination: PreferredZonesListView()) {
+                HStack(spacing: 12) {
+                    Image(systemName: "star")
+                        .font(.title3)
+                        .foregroundStyle(Theme.Colors.accent)
+                        .frame(width: 28)
 
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("\(combo.medication) — \(combo.routeClass.displayName)")
-                                    .font(Theme.Fonts.callout)
-                                    .foregroundStyle(.primary)
-                                Text("\(count) \(count == 1 ? "zone" : "zones")")
-                                    .font(Theme.Fonts.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-
-                            Spacer()
-
-                            Image(systemName: "chevron.right")
-                                .font(.caption)
-                                .foregroundStyle(.tertiary)
-                        }
-                        .padding(12)
-                        .background(
-                            RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                                .fill(Color(.systemBackground))
-                        )
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Preferred zones")
+                            .font(Theme.Fonts.callout)
+                            .foregroundStyle(.primary)
+                        Text("Favoured sites per medication & route")
+                            .font(Theme.Fonts.caption)
+                            .foregroundStyle(.secondary)
                     }
 
-                    if idx < medicationRouteCombos.count - 1 {
-                        Divider()
-                            .padding(.leading, 52)
-                    }
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
                 }
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                        .fill(Color(.systemBackground))
+                )
             }
         }
-    }
-
-    private func preferredZonesCount(medication: String, routeClass: RouteClass) -> Int {
-        let key = "\(medication)|\(routeClass.rawValue)"
-        if let userZones = userPreferredZones[key], !userZones.isEmpty {
-            return userZones.count
-        }
-        return ZoneCentroidStore.preferredZones(medication: medication, routeClass: routeClass).count
     }
 
     // MARK: - Save
