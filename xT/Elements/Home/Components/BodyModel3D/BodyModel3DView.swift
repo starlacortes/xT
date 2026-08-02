@@ -586,6 +586,7 @@ struct BodyModel3DView: UIViewRepresentable {
 
 // MARK: - Preview
 
+#if DEBUG
 #Preview {
     BodyModel3DView(
         heatMapData: [
@@ -608,3 +609,4 @@ struct BodyModel3DView: UIViewRepresentable {
     .background(Color.black.opacity(0.08))
     .clipShape(RoundedRectangle(cornerRadius: 24))
 }
+#endif

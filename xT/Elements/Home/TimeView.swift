@@ -61,7 +61,7 @@ struct TimeView: View {
             regimenSegments: medicationManager.regimenTransitionHistory,
             onTimeStreak: medicationManager.onTimeStreak,
             relativeDoseIntensity: medicationManager.relativeDoseIntensity,
-            doseIntensityDisclaimer: medicationManager.doseIntensityDisclaimer,
+            doseIntensityNote: medicationManager.doseIntensityNote,
             bloodTestSchedulingText: medicationManager.bloodTestSchedulingText,
             suggestedBloodTestMonth: medicationManager.suggestedBloodTestMonth,
             calibrationContext: nil
@@ -265,7 +265,7 @@ struct TimeHeroHeader: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text("\(engine.months)")
+            Text(verbatim: AppNumberFormatters.percent.string(engine.months))
                 .font(.system(size: 42, weight: .bold))
                 .tracking(-1.5)
                 .foregroundStyle(Color.primary)
@@ -287,7 +287,7 @@ struct TimeHeroHeader: View {
                     Circle()
                         .fill(adherenceColor)
                         .frame(width: 7, height: 7)
-                    Text("\(Int(rate * 100))%")
+                    Text(verbatim: "\(AppNumberFormatters.percent.string(rate * 100))%")
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(Color.secondary)
                 }
@@ -434,9 +434,11 @@ struct TimeMilestoneRow: View {
 
 // MARK: - Preview
 
+#if DEBUG
 #Preview {
     SpoofPreview {
         TimeView()
             .environment(\.medicationManager, MedicationManager.shared)
     }
 }
+#endif

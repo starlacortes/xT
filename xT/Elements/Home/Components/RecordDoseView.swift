@@ -28,7 +28,7 @@ struct RecordDoseView: View {
                     .foregroundStyle(Theme.Colors.accent)
 
                 DatePicker(
-                    "When did you take your dose?",
+                    "Dose time",
                     selection: $selectedDate,
                     displayedComponents: [.date, .hourAndMinute]
                 )

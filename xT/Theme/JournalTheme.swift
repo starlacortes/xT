@@ -94,23 +94,11 @@ struct FlowLayout: Layout {
 // MARK: - Date helpers
 
 extension Date {
-    private static let journalDateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "EEE, MMM d"
-        return f
-    }()
-
-    private static let fullDateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "EEEE, MMM d · h:mm a"
-        return f
-    }()
-
-    private static let composerDateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "EEEE, MMMM d"
-        return f
-    }()
+    // These were fixed `dateFormat` patterns, which pin US field order in every
+    // locale. AppDateFormatters builds them from templates instead, so a French
+    // build reads "mer. 4 mars" rather than "Wed, Mar 4".
+    private static let journalDateFormatter = AppDateFormatters.weekdayShortMonthDay
+    private static let composerDateFormatter = AppDateFormatters.weekdayLongMonthDay
 
     var journalDateLabel: String {
         if Calendar.current.isDateInToday(self) { return "Today" }
@@ -118,10 +106,17 @@ extension Date {
         return Self.journalDateFormatter.string(from: self)
     }
 
+    /// "wednesday, mar 4 · 9:00 am"
+    ///
+    /// Composed from two templated formatters rather than one fixed pattern, so
+    /// each half follows the locale's own field order while the "·" separator —
+    /// which is a design choice, not a date convention — stays put. The two
+    /// `replacingOccurrences(of: "am", with: "am")` calls this replaces were
+    /// no-ops left over from the fixed-pattern version.
     var fullDateLabel: String {
-        Self.fullDateFormatter.string(from: self).lowercased()
-            .replacingOccurrences(of: "am", with: "am")
-            .replacingOccurrences(of: "pm", with: "pm")
+        let day = AppDateFormatters.weekdayMonthDay.string(from: self)
+        let time = AppDateFormatters.time.string(from: self)
+        return "\(day) · \(time)".lowercased(with: .current)
     }
 
     var composerDateLabel: String {

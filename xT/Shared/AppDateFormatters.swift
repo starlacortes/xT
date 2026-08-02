@@ -15,40 +15,38 @@ import Foundation
 
 enum AppDateFormatters {
 
-    /// "Mar 4" — compact day label for chips, timelines and axis ticks.
-    static let monthDay: DateFormatter = {
+    /// Builds a formatter from a *template*, letting the locale choose field order
+    /// and punctuation. A fixed `dateFormat` would render "Mar 4, 2026" in every
+    /// locale; a template renders "4 mars 2026" where that is correct.
+    private static func templated(_ template: String) -> DateFormatter {
         let f = DateFormatter()
-        f.dateFormat = "MMM d"
+        f.setLocalizedDateFormatFromTemplate(template)
         return f
-    }()
+    }
+
+    /// "Mar 4" — compact day label for chips, timelines and axis ticks.
+    static let monthDay: DateFormatter = templated("MMMd")
 
     /// "Mar 4, 2026" — dated rows in history and export summaries.
-    static let monthDayYear: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "MMM d, yyyy"
-        return f
-    }()
+    static let monthDayYear: DateFormatter = templated("MMMdyyyy")
 
     /// "March 2026" — month headings and blood-test scheduling copy.
-    static let monthYear: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "MMMM yyyy"
-        return f
-    }()
+    static let monthYear: DateFormatter = templated("MMMMyyyy")
 
     /// "Wednesday" — weekday name for the next-dose row.
-    static let weekday: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "EEEE"
-        return f
-    }()
+    static let weekday: DateFormatter = templated("EEEE")
 
     /// "Wed" — abbreviated weekday for dense schedule strips.
-    static let weekdayShort: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "EEE"
-        return f
-    }()
+    static let weekdayShort: DateFormatter = templated("EEE")
+
+    /// "Wed, Mar 4" — journal entry headers.
+    static let weekdayShortMonthDay: DateFormatter = templated("EEEMMMd")
+
+    /// "Wednesday, Mar 4" — journal detail and composer headers.
+    static let weekdayMonthDay: DateFormatter = templated("EEEEMMMd")
+
+    /// "Wednesday, March 4" — the composer's full-width date line.
+    static let weekdayLongMonthDay: DateFormatter = templated("EEEEMMMMd")
 
     /// "9:00 AM" — locale-aware time only.
     static let time: DateFormatter = {

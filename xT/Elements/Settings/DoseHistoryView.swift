@@ -119,7 +119,8 @@ struct DoseHistoryRow: View {
         if sites.count == 1 {
             return "\(sites[0].zoneLabel) (\(sites[0].viewContext))"
         }
-        return "\(sites.count) sites"
+        return String(localized: "^[\(sites.count) site](inflect: true)",
+                      comment: "Count of distinct administration sites used")
     }
 
     var body: some View {
@@ -128,7 +129,7 @@ struct DoseHistoryRow: View {
                 Image(systemName: routeIcon)
                     .foregroundStyle(routeIconColor)
                     .font(.caption)
-                Text("\(dose.medicationType) — \(String(format: "%.1f", dose.doseAmount)) mg")
+                Text("\(dose.medicationType) — \(AppNumberFormatters.dose.string(dose.doseAmount)) mg")
                     .font(.subheadline)
                     .fontWeight(.medium)
                 Spacer()
@@ -170,8 +171,7 @@ struct DoseHistoryRow: View {
                     Text("Originally: ")
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
-                        +
-                        Text(dose.originalSites.map { $0.zoneLabel }.joined(separator: ", "))
+                    Text(dose.originalSites.map { $0.zoneLabel }.joined(separator: ", "))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
@@ -202,6 +202,7 @@ struct DoseHistoryRow: View {
 
 // MARK: - Preview
 
+#if DEBUG
 #Preview {
     SpoofPreview {
         NavigationStack {
@@ -210,3 +211,4 @@ struct DoseHistoryRow: View {
         }
     }
 }
+#endif

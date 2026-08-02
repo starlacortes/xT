@@ -251,7 +251,7 @@ enum BiometricType {
 
     var iconName: String {
         switch self {
-        case .none:    return "lock"
+        case .none:    return "None"
         case .touchID: return "touchid"
         case .faceID:  return "faceid"
         case .opticID: return "opticid"
@@ -283,32 +283,14 @@ struct AuthenticationView: View {
                         .fill(Color.white.opacity(0.2))
                         .frame(width: 100, height: 100)
 
-                    Image(systemName: authManager.biometricType().iconName)
+                    Image(systemName: "key")
                         .font(.system(size: 50))
                         .foregroundStyle(.white)
                 }
                 .padding(.horizontal, 40)
                 .padding(.bottom, 8)
-
-                Text("Authenticate to continue")
-                    .font(.title2)
-                    .fontWeight(.medium)
-                    .foregroundStyle(.white)
-
-                Text(reason)
-                    .font(.body)
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(.white.opacity(0.85))
-                    .padding(.horizontal, 40)
-
-                if let error = errorMessage {
-                    Text(error)
-                        .font(.caption)
-                        .foregroundStyle(Theme.Colors.error)
-                        .padding()
-                        .background(Color.white.opacity(0.2))
-                        .cornerRadius(10)
-                }
+                
+                
 
                 if isAuthenticating {
                     ProgressView()
@@ -316,7 +298,7 @@ struct AuthenticationView: View {
                 } else {
                     if authManager.biometricType() != .none {
                         Button(action: { Task { await authenticate() } }) {
-                            Text("Authenticate with \(authManager.biometricType().description)")
+                            Text("Unlock with \(authManager.biometricType().description)")
                                 .font(.headline)
                                 .fontWeight(.medium)
                                 .foregroundStyle(.white)
@@ -326,8 +308,9 @@ struct AuthenticationView: View {
                                 .cornerRadius(16)
                                 .shadow(color: Theme.Colors.accent.opacity(0.3), radius: 12, x: 0, y: 4)
                         }
-                        .padding(.horizontal, 40)
-                        .padding(.top, 8)
+                        .frame(width: 200)
+                        
+                        
                     }
 
                     if showFallback || authManager.biometricType() == .none {
@@ -338,13 +321,13 @@ struct AuthenticationView: View {
                                 .font(.subheadline)
                                 .foregroundStyle(.white.opacity(0.7))
                         }
-                        .padding(.top, 8)
+                        
                     }
                 }
 
                 Spacer()
             }
-            .padding()
+            
         }
         .task { await authenticate() }
     }
@@ -356,7 +339,7 @@ struct AuthenticationView: View {
             try await authManager.authenticate(reason: reason)
             dismiss()
         } catch XAuthenticationError.cancelled {
-            errorMessage = "Authentication was cancelled"
+            errorMessage = "Authentication cancelled"
             showFallback = authManager.allowPasscodeFallback
         } catch {
             errorMessage = "Authentication failed"
@@ -378,10 +361,12 @@ struct AuthenticationView: View {
     }
 }
 
+#if DEBUG
 #Preview {
     AuthenticationView(reason: "Access your health data")
         .environment(\.authenticationManager, AuthenticationManager.shared)
 }
+#endif
 
 // MARK: - Environment Key
 

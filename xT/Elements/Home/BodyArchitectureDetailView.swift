@@ -235,12 +235,15 @@ struct BodyArchitectureDetailView: View {
                                 .padding(.top, 24)
                         }
 
-                        // Dose intensity disclaimer
-                        if let disclaimer = engine.doseIntensityDisclaimer {
-                            doseIntensityNote(disclaimer)
+                        // How dose intensity feeds the timelines above
+                        if let note = engine.doseIntensityNote {
+                            doseIntensityNote(note)
                                 .padding(.horizontal, 22)
                                 .padding(.top, 16)
                         }
+
+                        EducationalFooter()
+                            .padding(.top, 8)
 
                         Color.clear.frame(height: 40)
                     }
@@ -273,7 +276,7 @@ struct BodyArchitectureDetailView: View {
                 .foregroundStyle(Theme.Colors.Time.body.base)
 
             HStack(spacing: 6) {
-                Text(tier.statusEmoji + " " + tier.timeBandLabel)
+                Text(tier.timeBandLabel)
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                 Text("·")
@@ -418,7 +421,7 @@ struct BodyArchitectureDetailView: View {
 
             // Timeline text (collapsible)
             CollapsibleTextBlock(
-                title: "Your timeline",
+                title: "Typical timeline",
                 content: detail.timelineText,
                 palette: system.palette
             )
@@ -491,13 +494,12 @@ struct BodyArchitectureDetailView: View {
     }
 
     private var regimenTimelineText: String {
-        let df = DateFormatter()
-        df.dateFormat = "MMM d"
+        let df = AppDateFormatters.monthDay
         return engine.regimenSegments.map { segment in
             let start = df.string(from: segment.startDate)
             let end = segment.endDate.map { df.string(from: $0) } ?? "Present"
-            let concInfo = segment.concentrationMgPerMl.map { " @ \(String(format: "%.0f", $0)) mg/mL" } ?? ""
-            return "\(start) – \(end): \(segment.ester) \(String(format: "%.1f", segment.doseAmount)) mg\(concInfo)"
+            let concInfo = segment.concentrationMgPerMl.map { " @ \(AppNumberFormatters.concentration.string($0)) mg/mL" } ?? ""
+            return "\(start) – \(end): \(segment.ester) \(AppNumberFormatters.dose.string(segment.doseAmount)) mg\(concInfo)"
         }.joined(separator: "\n")
     }
 
@@ -611,6 +613,7 @@ private struct ArchitectureBodyCanvas: View {
 
 // MARK: - Preview
 
+#if DEBUG
 #Preview {
     NavigationStack {
         BodyArchitectureDetailView(engine: TimeContentEngine(
@@ -628,10 +631,11 @@ private struct ArchitectureBodyCanvas: View {
             regimenSegments: [],
             onTimeStreak: 4,
             relativeDoseIntensity: 1.0,
-            doseIntensityDisclaimer: nil,
+            doseIntensityNote: nil,
             bloodTestSchedulingText: "Schedule your next blood test around month 12.",
             suggestedBloodTestMonth: 12,
             calibrationContext: nil
         ))
     }
 }
+#endif

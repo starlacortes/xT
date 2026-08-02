@@ -44,6 +44,7 @@ struct UnifiedStackView: View {
     }
 }
 
+#if DEBUG
 #Preview {
     SpoofPreview {
         UnifiedStackView()
@@ -53,3 +54,4 @@ struct UnifiedStackView: View {
             .background(Theme.Gradients.brand)
     }
 }
+#endif

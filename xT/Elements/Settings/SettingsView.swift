@@ -34,6 +34,7 @@ struct SettingsView: View {
     @State private var targetTroughMin: Double = 100
     @State private var targetTroughMax: Double = 200
     @State private var targetPeakCeiling: Double = 600
+    @FocusState private var targetFieldFocused: Bool
 
     var body: some View {
         NavigationStack {
@@ -60,7 +61,8 @@ struct SettingsView: View {
                 }
             }
             .scrollIndicators(.hidden)
-            .navigationTitle("")
+            .scrollDismissesKeyboard(.interactively)
+            .navigationTitle(Text(verbatim: ""))
             .navigationBarTitleDisplayMode(.inline)
             .background(Color(.systemBackground))
             .sheet(isPresented: $showingDoseTimePicker) {
@@ -398,7 +400,7 @@ struct SettingsView: View {
                 targetValueRow(label: "Trough upper bound",
                                value: $targetTroughMax,
                                unit: medicationUnit,
-                               range: (targetTroughMin + 1)...9999,
+                               range: min(targetTroughMin + 1, 9999)...9999,
                                description: "Your target ceiling at trough time")
 
                 settingsDivider()
@@ -407,20 +409,29 @@ struct SettingsView: View {
                 targetValueRow(label: "Peak ceiling",
                                value: $targetPeakCeiling,
                                unit: medicationUnit,
-                               range: (targetTroughMax)...9999,
+                               range: min(targetTroughMax, 9999)...9999,
                                description: "Upper safety limit near peak")
 
                 settingsDivider()
 
                 // Info footer
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("These targets replace the clinical defaults. Your classifications will show \"Your Target\" instead of \"Target Trough\" or \"Expected Peak.\"")
+                    // This is the switch that turns on comparative copy across the
+                    // app, so the footer says exactly that. Without a range set,
+                    // xT reports the estimate and makes no comparison.
+                    Text("Setting a range lets xT report where an estimate falls relative to it. Without one, xT shows the estimate on its own.")
                         .font(Theme.Fonts.micro)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(.horizontal, 22)
                 .padding(.vertical, 12)
+            }
+        }
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") { targetFieldFocused = false }
             }
         }
     }
@@ -454,6 +465,8 @@ struct SettingsView: View {
                     .font(.system(size: 16, weight: .medium, design: .rounded))
                     .multilineTextAlignment(.trailing)
                     .frame(width: 60)
+                    .focused($targetFieldFocused)
+                    .submitLabel(.done)
                     .onChange(of: value.wrappedValue) { _, newVal in
                         // Clamp to range
                         if newVal < range.lowerBound { value.wrappedValue = range.lowerBound }
@@ -543,7 +556,7 @@ struct SettingsView: View {
     private var privacyLockSubtitle: String {
         let biometric = authManager.biometricType().description
         let timeout = authManager.timeoutLabel
-        return "\(biometric) · \(timeout) timeout"
+        return String(localized: "\(biometric) · \(timeout) timeout")
     }
 
     // MARK: - Privacy Section
@@ -696,10 +709,7 @@ struct SettingsView: View {
     // MARK: - Computed strings
 
     private var levelString: String {
-        if let level = medicationManager.currentHormoneLevel?.value {
-            return "\(Int(level)) \(medicationManager.currentHormoneLevel?.unit ?? "pg/mL")"
-        }
-        return "—"
+        medicationManager.currentHormoneLevel?.valueDescription ?? "—"
     }
 
     private var nextDoseString: String {
@@ -707,35 +717,41 @@ struct SettingsView: View {
         let days = Calendar.current.dateComponents([.day], from: Date(), to: next).day ?? 0
         if days == 0 { return "Today" }
         if days == 1 { return "Tomorrow" }
-        return "In \(days)d"
+        return String(localized: "In \(days)d")
     }
 
     private var nextDoseSubtitle: String {
         if let next = medicationManager.nextDoseDate {
-            return "Next: \(formatDate(next))"
+            return String(localized: "Next: \(formatDate(next))")
         }
-        return "No schedule set"
+        return String(localized: "No schedule set")
     }
 
     private var adherenceSubtitle: String {
-        guard medicationManager.isFullyConfigured else { return "Configure medication first" }
-        if let rate = medicationManager.adherenceRate {
-            let pct = Int(rate * 100)
-            return "\(pct)% adherence · \(medicationManager.onTimeStreak) streak · regimen timeline"
+        guard medicationManager.isFullyConfigured else {
+            return String(localized: "No medication configured",
+                          comment: "Settings row subtitle when adherence data is unavailable")
         }
-        return "Regimen history & dose intensity"
+        if let rate = medicationManager.adherenceRate {
+            return String(localized: "\(AppNumberFormatters.percent.string(rate * 100))% of scheduled doses recorded",
+                          comment: "Settings row subtitle summarising 30-day adherence")
+        }
+        return String(localized: "Regimen history and dose intensity",
+                      comment: "Settings row subtitle for the adherence screen before any adherence data exists")
     }
 
     private var doseHistorySubtitle: String {
         let count = medicationManager.doseHistory.count
         if count == 0 { return "No doses recorded yet" }
-        return "Review & correct \(count) dose\(count == 1 ? "" : "s")"
+        return String(localized: "Review and correct ^[\(count) dose](inflect: true)",
+                      comment: "Settings row subtitle counting doses that need review")
     }
 
     private var avoidZonesSubtitle: String {
         let count = medicationManager.avoidZones.count
         if count == 0 { return "No zones marked" }
-        return "\(count) zone\(count == 1 ? "" : "s") marked"
+        return String(localized: "^[\(count) zone](inflect: true) marked",
+                      comment: "Settings row subtitle counting marked body zones")
     }
 
     private var formatDoseReminderSubtitle: String {
@@ -787,11 +803,6 @@ struct SettingsView: View {
             journalReminderMinute = 0
             journalRemindersEnabled = false
         }
-
-        Task { await notificationManager.requestAuthorization() }
-
-        notificationManager.configureDoseReminder(enabled: doseRemindersEnabled, hour: doseReminderHour, minute: doseReminderMinute)
-        notificationManager.configureJournalReminder(enabled: journalRemindersEnabled, hour: journalReminderHour, minute: journalReminderMinute)
     }
 
     private func resetAppData() {
@@ -868,6 +879,7 @@ struct SettingsView: View {
 }
 
 // MARK: - Preview
+#if DEBUG
 #Preview {
     SpoofPreview {
         SettingsView()
@@ -875,3 +887,4 @@ struct SettingsView: View {
             .environment(\.medicationManager, MedicationManager.shared)
     }
 }
+#endif

@@ -64,9 +64,7 @@ extension BloodTestRecord {
     }
 
     private static let dateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "MMM d, yyyy"
-        return f
+        return AppDateFormatters.monthDayYear
     }()
 
     /// Whether this record has a valid calibration factor computed.

@@ -15,14 +15,12 @@ class MissedDoseTest: XCTestCase {
 
     @MainActor override func setUp() {
         super.setUp()
-        medicationManager = MedicationManager()
+        medicationManager = TestDefaults.manager()
 
         // Reset to clean state
-        medicationManager.clearSelection()
     }
 
     @MainActor override func tearDown() {
-        medicationManager.clearSelection()
         super.tearDown()
     }
 

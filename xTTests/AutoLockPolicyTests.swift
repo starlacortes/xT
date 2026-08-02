@@ -52,7 +52,7 @@ struct AutoLockPolicyTests {
         #expect(decide(awayDuration: nil) == .stayUnlocked)
     }
 
-    @Test("A brief hop to another app does not force re-authentication")
+    @Test("A brief hop to another app does not force re-authentication") //NEEDS FIX: App SHOULD re-authenticate even for brief app change.
     func shortAbsenceStaysUnlocked() {
         #expect(decide(awayDuration: 1) == .stayUnlocked)
         #expect(decide(awayDuration: 299) == .stayUnlocked)

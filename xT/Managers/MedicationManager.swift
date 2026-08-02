@@ -10,16 +10,75 @@ import SwiftUI
 import SwiftData
 import CryptoKit
 
+/// Unit of measure for a hormone level. A value rather than a display string so
+/// that classification and formatting stay independent of the display locale.
+enum HormoneUnit: Equatable {
+    case picogramsPerMilliliter   // estrogen
+    case nanogramsPerDeciliter    // testosterone
+}
+
+/// Where an estimated level sits relative to its comparison bounds.
+///
+/// This is a model fact, not a verdict. It is only rendered as a comparative
+/// statement when `HormoneLevel.boundsSource == .userSet` — the app does not
+/// tell the user they are "below target" against a target they never set.
+enum LevelStatus: Equatable {
+    case criticallyLow
+    case veryLow
+    case slightlyBelow
+    case inRange
+    case slightlyAbove
+    case high
+}
+
+/// How the calibrated level compares to the raw population-model prediction.
+enum ModelDeviation: Equatable {
+    case below
+    case onTrack
+    case above
+    case incomparable
+}
+
+/// A level that crosses a documented clinical threshold. These describe an
+/// association, not an instruction; the copy that renders them states the
+/// association only.
+enum SafetyFlag: Equatable {
+    case estrogenCeiling                  // E2 > 1000 pg/mL
+    case testosteroneSupraphysiologic     // T > 1500 ng/dL
+    case subTherapeuticTrough             // E2 < 50 pg/mL at trough
+    case spironolactoneClearance          // E2 < 80 pg/mL at trough while on spiro
+}
+
+/// Whether comparison bounds came from the user or from the population model.
+/// Comparative copy is gated on `.userSet`.
+enum RangeSource: Equatable {
+    case userSet
+    case modelDerived
+}
+
+struct LevelBounds: Equatable {
+    let min: Double
+    let max: Double
+}
+
 /// Equatable replacement for the non-Equatable tuple previously used in
 /// `@Published var currentHormoneLevel`. Tuples are not Equatable, so every
 /// assignment triggered a publish even when values were identical. This struct
 /// enables SwiftUI's Equatable-based change filtering (and works seamlessly
 /// with a future @Observable migration).
+///
+/// Carries classification as values, never as English display strings — views
+/// build their own text from these, which keeps semantics and presentation (and
+/// therefore localization) separate.
 struct HormoneLevel: Equatable {
     let value: Double
-    let unit: String
-    let range: String
-    let explanation: String
+    let unit: HormoneUnit
+    let status: LevelStatus
+    let phase: MedicationManager.CyclePosition
+    let deviation: ModelDeviation
+    let safety: SafetyFlag?
+    let bounds: LevelBounds
+    let boundsSource: RangeSource
 }
 
 /// MedicationManager with a Reactive Data Pipeline to ensure UI synchronization.
@@ -27,6 +86,16 @@ struct HormoneLevel: Equatable {
 @MainActor
 class MedicationManager: ObservableObject {
     static let shared = MedicationManager()
+
+    /// Backing store for this manager's transient preferences.
+    ///
+    /// Injected rather than reaching for `UserDefaults.standard` directly, because
+    /// several properties below persist from their `didSet`. With a global store,
+    /// one test setting `customFrequencyDays` silently changed the result of every
+    /// later test that built its own manager — `clearSelection()` looked like it
+    /// gave a clean slate but never touched persisted state. Tests now pass their
+    /// own suite (see `TestDefaults` in the test target) and cannot reach each other.
+    let defaults: UserDefaults
 
     // MARK: - UserDefaults Keys for Transient Properties
     // These properties are persisted to UserDefaults via didSet so the
@@ -116,7 +185,7 @@ class MedicationManager: ObservableObject {
     /// Whether the user takes an anti‑androgen (spironolactone, cyproterone, GnRH agonist).
     /// When true, endogenous testosterone baseline is aggressively suppressed to near‑zero.
     @Published var antiAndrogenInUse: Bool = false {
-        didSet { UserDefaults.standard.set(antiAndrogenInUse, forKey: Keys.antiAndrogenInUse) }
+        didSet { defaults.set(antiAndrogenInUse, forKey: Keys.antiAndrogenInUse) }
     }
 
     /// Spironolactone is a known enzyme inducer (CYP3A4) that can modestly increase
@@ -124,7 +193,7 @@ class MedicationManager: ObservableObject {
     /// to reflect this interaction. Typical estimates: 10‑20% faster clearance.
     /// Set to false if the user is on other AAs (cyproterone, GnRH agonists).
     @Published var spironolactoneInUse: Bool = false {
-        didSet { UserDefaults.standard.set(spironolactoneInUse, forKey: Keys.spironolactoneInUse) }
+        didSet { defaults.set(spironolactoneInUse, forKey: Keys.spironolactoneInUse) }
     }
 
     /// Multiplier applied to elimination rate (ke) when spironolactone is in use.
@@ -134,19 +203,19 @@ class MedicationManager: ObservableObject {
     // --- User Preference-Driven Settings (#9, #12, #18) ---
     /// User-configurable suppression timescale (4/8/12 weeks).
     @Published var suppressionSpeed: SuppressionSpeed = .fast {
-        didSet { UserDefaults.standard.set(suppressionSpeed.rawValue, forKey: Keys.suppressionSpeed) }
+        didSet { defaults.set(suppressionSpeed.rawValue, forKey: Keys.suppressionSpeed) }
     }
     /// Whether the spironolactone clearance adjustment is opted in.
     @Published var spironolactoneClearanceEnabled: Bool = false {
-        didSet { UserDefaults.standard.set(spironolactoneClearanceEnabled, forKey: Keys.spironolactoneClearanceEnabled) }
+        didSet { defaults.set(spironolactoneClearanceEnabled, forKey: Keys.spironolactoneClearanceEnabled) }
     }
     /// Custom dosing interval in days; nil = use method default.
     @Published var customFrequencyDays: Int? = nil {
         didSet {
             if let val = customFrequencyDays {
-                UserDefaults.standard.set(val, forKey: Keys.customFrequencyDays)
+                defaults.set(val, forKey: Keys.customFrequencyDays)
             } else {
-                UserDefaults.standard.removeObject(forKey: Keys.customFrequencyDays)
+                defaults.removeObject(forKey: Keys.customFrequencyDays)
             }
         }
     }
@@ -159,7 +228,7 @@ class MedicationManager: ObservableObject {
     /// Grace period in hours after the scheduled dose during which it's still "Due Soon".
     /// Default 12 hours. After this window, the dose is marked "Missed".
     @Published var missedDoseGracePeriodHours: Double = 12.0 {
-        didSet { UserDefaults.standard.set(missedDoseGracePeriodHours, forKey: Keys.missedDoseGracePeriodHours) }
+        didSet { defaults.set(missedDoseGracePeriodHours, forKey: Keys.missedDoseGracePeriodHours) }
     }
 
     /// Predicted trough drop when a dose is missed (pg/mL or ng/dL).
@@ -250,11 +319,13 @@ class MedicationManager: ObservableObject {
     }
     
     /// Where the user is in their injection cycle relative to expected peak and trough.
+    /// Raw values are stable identifiers, not display text — views localize their
+    /// own labels for these cases.
     enum CyclePosition: String {
-        case nearPeak = "Near Peak"
-        case midCycle = "Mid-Cycle"
-        case trough = "Trough"
-        case unknown = "Unknown"
+        case nearPeak = "nearPeak"
+        case midCycle = "midCycle"
+        case trough = "trough"
+        case unknown = "unknown"
     }
     
     // MARK: - Therapeutic Targets (User-Configurable)
@@ -275,9 +346,9 @@ class MedicationManager: ObservableObject {
     @Published var userTherapeuticTarget: TherapeuticTarget? = nil {
         didSet {
             if let target = userTherapeuticTarget, let data = try? JSONEncoder().encode(target) {
-                UserDefaults.standard.set(data, forKey: Keys.userTherapeuticTarget)
+                defaults.set(data, forKey: Keys.userTherapeuticTarget)
             } else {
-                UserDefaults.standard.removeObject(forKey: Keys.userTherapeuticTarget)
+                defaults.removeObject(forKey: Keys.userTherapeuticTarget)
             }
         }
     }
@@ -286,21 +357,21 @@ class MedicationManager: ObservableObject {
 
     var medicationDisplayInfo: String {
         if let medication = selectedMedication, let method = selectedAdministrationMethod {
-            return "\(medication) via \(method)"
+            return String(localized: "\(medication) via \(method)")
         } else if let medication = selectedMedication {
-            return "\(medication) (method not selected)"
+            return String(localized: "\(medication) (method not selected)")
         } else {
-            return "No medication selected"
+            return String(localized: "No medication selected")
         }
     }
 
     func getConfigurationSummary() -> String {
         if isFullyConfigured {
-            return "Fully configured and ready"
+            return String(localized: "Fully configured and ready")
         } else if isPartiallyConfigured {
-            return "Partially configured - needs completion"
+            return String(localized: "Partially configured - needs completion")
         } else {
-            return "Not configured"
+            return String(localized: "Not configured")
         }
     }
 
@@ -308,9 +379,9 @@ class MedicationManager: ObservableObject {
         // `effectiveFrequencyDays` honours the user's custom interval; the method default
         // this used to read ignored it, so the summary contradicted the actual schedule.
         if let medication = selectedMedication, let method = selectedAdministrationMethod {
-            return "\(medication) via \(method) every \(effectiveFrequencyDays) days"
+            return String(localized: "\(medication) via \(method) every \(effectiveFrequencyDays) days")
         } else {
-            return "Not configured"
+            return String(localized: "Not configured")
         }
     }
 
@@ -375,7 +446,12 @@ class MedicationManager: ObservableObject {
 
     // MARK: - Initialization
 
-    init() {
+    /// - Parameter defaults: the preferences store to persist through. Defaults to
+    ///   `.standard`; tests inject an isolated suite. Assigned first, because every
+    ///   `load*` call below reads through it.
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+
         // UserDefaults-backed state — available immediately.
         // (`loadTransientPreferences()` also restores the avoid zones.)
         loadTransientPreferences()

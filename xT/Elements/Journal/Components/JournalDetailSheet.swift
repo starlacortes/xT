@@ -57,7 +57,7 @@ struct JournalDetailSheet: View {
                                 .textCase(.uppercase)
                                 .tracking(0.5)
 
-                            Text("\(Int(level))")
+                            Text(verbatim: AppNumberFormatters.hormoneLevel.string(level))
                                 .font(.system(size: 20, weight: .medium, design: .rounded))
                                 .foregroundStyle(palette.title)
                                 .padding(16)
@@ -144,6 +144,7 @@ struct JournalDetailSheet: View {
 
 // MARK: - Preview
 
+#if DEBUG
 #Preview {
     JournalDetailSheet(entry: JournalEntry(
         date: Date(),
@@ -153,3 +154,4 @@ struct JournalDetailSheet: View {
     ))
     .environment(\.journalManager, JournalManager.shared)
 }
+#endif

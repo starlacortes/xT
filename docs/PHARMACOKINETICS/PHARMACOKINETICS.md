@@ -83,7 +83,7 @@ still‑active doses, added to the endogenous baseline (Section 5).
 - **EWF** (Ester Weight Factor) = fraction of active estradiol by mass after ester cleavage (MW E2 base = 272.4 g/mol).
 - **Bioavailability**: Injectable depot ≈ 100%; Oral ≈ 5% (first-pass hepatic metabolism); Transdermal ≈ 15% (skin barrier).
 - **Effective dose factor** = EWF × bioavailability — the fraction of administered dose that reaches systemic circulation as active E2.
-- **Scaling constant** (S = F/Vd): pre-tuned to produce clinically expected peaks (e.g. EV 2 mg → ~250 pg/mL peak; EC 2 mg → ~180 pg/mL; Oral 2 mg → ~60 pg/mL; TD 1 mg → ~50 pg/mL steady state).
+- **Scaling constant** (S = F/Vd): pre-tuned against published PK data. The single-dose peak targets originally used here have since been superseded for three of the four routes — EV and EC were re-anchored to the published *steady-state* curve on 2026-07-29, and oral is now anchored to Cavg (2 mg daily → 90 pg/mL) rather than to its single-dose peak. `MedicationEster.scalingConstant` in `PharmacokineticConstants.swift` carries the current targets and the reasoning for each; treat it, not this line, as authoritative.
 
 ### 1.2 Testosterone (T)
 
@@ -133,7 +133,7 @@ Progesterone is included as a medication option in zone/injection-site selection
 | Injectable (IM/SubQ) | `.injection` | 7 days | Bateman biexponential |
 | Cream / Gel | `.topical` | 1 day | 24-hr square-wave micro-doses |
 | Transdermal Patch | `.patch` | 1 day | 24-hr square-wave micro-doses |
-| Oral | `.oral` | 1 day | Fast Bateman (ka = 2.5 d⁻¹) |
+| Oral | `.oral` | 1 day | Fast Bateman (ka = 8.762 d⁻¹, Tmax 6.0 h) |
 | Sublingual | `.oral` | 1 day | Fast Bateman (mapped to oral) |
 
 ### 2.2 Administration Methods (User-Facing)
@@ -268,11 +268,13 @@ Applied when `administrationMethod == "Oral"`.
 
 | Parameter | Value |
 |-----------|-------|
-| k_a | 2.5 d⁻¹ (≈1-hour absorption) |
-| k_e | 1.386 d⁻¹ (ln(2) / 0.5 day) |
-| Scaling | 12000 (calibrated for 2 mg → ~60 pg/mL peak) |
+| k_a | 8.762 d⁻¹ (absorption half-life 1.9 h) |
+| k_e | 1.386 d⁻¹ (elimination half-life 12 h) |
+| Scaling | 1250 (anchored to Cavg: 2 mg daily → 90 pg/mL) |
 
-Models the rapid spike 1–2 hours after ingestion followed by a fast drop. The higher k_a produces the characteristic oral "spike" profile with a very short time to peak.
+Models a rise to peak at **Tmax = 6.0 h** followed by a fast drop — 24 h after a dose the contribution is down to ~42% of its peak. The higher k_a is what produces the oral "spike" profile relative to a depot ester.
+
+This table was substantially wrong until 2026-08-01 and is worth reading as a caution. It claimed a scaling of 12000, which was corrected to 1250 on 2026-07-28 once a routing bug that ignored `scalingConstant` for non-injectable doses was fixed. It described k_a = 2.5 d⁻¹ as "≈1-hour absorption" and the peak as arriving "1–2 hours after ingestion"; ln2/2.5 d is in fact 6.7 h, and that k_a put Tmax at 12.7 h — roughly 7× the stated figure, and outside the published 4–8 h window. k_a was refit on 2026-08-01 to land Tmax on the 6 h midpoint. See concern #7 in `.pk_analysis/OPEN_CONCERNS.md`.
 
 ### 4.3 Transdermal Route — 24-Hour Square-Wave
 

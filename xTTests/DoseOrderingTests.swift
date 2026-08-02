@@ -18,24 +18,14 @@ final class DoseOrderingTests: XCTestCase {
 
     var manager: MedicationManager!
 
-    /// `customFrequencyDays` persists to `UserDefaults` from its `didSet`, and
-    /// `clearSelection()` does not reset it — so a test that sets it leaks a dosing
-    /// interval into every `MedicationManager` built afterwards, including ones in other
-    /// suites. (Left unrestored, it drove the TU forward projection off its ~10-week
-    /// interval and failed an unrelated peak-accuracy test.) Captured here and put back
-    /// in `tearDown`.
-    private var savedFrequency: Int?
-
     @MainActor override func setUp() {
         super.setUp()
-        manager = MedicationManager()
-        savedFrequency = manager.customFrequencyDays
-        manager.clearSelection()
+        // Own suite per test — nothing this class writes can reach another test,
+        // so the manual save/restore of `customFrequencyDays` is no longer needed.
+        manager = TestDefaults.manager()
     }
 
     @MainActor override func tearDown() {
-        manager.customFrequencyDays = savedFrequency
-        manager.clearSelection()
         manager = nil
         super.tearDown()
     }

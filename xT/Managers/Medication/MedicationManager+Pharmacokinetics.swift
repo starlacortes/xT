@@ -109,21 +109,19 @@ extension MedicationManager {
     /// Uses the exact Bateman t_max formula: t_max = ln(ka/ke) / (ka - ke).
     /// Under flip-flop kinetics (ka ≪ ke), the denominator ≈ -ke, giving the
     /// asymptotic form t_max ≈ ln(ke/ka) / ke (not 1/ka — a common misconception).
+    ///
+    /// The formula itself now lives on the ester enums as `timeToPeakDays`, so UI that
+    /// has no manager in scope reads the same number this does. Kept as a method
+    /// because it is the established call site across the app and the tests.
     /// - Parameter ester: The medication ester enum value.
     /// - Returns: Expected days to peak concentration after injection.
     func expectedTimeToPeak(for ester: MedicationEster) -> Double {
-        let ka = log(2) / ester.halfLifeDays
-        let ke = log(2) / (ester.eliminationHalfLifeHours / 24.0)
-        guard abs(ka - ke) > 0.0001 else { return 1.0 / ka }
-        return log(ka / ke) / (ka - ke)
+        ester.timeToPeakDays
     }
-    
+
     /// Computes the expected time to peak concentration (in days) for a given testosterone ester.
     func expectedTimeToPeak(for tesEster: TestosteroneEster) -> Double {
-        let ka = log(2) / tesEster.halfLifeDays
-        let ke = log(2) / (tesEster.eliminationHalfLifeHours / 24.0)
-        guard abs(ka - ke) > 0.0001 else { return 1.0 / ka }
-        return log(ka / ke) / (ka - ke)
+        tesEster.timeToPeakDays
     }
     
     /// Determines where the user currently sits in their dose cycle
@@ -286,11 +284,14 @@ extension MedicationManager {
     }
     // MARK: - Layer 1: Time-Contextual + Dose-Scaled Targets
     
-    /// Returns a context-aware target range that accounts for cycle position AND dose intensity.
-    /// When the user has set personal therapeutic targets, those override the clinical defaults.
+    /// Returns a context-aware comparison range that accounts for cycle position AND dose intensity.
+    ///
+    /// `source` reports whether the bounds are the user's own therapeutic targets or
+    /// were derived from the population model. Callers must not present model-derived
+    /// bounds as the user's target — the user never set them.
     func contextualRange(for medication: MedicationType,
                          at position: CyclePosition,
-                         doseIntensity: Double) -> (label: String, min: Double, max: Double) {
+                         doseIntensity: Double) -> (source: RangeSource, min: Double, max: Double) {
         
         // Base clinical targets (for a "standard" dose, intensity ≈ 1.0)
         let base: (peakMin: Double, peakMax: Double, troughMin: Double, troughMax: Double)
@@ -317,94 +318,94 @@ extension MedicationManager {
         let troughMin: Double
         let troughMax: Double
         let peakCeiling: Double
-        let labelPrefix: String
-        
+
         if let userTarget = userTherapeuticTarget {
             troughMin = userTarget.troughMin
             troughMax = userTarget.troughMax
             peakCeiling = userTarget.peakCeiling
-            labelPrefix = "Your Target"
         } else {
             troughMin = scaledTroughMin
             troughMax = scaledTroughMax
             peakCeiling = scaledPeakMax
-            labelPrefix = ""
         }
-        
+
+        // `.userSet` marks bounds the user actually configured — which is only the
+        // trough pair, and only when they set one. Settings offers a trough floor,
+        // a trough ceiling and a peak ceiling; it never asks for a mid-cycle or
+        // peak-floor target, so those are interpolated against model-scaled peak
+        // values. Reporting a blend as "your set range" would quote the user
+        // numbers they never entered.
+        let userSetTrough = userTherapeuticTarget != nil
+
         switch position {
         case .nearPeak:
-            let label = labelPrefix.isEmpty ? "Expected Peak" : "\(labelPrefix) (Peak)"
-            return (label, scaledPeakMin, peakCeiling)
+            return (.modelDerived, scaledPeakMin, peakCeiling)
         case .trough:
-            let label = labelPrefix.isEmpty ? "Target Trough" : "\(labelPrefix) (Trough)"
-            return (label, troughMin, troughMax)
+            return (userSetTrough ? .userSet : .modelDerived, troughMin, troughMax)
         case .midCycle:
             // Interpolate between trough and peak targets
             let midMin = (troughMin + scaledPeakMin) / 2
             let midMax = (troughMax + peakCeiling) / 2
-            let label = labelPrefix.isEmpty ? "Mid-Cycle Range" : "\(labelPrefix) (Mid)"
-            return (label, midMin, midMax)
+            return (.modelDerived, midMin, midMax)
         case .unknown:
-            let label = labelPrefix.isEmpty ? "Optimal" : labelPrefix
-            // Fallback: use trough for safety
-            return (label, troughMin, peakCeiling)
+            // Fallback: widest span, trough floor to peak ceiling
+            return (.modelDerived, troughMin, peakCeiling)
         }
     }
     
     // MARK: - Layer 2: Deviation from Model Prediction
     
     /// Compares the actual (calibrated) level to the raw population-model prediction.
-    /// Tells the user whether their body is responding as expected, slower, or faster.
-    func deviationClassification(actual: Double, predicted: Double) -> (label: String, emoji: String) {
-        guard predicted > 1.0 else {
-            return ("Unable to Compare", "·")
-        }
+    func deviationClassification(actual: Double, predicted: Double) -> ModelDeviation {
+        guard predicted > 1.0 else { return .incomparable }
         let ratio = actual / predicted
         switch ratio {
-        case 0.0..<0.5:  return ("Critically Below Expected", "⚠️")
-        case 0.5..<0.7:  return ("Below Expected", "⬇️")
-        case 0.7..<1.3:  return ("On Track", "✅")
-        case 1.3..<2.0:  return ("Above Expected", "⬆️")
-        default:          return ("Unusually High", "🛑")
+        case 0.0..<0.7:  return .below
+        case 0.7..<1.3:  return .onTrack
+        default:         return .above
         }
     }
-    
+
     // MARK: - Layer 4: Clinical Safety & Interaction Flags
-    
-    /// Returns an override label if the level triggers a clinical safety concern.
-    /// These fire AFTER the main classification and take precedence over contextual labels.
-    func safetyOverride(level: Double, medication: MedicationType, contextLabel: String) -> String? {
+
+    /// Returns a flag if the level crosses a documented clinical threshold.
+    /// These fire AFTER the main classification and take precedence over it.
+    func safetyOverride(level: Double, medication: MedicationType, phase: CyclePosition) -> SafetyFlag? {
         // Estrogen safety ceiling
         if medication == .estrogen && level > 1000 {
-            return "Very High – Safety Check"
+            return .estrogenCeiling
         }
         // Testosterone supra-physiological
         if medication == .testosterone && level > 1500 {
-            return "Supraphysiological"
+            return .testosteroneSupraphysiologic
         }
         // E2 < 50 pg/mL at trough is sub-therapeutic (on therapy)
-        if medication == .estrogen && level < 50 && contextLabel.contains("Trough") {
-            return "Sub-Therapeutic (Trough)"
+        if medication == .estrogen && level < 50 && phase == .trough {
+            return .subTherapeuticTrough
         }
         // Spironolactone interaction: E2 < 80 pg/mL may indicate accelerated clearance
-        if medication == .estrogen && spironolactoneInUse && level < 80 && contextLabel.contains("Trough") {
-            return "Low (Spiro May Increase Clearance)"
+        if medication == .estrogen && spironolactoneInUse && level < 80 && phase == .trough {
+            return .spironolactoneClearance
         }
         return nil
     }
     
     // MARK: - Unified Hormone Level Pipeline (All 4 Layers)
-    
+
     /// Computes the current hormone level with contextual, dose-aware, deviation-informed,
-    /// and safety-checked classification. Replaces the old static-range lookup.
+    /// and safety-checked classification.
+    ///
+    /// Returns values only. All display text is built at the view layer, so this
+    /// function contains no user-facing English and makes no recommendation.
     func getCurrentHormoneLevel() -> HormoneLevel? {
         guard let medication = selectedMedication,
               let _ = selectedAdministrationMethod else { return nil }
-        
+
         let medicationEnum = MedicationType(rawValue: medication)
-        let unit = medicationEnum == .estrogen ? "pg/mL" : "ng/dL"
+        let unit: HormoneUnit = medicationEnum == .estrogen ? .picogramsPerMilliliter
+                                                            : .nanogramsPerDeciliter
         let now = Date()
-        
+
         // 1. Get actual calibrated level (PK model with α applied)
         let calibratedPoints = estimatedLevels(from: now.addingTimeInterval(-3600), to: now,
                                                 applyCalibration: true)
@@ -420,121 +421,45 @@ extension MedicationManager {
         // 3. Get cycle context + dose intensity
         let position = currentCyclePosition
         let intensity = relativeDoseIntensity
-        let (contextLabel, minTarget, maxTarget) = contextualRange(for: medicationEnum ?? .estrogen,
-                                                                    at: position,
-                                                                    doseIntensity: intensity)
-        
-        // 4. Determine where actual sits relative to the contextual target
-        let status: String
+        let (boundsSource, minTarget, maxTarget) = contextualRange(for: medicationEnum ?? .estrogen,
+                                                                   at: position,
+                                                                   doseIntensity: intensity)
+
+        // 4. Determine where actual sits relative to the contextual bounds.
+        //    Computed regardless of source — the chart bands use it — but only
+        //    rendered as a comparative statement when boundsSource == .userSet.
+        let status: LevelStatus
         if actual < minTarget * 0.5 {
-            status = "Critically Low"
+            status = .criticallyLow
         } else if actual < minTarget * 0.8 {
-            status = "Very Low"
+            status = .veryLow
         } else if actual < minTarget {
-            status = "Slightly Below Target"
+            status = .slightlyBelow
         } else if actual <= maxTarget {
-            status = "On Target"
+            status = .inRange
         } else if actual <= maxTarget * 1.3 {
-            status = "Slightly Above Target"
+            status = .slightlyAbove
         } else {
-            status = "High"
+            status = .high
         }
-        
-        // 5. Safety overrides (take precedence over contextual status)
-        let safetyLabel = safetyOverride(level: actual, medication: medicationEnum ?? .estrogen,
-                                          contextLabel: contextLabel)
-        let positionSuffix = position != .unknown ? " · \(position.rawValue)" : ""
-        let finalLabel: String
-        if let safety = safetyLabel {
-            finalLabel = "\(safety)\(positionSuffix)"
-        } else if deviation.label.contains("Below") || deviation.label.contains("Above") {
-            finalLabel = "\(status) · \(contextLabel) · \(deviation.label)\(positionSuffix)"
-        } else {
-            finalLabel = "\(status) · \(contextLabel)\(positionSuffix)"
-        }
-        
-        // 6. Build rich explanation
-        let explanation = buildExplanation(
-            actual: actual, unit: unit, status: status,
-            contextLabel: contextLabel, minTarget: minTarget, maxTarget: maxTarget,
-            position: position, deviation: deviation,
-            medication: medicationEnum ?? .estrogen
-        )
-        
+
+        // 5. Safety flags (take precedence over contextual status)
+        let safety = safetyOverride(level: actual,
+                                    medication: medicationEnum ?? .estrogen,
+                                    phase: position)
+
         return HormoneLevel(
             value: actual,
             unit: unit,
-            range: finalLabel,
-            explanation: explanation
+            status: status,
+            phase: position,
+            deviation: deviation,
+            safety: safety,
+            bounds: LevelBounds(min: minTarget, max: maxTarget),
+            boundsSource: boundsSource
         )
     }
-    
-    /// Constructs a plain-language explanation of the user's current hormone status.
-    private func buildExplanation(actual: Double, unit: String, status: String,
-                                   contextLabel: String, minTarget: Double, maxTarget: Double,
-                                   position: CyclePosition, deviation: (label: String, emoji: String),
-                                   medication: MedicationType) -> String {
-        let levelStr = String(format: "%.0f", actual)
-        var parts: [String] = []
-        
-        // Opening: what the level is
-        parts.append("Your level is \(levelStr) \(unit)")
-        
-        // Cycle position context
-        switch position {
-        case .nearPeak:
-            parts.append("near your peak")
-        case .trough:
-            parts.append("at trough")
-        case .midCycle:
-            parts.append("at mid-cycle")
-        case .unknown:
-            break
-        }
-        
-        // Status interpretation
-        switch status {
-        case "Critically Low":
-            parts.append("— far below your target of \(Int(minTarget))–\(Int(maxTarget)) \(unit).")
-            if deviation.label.contains("Below Expected") {
-                parts.append("This is significantly below what the model expects. Consider a dose review or blood test.")
-            } else {
-                parts.append("Consult your provider about a potential dose adjustment.")
-            }
-        case "Very Low", "Slightly Below Target":
-            parts.append("— under your \(contextLabel.lowercased()) of \(Int(minTarget))–\(Int(maxTarget)) \(unit).")
-            if deviation.label.contains("Below Expected") {
-                parts.append("Your body may be clearing faster than average. A blood test could clarify.")
-            } else {
-                parts.append("You may want to discuss a small increase with your provider.")
-            }
-        case "On Target":
-            parts.append("— right within your \(contextLabel.lowercased()) of \(Int(minTarget))–\(Int(maxTarget)) \(unit).")
-            parts.append("Continue your current regimen. \(deviation.emoji)")
-        case "Slightly Above Target":
-            parts.append("— slightly above your \(contextLabel.lowercased()) of \(Int(minTarget))–\(Int(maxTarget)) \(unit).")
-            if position == .nearPeak {
-                parts.append("This is expected near peak — no concern.")
-            } else {
-                parts.append("Monitor for any side effects.")
-            }
-        case "High":
-            parts.append("— well above your \(contextLabel.lowercased()) of \(Int(minTarget))–\(Int(maxTarget)) \(unit).")
-            if position == .nearPeak {
-                parts.append("Peak levels run high; ensure your trough stays in range.")
-            } else if medication == .estrogen && actual > 1000 {
-                parts.append("Levels above 1,000 pg/mL carry an elevated thromboembolic risk. Contact your provider.")
-            } else if medication == .testosterone && actual > 1500 {
-                parts.append("Supraphysiological levels increase polycythemia risk. Consider a dose reduction.")
-            } else {
-                parts.append("Consider a dose review with your provider.")
-            }
-        default:
-            parts.append("— your \(contextLabel.lowercased()) is \(Int(minTarget))–\(Int(maxTarget)) \(unit).")
-        }
-        
-        return parts.joined(separator: " ")
-    }
+
 
     /// Pharmacokinetic model: superposition of individual dose contributions.
     ///
@@ -548,9 +473,12 @@ extension MedicationManager {
     /// \(k_e = \ln 2 / t_{1/2,\text{elim}}\) (free‑hormone clearance),
     /// \(S\) = pre‑tuned scaling constant, \(D_i^{\text{eff}}\) = dose × EWF × bioavailability.
     ///
-    /// **Oral/transdermal routes** use the simpler single‑exponential model
-    /// (instant release → elimination), as the absorption profile is different
-    /// and flip‑flop kinetics do not dominate.
+    /// **Oral routes** use the same Bateman biexponential; only the rate constants
+    /// differ (fast absorption, fast elimination, no flip‑flop). See `makeDoseEvents`.
+    ///
+    /// **Transdermal** is the one route that does not: it is modeled as 24 hourly
+    /// micro‑doses of amount/24, each decaying single‑exponentially (ke = 0 selects
+    /// that branch), forming a square‑wave release across the day.
     ///
     /// Falls back to estimated dose history if no doses are logged yet.
     func estimatedLevels(from start: Date, to end: Date, stepDays: Double = 1.0,
@@ -924,16 +852,23 @@ extension MedicationManager {
         return 1.0
     }
     
-    /// Disclaimer text shown below the "Changes Unlocked" section (#13).
-    var doseIntensityDisclaimer: String? {
+    /// Note shown below the "Changes Unlocked" section, explaining how dose
+    /// intensity feeds into the displayed timelines.
+    ///
+    /// States what the model does with the number. It does not tell the user their
+    /// dose is too low or too high, or what to watch for.
+    var doseIntensityNote: String? {
         let intensity = relativeDoseIntensity
         if intensity < 0.5 {
-            return "Your dose is lower than the standard starting dose. Changes may develop more gradually."
+            return String(localized: "Timelines shown are extended, because this dose is below the reference dose the population data is based on.",
+                          comment: "Explains why change timelines are stretched at a low dose intensity")
         }
         if intensity > 1.5 {
-            return "Your dose is higher than typical — timelines may accelerate slightly. Monitor for side effects."
+            return String(localized: "Timelines shown are shortened slightly, because this dose is above the reference dose the population data is based on.",
+                          comment: "Explains why change timelines are compressed at a high dose intensity")
         }
-        return "Timelines are typical for standard doses; individual results vary."
+        return String(localized: "Timelines shown are based on population data for the reference dose. Individual results vary.",
+                      comment: "Explains the basis of the change timelines at a typical dose intensity")
     }
     
     // MARK: - Aromatization Estimator (Trans Men)
@@ -957,11 +892,14 @@ extension MedicationManager {
         
         let note: String
         if isElevated {
-            note = "Estimated E2 from aromatization may exceed the male reference range (10–40 pg/mL)."
+            note = String(localized: "Estimated estradiol from aromatization is above the male reference range of 10–40 pg/mL.",
+                          comment: "Where the aromatization estimate falls against the male reference range")
         } else if e2 < 10.0 {
-            note = "Estimated E2 is below the typical male range — unlikely to cause issues."
+            note = String(localized: "Estimated estradiol from aromatization is below the male reference range of 10–40 pg/mL.",
+                          comment: "Where the aromatization estimate falls against the male reference range")
         } else {
-            note = "Estimated E2 is within the typical male reference range (10–40 pg/mL)."
+            note = String(localized: "Estimated estradiol from aromatization is within the male reference range of 10–40 pg/mL.",
+                          comment: "Where the aromatization estimate falls against the male reference range")
         }
         
         return (e2, isElevated, note)

@@ -34,7 +34,7 @@ struct TimeContentEngine {
     let regimenSegments: [MedicationManager.RegimenSegment]  // transition history
     let onTimeStreak: Int                 // consecutive on-time doses
     let relativeDoseIntensity: Double     // avg dose / standard dose
-    let doseIntensityDisclaimer: String?  // disclaimer text for dose scaling
+    let doseIntensityNote: String?  // disclaimer text for dose scaling
     let bloodTestSchedulingText: String   // dynamic blood test scheduling text
     let suggestedBloodTestMonth: Int?     // suggested month for next lab
     let calibrationContext: String?       // trough/peak info for calibration factor
@@ -64,13 +64,13 @@ struct TimeContentEngine {
     var changesSectionLabel: String {
         switch tenureTier {
         case .t1Beginning, .t2Emerging, .t3InMotion, .t4Deepening:
-            return "CHANGES UNLOCKED"
+            return String(localized: "CHANGES UNLOCKED")
         case .t5Settled:
-            return "ESTABLISHED CHANGES"
+            return String(localized: "ESTABLISHED CHANGES")
         case .t6Rooted:
-            return "ALL ESTABLISHED"
+            return String(localized: "ALL ESTABLISHED")
         case .t7Veteran:
-            return "YOUR JOURNEY"
+            return String(localized: "YOUR JOURNEY")
         }
     }
 
@@ -79,9 +79,9 @@ struct TimeContentEngine {
         let total = unlockedChanges.count
         switch tenureTier {
         case .t1Beginning, .t2Emerging, .t3InMotion, .t4Deepening:
-            return "\(unlocked) of \(total)"
+            return String(localized: "\(unlocked) of \(total)")
         case .t5Settled:
-            return "\(total) changes established"
+            return String(localized: "\(total) changes established")
         case .t6Rooted:
             return nil  // single-item "All established" doesn't need a badge
         case .t7Veteran:
@@ -197,153 +197,125 @@ struct TimeContentEngine {
         let tier = TenureTier(months: months)
         switch level {
         case ..<50:
-            return ("Very low", .pink, estrogenVeryLowCopy(tier: tier))
+            return (String(localized: "Below 50 pg/mL", comment: "Label naming the estradiol band the level falls in"),
+                    .neutral, estrogenVeryLowCopy(tier: tier))
         case 50..<100:
-            return ("Low", .amber, estrogenLowCopy(tier: tier))
+            return (String(localized: "50–100 pg/mL", comment: "Label naming the estradiol band the level falls in"),
+                    .neutral, estrogenLowCopy(tier: tier))
         case 100..<200:
-            return ("Optimal", .optimal, estrogenOptimalCopy(tier: tier))
+            return (String(localized: "100–200 pg/mL", comment: "Label naming the estradiol band the level falls in"),
+                    .neutral, estrogenMidCopy(tier: tier))
         case 200..<300:
-            return ("High", .amber, estrogenHighCopy(tier: tier))
+            return (String(localized: "200–300 pg/mL", comment: "Label naming the estradiol band the level falls in"),
+                    .neutral, estrogenHighCopy(tier: tier))
         default:
-            return ("Very high", .pink, estrogenVeryHighCopy(tier: tier))
+            return (String(localized: "Above 300 pg/mL", comment: "Label naming the estradiol band the level falls in"),
+                    .neutral, estrogenVeryHighCopy(tier: tier))
         }
     }
 
-    // MARK: Tenure-aware estrogen insight copy (spec §3.2)
-    // Previously a single tenure-agnostic string per range — a 3-month and
-    // 10-year user got identical copy. Now framed by tier.
+    // MARK: Tenure-aware estrogen band copy
+    //
+    // The band label already states the number. These strings add the one thing a
+    // number does not carry: what the band is typically associated with, and — once
+    // the user has enough history for the phrase to mean anything — how it sits
+    // against their own established range. They make no recommendation. Deciding
+    // what to do about a reading is the user's and their provider's call, and the
+    // app has neither their labs nor their history to make it.
+
+    /// True once the user has been on therapy long enough to have an established
+    /// personal range worth referring to.
+    private func hasEstablishedBaseline(_ tier: TenureTier) -> Bool {
+        switch tier {
+        case .t1Beginning, .t2Emerging, .t3InMotion, .t4Deepening: return false
+        case .t5Settled, .t6Rooted, .t7Veteran:                    return true
+        }
+    }
 
     private func estrogenVeryLowCopy(tier: TenureTier) -> String {
-        switch tier {
-        case .t1Beginning, .t2Emerging, .t3InMotion:
-            return "Levels are quite low right now. Early on this can be normal as your dose settles, but you may feel emotional dips or notice changes slowing. Worth talking to your provider."
-        case .t4Deepening:
-            return "Levels are still quite low at this stage. If you've been on this dose for a while, it's worth checking timing and dose with your provider."
-        case .t5Settled:
-            return "Levels are quite low for your tenure. Your baseline is well known by now — a drop like this is worth a check-in to rule out dose or timing drift."
-        case .t6Rooted, .t7Veteran:
-            return "This is below your established maintenance range. Flag it with your provider — meaningful drift from a long-stable baseline is worth investigating."
-        }
+        hasEstablishedBaseline(tier)
+            ? String(localized: "Below the range most people on established estrogen therapy maintain, and below the range typically associated with therapeutic effect.",
+                     comment: "Factual description of a very low estradiol band for a long-term user")
+            : String(localized: "Below the range typically associated with therapeutic effect. Levels commonly fluctuate in the first months of therapy while a dose settles.",
+                     comment: "Factual description of a very low estradiol band for a newer user")
     }
 
     private func estrogenLowCopy(tier: TenureTier) -> String {
-        switch tier {
-        case .t1Beginning, .t2Emerging, .t3InMotion:
-            return "Levels are on the lower side. Some changes may feel slower, and you might notice mood shifts near the end of your cycle. Common early on."
-        case .t4Deepening:
-            return "Levels are on the lower side. By now your dose should be holding steadier — if not, check timing/dose with your provider."
-        case .t5Settled:
-            return "Levels are on the lower side of maintenance. No urgent action needed, but worth mentioning at your next check-in."
-        case .t6Rooted, .t7Veteran:
-            return "A bit below your established maintenance range. Track the trend — a single reading isn't cause for concern, but a drift is worth a conversation."
-        }
+        hasEstablishedBaseline(tier)
+            ? String(localized: "At the lower end of the range most people on established estrogen therapy maintain.",
+                     comment: "Factual description of a low estradiol band for a long-term user")
+            : String(localized: "At the lower end of the typical therapeutic range. Levels in this band are often seen near the end of a dose cycle.",
+                     comment: "Factual description of a low estradiol band for a newer user")
     }
 
-    private func estrogenOptimalCopy(tier: TenureTier) -> String {
-        switch tier {
-        case .t1Beginning, .t2Emerging, .t3InMotion:
-            return "At this level, you'll feel emotionally stable and notice ongoing skin and body changes. This is the sweet spot for most people."
-        case .t4Deepening:
-            return "Levels are right in range. You should feel stable and your changes should continue progressing steadily."
-        case .t5Settled:
-            return "Solidly in your maintenance range. No action needed — this is where you want to be long-term."
-        case .t6Rooted, .t7Veteran:
-            return "Right in your established maintenance range. Your baseline is well known — trust it."
-        }
+    private func estrogenMidCopy(tier: TenureTier) -> String {
+        hasEstablishedBaseline(tier)
+            ? String(localized: "Within the range most people on established estrogen therapy maintain.",
+                     comment: "Factual description of a mid estradiol band for a long-term user")
+            : String(localized: "Within the range most feminising hormone therapy aims for. Skin, fat distribution and breast development are associated with sustained levels in this band.",
+                     comment: "Factual description of a mid estradiol band for a newer user")
     }
 
     private func estrogenHighCopy(tier: TenureTier) -> String {
-        switch tier {
-        case .t1Beginning, .t2Emerging, .t3InMotion:
-            return "Levels are running a little high. Effects are strong, though very high E2 can occasionally cause bloating or mood swings."
-        case .t4Deepening:
-            return "Levels are running a little high. If you're noticing side effects, talk to your provider about timing or dose."
-        case .t5Settled:
-            return "Slightly above maintenance range. Not dangerous, but worth a conversation if it persists."
-        case .t6Rooted, .t7Veteran:
-            return "Above your established maintenance range. A sustained shift upward is worth flagging with your provider."
-        }
+        hasEstablishedBaseline(tier)
+            ? String(localized: "Above the range most people on established estrogen therapy maintain.",
+                     comment: "Factual description of a high estradiol band for a long-term user")
+            : String(localized: "Above the typical therapeutic range. Levels in this band are common shortly after an injected dose.",
+                     comment: "Factual description of a high estradiol band for a newer user")
     }
 
     private func estrogenVeryHighCopy(tier: TenureTier) -> String {
-        switch tier {
-        case .t1Beginning, .t2Emerging, .t3InMotion:
-            return "Your levels are elevated. It's worth checking in with your provider about your dose timing or amount."
-        case .t4Deepening:
-            return "Your levels are elevated. This is a good moment to revisit dose timing and amount with your provider."
-        case .t5Settled:
-            return "Levels are elevated for maintenance. Worth a check-in to recalibrate."
-        case .t6Rooted, .t7Veteran:
-            return "Well above your established baseline. This is a meaningful drift — flag it with your provider."
-        }
+        String(localized: "Well above the typical therapeutic range. Sustained estradiol above 300 pg/mL is associated with increased thromboembolic risk.",
+               comment: "Factual description of a very high estradiol band, including the clinical association")
     }
 
     private func testosteroneInsight(level: Double, months: Int) -> (String, TimeContentPalette, String) {
         let tier = TenureTier(months: months)
         switch level {
         case ..<50:
-            return ("Suppressed", .optimal, tSuppressedCopy(tier: tier))
+            return (String(localized: "Below 50 ng/dL", comment: "Label naming the testosterone band the level falls in"),
+                    .neutral, tSuppressedCopy(tier: tier))
         case 50..<200:
-            return ("Low male range", .teal, tLowMaleCopy(tier: tier))
+            return (String(localized: "50–200 ng/dL", comment: "Label naming the testosterone band the level falls in"),
+                    .neutral, tLowMaleCopy(tier: tier))
         case 200..<800:
-            return ("Male range", .optimal, tMaleRangeCopy(tier: tier))
+            return (String(localized: "200–800 ng/dL", comment: "Label naming the testosterone band the level falls in"),
+                    .neutral, tMaleRangeCopy(tier: tier))
         default:
-            return ("High", .amber, tHighCopy(tier: tier))
+            return (String(localized: "Above 800 ng/dL", comment: "Label naming the testosterone band the level falls in"),
+                    .neutral, tHighCopy(tier: tier))
         }
     }
 
-    // MARK: Tenure-aware testosterone insight copy (spec §3.2)
+    // MARK: Tenure-aware testosterone band copy
 
     private func tSuppressedCopy(tier: TenureTier) -> String {
-        switch tier {
-        case .t1Beginning, .t2Emerging, .t3InMotion:
-            return "T is well suppressed — great for feminising effects if that's your goal."
-        case .t4Deepening:
-            return "T remains well suppressed. This is the expected, stable state."
-        case .t5Settled:
-            return "T is well suppressed — maintenance range. No action needed."
-        case .t6Rooted, .t7Veteran:
-            return "T is well suppressed — consistent with your long-term baseline. Trust it."
-        }
+        hasEstablishedBaseline(tier)
+            ? String(localized: "Suppressed, consistent with established anti-androgen or estrogen therapy.",
+                     comment: "Factual description of a suppressed testosterone band for a long-term user")
+            : String(localized: "Suppressed. This is the band feminising therapy typically brings testosterone down to.",
+                     comment: "Factual description of a suppressed testosterone band for a newer user")
     }
 
     private func tLowMaleCopy(tier: TenureTier) -> String {
-        switch tier {
-        case .t1Beginning, .t2Emerging, .t3InMotion:
-            return "Levels are in a low range. Voice and body changes may be progressing steadily."
-        case .t4Deepening:
-            return "Levels are in a low range. If you're aiming for more pronounced changes, discuss with your provider."
-        case .t5Settled:
-            return "Low range for maintenance. If you feel well, this is fine; if not, a small adjustment may help."
-        case .t6Rooted, .t7Veteran:
-            return "A bit below your established range. Track the trend before adjusting."
-        }
+        hasEstablishedBaseline(tier)
+            ? String(localized: "Below the range most people on established masculinising therapy maintain.",
+                     comment: "Factual description of a low-male testosterone band for a long-term user")
+            : String(localized: "Below the typical adult male reference range of 300–1,000 ng/dL.",
+                     comment: "Factual description of a low-male testosterone band for a newer user")
     }
 
     private func tMaleRangeCopy(tier: TenureTier) -> String {
-        switch tier {
-        case .t1Beginning, .t2Emerging, .t3InMotion:
-            return "Your T is in the typical male range, which supports voice deepening, muscle growth, and body hair."
-        case .t4Deepening:
-            return "Solidly in the male range — supporting continued voice, muscle, and hair changes."
-        case .t5Settled:
-            return "In the typical male range — your maintenance target. No action needed."
-        case .t6Rooted, .t7Veteran:
-            return "In your established maintenance range. Your baseline is well known — trust it."
-        }
+        hasEstablishedBaseline(tier)
+            ? String(localized: "Within the range most people on established masculinising therapy maintain.",
+                     comment: "Factual description of a mid testosterone band for a long-term user")
+            : String(localized: "Within the typical adult male reference range. Voice change, muscle mass and body hair growth are associated with sustained levels in this band.",
+                     comment: "Factual description of a mid testosterone band for a newer user")
     }
 
     private func tHighCopy(tier: TenureTier) -> String {
-        switch tier {
-        case .t1Beginning, .t2Emerging, .t3InMotion:
-            return "Levels are elevated. Strong effects — worth a check-in with your provider to make sure timing and dose are dialled in."
-        case .t4Deepening:
-            return "Levels are elevated. Watch for aromatization symptoms; worth discussing timing/dose with your provider."
-        case .t5Settled:
-            return "Levels are elevated above maintenance. Worth a check-in if it persists."
-        case .t6Rooted, .t7Veteran:
-            return "Above your established baseline. A sustained drift is worth flagging with your provider."
-        }
+        String(localized: "Above the typical adult male reference range. A share of circulating testosterone converts to estradiol via aromatase, and that conversion rises with the level.",
+               comment: "Factual description of a high testosterone band, including the aromatization mechanism")
     }
 
     // MARK: Body system cards
@@ -449,7 +421,7 @@ struct TimeContentEngine {
     private func estrogenMoodSubtitle(tier: TenureTier) -> String {
         switch tier {
         case .t1Beginning, .t2Emerging, .t3InMotion:
-            return "How estrogen shapes your emotions"
+            return String(localized: "How estrogen shapes your emotions")
         case .t4Deepening:       return "Emotional patterns are settling"
         case .t5Settled:         return "Long-term emotional baseline"
         case .t6Rooted:          return "Emotional baseline at 5+ years"
@@ -459,9 +431,9 @@ struct TimeContentEngine {
     private func estrogenSkinLabel(tier: TenureTier, months: Int) -> String {
         switch tier {
         case .t1Beginning, .t2Emerging:
-            return "Just starting"
+            return String(localized: "Just starting")
         case .t3InMotion:
-            return "Well underway"
+            return String(localized: "Well underway")
         case .t4Deepening:       return "Ongoing"
         case .t5Settled:         return "Maintained"
         case .t6Rooted:          return "Maintained · Year 5+"
@@ -471,7 +443,7 @@ struct TimeContentEngine {
     private func estrogenSkinSubtitle(tier: TenureTier) -> String {
         switch tier {
         case .t1Beginning, .t2Emerging, .t3InMotion:
-            return "What's changing and why"
+            return String(localized: "What's changing and why")
         case .t4Deepening:       return "Your skin has fully adapted"
         case .t5Settled:         return "Long-term dermal health"
         case .t6Rooted:          return "Dermal health at 5+ years"
@@ -491,7 +463,7 @@ struct TimeContentEngine {
     private func estrogenBodySubtitle(tier: TenureTier) -> String {
         switch tier {
         case .t1Beginning, .t2Emerging, .t3InMotion:
-            return "Fat, curves & what to expect"
+            return String(localized: "Fat, curves & what to expect")
         case .t4Deepening:       return "Curves have largely settled"
         case .t5Settled:         return "Your body's established form"
         case .t6Rooted:          return "Body composition at 5+ years"
@@ -504,9 +476,9 @@ struct TimeContentEngine {
     private func testosteroneVoiceLabel(tier: TenureTier, months: Int) -> String {
         switch tier {
         case .t1Beginning, .t2Emerging:
-            return "Early changes"
+            return String(localized: "Early changes")
         case .t3InMotion:
-            return "Still shifting"
+            return String(localized: "Still shifting")
         case .t4Deepening:       return "Near final"
         case .t5Settled:         return "Settled"
         case .t6Rooted:          return "Settled · Year 5+"
@@ -516,7 +488,7 @@ struct TimeContentEngine {
     private func testosteroneVoiceSubtitle(tier: TenureTier) -> String {
         switch tier {
         case .t1Beginning, .t2Emerging, .t3InMotion:
-            return "Deepening timeline"
+            return String(localized: "Deepening timeline")
         case .t4Deepening:       return "Voice has largely settled"
         case .t5Settled:         return "Permanent depth"
         case .t6Rooted:          return "Voice at 5+ years"
@@ -526,7 +498,7 @@ struct TimeContentEngine {
     private func testosteroneSkinLabel(tier: TenureTier, months: Int) -> String {
         switch tier {
         case .t1Beginning, .t2Emerging, .t3InMotion:
-            return "Just starting"
+            return String(localized: "Just starting")
         case .t4Deepening:       return "Ongoing"
         case .t5Settled:         return "Maintained"
         case .t6Rooted:          return "Maintained · Year 5+"
@@ -536,7 +508,7 @@ struct TimeContentEngine {
     private func testosteroneSkinSubtitle(tier: TenureTier) -> String {
         switch tier {
         case .t1Beginning, .t2Emerging, .t3InMotion:
-            return "Oil, texture & growth"
+            return String(localized: "Oil, texture & growth")
         case .t4Deepening:       return "Skin & hair patterns stabilised"
         case .t5Settled:         return "Long-term texture & growth"
         case .t6Rooted:          return "Skin & hair at 5+ years"
@@ -556,7 +528,7 @@ struct TimeContentEngine {
     private func testosteroneMuscleSubtitle(tier: TenureTier) -> String {
         switch tier {
         case .t1Beginning, .t2Emerging, .t3InMotion:
-            return "What T does to your body"
+            return String(localized: "What T does to your body")
         case .t4Deepening:       return "Strength is well established"
         case .t5Settled:         return "Sustained muscle profile"
         case .t6Rooted:          return "Muscle profile at 5+ years"
@@ -578,36 +550,43 @@ struct TimeContentEngine {
     /// exists, otherwise the default label.
     private func screeningBadge(for type: ScreeningType, label: String) -> String {
         guard let date = lastScreening(type) else { return label }
-        let df = DateFormatter()
-        df.dateFormat = "MMM yyyy"
-        return "Done \(df.string(from: date))"
+        return String(localized: "Done \(AppDateFormatters.monthYear.string(from: date))",
+                      comment: "Badge showing the month a screening was last done")
     }
 
-    /// Age-qualified context for milestones that reference "after age 30".
-    private var ageContext: String {
-        if let age = ageAtStart, age >= 30 {
-            return ", especially given you started HRT at \(age)"
-        }
-        return ""
+    /// Bone-density milestone text, as a whole sentence per case.
+    ///
+    /// This used to append a fragment (", especially given you started HRT at 34")
+    /// onto a base sentence. A leading-comma fragment is not translatable — clause
+    /// order and punctuation differ by language, and a translator sees the piece
+    /// without the sentence it attaches to. Each variant is now its own string.
+    private func boneDensityNote(hormoneSupportsDensity: String) -> String {
+        guard let age = ageAtStart, age >= 30 else { return hormoneSupportsDensity }
+        return String(localized: "\(hormoneSupportsDensity) Starting hormone therapy at \(age) places bone density earlier on the monitoring schedule.",
+                      comment: "Bone density milestone for someone who started HRT at 30 or older")
     }
 
     /// Age- and tenure-aware note for cancer screenings (T7 milestone).
+    ///
+    /// Names which screenings the age band covers. Whether to have them is between
+    /// the user and their provider, so this states the schedule rather than
+    /// instructing them to book anything.
     private var ageBasedScreeningNote: String {
-        var note = "Discuss age-appropriate cancer screenings with your provider"
-        if let age = ageAtStart {
-            let currentAge = age + (activeMonthsOnHRT / 12)
-            note += " (current age ~\(currentAge))"
+        guard let age = ageAtStart else {
+            return String(localized: "Age-appropriate cancer screening at this stage may include mammogram, colorectal screening or skin checks.",
+                          comment: "Cancer screening milestone when the user's starting age is unknown")
         }
-        note += ". Based on your age and tenure, this may include mammogram, colorectal screening, or skin checks."
-        return note
+        let currentAge = age + (activeMonthsOnHRT / 12)
+        return String(localized: "At around age \(currentAge), age-appropriate cancer screening may include mammogram, colorectal screening or skin checks.",
+                      comment: "Cancer screening milestone naming the user's approximate current age")
     }
 
     var milestonesSectionLabel: String {
         switch tenureTier {
         case .t1Beginning, .t2Emerging, .t3InMotion, .t4Deepening:
-            return "COMING UP"
+            return String(localized: "COMING UP")
         case .t5Settled, .t6Rooted, .t7Veteran:
-            return "LONG-TERM HEALTH"
+            return String(localized: "LONG-TERM HEALTH")
         }
     }
 
@@ -631,7 +610,8 @@ struct TimeContentEngine {
                     description: "Hair regrowth typically begins, and breast growth enters a new phase.",
                     icon: "clock",
                     palette: .neutral,
-                    badge: "\(monthsAway) month\(monthsAway == 1 ? "" : "s") away"
+                    badge: String(localized: "^[\(monthsAway) month](inflect: true) away",
+                                  comment: "Badge showing how far off a scheduled milestone is")
                 ))
             }
 
@@ -642,7 +622,8 @@ struct TimeContentEngine {
                     description: "Most permanent changes have developed by year two. Skin and fat redistribution are near complete.",
                     icon: "clock",
                     palette: .neutral,
-                    badge: "\(monthsAway) month\(monthsAway == 1 ? "" : "s") away"
+                    badge: String(localized: "^[\(monthsAway) month](inflect: true) away",
+                                  comment: "Badge showing how far off a scheduled milestone is")
                 ))
             }
 
@@ -666,7 +647,8 @@ struct TimeContentEngine {
 
             milestones.append(TimeMilestone(
                 title: "Bone density scan",
-                description: "Estrogen protects bone mineral density. A baseline DEXA scan and follow-ups every 2 years are recommended\(ageContext).",
+                description: boneDensityNote(hormoneSupportsDensity: String(localized: "Estrogen supports bone mineral density. A DEXA scan measures it directly; the usual schedule is a baseline plus follow-ups every 2 years.",
+                                                                            comment: "Bone density milestone on estrogen therapy")),
                 icon: "clock",
                 palette: .teal,
                 badge: screeningBadge(for: .dexaScan, label: "Every 2 years")
@@ -760,10 +742,10 @@ struct TimeContentEngine {
 
             milestones.append(TimeMilestone(
                 title: "Anniversary: 10 years on HRT",
-                description: "A decade of living authentically. Take a moment to reflect on how far you've come — this is a meaningful milestone.",
+                description: "Ten years of hormone therapy.",
                 icon: "sparkles",
                 palette: .optimal,
-                badge: "Celebrate"
+                badge: "10 years"
             ))
         }
 
@@ -792,7 +774,8 @@ struct TimeContentEngine {
                     description: "A good time to reassess your dose and review all changes with your provider.",
                     icon: "clock",
                     palette: .neutral,
-                    badge: "\(monthsAway) month\(monthsAway == 1 ? "" : "s") away"
+                    badge: String(localized: "^[\(monthsAway) month](inflect: true) away",
+                                  comment: "Badge showing how far off a scheduled milestone is")
                 ))
             }
 
@@ -832,7 +815,8 @@ struct TimeContentEngine {
 
             milestones.append(TimeMilestone(
                 title: "Bone density check",
-                description: "Testosterone supports bone mineral density. A baseline DEXA scan and periodic follow-ups are recommended\(ageContext).",
+                description: boneDensityNote(hormoneSupportsDensity: String(localized: "Testosterone supports bone mineral density. A DEXA scan measures it directly; the usual schedule is a baseline plus periodic follow-ups.",
+                                                                            comment: "Bone density milestone on testosterone therapy")),
                 icon: "clock",
                 palette: .purple,
                 badge: screeningBadge(for: .dexaScan, label: "Periodic")
@@ -908,10 +892,10 @@ struct TimeContentEngine {
 
             milestones.append(TimeMilestone(
                 title: "Anniversary: 10 years on HRT",
-                description: "A decade of living authentically. Take a moment to reflect on how far you've come — this is a meaningful milestone.",
+                description: "Ten years of hormone therapy.",
                 icon: "sparkles",
                 palette: .optimal,
-                badge: "Celebrate"
+                badge: "10 years"
             ))
         }
 
@@ -1022,7 +1006,7 @@ struct TimeContentEngine {
                     ? "You know your cycle well by now. If you experience trough symptoms, a shorter interval or ester switch (e.g., EV → EC) can flatten the curve."
                     : nil,
                 deepeningNote: tier == .t4Deepening
-                    ? "You're likely very familiar with how you feel across your injection week. Use this knowledge to optimize dose timing."
+                    ? "By this stage the pattern across an injection week is usually well known — which is the information a timing change would be based on."
                     : nil
             )
 
@@ -1113,7 +1097,9 @@ struct TimeContentEngine {
                 heroIcon: "waveform.path.ecg",
                 palette: .pink,
                 scienceText: """
-                Injectable testosterone esters (cypionate, enanthate) follow a predictable pharmacokinetic curve: a rise to peak 24–48 hours post-injection, then a gradual multi-day decline to trough. The half-life of testosterone cypionate is ~8 days, so with weekly dosing you get a moderate peak-to-trough swing.
+                Injectable testosterone esters (cypionate, enanthate) follow a predictable pharmacokinetic curve: a rise to peak within about 1–2 days post-injection, then a gradual multi-day decline to trough. The half-life of testosterone cypionate is approximately 4 days, so with weekly dosing you get a moderate peak-to-trough swing.
+
+                You'll often see ~8 days quoted for cypionate. That figure comes from analysis that doesn't separate the testosterone your body already makes from the dose you injected; once the two are accounted for separately, the injected testosterone's half-life is closer to 4 days (Bi et al. 2018). This app models your own baseline production separately, so it uses the ~4 day figure.
 
                 Some people feel energetic peaks shortly after their shot, while others feel a dip in the day or two before their next dose. These fluctuations are normal and reflect the difference between peak and trough serum levels.
 
@@ -1125,7 +1111,7 @@ struct TimeContentEngine {
                     ? "You know your rhythm. If troughs are uncomfortable, ask about splitting your dose to twice-weekly — it flattens the curve and reduces aromatization spikes."
                     : nil,
                 deepeningNote: tier == .t4Deepening
-                    ? "You likely know exactly how you feel across your shot week. Trust that knowledge when discussing adjustments with your provider."
+                    ? "By this stage the pattern across a shot week is usually well known."
                     : nil
             )
 
@@ -1139,68 +1125,68 @@ struct TimeContentEngine {
     private func timelineTextForMood(tier: TenureTier) -> String {
         switch tier {
         case .t1Beginning, .t2Emerging:
-            return "Months 1–3: Emotional sensitivity often increases first. You may feel more tearful, reactive, or emotionally open. This is neurochemical recalibration.\n\nMonths 3–6: Emotional range broadens. Many describe feeling 'more themselves' — a sense of emotional alignment that was missing before."
+            return String(localized: "Months 1–3: Emotional sensitivity often increases first. You may feel more tearful, reactive, or emotionally open. This is neurochemical recalibration.\n\nMonths 3–6: Emotional range broadens. Many describe feeling 'more themselves' — a sense of emotional alignment that was missing before.")
         case .t3InMotion:
-            return "Months 6–12: Mood patterns stabilise as your brain adapts to the new hormonal environment. Cyclical trough effects may become noticeable."
+            return String(localized: "Months 6–12: Mood patterns stabilise as your brain adapts to the new hormonal environment. Cyclical trough effects may become noticeable.")
         case .t4Deepening:
-            return "Months 12–24: Your emotional baseline should feel natural and stable. You likely have a good read on how you feel across your dose cycle. This is your new normal."
+            return String(localized: "Months 12–24: The emotional baseline typically settles and holds. Patterns across a dose cycle are usually recognisable by this point.")
         case .t5Settled:
-            return "Year 2+: Your emotional landscape is fully established. You're reading from the same neurochemical playbook that cis women operate on — the brain has fully adapted to estrogen-dominant signaling."
+            return String(localized: "Year 2+: Your emotional landscape is fully established. You're reading from the same neurochemical playbook that cis women operate on — the brain has fully adapted to estrogen-dominant signaling.")
         case .t6Rooted:
-            return "Year 5+: Your emotional baseline is deeply ingrained. You've navigated years of hormone-steady cognition — trust your read of your own patterns. Annual mental health check-ins remain valuable, even when things feel stable."
+            return String(localized: "Year 5+: Your emotional baseline is deeply ingrained. You've navigated years of hormone-steady cognition — trust your read of your own patterns. Annual mental health check-ins remain valuable, even when things feel stable.")
         case .t7Veteran:
-            return "10+ years: Your brain has run on estrogen for over a decade. The neurochemistry is second nature. At this stage, the priority is protecting what you've built — cognitive exercise, stress management, and periodic screening for age-appropriate neurological health."
+            return String(localized: "10+ years: Your brain has run on estrogen for over a decade. The neurochemistry is second nature. Age-appropriate neurological screening is what tracks cognitive health from this stage onward.")
         }
     }
 
     private func timelineTextForSkin(tier: TenureTier) -> String {
         switch tier {
         case .t1Beginning:
-            return "Month 1: Reduced oiliness is often the very first change — noticeable within weeks."
+            return String(localized: "Month 1: Reduced oiliness is often the very first change — noticeable within weeks.")
         case .t2Emerging:
-            return "Months 2–5: Skin texture begins softening. Pores appear smaller, hydration improves."
+            return String(localized: "Months 2–5: Skin texture begins softening. Pores appear smaller, hydration improves.")
         case .t3InMotion:
-            return "Months 6–12: The 'glow' becomes apparent. Skin is noticeably softer and more radiant than pre-HRT."
+            return String(localized: "Months 6–12: The 'glow' becomes apparent. Skin is noticeably softer and more radiant than pre-HRT.")
         case .t4Deepening:
-            return "Months 12–24: Your skin has fully transitioned. Collagen density is up, sebum is down, and the texture difference from pre-HRT is complete."
+            return String(localized: "Months 12–24: Your skin has fully transitioned. Collagen density is up, sebum is down, and the texture difference from pre-HRT is complete.")
         case .t5Settled:
-            return "Year 2+: Your skin is estrogen-maintained at this point. It will stay soft and hydrated as long as levels remain in range. Age-related changes (fine lines, elasticity loss) will still occur — estrogen slows but doesn't stop the clock."
+            return String(localized: "Year 2+: Your skin is estrogen-maintained at this point. It will stay soft and hydrated as long as levels remain in range. Age-related changes (fine lines, elasticity loss) will still occur — estrogen slows but doesn't stop the clock.")
         case .t6Rooted:
-            return "Year 5+: Collagen density remains above what it would be without estrogen, but the natural aging timeline still runs. Fine lines and elasticity loss are normal. Retinoids, vitamin C, and SPF are your allies. Annual dermatology check-ins are a good habit."
+            return String(localized: "Year 5+: Collagen density remains above what it would be without estrogen, but the natural aging timeline still runs. Fine lines and elasticity loss are normal. Retinoids, vitamin C and sun protection are the interventions with evidence behind them for this.")
         case .t7Veteran:
-            return "10+ years: Your skin has been estrogen-dominant for over a decade. The structural benefits (hydration, collagen, softness) are embedded. Age-related changes are universal — focus on skin cancer screening and gentle maintenance rather than chasing youthful texture."
+            return String(localized: "10+ years: Your skin has been estrogen-dominant for over a decade. The structural benefits (hydration, collagen, softness) are embedded. Age-related changes are universal — focus on skin cancer screening and gentle maintenance rather than chasing youthful texture.")
         }
     }
 
     private func timelineTextForBody(tier: TenureTier) -> String {
         switch tier {
         case .t1Beginning, .t2Emerging:
-            return "Months 1–3: Subtle — you may notice slight softening around the hips or face.\n\nMonths 3–5: Fat redistribution becomes visible. Pants may fit differently as hip and thigh circumference increases."
+            return String(localized: "Months 1–3: Subtle — you may notice slight softening around the hips or face.\n\nMonths 3–5: Fat redistribution becomes visible. Pants may fit differently as hip and thigh circumference increases.")
         case .t3InMotion:
-            return "Months 6–12: Waist-to-hip ratio begins shifting noticeably. Upper body muscle loss contributes to a narrower shoulder appearance."
+            return String(localized: "Months 6–12: Waist-to-hip ratio begins shifting noticeably. Upper body muscle loss contributes to a narrower shoulder appearance.")
         case .t4Deepening:
-            return "Months 12–24: The bulk of your fat redistribution is complete. Your silhouette has changed meaningfully. Any remaining shifts are slow and subtle — fat cells turn over on a ~2–3 year cycle."
+            return String(localized: "Months 12–24: The bulk of your fat redistribution is complete. Your silhouette has changed meaningfully. Any remaining shifts are slow and subtle — fat cells turn over on a ~2–3 year cycle.")
         case .t5Settled:
-            return "Year 2+: Your body shape is stable. Weight cycling (±5–10 lbs) will still produce new fat deposition in estrogen-dominant patterns. Muscle mass requires active resistance training to maintain — use it or lose it."
+            return String(localized: "Year 2+: Your body shape is stable. Weight cycling (±5–10 lbs) will still produce new fat deposition in estrogen-dominant patterns. Muscle mass requires active resistance training to maintain — use it or lose it.")
         case .t6Rooted:
-            return "Year 5+: Your silhouette is fully estrogen-dominant. Bone density is protected by estrogen — but this protection depends on continued dosing. Weight-bearing exercise and adequate calcium/vitamin D become increasingly important in this decade."
+            return String(localized: "Year 5+: Your silhouette is fully estrogen-dominant. Bone density is protected by estrogen — but this protection depends on continued dosing. Weight-bearing exercise and adequate calcium/vitamin D become increasingly important in this decade.")
         case .t7Veteran:
-            return "10+ years: Your body has been estrogen-dominant for over a decade. Bone health, metabolic rate, and muscle maintenance deserve active attention. Resistance training and bone-density monitoring (DEXA) are the cornerstones of long-term physical health."
+            return String(localized: "10+ years: Your body has been estrogen-dominant for over a decade. Bone health, metabolic rate, and muscle maintenance deserve active attention. Resistance training and bone-density monitoring (DEXA) are the cornerstones of long-term physical health.")
         }
     }
 
     private func cycleTimelineText(tier: TenureTier) -> String {
         switch tier {
         case .t1Beginning, .t2Emerging, .t3InMotion:
-            return "You're still learning your cycle. Track how you feel on days 1–2 (peak), 3–5 (mid), and 6–7 (trough). Patterns will emerge with consistency."
+            return String(localized: "Levels follow a repeating arc across a dose cycle: highest in the first days after a dose, lowest just before the next one. Patterns in how that feels become apparent once dosing is consistent.")
         case .t4Deepening:
-            return "You know your cycle well. Use this awareness to plan around trough days — schedule demanding tasks around peak, allow extra rest near trough."
+            return String(localized: "The cycle is predictable at this stage, so peak and trough days can be anticipated from the dosing date.")
         case .t5Settled:
-            return "Your cycle is second nature. Consider whether your ester choice still serves you — switching from EV to EC can flatten the curve if troughs are bothersome. A shorter injection interval (e.g., every 5 days instead of 7) is another option worth discussing."
+            return String(localized: "Two things change the shape of the curve: a longer-acting ester, such as estradiol cypionate in place of valerate, and a shorter injection interval. Both reduce the peak-to-trough swing.")
         case .t6Rooted:
-            return "You've lived with your cycle for years — it's background rhythm at this point. If you've already optimised your dosing, there's no need to revisit it. Stability, not novelty, is the goal at this stage."
+            return String(localized: "Cycle rhythm is typically stable and unremarkable after several years.")
         case .t7Veteran:
-            return "Your cycle is entirely automatic after a decade. Dosing is maintenance. The priority is ensuring your ester, interval, and levels remain appropriate as your body ages — periodic lab review is the only active work needed."
+            return String(localized: "After a decade, dosing is maintenance. Periodic lab review is what confirms that ester, interval and levels remain appropriate as the body ages.")
         }
     }
 
@@ -1209,60 +1195,60 @@ struct TimeContentEngine {
     private func whatToExpectForMood(tier: TenureTier) -> String {
         switch tier {
         case .t1Beginning, .t2Emerging, .t3InMotion:
-            return "Your emotional range will continue expanding. Be patient — neurochemical adaptation takes time. If mood swings are severe, discuss dose timing with your provider."
+            return String(localized: "Emotional range typically continues to broaden over this period. Neurochemical adaptation is gradual, and mood variability is common while it happens.")
         case .t4Deepening:
-            return "You're in a stable period. If you notice mood dips correlating with trough, a shorter injection interval may help smooth things out."
+            return String(localized: "Mood is typically stable by this stage. Where dips track the trough of a dose cycle, a shorter injection interval produces a flatter curve.")
         case .t5Settled:
-            return "You're in maintenance mode. Annual check-ins with your provider are sufficient unless something feels off. Trust your self-knowledge — you know your emotional baseline better than anyone."
+            return String(localized: "Levels and mood are typically stable at this stage, and an established personal baseline is the most reliable reference point for noticing a change.")
         case .t6Rooted:
-            return "At 5+ years your neurochemistry is stable. The biggest mental-health variable at this stage is life, not hormones. Invest in therapy, relationships, and stress management — the things that protect emotional health independent of HRT."
+            return String(localized: "At 5+ years neurochemistry is stable, and hormone levels explain less of the variation in mood than life circumstances do.")
         case .t7Veteran:
-            return "After a decade, your emotional self is fully integrated. Perimenopause-like considerations (if age-appropriate) may begin, but your estrogen-dominant baseline is well established. Periodic mental-health screening rounds out physical health checkups."
+            return String(localized: "After a decade the estrogen-dominant baseline is long established. Perimenopause-like changes can begin at an age-appropriate point.")
         }
     }
 
     private func whatToExpectForSkin(tier: TenureTier) -> String {
         switch tier {
         case .t1Beginning, .t2Emerging, .t3InMotion:
-            return "Skin will keep getting softer over the next several months. Sunscreen is your friend — estrogen-thinned skin is more UV-sensitive. Acne should continue decreasing."
+            return String(localized: "Skin typically continues softening over the next several months, and acne typically continues decreasing. Estrogen-thinned skin is more UV-sensitive than it was before therapy.")
         case .t4Deepening:
-            return "Your skin is in its prime. Maintain a simple skincare routine — gentle cleanser, moisturiser, SPF. No special intervention needed."
+            return String(localized: "Skin changes are largely complete by this stage. No hormone-specific intervention is indicated.")
         case .t5Settled:
-            return "Skin aging continues naturally. Retinoids, vitamin C serum, and diligent SPF are your best tools. Your skin will remain softer than it would be without estrogen — but photoaging and collagen loss with age are universal."
+            return String(localized: "Skin aging continues on its normal course. Skin remains softer than it would be without estrogen, but photoaging and age-related collagen loss are universal. Retinoids, vitamin C and sun protection are the interventions with evidence behind them.")
         case .t6Rooted:
-            return "After 5 years, your skin's baseline is well known to you. Annual dermatology screening becomes relevant — estrogen's protective effects don't eliminate skin cancer risk. Continue SPF and gentle maintenance."
+            return String(localized: "After 5 years the skin baseline is well established. Estrogen's effects on skin do not reduce skin cancer risk.")
         case .t7Veteran:
-            return "A decade of estrogen-maintained skin is a solid foundation. Age-related thinning and dryness are normal. Gentle products, hydration, and skin cancer vigilance are the priorities — chasing 'youthful' texture isn't realistic or necessary."
+            return String(localized: "After a decade of estrogen-maintained skin, age-related thinning and dryness are typical and are not a sign that therapy has stopped working.")
         }
     }
 
     private func whatToExpectForBody(tier: TenureTier) -> String {
         switch tier {
         case .t1Beginning, .t2Emerging, .t3InMotion:
-            return "Fat redistribution is a marathon, not a sprint. Be patient. Weight cycling (intentional gain and loss of 5–10 lbs) can accelerate the process, but it's not necessary — time will do the work."
+            return String(localized: "Fat redistribution is among the slowest changes, typically measured in years rather than months. Weight cycling can accelerate it, but redistribution proceeds without it.")
         case .t4Deepening:
-            return "You're near the finish line. Any further changes will be subtle. Focus on what your body can do, not just how it looks."
+            return String(localized: "Fat redistribution is largely complete by this stage. Further change is typically subtle.")
         case .t5Settled:
-            return "This is your body. If you want to fine-tune, diet and exercise work the same way they always have — you'll just deposit and lose fat in estrogen-dominant patterns now. Resistance training helps maintain bone density and metabolic health."
+            return String(localized: "Fat distribution is stable. Diet and exercise affect body composition as they always did, in estrogen-dominant deposition patterns. Resistance training is associated with maintained bone density.")
         case .t6Rooted:
-            return "At 5+ years, bone-density maintenance should be on your radar. Weight-bearing exercise, calcium, and vitamin D matter. Your fat distribution is stable — lifestyle changes affect body comp in predictable, estrogen-dominant ways."
+            return String(localized: "At 5+ years, bone density becomes the more clinically relevant measure. Weight-bearing exercise, calcium and vitamin D are associated with maintaining it.")
         case .t7Veteran:
-            return "After a decade, bone health is a central concern. Regular DEXA scans, resistance training, and adequate nutrition are the pillars. Your body's relationship with estrogen is well established — protect what you've built with preventive care."
+            return String(localized: "After a decade, bone health is the most clinically relevant measure. DEXA scans track bone density directly; resistance training and adequate nutrition are associated with maintaining it.")
         }
     }
 
     private func cycleWhatToExpect(tier: TenureTier) -> String {
         switch tier {
         case .t1Beginning, .t2Emerging, .t3InMotion:
-            return "Your cycle is still becoming predictable as you establish consistent dosing. If you recently switched esters or doses, give it 4–6 weeks to reach steady state before evaluating how you feel."
+            return String(localized: "Cycle timing becomes predictable as dosing becomes consistent. After an ester or dose change, levels take roughly 4–6 weeks to reach steady state.")
         case .t4Deepening:
-            return "Your cycle is predictable. If you want less fluctuation, talk to your provider about a shorter interval or switching to a longer-acting ester like cypionate."
+            return String(localized: "Cycle timing is predictable at this stage. A shorter interval or a longer-acting ester both reduce peak-to-trough fluctuation.")
         case .t5Settled:
-            return "If your current rhythm works, keep it. If you're curious about optimising — more frequent smaller doses produce the flattest curve and the most stable mood. It's a quality-of-life optimisation, not a medical necessity."
+            return String(localized: "More frequent smaller doses produce a flatter curve and less mood variation across the cycle. The difference is in day-to-day steadiness rather than in clinical outcome.")
         case .t6Rooted:
-            return "Your cycle rhythm is background music at this point — you may not even think about it. If it's working, don't fix it. The goal is stable maintenance, not further optimisation."
+            return String(localized: "Cycle rhythm is typically stable and unremarkable by this stage.")
         case .t7Veteran:
-            return "Your dosing rhythm is second nature after a decade. The only action item: periodic lab review to confirm your levels remain age-appropriate. No schedule tweaks are needed unless something changes."
+            return String(localized: "Dosing rhythm is long established after a decade. Periodic lab review is what confirms levels remain age-appropriate.")
         }
     }
 
@@ -1271,66 +1257,66 @@ struct TimeContentEngine {
     private func tVoiceTimeline(tier: TenureTier) -> String {
         switch tier {
         case .t1Beginning, .t2Emerging:
-            return "Months 1–3: You may feel a scratchy throat or notice slight hoarseness — the first signs of vocal fold thickening.\n\nMonths 3–5: The first noticeable pitch drop typically happens here. Voice may crack or feel unstable."
+            return String(localized: "Months 1–3: You may feel a scratchy throat or notice slight hoarseness — the first signs of vocal fold thickening.\n\nMonths 3–5: The first noticeable pitch drop typically happens here. Voice may crack or feel unstable.")
         case .t3InMotion:
-            return "Months 6–12: Continuing gradual drop. Your voice is settling into its new range."
+            return String(localized: "Months 6–12: Continuing gradual drop. Your voice is settling into its new range.")
         case .t4Deepening:
-            return "Months 12–24: Most of the deepening is done. Any remaining changes are very subtle. Your speaking voice has found its natural pitch."
+            return String(localized: "Months 12–24: Most of the deepening is done. Any remaining changes are very subtle. Your speaking voice has found its natural pitch.")
         case .t5Settled:
-            return "Year 2+: Your voice is permanent and settled. It will not revert if you pause or stop T. Vocal training can still improve resonance, projection, and control regardless of where your pitch landed."
+            return String(localized: "Year 2+: Your voice is permanent and settled. It will not revert if you pause or stop T. Vocal training can still improve resonance, projection, and control regardless of where your pitch landed.")
         case .t6Rooted:
-            return "Year 5+: A decade of settled pitch. Your voice has been in its final range for years. Vocal quality (resonance, projection, clarity) can still be refined with training, but the fundamental frequency is permanent."
+            return String(localized: "Year 5+: A decade of settled pitch. Your voice has been in its final range for years. Vocal quality (resonance, projection, clarity) can still be refined with training, but the fundamental frequency is permanent.")
         case .t7Veteran:
-            return "10+ years: Your voice is unshakeable — it's been set for most of a decade. No changes will occur. Any vocal work at this stage is about expression and confidence, not biology."
+            return String(localized: "10+ years: Your voice is unshakeable — it's been set for most of a decade. No changes will occur. Any vocal work at this stage is about expression and confidence, not biology.")
         }
     }
 
     private func tSkinTimeline(tier: TenureTier) -> String {
         switch tier {
         case .t1Beginning, .t2Emerging:
-            return "Month 1: Oil production kicks in quickly — skin may feel greasier within weeks. Acne often follows.\n\nMonths 3–5: Body hair begins appearing in a predictable pattern: lower legs → thighs → abdomen."
+            return String(localized: "Month 1: Oil production kicks in quickly — skin may feel greasier within weeks. Acne often follows.\n\nMonths 3–5: Body hair begins appearing in a predictable pattern: lower legs → thighs → abdomen.")
         case .t3InMotion:
-            return "Months 6–12: Body hair continues filling in (chest, back, face). Acne may peak during this period."
+            return String(localized: "Months 6–12: Body hair continues filling in (chest, back, face). Acne may peak during this period.")
         case .t4Deepening:
-            return "Months 12–24: Body and facial hair continue filling in. Acne typically begins to mellow. Scalp hairline may stabilise or continue receding depending on genetics."
+            return String(localized: "Months 12–24: Body and facial hair continue filling in. Acne typically begins to mellow. Scalp hairline may stabilise or continue receding depending on genetics.")
         case .t5Settled:
-            return "Year 2+: Body and facial hair are fully established and permanent. Scalp hair loss, if it was going to happen, has likely stabilised at its genetic baseline. Acne should be minimal by now."
+            return String(localized: "Year 2+: Body and facial hair are fully established and permanent. Scalp hair loss, if it was going to happen, has likely stabilised at its genetic baseline. Acne should be minimal by now.")
         case .t6Rooted:
-            return "Year 5+: Your hair pattern — body, facial, and scalp — has been stable for years. Any androgenic scalp loss has plateaued. Skin oil production may gradually decrease with age even on T. Dermatology screening (skin cancer) is a good annual habit."
+            return String(localized: "Year 5+: Your hair pattern — body, facial, and scalp — has been stable for years. Any androgenic scalp loss has plateaued. Skin oil production may gradually decrease with age even on T. Dermatology screening (skin cancer) is a good annual habit.")
         case .t7Veteran:
-            return "10+ years: Hair and skin patterns are fully mature. Scalp hair, if affected by androgenetic alopecia, reached its plateau long ago. Skin aging follows its normal course — sun protection and skin checks are the primary active steps."
+            return String(localized: "10+ years: Hair and skin patterns are fully mature. Scalp hair, if affected by androgenetic alopecia, reached its plateau long ago. Skin aging follows its normal course — sun protection and skin checks are the primary active steps.")
         }
     }
 
     private func tMuscleTimeline(tier: TenureTier) -> String {
         switch tier {
         case .t1Beginning, .t2Emerging:
-            return "Months 1–3: Early strength gains — you may notice exercises feeling easier. Some water retention can give a 'fuller' look.\n\nMonths 3–5: Noticeable muscle growth, especially upper body. Recovery between workouts improves significantly."
+            return String(localized: "Months 1–3: Early strength gains — you may notice exercises feeling easier. Some water retention can give a 'fuller' look.\n\nMonths 3–5: Noticeable muscle growth, especially upper body. Recovery between workouts improves significantly.")
         case .t3InMotion:
-            return "Months 6–12: Strength continues increasing. Body composition is visibly shifting toward more lean mass."
+            return String(localized: "Months 6–12: Strength continues increasing. Body composition is visibly shifting toward more lean mass.")
         case .t4Deepening:
-            return "Months 12–24: Muscle growth velocity peaks. Without training, you'll maintain above-baseline lean mass. With training, this is peak gain season."
+            return String(localized: "Months 12–24: Muscle growth velocity peaks. Without training, you'll maintain above-baseline lean mass. With training, this is peak gain season.")
         case .t5Settled:
-            return "Year 2+: Your muscle profile is stable. Gains beyond this point come from training stimulus, not from T duration. You'll maintain your physique as long as levels stay in range and you stay active."
+            return String(localized: "Year 2+: Muscle profile is stable. Gains beyond this point come from training stimulus rather than from time on testosterone, and lean mass is maintained by continued levels and activity.")
         case .t6Rooted:
-            return "Year 5+: Your physique is established. T maintains lean mass but won't drive new growth without progressive overload. Cardiovascular fitness and metabolic health deserve equal attention alongside strength at this stage."
+            return String(localized: "Year 5+: Your physique is established. T maintains lean mass but won't drive new growth without progressive overload. Cardiovascular fitness and metabolic health deserve equal attention alongside strength at this stage.")
         case .t7Veteran:
-            return "10+ years: Muscle mass is maintained by T but gradually declines with age regardless. Resistance training, adequate protein, and cardiovascular health are lifelong commitments. Your baseline is solid — protect it with consistency."
+            return String(localized: "10+ years: Muscle mass is maintained by T but gradually declines with age regardless. Resistance training, adequate protein, and cardiovascular health are lifelong commitments. Your baseline is solid — protect it with consistency.")
         }
     }
 
     private func cycleTimelineTextForT(tier: TenureTier) -> String {
         switch tier {
         case .t1Beginning, .t2Emerging, .t3InMotion:
-            return "Your body is still adapting to exogenous T. Aromatization patterns, energy fluctuations, and trough effects are all still emerging. Give it 3–6 months of consistent dosing to establish a clear pattern."
+            return String(localized: "Your body is still adapting to exogenous T. Aromatization patterns, energy fluctuations, and trough effects are all still emerging. Give it 3–6 months of consistent dosing to establish a clear pattern.")
         case .t4Deepening:
-            return "You know your rhythm. Energy peaks around day 2 post-shot, trough around day 6–7. Plan heavy workouts near peak, rest near trough."
+            return String(localized: "You know your rhythm. Energy peaks around day 2 post-shot, trough around day 6–7. Plan heavy workouts near peak, rest near trough.")
         case .t5Settled:
-            return "You've mastered your cycle. If you want even more stability, twice-weekly dosing flattens the curve and reduces aromatization spikes. Some providers are open to this — it's worth asking."
+            return String(localized: "You've mastered your cycle. If you want even more stability, twice-weekly dosing flattens the curve and reduces aromatization spikes. Some providers are open to this — it's worth asking.")
         case .t6Rooted:
-            return "Your cycle is entirely routine by now. If you've already optimised, no changes are needed. The priority at this stage is lab monitoring, not schedule tweaking."
+            return String(localized: "Your cycle is entirely routine by now. If you've already optimised, no changes are needed. The priority at this stage is lab monitoring, not schedule tweaking.")
         case .t7Veteran:
-            return "Dosing is maintenance after a decade. You know your rhythm intimately. Periodic labs confirm your levels remain appropriate — that's the only active monitoring needed for your cycle."
+            return String(localized: "Dosing is maintenance after a decade. You know your rhythm intimately. Periodic labs confirm your levels remain appropriate — that's the only active monitoring needed for your cycle.")
         }
     }
 
@@ -1339,62 +1325,62 @@ struct TimeContentEngine {
     private func tVoiceWhatToExpect(tier: TenureTier) -> String {
         switch tier {
         case .t1Beginning, .t2Emerging:
-            return "The biggest pitch drop is coming in months 3–6. Be patient with cracking — it's temporary. Stay hydrated, and avoid straining your voice."
+            return String(localized: "The largest pitch drop typically occurs in months 3–6. Cracking during this period is typical and transient. Hydration and avoiding vocal strain reduce it.")
         case .t3InMotion:
-            return "Your voice is well into its drop. Cracking should subside. Keep hydrating and avoid strain."
+            return String(localized: "The pitch drop is well underway and cracking typically subsides from here.")
         case .t4Deepening:
-            return "Your voice is largely done changing. If you want to work on resonance or speech patterns, a voice therapist can help — but pitch itself is structural and complete."
+            return String(localized: "Pitch change is largely complete and is structural. Resonance and speech patterns remain trainable; pitch itself does not.")
         case .t5Settled:
-            return "This is your voice. It's permanent, it's yours, and it won't change further. Voice training can still refine how you use it, but the instrument itself is set."
+            return String(localized: "Pitch is permanent and will not change further. Voice training affects how the voice is used, not its pitch.")
         case .t6Rooted:
-            return "Your voice has been stable for half a decade. If you've considered voice training for resonance or confidence, it's purely optional — the biological work is long complete."
+            return String(localized: "Pitch has been stable for half a decade. No further biological change is expected.")
         case .t7Veteran:
-            return "After a decade, your voice is as permanent as it gets. No biological shifts ahead. If you want to work on delivery, projection, or singing — that's art, not hormones."
+            return String(localized: "After a decade, no further hormone-driven voice change occurs. Delivery, projection and singing remain trainable skills.")
         }
     }
 
     private func tSkinWhatToExpect(tier: TenureTier) -> String {
         switch tier {
         case .t1Beginning, .t2Emerging, .t3InMotion:
-            return "Acne may worsen before it improves. A simple skincare routine (cleanser, moisturiser, salicylic acid) can help. Body and facial hair will continue filling in for 2+ years."
+            return String(localized: "Acne commonly worsens before it improves. Body and facial hair typically continue filling in for 2+ years.")
         case .t4Deepening:
-            return "Hair is still filling in. Acne should be calming down. If scalp hair loss is a concern, finasteride or minoxidil are options to discuss with your provider."
+            return String(localized: "Hair typically continues filling in and acne typically subsides at this stage. Finasteride and minoxidil are the treatments used for testosterone-driven scalp hair loss.")
         case .t5Settled:
-            return "Your hair pattern is fully expressed. Scalp hair loss won't progress further as long as DHT levels are managed. Acne is unlikely to be an ongoing issue at this stage."
+            return String(localized: "Hair pattern is fully expressed by this stage. Scalp hair loss tracks DHT levels. Acne is uncommon at this stage.")
         case .t6Rooted:
-            return "At 5+ years, your hair pattern is fully mature. DHT management continues to matter for scalp hair. Annual dermatology visits for skin checks are a good preventive habit."
+            return String(localized: "At 5+ years hair pattern is fully mature. Scalp hair retention continues to track DHT levels.")
         case .t7Veteran:
-            return "Hair and skin patterns are lifelong and stable. Scalp hair, if affected, reached its plateau years ago. Skin cancer vigilance and gentle skincare are the focus now — the T-driven changes are complete."
+            return String(localized: "Hair and skin patterns are stable and testosterone-driven change is complete. Scalp hair, where affected, plateaued years earlier.")
         }
     }
 
     private func tMuscleWhatToExpect(tier: TenureTier) -> String {
         switch tier {
         case .t1Beginning, .t2Emerging, .t3InMotion:
-            return "Strength will keep climbing. Even without training, you'll gain lean mass. With consistent training, you're entering the fastest gain period of your life."
+            return String(localized: "Strength typically continues climbing. Lean mass increases with testosterone alone; the rate of gain is highest during this period when combined with resistance training.")
         case .t4Deepening:
-            return "Gains are still strong. Recovery is excellent. If you're training, this is prime time for progressive overload. If you're not, you'll maintain an above-baseline physique."
+            return String(localized: "Rate of strength gain and recovery capacity are both near their peak during this period. Lean mass stays above pre-therapy baseline without training.")
         case .t5Settled:
-            return "Your baseline is stable. Further gains require training stimulus — you've reached the plateau where T alone won't drive more growth. Stay active to maintain what you've built."
+            return String(localized: "Lean mass has plateaued: testosterone alone no longer drives further growth, and additional gain requires training stimulus.")
         case .t6Rooted:
-            return "At 5+ years your physique is well established. Cardiovascular fitness and metabolic health become increasingly important alongside strength. Annual lipid panels and blood pressure checks complement your training."
+            return String(localized: "At 5+ years body composition is stable. Testosterone therapy affects lipid profile and blood pressure, which lipid panels and blood pressure checks track.")
         case .t7Veteran:
-            return "After a decade, age-related muscle loss (sarcopenia) begins for everyone, T or not. The best defence: consistent resistance training, adequate protein, and staying active. Your T baseline gives you an edge — use it."
+            return String(localized: "After a decade, age-related muscle loss (sarcopenia) begins for everyone, T or not. The best defence: consistent resistance training, adequate protein, and staying active. Your T baseline gives you an edge — use it.")
         }
     }
 
     private func cycleWhatToExpectForT(tier: TenureTier) -> String {
         switch tier {
         case .t1Beginning, .t2Emerging, .t3InMotion:
-            return "Your cycle is still stabilising. Aromatization effects (mood changes, water retention at peak) may fluctuate. Steady state takes 4–6 weeks after any dose change."
+            return String(localized: "Your cycle is still stabilising. Aromatization effects (mood changes, water retention at peak) may fluctuate. Steady state takes 4–6 weeks after any dose change.")
         case .t4Deepening:
-            return "Your cycle is predictable. If aromatization symptoms at peak bother you, a slightly lower dose or more frequent injections can help."
+            return String(localized: "Your cycle is predictable. If aromatization symptoms at peak bother you, a slightly lower dose or more frequent injections can help.")
         case .t5Settled:
-            return "You've optimised. If not, twice-weekly dosing is the single best lever for smoothing out the peak-to-trough swing. It reduces both the T spike and the aromatization spike that follows."
+            return String(localized: "You've optimised. If not, twice-weekly dosing is the single best lever for smoothing out the peak-to-trough swing. It reduces both the T spike and the aromatization spike that follows.")
         case .t6Rooted:
-            return "Your cycle is fully optimised by now. No changes are needed unless something shifts. Periodic labs to confirm levels remain in range are the only active monitoring."
+            return String(localized: "Your cycle is fully optimised by now. No changes are needed unless something shifts. Periodic labs to confirm levels remain in range are the only active monitoring.")
         case .t7Veteran:
-            return "After a decade, your dosing is background rhythm. Labs every 6–12 months confirm stability. Unless you're experiencing symptoms, no adjustments are needed — your protocol is proven."
+            return String(localized: "After a decade, your dosing is background rhythm. Labs every 6–12 months confirm stability. Unless you're experiencing symptoms, no adjustments are needed — your protocol is proven.")
         }
     }
 

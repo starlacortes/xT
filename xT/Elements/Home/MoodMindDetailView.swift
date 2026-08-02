@@ -231,7 +231,7 @@ struct MoodMindDetailView: View {
                     .font(.system(size: 34, weight: .bold))
                     .foregroundStyle(Theme.Colors.Time.mind.base)
                 HStack(spacing: 6) {
-                    Text(engine.tenureTier.statusEmoji + " " + engine.tenureTier.timeBandLabel)
+                    Text(engine.tenureTier.timeBandLabel)
                         .font(.system(size: 13))
                         .foregroundStyle(.secondary)
                     Text("·").foregroundStyle(.secondary.opacity(0.4))
@@ -347,6 +347,9 @@ struct MoodMindDetailView: View {
                             .padding(.horizontal, 22)
                             .padding(.bottom, 8)
                         }
+
+                        EducationalFooter()
+                            .padding(.top, 8)
 
                         Color.clear.frame(height: 40)
                     }

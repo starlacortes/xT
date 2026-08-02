@@ -114,9 +114,25 @@ struct xTApp: App {
         MedicationManager.shared.modelContext = Self.modelContainer.mainContext
         JournalManager.shared.modelContext = Self.modelContainer.mainContext
 
-        // Install the notification delegate + categories, then schedule pending reminders.
+        // Register app-wide UserDefaults defaults. Keys that are read but not yet
+        // written would otherwise log "found no value for key …" on every read and
+        // fall back silently; registering them keeps reads cheap and quiet.
+        UserDefaults.standard.register(defaults: [
+            "requireAuthentication": false,
+            "autoLockTimeout": AutoLockTimeout.fallback.rawValue,
+            "doseReminderEnabled": false,
+            "doseReminderHour": 9,
+            "doseReminderMinute": 0,
+            "journalReminderEnabled": false,
+            "journalReminderHour": 20,
+            "journalReminderMinute": 0,
+        ])
+
+        // Install the notification delegate + categories, then schedule pending
+        // reminders. Scheduling is gated on authorization, so this is safe to call
+        // before the user has granted permission — it will no-op until granted.
         NotificationManager.shared.registerNotificationHandling()
-        NotificationManager.shared.scheduleAllReminders()
+        Task { await NotificationManager.shared.scheduleAllReminders() }
 
 #if DEBUG
         // Developer Area (Settings → Developer): the "Jan" sample profile is

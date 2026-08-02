@@ -1,0 +1,4954 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "" : {
+
+    },
+    "·" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "·"
+          }
+        }
+      }
+    },
+    "· most common" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "· most common"
+          }
+        }
+      }
+    },
+    "@ %@ mg/mL" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "@ %@ mg/mL"
+          }
+        }
+      }
+    },
+    "%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@"
+          }
+        }
+      }
+    },
+    "%@ — %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ — %@"
+          }
+        }
+      }
+    },
+    "%@ — %@ mg" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ — %@ mg"
+          }
+        }
+      }
+    },
+    "%@ — 5–10 years; maintenance and health surveillance." : {
+      "comment" : "What this tenure band describes",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ — 5–10 years; maintenance and health surveillance."
+          }
+        }
+      }
+    },
+    "%@ — 10+ years; long-term health monitoring." : {
+      "comment" : "What this tenure band describes",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ — 10+ years; long-term health monitoring."
+          }
+        }
+      }
+    },
+    "%@ — changes are largely settled; screening intervals begin." : {
+      "comment" : "What this tenure band describes",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ — changes are largely settled; screening intervals begin."
+          }
+        }
+      }
+    },
+    "%@ — changes continue but are not yet settled." : {
+      "comment" : "What this tenure band describes",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ — changes continue but are not yet settled."
+          }
+        }
+      }
+    },
+    "%@ — first physical changes appear." : {
+      "comment" : "What this tenure band describes",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ — first physical changes appear."
+          }
+        }
+      }
+    },
+    "%@ — responses precede adaptation." : {
+      "comment" : "What the earliest tenure band describes",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ — responses precede adaptation."
+          }
+        }
+      }
+    },
+    "%@ — the period of most rapid visible change." : {
+      "comment" : "What this tenure band describes",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ — the period of most rapid visible change."
+          }
+        }
+      }
+    },
+    "%@ · %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · %@"
+          }
+        }
+      }
+    },
+    "%@ · %@ timeout" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · %@ timeout"
+          }
+        }
+      }
+    },
+    "%@ (method not selected)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (method not selected)"
+          }
+        }
+      }
+    },
+    "%@ %@" : {
+      "comment" : "A hormone level and its unit, e.g. '142 pg/mL'",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ %@"
+          }
+        }
+      }
+    },
+    "%@ mg" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ mg"
+          }
+        }
+      }
+    },
+    "%@ mg %@" : {
+      "comment" : "Dose amount and medication name, e.g. '4 mg Estrogen'",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ mg %@"
+          }
+        }
+      }
+    },
+    "%@ mg/mL" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ mg/mL"
+          }
+        }
+      }
+    },
+    "%@ Starting hormone therapy at %lld places bone density earlier on the monitoring schedule." : {
+      "comment" : "Bone density milestone for someone who started HRT at 30 or older",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ Starting hormone therapy at %lld places bone density earlier on the monitoring schedule."
+          }
+        }
+      }
+    },
+    "%@ via %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ via %@"
+          }
+        }
+      }
+    },
+    "%@ via %@ every %lld days" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ via %@ every %lld days"
+          }
+        }
+      }
+    },
+    "%@–%@ %@" : {
+      "comment" : "A range of hormone levels with its unit, e.g. '100–200 pg/mL'",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@–%@ %@"
+          }
+        }
+      }
+    },
+    "%@%% of scheduled doses recorded" : {
+      "comment" : "Settings row subtitle summarising 30-day adherence",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@%% of scheduled doses recorded"
+          }
+        }
+      }
+    },
+    "%@× reference dose" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@× reference dose"
+          }
+        }
+      }
+    },
+    "%lld changes established" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld changes established"
+          }
+        }
+      }
+    },
+    "%lld days" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld days"
+          }
+        }
+      }
+    },
+    "%lld months" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld months"
+          }
+        }
+      }
+    },
+    "%lld of %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld of %lld"
+          }
+        }
+      }
+    },
+    "%lld of %lld scheduled doses recorded" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld of %lld scheduled doses recorded"
+          }
+        }
+      }
+    },
+    "%lldd" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lldd"
+          }
+        }
+      }
+    },
+    "%lldd ago" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lldd ago"
+          }
+        }
+      }
+    },
+    "^[%lld day](inflect: true) since this dose was scheduled" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%lld day](inflect: true) since this dose was scheduled"
+          }
+        }
+      }
+    },
+    "^[%lld entry](inflect: true)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%lld entry](inflect: true)"
+          }
+        }
+      }
+    },
+    "^[%lld month](inflect: true)" : {
+      "comment" : "A number of months, e.g. '7 months'",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%lld month](inflect: true)"
+          }
+        }
+      }
+    },
+    "^[%lld month](inflect: true) away" : {
+      "comment" : "Badge showing how far off a scheduled milestone is",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%lld month](inflect: true) away"
+          }
+        }
+      }
+    },
+    "^[%lld month](inflect: true) on HRT" : {
+      "comment" : "Elapsed time on hormone therapy, e.g. '7 months on HRT'",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%lld month](inflect: true) on HRT"
+          }
+        }
+      }
+    },
+    "^[%lld site](inflect: true)" : {
+      "comment" : "Count of distinct administration sites used",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%lld site](inflect: true)"
+          }
+        }
+      }
+    },
+    "^[%lld year](inflect: true)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%lld year](inflect: true)"
+          }
+        }
+      }
+    },
+    "^[%lld zone](inflect: true)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%lld zone](inflect: true)"
+          }
+        }
+      }
+    },
+    "^[%lld zone](inflect: true) marked" : {
+      "comment" : "Settings row subtitle counting marked body zones\nSubtitle counting marked body zones",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%lld zone](inflect: true) marked"
+          }
+        }
+      }
+    },
+    "= %@ mg (@ %@ mg/mL)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "= %@ mg (@ %@ mg/mL)"
+          }
+        }
+      }
+    },
+    "= %@ mL (@ %@ mg/mL)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "= %@ mL (@ %@ mg/mL)"
+          }
+        }
+      }
+    },
+    "✓ Dose recorded successfully!" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "✓ Dose recorded successfully!"
+          }
+        }
+      }
+    },
+    "0" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "0"
+          }
+        }
+      }
+    },
+    "0.5×" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "0.5×"
+          }
+        }
+      }
+    },
+    "0.8.5" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "0.8.5"
+          }
+        }
+      }
+    },
+    "1 month" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 month"
+          }
+        }
+      }
+    },
+    "2.0×+" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2.0×+"
+          }
+        }
+      }
+    },
+    "5 mL syringe" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "5 mL syringe"
+          }
+        }
+      }
+    },
+    "10+ years: Hair and skin patterns are fully mature. Scalp hair, if affected by androgenetic alopecia, reached its plateau long ago. Skin aging follows its normal course — sun protection and skin checks are the primary active steps." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "10+ years: Hair and skin patterns are fully mature. Scalp hair, if affected by androgenetic alopecia, reached its plateau long ago. Skin aging follows its normal course — sun protection and skin checks are the primary active steps."
+          }
+        }
+      }
+    },
+    "10+ years: Muscle mass is maintained by T but gradually declines with age regardless. Resistance training, adequate protein, and cardiovascular health are lifelong commitments. Your baseline is solid — protect it with consistency." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "10+ years: Muscle mass is maintained by T but gradually declines with age regardless. Resistance training, adequate protein, and cardiovascular health are lifelong commitments. Your baseline is solid — protect it with consistency."
+          }
+        }
+      }
+    },
+    "10+ years: Your body has been estrogen-dominant for over a decade. Bone health, metabolic rate, and muscle maintenance deserve active attention. Resistance training and bone-density monitoring (DEXA) are the cornerstones of long-term physical health." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "10+ years: Your body has been estrogen-dominant for over a decade. Bone health, metabolic rate, and muscle maintenance deserve active attention. Resistance training and bone-density monitoring (DEXA) are the cornerstones of long-term physical health."
+          }
+        }
+      }
+    },
+    "10+ years: Your brain has run on estrogen for over a decade. The neurochemistry is second nature. Age-appropriate neurological screening is what tracks cognitive health from this stage onward." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "10+ years: Your brain has run on estrogen for over a decade. The neurochemistry is second nature. Age-appropriate neurological screening is what tracks cognitive health from this stage onward."
+          }
+        }
+      }
+    },
+    "10+ years: Your skin has been estrogen-dominant for over a decade. The structural benefits (hydration, collagen, softness) are embedded. Age-related changes are universal — focus on skin cancer screening and gentle maintenance rather than chasing youthful texture." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "10+ years: Your skin has been estrogen-dominant for over a decade. The structural benefits (hydration, collagen, softness) are embedded. Age-related changes are universal — focus on skin cancer screening and gentle maintenance rather than chasing youthful texture."
+          }
+        }
+      }
+    },
+    "10+ years: Your voice is unshakeable — it's been set for most of a decade. No changes will occur. Any vocal work at this stage is about expression and confidence, not biology." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "10+ years: Your voice is unshakeable — it's been set for most of a decade. No changes will occur. Any vocal work at this stage is about expression and confidence, not biology."
+          }
+        }
+      }
+    },
+    "30-DAY ADHERENCE" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "30-DAY ADHERENCE"
+          }
+        }
+      }
+    },
+    "50–100 pg/mL" : {
+      "comment" : "Estradiol band label shown beside a journal entry\nLabel naming the estradiol band the level falls in",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "50–100 pg/mL"
+          }
+        }
+      }
+    },
+    "50–200 ng/dL" : {
+      "comment" : "Label naming the testosterone band the level falls in\nTestosterone band label shown beside a journal entry",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "50–200 ng/dL"
+          }
+        }
+      }
+    },
+    "100–200 pg/mL" : {
+      "comment" : "Estradiol band label shown beside a journal entry\nLabel naming the estradiol band the level falls in",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "100–200 pg/mL"
+          }
+        }
+      }
+    },
+    "200–300 pg/mL" : {
+      "comment" : "Label naming the estradiol band the level falls in",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "200–300 pg/mL"
+          }
+        }
+      }
+    },
+    "200–500 pg/mL" : {
+      "comment" : "Estradiol band label shown beside a journal entry",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "200–500 pg/mL"
+          }
+        }
+      }
+    },
+    "200–800 ng/dL" : {
+      "comment" : "Label naming the testosterone band the level falls in\nTestosterone band label shown beside a journal entry",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "200–800 ng/dL"
+          }
+        }
+      }
+    },
+    "A feminine-proportioned silhouette" : {
+      "comment" : "Describes the feminine body silhouette option",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A feminine-proportioned silhouette"
+          }
+        }
+      }
+    },
+    "A masculine-proportioned silhouette" : {
+      "comment" : "Describes the masculine body silhouette option",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A masculine-proportioned silhouette"
+          }
+        }
+      }
+    },
+    "About app lock" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "About app lock"
+          }
+        }
+      }
+    },
+    "Above 1,000 pg/mL" : {
+      "comment" : "Pill label naming the estradiol threshold the estimate has passed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Above 1,000 pg/mL"
+          }
+        }
+      }
+    },
+    "Above 1,500 ng/dL" : {
+      "comment" : "Pill label naming the testosterone threshold the estimate has passed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Above 1,500 ng/dL"
+          }
+        }
+      }
+    },
+    "Above 300 pg/mL" : {
+      "comment" : "Label naming the estradiol band the level falls in",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Above 300 pg/mL"
+          }
+        }
+      }
+    },
+    "above 500 pg/mL" : {
+      "comment" : "Estradiol band label shown beside a journal entry",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "above 500 pg/mL"
+          }
+        }
+      }
+    },
+    "above 800 ng/dL" : {
+      "comment" : "Testosterone band label shown beside a journal entry",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "above 800 ng/dL"
+          }
+        }
+      }
+    },
+    "Above 800 ng/dL" : {
+      "comment" : "Label naming the testosterone band the level falls in",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Above 800 ng/dL"
+          }
+        }
+      }
+    },
+    "Above set trough" : {
+      "comment" : "Pill label: the estimate is over the trough range the user configured",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Above set trough"
+          }
+        }
+      }
+    },
+    "Above the range most people on established estrogen therapy maintain." : {
+      "comment" : "Factual description of a high estradiol band for a long-term user",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Above the range most people on established estrogen therapy maintain."
+          }
+        }
+      }
+    },
+    "Above the typical adult male reference range. A share of circulating testosterone converts to estradiol via aromatase, and that conversion rises with the level." : {
+      "comment" : "Factual description of a high testosterone band, including the aromatization mechanism",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Above the typical adult male reference range. A share of circulating testosterone converts to estradiol via aromatase, and that conversion rises with the level."
+          }
+        }
+      }
+    },
+    "Above the typical therapeutic range. Levels in this band are common shortly after an injected dose." : {
+      "comment" : "Factual description of a high estradiol band for a newer user",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Above the typical therapeutic range. Levels in this band are common shortly after an injected dose."
+          }
+        }
+      }
+    },
+    "above your set trough range of %@" : {
+      "comment" : "Sentence fragment comparing the estimate to the user's configured range",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "above your set trough range of %@"
+          }
+        }
+      }
+    },
+    "Acne commonly worsens before it improves. Body and facial hair typically continue filling in for 2+ years." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Acne commonly worsens before it improves. Body and facial hair typically continue filling in for 2+ years."
+          }
+        }
+      }
+    },
+    "Add your medication details to see hormone levels, insights, and dose tracking." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add your medication details to see hormone levels, insights, and dose tracking."
+          }
+        }
+      }
+    },
+    "ADHERENCE" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ADHERENCE"
+          }
+        }
+      }
+    },
+    "Adjust schedule" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adjust schedule"
+          }
+        }
+      }
+    },
+    "After 5 years the skin baseline is well established. Estrogen's effects on skin do not reduce skin cancer risk." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "After 5 years the skin baseline is well established. Estrogen's effects on skin do not reduce skin cancer risk."
+          }
+        }
+      }
+    },
+    "After a decade of estrogen-maintained skin, age-related thinning and dryness are typical and are not a sign that therapy has stopped working." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "After a decade of estrogen-maintained skin, age-related thinning and dryness are typical and are not a sign that therapy has stopped working."
+          }
+        }
+      }
+    },
+    "After a decade the estrogen-dominant baseline is long established. Perimenopause-like changes can begin at an age-appropriate point." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "After a decade the estrogen-dominant baseline is long established. Perimenopause-like changes can begin at an age-appropriate point."
+          }
+        }
+      }
+    },
+    "After a decade, age-related muscle loss (sarcopenia) begins for everyone, T or not. The best defence: consistent resistance training, adequate protein, and staying active. Your T baseline gives you an edge — use it." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "After a decade, age-related muscle loss (sarcopenia) begins for everyone, T or not. The best defence: consistent resistance training, adequate protein, and staying active. Your T baseline gives you an edge — use it."
+          }
+        }
+      }
+    },
+    "After a decade, bone health is the most clinically relevant measure. DEXA scans track bone density directly; resistance training and adequate nutrition are associated with maintaining it." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "After a decade, bone health is the most clinically relevant measure. DEXA scans track bone density directly; resistance training and adequate nutrition are associated with maintaining it."
+          }
+        }
+      }
+    },
+    "After a decade, dosing is maintenance. Periodic lab review is what confirms that ester, interval and levels remain appropriate as the body ages." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "After a decade, dosing is maintenance. Periodic lab review is what confirms that ester, interval and levels remain appropriate as the body ages."
+          }
+        }
+      }
+    },
+    "After a decade, no further hormone-driven voice change occurs. Delivery, projection and singing remain trainable skills." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "After a decade, no further hormone-driven voice change occurs. Delivery, projection and singing remain trainable skills."
+          }
+        }
+      }
+    },
+    "After a decade, your dosing is background rhythm. Labs every 6–12 months confirm stability. Unless you're experiencing symptoms, no adjustments are needed — your protocol is proven." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "After a decade, your dosing is background rhythm. Labs every 6–12 months confirm stability. Unless you're experiencing symptoms, no adjustments are needed — your protocol is proven."
+          }
+        }
+      }
+    },
+    "Age-appropriate cancer screening at this stage may include mammogram, colorectal screening or skin checks." : {
+      "comment" : "Cancer screening milestone when the user's starting age is unknown",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Age-appropriate cancer screening at this stage may include mammogram, colorectal screening or skin checks."
+          }
+        }
+      }
+    },
+    "ALL ESTABLISHED" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ALL ESTABLISHED"
+          }
+        }
+      }
+    },
+    "All export processing happens on your device. No data is sent to any server. Exported files contain unencrypted personal health information — please store them securely." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All export processing happens on your device. No data is sent to any server. Exported files contain unencrypted personal health information — please store them securely."
+          }
+        }
+      }
+    },
+    "Allow passcode fallback" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allow passcode fallback"
+          }
+        }
+      }
+    },
+    "An androgynous figure" : {
+      "comment" : "Describes the neutral body silhouette option",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An androgynous figure"
+          }
+        }
+      }
+    },
+    "App Lock" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App Lock"
+          }
+        }
+      }
+    },
+    "App lock helps protect your sensitive health data by requiring authentication when opening xT or after a period of inactivity. Your biometric data is never stored on our servers or shared with Apple." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App lock helps protect your sensitive health data by requiring authentication when opening xT or after a period of inactivity. Your biometric data is never stored on our servers or shared with Apple."
+          }
+        }
+      }
+    },
+    "Are you sure?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Are you sure?"
+          }
+        }
+      }
+    },
+    "Are you taking any other medications?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Are you taking any other medications?"
+          }
+        }
+      }
+    },
+    "At 5+ years body composition is stable. Testosterone therapy affects lipid profile and blood pressure, which lipid panels and blood pressure checks track." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "At 5+ years body composition is stable. Testosterone therapy affects lipid profile and blood pressure, which lipid panels and blood pressure checks track."
+          }
+        }
+      }
+    },
+    "At 5+ years hair pattern is fully mature. Scalp hair retention continues to track DHT levels." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "At 5+ years hair pattern is fully mature. Scalp hair retention continues to track DHT levels."
+          }
+        }
+      }
+    },
+    "At 5+ years neurochemistry is stable, and hormone levels explain less of the variation in mood than life circumstances do." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "At 5+ years neurochemistry is stable, and hormone levels explain less of the variation in mood than life circumstances do."
+          }
+        }
+      }
+    },
+    "At 5+ years, bone density becomes the more clinically relevant measure. Weight-bearing exercise, calcium and vitamin D are associated with maintaining it." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "At 5+ years, bone density becomes the more clinically relevant measure. Weight-bearing exercise, calcium and vitamin D are associated with maintaining it."
+          }
+        }
+      }
+    },
+    "AT A GLANCE" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AT A GLANCE"
+          }
+        }
+      }
+    },
+    "At around age %lld, age-appropriate cancer screening may include mammogram, colorectal screening or skin checks." : {
+      "comment" : "Cancer screening milestone naming the user's approximate current age",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "At around age %lld, age-appropriate cancer screening may include mammogram, colorectal screening or skin checks."
+          }
+        }
+      }
+    },
+    "At the lower end of the range most people on established estrogen therapy maintain." : {
+      "comment" : "Factual description of a low estradiol band for a long-term user",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "At the lower end of the range most people on established estrogen therapy maintain."
+          }
+        }
+      }
+    },
+    "At the lower end of the typical therapeutic range. Levels in this band are often seen near the end of a dose cycle." : {
+      "comment" : "Factual description of a low estradiol band for a newer user",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "At the lower end of the typical therapeutic range. Levels in this band are often seen near the end of a dose cycle."
+          }
+        }
+      }
+    },
+    "at trough" : {
+      "comment" : "Position in the dose cycle, used mid-sentence: 'Estimated 142 pg/mL at trough'",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "at trough"
+          }
+        }
+      }
+    },
+    "Authenticate to continue" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Authenticate to continue"
+          }
+        }
+      }
+    },
+    "Authenticate with %@" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Authenticate with %@"
+          }
+        }
+      }
+    },
+    "Authentication Failed" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Authentication Failed"
+          }
+        }
+      }
+    },
+    "Auto-lock timeout" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auto-lock timeout"
+          }
+        }
+      }
+    },
+    "Avoid Zones" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avoid Zones"
+          }
+        }
+      }
+    },
+    "Back" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Back"
+          }
+        }
+      }
+    },
+    "below 50 ng/dL" : {
+      "comment" : "Testosterone band label shown beside a journal entry",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "below 50 ng/dL"
+          }
+        }
+      }
+    },
+    "Below 50 ng/dL" : {
+      "comment" : "Label naming the testosterone band the level falls in",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Below 50 ng/dL"
+          }
+        }
+      }
+    },
+    "below 50 pg/mL" : {
+      "comment" : "Estradiol band label shown beside a journal entry",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "below 50 pg/mL"
+          }
+        }
+      }
+    },
+    "Below 50 pg/mL" : {
+      "comment" : "Label naming the estradiol band the level falls in",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Below 50 pg/mL"
+          }
+        }
+      }
+    },
+    "Below 50 pg/mL at trough" : {
+      "comment" : "Pill label naming the low estradiol trough threshold",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Below 50 pg/mL at trough"
+          }
+        }
+      }
+    },
+    "Below 80 pg/mL at trough" : {
+      "comment" : "Pill label naming the low estradiol trough threshold while spironolactone is in use",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Below 80 pg/mL at trough"
+          }
+        }
+      }
+    },
+    "Below set trough" : {
+      "comment" : "Pill label: the estimate is under the trough range the user configured",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Below set trough"
+          }
+        }
+      }
+    },
+    "Below the range most people on established estrogen therapy maintain, and below the range typically associated with therapeutic effect." : {
+      "comment" : "Factual description of a very low estradiol band for a long-term user",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Below the range most people on established estrogen therapy maintain, and below the range typically associated with therapeutic effect."
+          }
+        }
+      }
+    },
+    "Below the range most people on established masculinising therapy maintain." : {
+      "comment" : "Factual description of a low-male testosterone band for a long-term user",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Below the range most people on established masculinising therapy maintain."
+          }
+        }
+      }
+    },
+    "Below the range typically associated with therapeutic effect. Levels commonly fluctuate in the first months of therapy while a dose settles." : {
+      "comment" : "Factual description of a very low estradiol band for a newer user",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Below the range typically associated with therapeutic effect. Levels commonly fluctuate in the first months of therapy while a dose settles."
+          }
+        }
+      }
+    },
+    "Below the typical adult male reference range of 300–1,000 ng/dL." : {
+      "comment" : "Factual description of a low-male testosterone band for a newer user",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Below the typical adult male reference range of 300–1,000 ng/dL."
+          }
+        }
+      }
+    },
+    "below your set trough range of %@" : {
+      "comment" : "Sentence fragment comparing the estimate to the user's configured range",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "below your set trough range of %@"
+          }
+        }
+      }
+    },
+    "Biometric authentication is working correctly." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Biometric authentication is working correctly."
+          }
+        }
+      }
+    },
+    "Biometrics Enabled!" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Biometrics Enabled!"
+          }
+        }
+      }
+    },
+    "Biometrics Unavailable" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Biometrics Unavailable"
+          }
+        }
+      }
+    },
+    "Blood tests are typically repeated every 3 months while a dose is being established — around month %lld here." : {
+      "comment" : "Explains the usual blood test interval when the user has recorded no tests yet",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Blood tests are typically repeated every 3 months while a dose is being established — around month %lld here."
+          }
+        }
+      }
+    },
+    "Body Architecture" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Body Architecture"
+          }
+        }
+      }
+    },
+    "BODY REGIONS" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "BODY REGIONS"
+          }
+        }
+      }
+    },
+    "Body silhouette" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Body silhouette"
+          }
+        }
+      }
+    },
+    "Camera" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Camera"
+          }
+        }
+      }
+    },
+    "Cancel" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        }
+      }
+    },
+    "Change date…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change date…"
+          }
+        }
+      }
+    },
+    "Change Medication Settings?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change Medication Settings?"
+          }
+        }
+      }
+    },
+    "Change Profile Photo" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change Profile Photo"
+          }
+        }
+      }
+    },
+    "Changes Saved" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Changes Saved"
+          }
+        }
+      }
+    },
+    "Changes to the %@ are about to begin as hormone levels rise and receptors activate." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Changes to the %@ are about to begin as hormone levels rise and receptors activate."
+          }
+        }
+      }
+    },
+    "CHANGES UNLOCKED" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CHANGES UNLOCKED"
+          }
+        }
+      }
+    },
+    "Choose a body silhouette" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose a body silhouette"
+          }
+        }
+      }
+    },
+    "Choose a photo source" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose a photo source"
+          }
+        }
+      }
+    },
+    "Choose New Site" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose New Site"
+          }
+        }
+      }
+    },
+    "Choose on Body Map…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose on Body Map…"
+          }
+        }
+      }
+    },
+    "COMING UP" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "COMING UP"
+          }
+        }
+      }
+    },
+    "Concentration changed from %@ to %@ mg/mL" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Concentration changed from %@ to %@ mg/mL"
+          }
+        }
+      }
+    },
+    "Configure your medication to see adherence data" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configure your medication to see adherence data"
+          }
+        }
+      }
+    },
+    "Continue" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continue"
+          }
+        }
+      }
+    },
+    "Correct Site" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Correct Site"
+          }
+        }
+      }
+    },
+    "Corrected" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Corrected"
+          }
+        }
+      }
+    },
+    "CURRENT" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CURRENT"
+          }
+        }
+      }
+    },
+    "Current level" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Current level"
+          }
+        }
+      }
+    },
+    "Custom" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Custom"
+          }
+        }
+      }
+    },
+    "Customize Regimen" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Customize Regimen"
+          }
+        }
+      }
+    },
+    "Cycle rhythm is typically stable and unremarkable after several years." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cycle rhythm is typically stable and unremarkable after several years."
+          }
+        }
+      }
+    },
+    "Cycle rhythm is typically stable and unremarkable by this stage." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cycle rhythm is typically stable and unremarkable by this stage."
+          }
+        }
+      }
+    },
+    "Cycle timing becomes predictable as dosing becomes consistent. After an ester or dose change, levels take roughly 4–6 weeks to reach steady state." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cycle timing becomes predictable as dosing becomes consistent. After an ester or dose change, levels take roughly 4–6 weeks to reach steady state."
+          }
+        }
+      }
+    },
+    "Cycle timing is predictable at this stage. A shorter interval or a longer-acting ester both reduce peak-to-trough fluctuation." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cycle timing is predictable at this stage. A shorter interval or a longer-acting ester both reduce peak-to-trough fluctuation."
+          }
+        }
+      }
+    },
+    "Cypionate (TC)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cypionate (TC)"
+          }
+        }
+      }
+    },
+    "Data Export" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Data Export"
+          }
+        }
+      }
+    },
+    "Deepening timeline" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deepening timeline"
+          }
+        }
+      }
+    },
+    "Default" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Default"
+          }
+        }
+      }
+    },
+    "Default is %lld days for %@ method" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Default is %lld days for %@ method"
+          }
+        }
+      }
+    },
+    "Delete" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete"
+          }
+        }
+      }
+    },
+    "Delete Dose?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Dose?"
+          }
+        }
+      }
+    },
+    "Details" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Details"
+          }
+        }
+      }
+    },
+    "Developer" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Developer"
+          }
+        }
+      }
+    },
+    "Developer mode unlocks test-only tools. Leave this off for normal use." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Developer mode unlocks test-only tools. Leave this off for normal use."
+          }
+        }
+      }
+    },
+    "Dismiss" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dismiss"
+          }
+        }
+      }
+    },
+    "Done" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Done"
+          }
+        }
+      }
+    },
+    "Done %@" : {
+      "comment" : "Badge showing the month a screening was last done",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Done %@"
+          }
+        }
+      }
+    },
+    "dose" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "dose"
+          }
+        }
+      }
+    },
+    "Dose amount" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dose amount"
+          }
+        }
+      }
+    },
+    "Dose History" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dose History"
+          }
+        }
+      }
+    },
+    "DOSE INTENSITY" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DOSE INTENSITY"
+          }
+        }
+      }
+    },
+    "Dose intensity insights" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dose intensity insights"
+          }
+        }
+      }
+    },
+    "Dose not recorded" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dose not recorded"
+          }
+        }
+      }
+    },
+    "Dose Recorded" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dose Recorded"
+          }
+        }
+      }
+    },
+    "Dose reminder" : {
+      "comment" : "Placeholder shown instead of the notification body when previews are hidden",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dose reminder"
+          }
+        }
+      }
+    },
+    "Dose reminders" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dose reminders"
+          }
+        }
+      }
+    },
+    "Dose Schedule" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dose Schedule"
+          }
+        }
+      }
+    },
+    "Dose scheduled" : {
+      "comment" : "Notification title when a scheduled dose comes due",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dose scheduled"
+          }
+        }
+      }
+    },
+    "Dose time" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dose time"
+          }
+        }
+      }
+    },
+    "Dose Unit" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dose Unit"
+          }
+        }
+      }
+    },
+    "Dosing frequency" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dosing frequency"
+          }
+        }
+      }
+    },
+    "Dosing is maintenance after a decade. You know your rhythm intimately. Periodic labs confirm your levels remain appropriate — that's the only active monitoring needed for your cycle." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dosing is maintenance after a decade. You know your rhythm intimately. Periodic labs confirm your levels remain appropriate — that's the only active monitoring needed for your cycle."
+          }
+        }
+      }
+    },
+    "Dosing rhythm is long established after a decade. Periodic lab review is what confirms levels remain age-appropriate." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dosing rhythm is long established after a decade. Periodic lab review is what confirms levels remain age-appropriate."
+          }
+        }
+      }
+    },
+    "Early changes" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Early changes"
+          }
+        }
+      }
+    },
+    "Edit Administration Site" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edit Administration Site"
+          }
+        }
+      }
+    },
+    "Edit Profile" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edit Profile"
+          }
+        }
+      }
+    },
+    "Edit Site" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edit Site"
+          }
+        }
+      }
+    },
+    "Editing the site will delete the original record and create a new one tagged as user-corrected. The original date, dose details, and original site are preserved for audit." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Editing the site will delete the original record and create a new one tagged as user-corrected. The original date, dose details, and original site are preserved for audit."
+          }
+        }
+      }
+    },
+    "Emotional range typically continues to broaden over this period. Neurochemical adaptation is gradual, and mood variability is common while it happens." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Emotional range typically continues to broaden over this period. Neurochemical adaptation is gradual, and mood variability is common while it happens."
+          }
+        }
+      }
+    },
+    "Enable" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enable"
+          }
+        }
+      }
+    },
+    "Enable developer mode?" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enable developer mode?"
+          }
+        }
+      }
+    },
+    "Entry" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entry"
+          }
+        }
+      }
+    },
+    "ESTABLISHED CHANGES" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ESTABLISHED CHANGES"
+          }
+        }
+      }
+    },
+    "Estimated" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimated"
+          }
+        }
+      }
+    },
+    "Estimated %@ — %@." : {
+      "comment" : "Full level readout: estimate and comparison to the user's range",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimated %@ — %@."
+          }
+        }
+      }
+    },
+    "Estimated %@ %@ — %@." : {
+      "comment" : "Full level readout: estimate, cycle position, comparison to the user's range",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimated %@ %@ — %@."
+          }
+        }
+      }
+    },
+    "Estimated %@ %@." : {
+      "comment" : "Level readout with cycle position, e.g. 'Estimated 142 pg/mL at trough.'",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimated %@ %@."
+          }
+        }
+      }
+    },
+    "Estimated %@." : {
+      "comment" : "Level readout with no cycle position, e.g. 'Estimated 142 pg/mL.'",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimated %@."
+          }
+        }
+      }
+    },
+    "Estimated estradiol from aromatization is above the male reference range of 10–40 pg/mL." : {
+      "comment" : "Where the aromatization estimate falls against the male reference range",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimated estradiol from aromatization is above the male reference range of 10–40 pg/mL."
+          }
+        }
+      }
+    },
+    "Estimated estradiol from aromatization is below the male reference range of 10–40 pg/mL." : {
+      "comment" : "Where the aromatization estimate falls against the male reference range",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimated estradiol from aromatization is below the male reference range of 10–40 pg/mL."
+          }
+        }
+      }
+    },
+    "Estimated estradiol from aromatization is within the male reference range of 10–40 pg/mL." : {
+      "comment" : "Where the aromatization estimate falls against the male reference range",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimated estradiol from aromatization is within the male reference range of 10–40 pg/mL."
+          }
+        }
+      }
+    },
+    "Estradiol above 1,000 pg/mL is associated with increased thromboembolic risk." : {
+      "comment" : "Clinical association for very high estradiol. States a fact, not an instruction.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estradiol above 1,000 pg/mL is associated with increased thromboembolic risk."
+          }
+        }
+      }
+    },
+    "Estradiol below 50 pg/mL at trough is under the range typically associated with therapeutic effect." : {
+      "comment" : "Clinical association for a low estradiol trough. States a fact, not an instruction.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estradiol below 50 pg/mL at trough is under the range typically associated with therapeutic effect."
+          }
+        }
+      }
+    },
+    "Estrogen supports bone mineral density. A DEXA scan measures it directly; the usual schedule is a baseline plus follow-ups every 2 years." : {
+      "comment" : "Bone density milestone on estrogen therapy",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estrogen supports bone mineral density. A DEXA scan measures it directly; the usual schedule is a baseline plus follow-ups every 2 years."
+          }
+        }
+      }
+    },
+    "Every %lld days" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Every %lld days"
+          }
+        }
+      }
+    },
+    "Every ^[%lld day](inflect: true)" : {
+      "comment" : "Dosing interval, e.g. 'Every 7 days'",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Every ^[%lld day](inflect: true)"
+          }
+        }
+      }
+    },
+    "Export All Data" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export All Data"
+          }
+        }
+      }
+    },
+    "Fat distribution is stable. Diet and exercise affect body composition as they always did, in estrogen-dominant deposition patterns. Resistance training is associated with maintained bone density." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fat distribution is stable. Diet and exercise affect body composition as they always did, in estrogen-dominant deposition patterns. Resistance training is associated with maintained bone density."
+          }
+        }
+      }
+    },
+    "Fat redistribution is among the slowest changes, typically measured in years rather than months. Weight cycling can accelerate it, but redistribution proceeds without it." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fat redistribution is among the slowest changes, typically measured in years rather than months. Weight cycling can accelerate it, but redistribution proceeds without it."
+          }
+        }
+      }
+    },
+    "Fat redistribution is largely complete by this stage. Further change is typically subtle." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fat redistribution is largely complete by this stage. Further change is typically subtle."
+          }
+        }
+      }
+    },
+    "Fat, curves & what to expect" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fat, curves & what to expect"
+          }
+        }
+      }
+    },
+    "Favoured sites per medication & route" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Favoured sites per medication & route"
+          }
+        }
+      }
+    },
+    "Feminine" : {
+      "comment" : "Body silhouette option",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Feminine"
+          }
+        }
+      }
+    },
+    "Fully configured and ready" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fully configured and ready"
+          }
+        }
+      }
+    },
+    "General information about hormone therapy, based on population data. Not medical advice, and not specific to you." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "General information about hormone therapy, based on population data. Not medical advice, and not specific to you."
+          }
+        }
+      }
+    },
+    "Hair and skin patterns are stable and testosterone-driven change is complete. Scalp hair, where affected, plateaued years earlier." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hair and skin patterns are stable and testosterone-driven change is complete. Scalp hair, where affected, plateaued years earlier."
+          }
+        }
+      }
+    },
+    "Hair pattern is fully expressed by this stage. Scalp hair loss tracks DHT levels. Acne is uncommon at this stage." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hair pattern is fully expressed by this stage. Scalp hair loss tracks DHT levels. Acne is uncommon at this stage."
+          }
+        }
+      }
+    },
+    "Hair typically continues filling in and acne typically subsides at this stage. Finasteride and minoxidil are the treatments used for testosterone-driven scalp hair loss." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hair typically continues filling in and acne typically subsides at this stage. Finasteride and minoxidil are the treatments used for testosterone-driven scalp hair loss."
+          }
+        }
+      }
+    },
+    "Half-life ~^[%lld day](inflect: true)" : {
+      "comment" : "Approximate elimination half-life of the selected ester",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Half-life ~^[%lld day](inflect: true)"
+          }
+        }
+      }
+    },
+    "Hello, %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hello, %@"
+          }
+        }
+      }
+    },
+    "Here's your setup" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Here's your setup"
+          }
+        }
+      }
+    },
+    "Home" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Home"
+          }
+        }
+      }
+    },
+    "HORMONE LEVELS" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HORMONE LEVELS"
+          }
+        }
+      }
+    },
+    "Hormone therapy tracking" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hormone therapy tracking"
+          }
+        }
+      }
+    },
+    "How are you feeling?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How are you feeling?"
+          }
+        }
+      }
+    },
+    "How do you take it?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How do you take it?"
+          }
+        }
+      }
+    },
+    "How estrogen shapes your emotions" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How estrogen shapes your emotions"
+          }
+        }
+      }
+    },
+    "How long have you been on HRT?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How long have you been on HRT?"
+          }
+        }
+      }
+    },
+    "How many days before you can reuse the same administration site." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How many days before you can reuse the same administration site."
+          }
+        }
+      }
+    },
+    "In %lldd" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In %lldd"
+          }
+        }
+      }
+    },
+    "Injection (IM/SubQ)" : {
+      "comment" : "Administration route: intramuscular or subcutaneous injection",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Injection (IM/SubQ)"
+          }
+        }
+      }
+    },
+    "Jan's test data will be removed and your original data restored. The app will quit." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jan's test data will be removed and your original data restored. The app will quit."
+          }
+        }
+      }
+    },
+    "Journal" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Journal"
+          }
+        }
+      }
+    },
+    "Journal reminder" : {
+      "comment" : "Notification title for the daily journal reminder the user scheduled\nPlaceholder shown instead of the notification body when previews are hidden",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Journal reminder"
+          }
+        }
+      }
+    },
+    "Journal reminders" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Journal reminders"
+          }
+        }
+      }
+    },
+    "Just starting" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Just starting"
+          }
+        }
+      }
+    },
+    "KEY INSIGHT" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "KEY INSIGHT"
+          }
+        }
+      }
+    },
+    "Last dose: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last dose: %@"
+          }
+        }
+      }
+    },
+    "Last dose: %@ (%@)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last dose: %@ (%@)"
+          }
+        }
+      }
+    },
+    "Last dose: %@ +%lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last dose: %@ +%lld"
+          }
+        }
+      }
+    },
+    "Last site is marked as avoid. Choose a different site." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last site is marked as avoid. Choose a different site."
+          }
+        }
+      }
+    },
+    "Last test %@. Next test due in ^[%lld month](inflect: true)." : {
+      "comment" : "When the last blood test was and when the next is due",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last test %@. Next test due in ^[%lld month](inflect: true)."
+          }
+        }
+      }
+    },
+    "Lean mass has plateaued: testosterone alone no longer drives further growth, and additional gain requires training stimulus." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lean mass has plateaued: testosterone alone no longer drives further growth, and additional gain requires training stimulus."
+          }
+        }
+      }
+    },
+    "Levels and mood are typically stable at this stage, and an established personal baseline is the most reliable reference point for noticing a change." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Levels and mood are typically stable at this stage, and an established personal baseline is the most reliable reference point for noticing a change."
+          }
+        }
+      }
+    },
+    "Levels follow a repeating arc across a dose cycle: highest in the first days after a dose, lowest just before the next one. Patterns in how that feels become apparent once dosing is consistent." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Levels follow a repeating arc across a dose cycle: highest in the first days after a dose, lowest just before the next one. Patterns in how that feels become apparent once dosing is consistent."
+          }
+        }
+      }
+    },
+    "Library" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Library"
+          }
+        }
+      }
+    },
+    "Log a dose to see your curve" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Log a dose to see your curve"
+          }
+        }
+      }
+    },
+    "Long-press on a zone in the body picker to mark it as avoid." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Long-press on a zone in the body picker to mark it as avoid."
+          }
+        }
+      }
+    },
+    "LONG-TERM HEALTH" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LONG-TERM HEALTH"
+          }
+        }
+      }
+    },
+    "Look for a number followed by 'mg/mL' on your vial or box.\nFor example, a 200 mg/5 mL vial is 40 mg/mL." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Look for a number followed by 'mg/mL' on your vial or box.\nFor example, a 200 mg/5 mL vial is 40 mg/mL."
+          }
+        }
+      }
+    },
+    "Manage Avoid Zones" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manage Avoid Zones"
+          }
+        }
+      }
+    },
+    "Manage Doses" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manage Doses"
+          }
+        }
+      }
+    },
+    "Marked" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Marked"
+          }
+        }
+      }
+    },
+    "Marked %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Marked %@"
+          }
+        }
+      }
+    },
+    "Masculine" : {
+      "comment" : "Body silhouette option",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Masculine"
+          }
+        }
+      }
+    },
+    "Measured higher than the population model predicts for this regimen." : {
+      "comment" : "Comparison of the user's calibrated level to the uncalibrated model",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Measured higher than the population model predicts for this regimen."
+          }
+        }
+      }
+    },
+    "Measured lower than the population model predicts for this regimen." : {
+      "comment" : "Comparison of the user's calibrated level to the uncalibrated model",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Measured lower than the population model predicts for this regimen."
+          }
+        }
+      }
+    },
+    "Medication Schedule" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Medication Schedule"
+          }
+        }
+      }
+    },
+    "Medication Status" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Medication Status"
+          }
+        }
+      }
+    },
+    "mg" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "mg"
+          }
+        }
+      }
+    },
+    "mg/mL" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "mg/mL"
+          }
+        }
+      }
+    },
+    "mid-cycle" : {
+      "comment" : "Position in the dose cycle, used mid-sentence: 'Estimated 142 pg/mL mid-cycle'",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "mid-cycle"
+          }
+        }
+      }
+    },
+    "Missed dose" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Missed dose"
+          }
+        }
+      }
+    },
+    "mL" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "mL"
+          }
+        }
+      }
+    },
+    "Month 1: Oil production kicks in quickly — skin may feel greasier within weeks. Acne often follows.\n\nMonths 3–5: Body hair begins appearing in a predictable pattern: lower legs → thighs → abdomen." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Month 1: Oil production kicks in quickly — skin may feel greasier within weeks. Acne often follows.\n\nMonths 3–5: Body hair begins appearing in a predictable pattern: lower legs → thighs → abdomen."
+          }
+        }
+      }
+    },
+    "Month 1: Reduced oiliness is often the very first change — noticeable within weeks." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Month 1: Reduced oiliness is often the very first change — noticeable within weeks."
+          }
+        }
+      }
+    },
+    "Months" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Months"
+          }
+        }
+      }
+    },
+    "Months 1–3: Early strength gains — you may notice exercises feeling easier. Some water retention can give a 'fuller' look.\n\nMonths 3–5: Noticeable muscle growth, especially upper body. Recovery between workouts improves significantly." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Months 1–3: Early strength gains — you may notice exercises feeling easier. Some water retention can give a 'fuller' look.\n\nMonths 3–5: Noticeable muscle growth, especially upper body. Recovery between workouts improves significantly."
+          }
+        }
+      }
+    },
+    "Months 1–3: Emotional sensitivity often increases first. You may feel more tearful, reactive, or emotionally open. This is neurochemical recalibration.\n\nMonths 3–6: Emotional range broadens. Many describe feeling 'more themselves' — a sense of emotional alignment that was missing before." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Months 1–3: Emotional sensitivity often increases first. You may feel more tearful, reactive, or emotionally open. This is neurochemical recalibration.\n\nMonths 3–6: Emotional range broadens. Many describe feeling 'more themselves' — a sense of emotional alignment that was missing before."
+          }
+        }
+      }
+    },
+    "Months 1–3: Subtle — you may notice slight softening around the hips or face.\n\nMonths 3–5: Fat redistribution becomes visible. Pants may fit differently as hip and thigh circumference increases." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Months 1–3: Subtle — you may notice slight softening around the hips or face.\n\nMonths 3–5: Fat redistribution becomes visible. Pants may fit differently as hip and thigh circumference increases."
+          }
+        }
+      }
+    },
+    "Months 1–3: You may feel a scratchy throat or notice slight hoarseness — the first signs of vocal fold thickening.\n\nMonths 3–5: The first noticeable pitch drop typically happens here. Voice may crack or feel unstable." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Months 1–3: You may feel a scratchy throat or notice slight hoarseness — the first signs of vocal fold thickening.\n\nMonths 3–5: The first noticeable pitch drop typically happens here. Voice may crack or feel unstable."
+          }
+        }
+      }
+    },
+    "Months 2–5: Skin texture begins softening. Pores appear smaller, hydration improves." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Months 2–5: Skin texture begins softening. Pores appear smaller, hydration improves."
+          }
+        }
+      }
+    },
+    "Months 6–12: Body hair continues filling in (chest, back, face). Acne may peak during this period." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Months 6–12: Body hair continues filling in (chest, back, face). Acne may peak during this period."
+          }
+        }
+      }
+    },
+    "Months 6–12: Continuing gradual drop. Your voice is settling into its new range." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Months 6–12: Continuing gradual drop. Your voice is settling into its new range."
+          }
+        }
+      }
+    },
+    "Months 6–12: Mood patterns stabilise as your brain adapts to the new hormonal environment. Cyclical trough effects may become noticeable." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Months 6–12: Mood patterns stabilise as your brain adapts to the new hormonal environment. Cyclical trough effects may become noticeable."
+          }
+        }
+      }
+    },
+    "Months 6–12: Strength continues increasing. Body composition is visibly shifting toward more lean mass." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Months 6–12: Strength continues increasing. Body composition is visibly shifting toward more lean mass."
+          }
+        }
+      }
+    },
+    "Months 6–12: The 'glow' becomes apparent. Skin is noticeably softer and more radiant than pre-HRT." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Months 6–12: The 'glow' becomes apparent. Skin is noticeably softer and more radiant than pre-HRT."
+          }
+        }
+      }
+    },
+    "Months 6–12: Waist-to-hip ratio begins shifting noticeably. Upper body muscle loss contributes to a narrower shoulder appearance." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Months 6–12: Waist-to-hip ratio begins shifting noticeably. Upper body muscle loss contributes to a narrower shoulder appearance."
+          }
+        }
+      }
+    },
+    "Months 12–24: Body and facial hair continue filling in. Acne typically begins to mellow. Scalp hairline may stabilise or continue receding depending on genetics." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Months 12–24: Body and facial hair continue filling in. Acne typically begins to mellow. Scalp hairline may stabilise or continue receding depending on genetics."
+          }
+        }
+      }
+    },
+    "Months 12–24: Most of the deepening is done. Any remaining changes are very subtle. Your speaking voice has found its natural pitch." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Months 12–24: Most of the deepening is done. Any remaining changes are very subtle. Your speaking voice has found its natural pitch."
+          }
+        }
+      }
+    },
+    "Months 12–24: Muscle growth velocity peaks. Without training, you'll maintain above-baseline lean mass. With training, this is peak gain season." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Months 12–24: Muscle growth velocity peaks. Without training, you'll maintain above-baseline lean mass. With training, this is peak gain season."
+          }
+        }
+      }
+    },
+    "Months 12–24: The bulk of your fat redistribution is complete. Your silhouette has changed meaningfully. Any remaining shifts are slow and subtle — fat cells turn over on a ~2–3 year cycle." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Months 12–24: The bulk of your fat redistribution is complete. Your silhouette has changed meaningfully. Any remaining shifts are slow and subtle — fat cells turn over on a ~2–3 year cycle."
+          }
+        }
+      }
+    },
+    "Months 12–24: The emotional baseline typically settles and holds. Patterns across a dose cycle are usually recognisable by this point." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Months 12–24: The emotional baseline typically settles and holds. Patterns across a dose cycle are usually recognisable by this point."
+          }
+        }
+      }
+    },
+    "Months 12–24: Your skin has fully transitioned. Collagen density is up, sebum is down, and the texture difference from pre-HRT is complete." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Months 12–24: Your skin has fully transitioned. Collagen density is up, sebum is down, and the texture difference from pre-HRT is complete."
+          }
+        }
+      }
+    },
+    "Mood & Mind" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mood & Mind"
+          }
+        }
+      }
+    },
+    "Mood is typically stable by this stage. Where dips track the trough of a dose cycle, a shorter injection interval produces a flatter curve." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mood is typically stable by this stage. Where dips track the trough of a dose cycle, a shorter injection interval produces a flatter curve."
+          }
+        }
+      }
+    },
+    "More frequent smaller doses produce a flatter curve and less mood variation across the cycle. The difference is in day-to-day steadiness rather than in clinical outcome." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "More frequent smaller doses produce a flatter curve and less mood variation across the cycle. The difference is in day-to-day steadiness rather than in clinical outcome."
+          }
+        }
+      }
+    },
+    "Multi-Site" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Multi-Site"
+          }
+        }
+      }
+    },
+    "near peak" : {
+      "comment" : "Position in the dose cycle, used mid-sentence: 'Estimated 142 pg/mL near peak'",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "near peak"
+          }
+        }
+      }
+    },
+    "NEURAL REGIONS" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NEURAL REGIONS"
+          }
+        }
+      }
+    },
+    "Neutral" : {
+      "comment" : "Body silhouette option",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neutral"
+          }
+        }
+      }
+    },
+    "New Entry." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Entry."
+          }
+        }
+      }
+    },
+    "next dose" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "next dose"
+          }
+        }
+      }
+    },
+    "Next dose" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next dose"
+          }
+        }
+      }
+    },
+    "Next dose will be: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next dose will be: %@"
+          }
+        }
+      }
+    },
+    "Next: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next: %@"
+          }
+        }
+      }
+    },
+    "ng/dL" : {
+      "comment" : "Unit symbol: nanograms per decilitre, used for testosterone levels",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ng/dL"
+          }
+        }
+      }
+    },
+    "No Avoid Zones" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Avoid Zones"
+          }
+        }
+      }
+    },
+    "No Dose History" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Dose History"
+          }
+        }
+      }
+    },
+    "No journal entries yet" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No journal entries yet"
+          }
+        }
+      }
+    },
+    "No medication configured" : {
+      "comment" : "Settings row subtitle when adherence data is unavailable",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No medication configured"
+          }
+        }
+      }
+    },
+    "No medication selected" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No medication selected"
+          }
+        }
+      }
+    },
+    "No schedule set" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No schedule set"
+          }
+        }
+      }
+    },
+    "None" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "None"
+          }
+        }
+      }
+    },
+    "Not configured" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not configured"
+          }
+        }
+      }
+    },
+    "Not enough dose history to show regimen changes yet." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not enough dose history to show regimen changes yet."
+          }
+        }
+      }
+    },
+    "Notifications disabled" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notifications disabled"
+          }
+        }
+      }
+    },
+    "Off — use clinical defaults" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off — use clinical defaults"
+          }
+        }
+      }
+    },
+    "Oil, texture & growth" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oil, texture & growth"
+          }
+        }
+      }
+    },
+    "OK" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OK"
+          }
+        }
+      }
+    },
+    "On — personalised dose intensity shown" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On — personalised dose intensity shown"
+          }
+        }
+      }
+    },
+    "Open Settings" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Settings"
+          }
+        }
+      }
+    },
+    "Oral" : {
+      "comment" : "Administration route: taken by mouth",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oral"
+          }
+        }
+      }
+    },
+    "Originally: " : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Originally: "
+          }
+        }
+      }
+    },
+    "Partially configured - needs completion" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Partially configured - needs completion"
+          }
+        }
+      }
+    },
+    "Peak ceiling %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Peak ceiling %@"
+          }
+        }
+      }
+    },
+    "Personalize your space" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Personalize your space"
+          }
+        }
+      }
+    },
+    "pg/mL" : {
+      "comment" : "Unit symbol: picograms per millilitre, used for estradiol levels",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "pg/mL"
+          }
+        }
+      }
+    },
+    "Photo Library" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photo Library"
+          }
+        }
+      }
+    },
+    "PHYSICAL CHANGES" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PHYSICAL CHANGES"
+          }
+        }
+      }
+    },
+    "Pitch change is largely complete and is structural. Resonance and speech patterns remain trainable; pitch itself does not." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pitch change is largely complete and is structural. Resonance and speech patterns remain trainable; pitch itself does not."
+          }
+        }
+      }
+    },
+    "Pitch has been stable for half a decade. No further biological change is expected." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pitch has been stable for half a decade. No further biological change is expected."
+          }
+        }
+      }
+    },
+    "Pitch is permanent and will not change further. Voice training affects how the voice is used, not its pitch." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pitch is permanent and will not change further. Voice training affects how the voice is used, not its pitch."
+          }
+        }
+      }
+    },
+    "Pre-fills the time when recording a dose" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pre-fills the time when recording a dose"
+          }
+        }
+      }
+    },
+    "Preferred zones" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preferred zones"
+          }
+        }
+      }
+    },
+    "Preferred Zones" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preferred Zones"
+          }
+        }
+      }
+    },
+    "Present" : {
+      "comment" : "End of a date range that has not ended yet",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Present"
+          }
+        }
+      }
+    },
+    "Previous dose location:" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Previous dose location:"
+          }
+        }
+      }
+    },
+    "Previously: %@ (%@)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Previously: %@ (%@)"
+          }
+        }
+      }
+    },
+    "Privacy & Security" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Privacy & Security"
+          }
+        }
+      }
+    },
+    "Profile Complete" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profile Complete"
+          }
+        }
+      }
+    },
+    "Profile Incomplete" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profile Incomplete"
+          }
+        }
+      }
+    },
+    "Profile Information" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profile Information"
+          }
+        }
+      }
+    },
+    "Profile Preview" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profile Preview"
+          }
+        }
+      }
+    },
+    "Quit & Restore" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quit & Restore"
+          }
+        }
+      }
+    },
+    "Quit & Switch" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quit & Switch"
+          }
+        }
+      }
+    },
+    "Rate of strength gain and recovery capacity are both near their peak during this period. Lean mass stays above pre-therapy baseline without training." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rate of strength gain and recovery capacity are both near their peak during this period. Lean mass stays above pre-therapy baseline without training."
+          }
+        }
+      }
+    },
+    "Read more" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Read more"
+          }
+        }
+      }
+    },
+    "Reason" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reason"
+          }
+        }
+      }
+    },
+    "Record" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Record"
+          }
+        }
+      }
+    },
+    "Record dose" : {
+      "comment" : "Notification action button that opens the dose entry screen",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Record dose"
+          }
+        }
+      }
+    },
+    "Record Dose" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Record Dose"
+          }
+        }
+      }
+    },
+    "Record Dose on Selected Date" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Record Dose on Selected Date"
+          }
+        }
+      }
+    },
+    "Record your dose" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Record your dose"
+          }
+        }
+      }
+    },
+    "Record your first dose to see history here." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Record your first dose to see history here."
+          }
+        }
+      }
+    },
+    "REGIMEN HISTORY" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "REGIMEN HISTORY"
+          }
+        }
+      }
+    },
+    "Regimen history and dose intensity" : {
+      "comment" : "Settings row subtitle for the adherence screen before any adherence data exists",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Regimen history and dose intensity"
+          }
+        }
+      }
+    },
+    "REGIMEN TIMELINE" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "REGIMEN TIMELINE"
+          }
+        }
+      }
+    },
+    "Remove from Avoid Zones" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove from Avoid Zones"
+          }
+        }
+      }
+    },
+    "Require %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Require %@"
+          }
+        }
+      }
+    },
+    "Require Face ID" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Require Face ID"
+          }
+        }
+      }
+    },
+    "Require passcode instead" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Require passcode instead"
+          }
+        }
+      }
+    },
+    "Reset" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset"
+          }
+        }
+      }
+    },
+    "Reset Changes" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset Changes"
+          }
+        }
+      }
+    },
+    "Restore your profile?" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore your profile?"
+          }
+        }
+      }
+    },
+    "Review and correct ^[%lld dose](inflect: true)" : {
+      "comment" : "Settings row subtitle counting doses that need review",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Review and correct ^[%lld dose](inflect: true)"
+          }
+        }
+      }
+    },
+    "Save" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save"
+          }
+        }
+      }
+    },
+    "Save Changes" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save Changes"
+          }
+        }
+      }
+    },
+    "Select dose date:" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select dose date:"
+          }
+        }
+      }
+    },
+    "Set this dose's location (optional)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set this dose's location (optional)"
+          }
+        }
+      }
+    },
+    "Set up your medication" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set up your medication"
+          }
+        }
+      }
+    },
+    "Set up your medication in Settings to start tracking adherence and regimen history." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set up your medication in Settings to start tracking adherence and regimen history."
+          }
+        }
+      }
+    },
+    "Setting a range lets xT report where an estimate falls relative to it. Without one, xT shows the estimate on its own." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Setting a range lets xT report where an estimate falls relative to it. Without one, xT shows the estimate on its own."
+          }
+        }
+      }
+    },
+    "Settings" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Settings"
+          }
+        }
+      }
+    },
+    "Shaded areas are the sites commonly used for this route." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shaded areas are the sites commonly used for this route."
+          }
+        }
+      }
+    },
+    "Silhouette used in the 3D body picker" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Silhouette used in the 3D body picker"
+          }
+        }
+      }
+    },
+    "Site close to previous site." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Site close to previous site."
+          }
+        }
+      }
+    },
+    "Site picker has moved to the Quick Dose sheet." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Site picker has moved to the Quick Dose sheet."
+          }
+        }
+      }
+    },
+    "Skin aging continues on its normal course. Skin remains softer than it would be without estrogen, but photoaging and age-related collagen loss are universal. Retinoids, vitamin C and sun protection are the interventions with evidence behind them." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skin aging continues on its normal course. Skin remains softer than it would be without estrogen, but photoaging and age-related collagen loss are universal. Retinoids, vitamin C and sun protection are the interventions with evidence behind them."
+          }
+        }
+      }
+    },
+    "Skin changes are largely complete by this stage. No hormone-specific intervention is indicated." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skin changes are largely complete by this stage. No hormone-specific intervention is indicated."
+          }
+        }
+      }
+    },
+    "Skin typically continues softening over the next several months, and acne typically continues decreasing. Estrogen-thinned skin is more UV-sensitive than it was before therapy." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skin typically continues softening over the next several months, and acne typically continues decreasing. Estrogen-thinned skin is more UV-sensitive than it was before therapy."
+          }
+        }
+      }
+    },
+    "Spironolactone can increase estradiol clearance, which lowers trough levels." : {
+      "comment" : "Pharmacological interaction note. States a fact, not an instruction.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spironolactone can increase estradiol clearance, which lowers trough levels."
+          }
+        }
+      }
+    },
+    "Standard" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Standard"
+          }
+        }
+      }
+    },
+    "Still shifting" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Still shifting"
+          }
+        }
+      }
+    },
+    "Strength typically continues climbing. Lean mass increases with testosterone alone; the rate of gain is highest during this period when combined with resistance training." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Strength typically continues climbing. Lean mass increases with testosterone alone; the rate of gain is highest during this period when combined with resistance training."
+          }
+        }
+      }
+    },
+    "Suppressed, consistent with established anti-androgen or estrogen therapy." : {
+      "comment" : "Factual description of a suppressed testosterone band for a long-term user",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suppressed, consistent with established anti-androgen or estrogen therapy."
+          }
+        }
+      }
+    },
+    "Suppressed. This is the band feminising therapy typically brings testosterone down to." : {
+      "comment" : "Factual description of a suppressed testosterone band for a newer user",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suppressed. This is the band feminising therapy typically brings testosterone down to."
+          }
+        }
+      }
+    },
+    "Switch to the Jan test profile?" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Switch to the Jan test profile?"
+          }
+        }
+      }
+    },
+    "Symptoms" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Symptoms"
+          }
+        }
+      }
+    },
+    "Take Photo" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Take Photo"
+          }
+        }
+      }
+    },
+    "Taking %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Taking %@"
+          }
+        }
+      }
+    },
+    "Tap on the body model to mark your injection site.\nYou can rotate the model with the arrows below." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap on the body model to mark your injection site.\nYou can rotate the model with the arrows below."
+          }
+        }
+      }
+    },
+    "Tap the + button to create your first entry" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap the + button to create your first entry"
+          }
+        }
+      }
+    },
+    "Tap the model to mark your site" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap the model to mark your site"
+          }
+        }
+      }
+    },
+    "Tap the model to set site" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap the model to set site"
+          }
+        }
+      }
+    },
+    "Tap to add photo" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap to add photo"
+          }
+        }
+      }
+    },
+    "Test %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Test %@"
+          }
+        }
+      }
+    },
+    "Test Cancelled" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Test Cancelled"
+          }
+        }
+      }
+    },
+    "Test Face ID" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Test Face ID"
+          }
+        }
+      }
+    },
+    "Test your biometric authentication" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Test your biometric authentication"
+          }
+        }
+      }
+    },
+    "Testosterone above 1,500 ng/dL is associated with increased risk of polycythemia." : {
+      "comment" : "Clinical association for very high testosterone. States a fact, not an instruction.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Testosterone above 1,500 ng/dL is associated with increased risk of polycythemia."
+          }
+        }
+      }
+    },
+    "Testosterone supports bone mineral density. A DEXA scan measures it directly; the usual schedule is a baseline plus periodic follow-ups." : {
+      "comment" : "Bone density milestone on testosterone therapy",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Testosterone supports bone mineral density. A DEXA scan measures it directly; the usual schedule is a baseline plus periodic follow-ups."
+          }
+        }
+      }
+    },
+    "The cycle is predictable at this stage, so peak and trough days can be anticipated from the dosing date." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The cycle is predictable at this stage, so peak and trough days can be anticipated from the dosing date."
+          }
+        }
+      }
+    },
+    "The largest pitch drop typically occurs in months 3–6. Cracking during this period is typical and transient. Hydration and avoiding vocal strain reduce it." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The largest pitch drop typically occurs in months 3–6. Cracking during this period is typical and transient. Hydration and avoiding vocal strain reduce it."
+          }
+        }
+      }
+    },
+    "The pitch drop is well underway and cracking typically subsides from here." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The pitch drop is well underway and cracking typically subsides from here."
+          }
+        }
+      }
+    },
+    "This changes the 3D injection-site picker. You can update this anytime in Settings." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This changes the 3D injection-site picker. You can update this anytime in Settings."
+          }
+        }
+      }
+    },
+    "This dose works out to %@ mL, a large volume for a single injection site." : {
+      "comment" : "Note shown when a computed injection volume is large for one site",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This dose works out to %@ mL, a large volume for a single injection site."
+          }
+        }
+      }
+    },
+    "This dose works out to %@ mL, below what a standard syringe measures accurately. A %@ has markings at this scale." : {
+      "comment" : "Note shown when a computed injection volume is too small to measure reliably",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This dose works out to %@ mL, below what a standard syringe measures accurately. A %@ has markings at this scale."
+          }
+        }
+      }
+    },
+    "Time" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Time"
+          }
+        }
+      }
+    },
+    "TIME · BODY SYSTEMS" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TIME · BODY SYSTEMS"
+          }
+        }
+      }
+    },
+    "Timelines shown are based on population data for the reference dose. Individual results vary." : {
+      "comment" : "Explains the basis of the change timelines at a typical dose intensity",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Timelines shown are based on population data for the reference dose. Individual results vary."
+          }
+        }
+      }
+    },
+    "Timelines shown are extended, because this dose is below the reference dose the population data is based on." : {
+      "comment" : "Explains why change timelines are stretched at a low dose intensity",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Timelines shown are extended, because this dose is below the reference dose the population data is based on."
+          }
+        }
+      }
+    },
+    "Timelines shown are shortened slightly, because this dose is above the reference dose the population data is based on." : {
+      "comment" : "Explains why change timelines are compressed at a high dose intensity",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Timelines shown are shortened slightly, because this dose is above the reference dose the population data is based on."
+          }
+        }
+      }
+    },
+    "To receive dose and journal reminders, please enable notifications in System Settings." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To receive dose and journal reminders, please enable notifications in System Settings."
+          }
+        }
+      }
+    },
+    "Topical (gel/cream)" : {
+      "comment" : "Administration route: gel or cream applied to skin",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Topical (gel/cream)"
+          }
+        }
+      }
+    },
+    "Transdermal patch" : {
+      "comment" : "Administration route: adhesive patch",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transdermal patch"
+          }
+        }
+      }
+    },
+    "Trough %@–%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trough %@–%@"
+          }
+        }
+      }
+    },
+    "Try Again" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try Again"
+          }
+        }
+      }
+    },
+    "Two things change the shape of the curve: a longer-acting ester, such as estradiol cypionate in place of valerate, and a shorter injection interval. Both reduce the peak-to-trough swing." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Two things change the shape of the curve: a longer-acting ester, such as estradiol cypionate in place of valerate, and a shorter injection interval. Both reduce the peak-to-trough swing."
+          }
+        }
+      }
+    },
+    "Type & Method" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Type & Method"
+          }
+        }
+      }
+    },
+    "Unlock with %@" : {
+
+    },
+    "Use %@ to unlock xT. You can also set up %@ in the Settings app if you haven't already." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use %@ to unlock xT. You can also set up %@ in the Settings app if you haven't already."
+          }
+        }
+      }
+    },
+    "Use Default" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use Default"
+          }
+        }
+      }
+    },
+    "Use Face ID to quickly unlock xT. You can also set up Face ID in the Settings app if you haven't already." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use Face ID to quickly unlock xT. You can also set up Face ID in the Settings app if you haven't already."
+          }
+        }
+      }
+    },
+    "Use Passcode" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use Passcode"
+          }
+        }
+      }
+    },
+    "Use passcode instead" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use passcode instead"
+          }
+        }
+      }
+    },
+    "Use personal targets" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use personal targets"
+          }
+        }
+      }
+    },
+    "Use Same Site →" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use Same Site →"
+          }
+        }
+      }
+    },
+    "Valerate (EV)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Valerate (EV)"
+          }
+        }
+      }
+    },
+    "Vial concentration" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vial concentration"
+          }
+        }
+      }
+    },
+    "Well above the typical therapeutic range. Sustained estradiol above 300 pg/mL is associated with increased thromboembolic risk." : {
+      "comment" : "Factual description of a very high estradiol band, including the clinical association",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Well above the typical therapeutic range. Sustained estradiol above 300 pg/mL is associated with increased thromboembolic risk."
+          }
+        }
+      }
+    },
+    "Well underway" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Well underway"
+          }
+        }
+      }
+    },
+    "What hormone are you taking?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What hormone are you taking?"
+          }
+        }
+      }
+    },
+    "What T does to your body" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What T does to your body"
+          }
+        }
+      }
+    },
+    "What's changing and why" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What's changing and why"
+          }
+        }
+      }
+    },
+    "What's Included" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What's Included"
+          }
+        }
+      }
+    },
+    "What's your dose?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What's your dose?"
+          }
+        }
+      }
+    },
+    "What's your vial concentration?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What's your vial concentration?"
+          }
+        }
+      }
+    },
+    "When was your last dose?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "When was your last dose?"
+          }
+        }
+      }
+    },
+    "Where did you take it?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where did you take it?"
+          }
+        }
+      }
+    },
+    "Which ester?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Which ester?"
+          }
+        }
+      }
+    },
+    "Within set trough" : {
+      "comment" : "Pill label: the estimate is inside the trough range the user configured",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Within set trough"
+          }
+        }
+      }
+    },
+    "Within the range most feminising hormone therapy aims for. Skin, fat distribution and breast development are associated with sustained levels in this band." : {
+      "comment" : "Factual description of a mid estradiol band for a newer user",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Within the range most feminising hormone therapy aims for. Skin, fat distribution and breast development are associated with sustained levels in this band."
+          }
+        }
+      }
+    },
+    "Within the range most people on established estrogen therapy maintain." : {
+      "comment" : "Factual description of a mid estradiol band for a long-term user",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Within the range most people on established estrogen therapy maintain."
+          }
+        }
+      }
+    },
+    "Within the range most people on established masculinising therapy maintain." : {
+      "comment" : "Factual description of a mid testosterone band for a long-term user",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Within the range most people on established masculinising therapy maintain."
+          }
+        }
+      }
+    },
+    "Within the typical adult male reference range. Voice change, muscle mass and body hair growth are associated with sustained levels in this band." : {
+      "comment" : "Factual description of a mid testosterone band for a newer user",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Within the typical adult male reference range. Voice change, muscle mass and body hair growth are associated with sustained levels in this band."
+          }
+        }
+      }
+    },
+    "within your set trough range of %@" : {
+      "comment" : "Sentence fragment comparing the estimate to the user's configured range",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "within your set trough range of %@"
+          }
+        }
+      }
+    },
+    "Write how you're feeling…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Write how you're feeling…"
+          }
+        }
+      }
+    },
+    "xT" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "xT"
+          }
+        }
+      }
+    },
+    "xT will close and restart the onboarding process." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "xT will close and restart the onboarding process."
+          }
+        }
+      }
+    },
+    "xT will require authentication after being inactive for the selected duration." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "xT will require authentication after being inactive for the selected duration."
+          }
+        }
+      }
+    },
+    "Year 2+: Body and facial hair are fully established and permanent. Scalp hair loss, if it was going to happen, has likely stabilised at its genetic baseline. Acne should be minimal by now." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Year 2+: Body and facial hair are fully established and permanent. Scalp hair loss, if it was going to happen, has likely stabilised at its genetic baseline. Acne should be minimal by now."
+          }
+        }
+      }
+    },
+    "Year 2+: Muscle profile is stable. Gains beyond this point come from training stimulus rather than from time on testosterone, and lean mass is maintained by continued levels and activity." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Year 2+: Muscle profile is stable. Gains beyond this point come from training stimulus rather than from time on testosterone, and lean mass is maintained by continued levels and activity."
+          }
+        }
+      }
+    },
+    "Year 2+: Your body shape is stable. Weight cycling (±5–10 lbs) will still produce new fat deposition in estrogen-dominant patterns. Muscle mass requires active resistance training to maintain — use it or lose it." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Year 2+: Your body shape is stable. Weight cycling (±5–10 lbs) will still produce new fat deposition in estrogen-dominant patterns. Muscle mass requires active resistance training to maintain — use it or lose it."
+          }
+        }
+      }
+    },
+    "Year 2+: Your emotional landscape is fully established. You're reading from the same neurochemical playbook that cis women operate on — the brain has fully adapted to estrogen-dominant signaling." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Year 2+: Your emotional landscape is fully established. You're reading from the same neurochemical playbook that cis women operate on — the brain has fully adapted to estrogen-dominant signaling."
+          }
+        }
+      }
+    },
+    "Year 2+: Your skin is estrogen-maintained at this point. It will stay soft and hydrated as long as levels remain in range. Age-related changes (fine lines, elasticity loss) will still occur — estrogen slows but doesn't stop the clock." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Year 2+: Your skin is estrogen-maintained at this point. It will stay soft and hydrated as long as levels remain in range. Age-related changes (fine lines, elasticity loss) will still occur — estrogen slows but doesn't stop the clock."
+          }
+        }
+      }
+    },
+    "Year 2+: Your voice is permanent and settled. It will not revert if you pause or stop T. Vocal training can still improve resonance, projection, and control regardless of where your pitch landed." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Year 2+: Your voice is permanent and settled. It will not revert if you pause or stop T. Vocal training can still improve resonance, projection, and control regardless of where your pitch landed."
+          }
+        }
+      }
+    },
+    "Year 5+: A decade of settled pitch. Your voice has been in its final range for years. Vocal quality (resonance, projection, clarity) can still be refined with training, but the fundamental frequency is permanent." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Year 5+: A decade of settled pitch. Your voice has been in its final range for years. Vocal quality (resonance, projection, clarity) can still be refined with training, but the fundamental frequency is permanent."
+          }
+        }
+      }
+    },
+    "Year 5+: Collagen density remains above what it would be without estrogen, but the natural aging timeline still runs. Fine lines and elasticity loss are normal. Retinoids, vitamin C and sun protection are the interventions with evidence behind them for this." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Year 5+: Collagen density remains above what it would be without estrogen, but the natural aging timeline still runs. Fine lines and elasticity loss are normal. Retinoids, vitamin C and sun protection are the interventions with evidence behind them for this."
+          }
+        }
+      }
+    },
+    "Year 5+: Your emotional baseline is deeply ingrained. You've navigated years of hormone-steady cognition — trust your read of your own patterns. Annual mental health check-ins remain valuable, even when things feel stable." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Year 5+: Your emotional baseline is deeply ingrained. You've navigated years of hormone-steady cognition — trust your read of your own patterns. Annual mental health check-ins remain valuable, even when things feel stable."
+          }
+        }
+      }
+    },
+    "Year 5+: Your hair pattern — body, facial, and scalp — has been stable for years. Any androgenic scalp loss has plateaued. Skin oil production may gradually decrease with age even on T. Dermatology screening (skin cancer) is a good annual habit." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Year 5+: Your hair pattern — body, facial, and scalp — has been stable for years. Any androgenic scalp loss has plateaued. Skin oil production may gradually decrease with age even on T. Dermatology screening (skin cancer) is a good annual habit."
+          }
+        }
+      }
+    },
+    "Year 5+: Your physique is established. T maintains lean mass but won't drive new growth without progressive overload. Cardiovascular fitness and metabolic health deserve equal attention alongside strength at this stage." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Year 5+: Your physique is established. T maintains lean mass but won't drive new growth without progressive overload. Cardiovascular fitness and metabolic health deserve equal attention alongside strength at this stage."
+          }
+        }
+      }
+    },
+    "Year 5+: Your silhouette is fully estrogen-dominant. Bone density is protected by estrogen — but this protection depends on continued dosing. Weight-bearing exercise and adequate calcium/vitamin D become increasingly important in this decade." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Year 5+: Your silhouette is fully estrogen-dominant. Bone density is protected by estrogen — but this protection depends on continued dosing. Weight-bearing exercise and adequate calcium/vitamin D become increasingly important in this decade."
+          }
+        }
+      }
+    },
+    "You know your rhythm. Energy peaks around day 2 post-shot, trough around day 6–7. Plan heavy workouts near peak, rest near trough." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You know your rhythm. Energy peaks around day 2 post-shot, trough around day 6–7. Plan heavy workouts near peak, rest near trough."
+          }
+        }
+      }
+    },
+    "You've mastered your cycle. If you want even more stability, twice-weekly dosing flattens the curve and reduces aromatization spikes. Some providers are open to this — it's worth asking." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You've mastered your cycle. If you want even more stability, twice-weekly dosing flattens the curve and reduces aromatization spikes. Some providers are open to this — it's worth asking."
+          }
+        }
+      }
+    },
+    "You've optimised. If not, twice-weekly dosing is the single best lever for smoothing out the peak-to-trough swing. It reduces both the T spike and the aromatization spike that follows." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You've optimised. If not, twice-weekly dosing is the single best lever for smoothing out the peak-to-trough swing. It reduces both the T spike and the aromatization spike that follows."
+          }
+        }
+      }
+    },
+    "Your biometric data doesn't match. Please try again." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your biometric data doesn't match. Please try again."
+          }
+        }
+      }
+    },
+    "Your body composition is fully established. Fat distribution patterns are maintained through ongoing estrogen — consistent levels prevent reversion to android-pattern storage." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your body composition is fully established. Fat distribution patterns are maintained through ongoing estrogen — consistent levels prevent reversion to android-pattern storage."
+          }
+        }
+      }
+    },
+    "Your body is still adapting to exogenous T. Aromatization patterns, energy fluctuations, and trough effects are all still emerging. Give it 3–6 months of consistent dosing to establish a clear pattern." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your body is still adapting to exogenous T. Aromatization patterns, energy fluctuations, and trough effects are all still emerging. Give it 3–6 months of consistent dosing to establish a clear pattern."
+          }
+        }
+      }
+    },
+    "Your brain's neural architecture is fully adapted. Consistent hormone levels maintain ongoing neuroprotection, synaptic health, and emotional stability — a continuous, active state." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your brain's neural architecture is fully adapted. Consistent hormone levels maintain ongoing neuroprotection, synaptic health, and emotional stability — a continuous, active state."
+          }
+        }
+      }
+    },
+    "Your cycle is entirely routine by now. If you've already optimised, no changes are needed. The priority at this stage is lab monitoring, not schedule tweaking." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your cycle is entirely routine by now. If you've already optimised, no changes are needed. The priority at this stage is lab monitoring, not schedule tweaking."
+          }
+        }
+      }
+    },
+    "Your cycle is fully optimised by now. No changes are needed unless something shifts. Periodic labs to confirm levels remain in range are the only active monitoring." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your cycle is fully optimised by now. No changes are needed unless something shifts. Periodic labs to confirm levels remain in range are the only active monitoring."
+          }
+        }
+      }
+    },
+    "Your cycle is predictable. If aromatization symptoms at peak bother you, a slightly lower dose or more frequent injections can help." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your cycle is predictable. If aromatization symptoms at peak bother you, a slightly lower dose or more frequent injections can help."
+          }
+        }
+      }
+    },
+    "Your cycle is still stabilising. Aromatization effects (mood changes, water retention at peak) may fluctuate. Steady state takes 4–6 weeks after any dose change." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your cycle is still stabilising. Aromatization effects (mood changes, water retention at peak) may fluctuate. Steady state takes 4–6 weeks after any dose change."
+          }
+        }
+      }
+    },
+    "Your data is exported as plain text and may contain sensitive health information. Only share with trusted recipients." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your data is exported as plain text and may contain sensitive health information. Only share with trusted recipients."
+          }
+        }
+      }
+    },
+    "Your data is preserved and will be restored when you turn this off. The app will quit." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your data is preserved and will be restored when you turn this off. The app will quit."
+          }
+        }
+      }
+    },
+    "Your device doesn't have Face ID or Touch ID set up. You can set up Face ID or Touch ID in Settings to unlock xT with biometrics, or use the passcode option below." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your device doesn't have Face ID or Touch ID set up. You can set up Face ID or Touch ID in Settings to unlock xT with biometrics, or use the passcode option below."
+          }
+        }
+      }
+    },
+    "Your dose has been recorded successfully!" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your dose has been recorded successfully!"
+          }
+        }
+      }
+    },
+    "Your dosing consistency and regimen history" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your dosing consistency and regimen history"
+          }
+        }
+      }
+    },
+    "Your entry" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your entry"
+          }
+        }
+      }
+    },
+    "Your existing dose history and blood test records will be preserved. This change affects how future doses are calculated and displayed." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your existing dose history and blood test records will be preserved. This change affects how future doses are calculated and displayed."
+          }
+        }
+      }
+    },
+    "YOUR JOURNEY" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "YOUR JOURNEY"
+          }
+        }
+      }
+    },
+    "Your name" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your name"
+          }
+        }
+      }
+    },
+    "Your Name" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your Name"
+          }
+        }
+      }
+    },
+    "Your Privacy" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your Privacy"
+          }
+        }
+      }
+    },
+    "Your profile has been updated successfully." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your profile has been updated successfully."
+          }
+        }
+      }
+    },
+    "Zone" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zone"
+          }
+        }
+      }
+    },
+    "Zones rest for 14 days before reuse." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zones rest for 14 days before reuse."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

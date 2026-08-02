@@ -42,6 +42,7 @@ struct MainTabView: View {
 
 // MARK: - Preview
 
+#if DEBUG
 #Preview {
     SpoofPreview {
         MainTabView()
@@ -52,3 +53,4 @@ struct MainTabView: View {
             .environment(\.authenticationManager, AuthenticationManager.shared)
     }
 }
+#endif

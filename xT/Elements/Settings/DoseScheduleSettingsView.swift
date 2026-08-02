@@ -81,7 +81,7 @@ struct DoseScheduleSettingsView: View {
 
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Every \(customFrequencyDays) \(customFrequencyDays == 1 ? "day" : "days")")
+                    Text("Every ^[\(customFrequencyDays) day](inflect: true)")
                         .font(Theme.Fonts.callout)
                         .foregroundStyle(.primary)
                     Text("Default is \(Self.defaultFrequencyDays(for: medicationManager.selectedAdministrationMethod)) days for \(medicationManager.selectedAdministrationMethod ?? "selected") method")
@@ -114,7 +114,7 @@ struct DoseScheduleSettingsView: View {
 
             VStack(spacing: 12) {
                 HStack {
-                    Text(String(format: "%.1f", defaultDoseAmount))
+                    Text(verbatim: AppNumberFormatters.dose.string(defaultDoseAmount))
                         .font(.system(size: 36, weight: .bold))
                         .foregroundStyle(Theme.Colors.accent)
                     Text(doseUnit)
@@ -186,12 +186,13 @@ struct DoseScheduleSettingsView: View {
                 Divider()
                 previewRow(
                     label: "Schedule",
-                    value: "Every \(customFrequencyDays) \(customFrequencyDays == 1 ? "day" : "days")"
+                    value: String(localized: "Every ^[\(customFrequencyDays) day](inflect: true)",
+                                  comment: "Dosing interval, e.g. 'Every 7 days'")
                 )
                 Divider()
                 previewRow(
                     label: "Default dose",
-                    value: "\(String(format: "%.1f", defaultDoseAmount)) \(doseUnit)"
+                    value: "\(AppNumberFormatters.dose.string(defaultDoseAmount)) \(doseUnit)"
                 )
                 Divider()
                 previewRow(
@@ -237,8 +238,7 @@ struct DoseScheduleSettingsView: View {
     }
 
     private func formatDate(_ date: Date) -> String {
-        let f = DateFormatter()
-        f.dateFormat = "MMM d"
+        let f = AppDateFormatters.monthDay
         return f.string(from: date)
     }
 
@@ -360,7 +360,8 @@ struct DoseScheduleSettingsView: View {
     private var avoidZonesSubtitle: String {
         let count = medicationManager.avoidZones.count
         if count == 0 { return "No zones marked" }
-        return "\(count) zone\(count == 1 ? "" : "s") marked"
+        return String(localized: "^[\(count) zone](inflect: true) marked",
+                      comment: "Subtitle counting marked body zones")
     }
 
     // MARK: - Preferred Administration Zones Section

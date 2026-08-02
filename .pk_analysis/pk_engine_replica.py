@@ -37,8 +37,15 @@ E2_ESTERS = {
     # Oral restated 2026-07-31 from (0.5 d, 3.0 h) to (0.2773 d, 12.0035 h). NOT a
     # recalibration: the engine never read those fields for oral doses, it hardcoded
     # ka = 2.5 and ke = 1.386 inline, and S = 1250 was fit against those. The stored
-    # values now reproduce exactly what the engine used. Predictions are unchanged.
-    "Oral":             dict(half_life_days=0.2773, elim_h=12.0035, ewf=1.000, F=0.05, S=1250.0),
+    # values reproduced exactly what the engine used; predictions were unchanged.
+    #
+    # Oral REFIT 2026-08-01, half_life_days 0.2773 -> 0.0791 (concern #7). ka 2.5 put
+    # Tmax at 12.7 h against a published 4-8 h, and above the 12 h interval of a BID
+    # schedule, flattening the modeled intraday swing to ~1.1x. Tmax is now pinned to
+    # the 6.0 h midpoint: ka = 8.762 /day. ke and S are unchanged -- S is held because
+    # AUC/dose = amount*S/ke is ka-free, so Cavg is invariant and only Cmax moves
+    # (60 -> 88 pg/mL for a single 2 mg dose). See PharmacokineticConstants.swift.
+    "Oral":             dict(half_life_days=0.0791, elim_h=12.0035, ewf=1.000, F=0.05, S=1250.0),
     "Transdermal":      dict(half_life_days=1.5, elim_h=3.0, ewf=1.000, F=0.15, S=155.0),
 }
 
@@ -52,12 +59,24 @@ T_ESTERS = {
     # TE / TP / TU scaling corrected 2026-07-31 to 457.67 by conservation of mass:
     # Cavg = Dose*EDF*S/(tau*ke) must equal (mg T/day)/CL_T, and CL_T is a property of
     # testosterone, not of the ester -- so S = 1e5*ke/(CL_T*F) with CL_T = 1817.4 L/day.
-    # EWF cancels, so all three share one S while ke is shared. Their `ka` (and hence
-    # Tmax) remain UNCALIBRATED. See OPEN_CONCERNS.md section 3 and fit_testosterone.py.
-    "Cypionate (TC)":   dict(half_life_days=3.839, elim_h=13.64, ewf=0.699, F=1.00, S=67.13),
-    "Enanthate (TE)":   dict(half_life_days=7.0,   elim_h=2.0,   ewf=0.720, F=1.00, S=457.67),
-    "Propionate (TP)":  dict(half_life_days=1.0,   elim_h=2.0,   ewf=0.837, F=1.00, S=457.67),
-    "Undecanoate (TU)": dict(half_life_days=20.0,  elim_h=2.0,   ewf=0.631, F=1.00, S=457.67),
+    # EWF cancels, so all three shared one S while ke was shared.
+    #
+    # TE and TU REFIT 2026-08-02 (docs/TESTOSTERONE_ESTER_RESEARCH_MEMO.md). Both had
+    # been carrying the placeholder 2 h ke, pinning Tmax near 0.5-0.7 d:
+    #   TE  elim_h 2.0 -> 8.4767   Ichihara 2020 mean ka 1.9625 /day (n=4 estimable)
+    #       half_life_days 7.0 -> 6.6   Ichihara terminal t1/2 6.6 +- 1.9 d
+    #       S 457.67 -> 107.98    forced by the identity above, not a new fit
+    #       Tmax 0.54 -> 1.58 d (observed 1.7 +- 0.9 d)
+    #   TU  elim_h 2.0 -> 44.3883  fitted so Tmax = Aveed's median 7 d at t1/2 20 d
+    #       half_life_days 20.0 unchanged (Zhang 1998: 18.3 d @500 mg, 23.7 d @1000 mg)
+    #       S 457.67 -> 20.62
+    #       Tmax 0.66 -> 7.00 d; steady-state peak/trough 11.0x -> 8.1x (obs 1.8x)
+    # TP keeps the 2 h ke and therefore keeps S = 457.67 -- still UNCALIBRATED, so its
+    # `ka` and Tmax are still placeholders. See OPEN_CONCERNS.md sections 3 and 4.
+    "Cypionate (TC)":   dict(half_life_days=3.839, elim_h=13.64,   ewf=0.699, F=1.00, S=67.13),
+    "Enanthate (TE)":   dict(half_life_days=6.6,   elim_h=8.4767,  ewf=0.720, F=1.00, S=107.98),
+    "Propionate (TP)":  dict(half_life_days=1.0,   elim_h=2.0,     ewf=0.837, F=1.00, S=457.67),
+    "Undecanoate (TU)": dict(half_life_days=20.0,  elim_h=44.3883, ewf=0.631, F=1.00, S=20.62),
     # Route pseudo-esters added 2026-07-31. Before this, testosterone on the Oral or
     # Cream route had no entry at all: the engine's scaling lookup was guarded on
     # `medication == "Estrogen"` and fell through to the hardcoded 12000.0 / 8000.0,
@@ -92,9 +111,12 @@ OLD_E2_ESTERS["Oral"]["elim_h"] = 3.0
 
 OLD_T_ESTERS = {k: dict(v) for k, v in T_ESTERS.items()}
 OLD_T_ESTERS["Cypionate (TC)"].update(half_life_days=8.0, elim_h=2.0, S=11.0)
-OLD_T_ESTERS["Enanthate (TE)"]["S"] = 11.0   # -> 923.0 (2026-07-28) -> 457.67
-OLD_T_ESTERS["Propionate (TP)"]["S"] = 18.0  # -> 359.0 (2026-07-28) -> 457.67
-OLD_T_ESTERS["Undecanoate (TU)"]["S"] = 5.0  # -> 214.0 (2026-07-28) -> 457.67
+# TE and TU need their as-found rates restated explicitly now that the live constants
+# no longer match them (2026-08-02 refit). TP's still do, but is spelled out too so the
+# next refit does not silently corrupt the as-found baseline the way this one nearly did.
+OLD_T_ESTERS["Enanthate (TE)"].update(half_life_days=7.0,  elim_h=2.0, S=11.0)   # -> 923.0 (07-28) -> 457.67 -> 107.98
+OLD_T_ESTERS["Propionate (TP)"].update(half_life_days=1.0, elim_h=2.0, S=18.0)   # -> 359.0 (07-28) -> 457.67
+OLD_T_ESTERS["Undecanoate (TU)"].update(half_life_days=20.0, elim_h=2.0, S=5.0)  # -> 214.0 (07-28) -> 457.67 -> 20.62
 
 # TestosteroneEster had no .oral / .transdermal cases before 2026-07-31.
 del OLD_T_ESTERS["Oral"]

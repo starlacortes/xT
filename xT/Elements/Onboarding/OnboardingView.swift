@@ -155,7 +155,7 @@ struct OnboardingView: View {
             Text("xT")
                 .font(.system(size: 64, weight: .light))
                 .foregroundStyle(.white.opacity(0.95))
-            Text("Welcome to your journey")
+            Text("Hormone therapy tracking")
                 .font(.title3)
                 .fontWeight(.regular)
                 .foregroundStyle(.white.opacity(0.85))
@@ -226,8 +226,10 @@ struct OnboardingView: View {
 
             if hasBeenOnHRT {
                 HStack(spacing: 12) {
-                    durationStepper(label: "Year", value: $hrtDurationYears, range: 0...20)
-                    durationStepper(label: "Month", value: $hrtDurationMonths, range: 1...11)
+                    durationStepper(text: "^[\(hrtDurationYears) year](inflect: true)",
+                                    value: $hrtDurationYears, range: 0...20)
+                    durationStepper(text: "^[\(hrtDurationMonths) month](inflect: true)",
+                                    value: $hrtDurationMonths, range: 1...11)
                 }
                 .padding(.horizontal, 40)
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
@@ -495,11 +497,18 @@ struct OnboardingView: View {
                                     .fill(Color.white.opacity(0.15))
                             )
                             .focused($doseFieldFocused)
-                            .onChange(of: doseText) { _, new in
-                                if let val = Double(new) { doseDecimal = val }
-                            }
                             .onChange(of: doseDecimal) { _, new in
                                 if doseUnit == "mg" { doseText = String(format: "%.1f", new) }
+                            }
+                            .onChange(of: doseFieldFocused) { _, focused in
+                                if !focused, doseUnit == "mg" {
+                                    if let val = Double(doseText), val > 0 {
+                                        doseDecimal = val
+                                        updateMlFromMg()
+                                    } else {
+                                        doseText = String(format: "%.1f", doseDecimal)
+                                    }
+                                }
                             }
                             .toolbar {
                                 ToolbarItemGroup(placement: .keyboard) {
@@ -522,7 +531,7 @@ struct OnboardingView: View {
                         .padding(.horizontal, 40)
 
                     // Volume warning
-                    if let warning = MedicationManager.volumeWarning(for: volume, ester: selectedEster) {
+                    if let warning = MedicationManager.volumeNote(for: volume, ester: selectedEster) {
                         volumeWarningBanner(warning)
                             .padding(.horizontal, 40)
                     }
@@ -546,14 +555,22 @@ struct OnboardingView: View {
                                     .fill(Color.white.opacity(0.15))
                             )
                             .focused($doseFieldFocused)
-                            .onChange(of: mlText) { _, new in
-                                if let val = Double(new) { mlAmount = val }
-                            }
                             .onChange(of: mlAmount) { _, new in
                                 if doseUnit == "mL" {
                                     mlText = String(format: "%.2f", new)
                                     doseDecimal = new * selectedConcentration
                                     doseText = String(format: "%.1f", doseDecimal)
+                                }
+                            }
+                            .onChange(of: doseFieldFocused) { _, focused in
+                                if !focused, doseUnit == "mL" {
+                                    if let val = Double(mlText), val > 0 {
+                                        mlAmount = val
+                                        doseDecimal = val * selectedConcentration
+                                        doseText = String(format: "%.1f", doseDecimal)
+                                    } else {
+                                        mlText = String(format: "%.2f", mlAmount)
+                                    }
                                 }
                             }
                             .toolbar {
@@ -577,7 +594,7 @@ struct OnboardingView: View {
                         .padding(.horizontal, 40)
 
                     // Volume warning
-                    if let warning = MedicationManager.volumeWarning(for: mlAmount, ester: selectedEster) {
+                    if let warning = MedicationManager.volumeNote(for: mlAmount, ester: selectedEster) {
                         volumeWarningBanner(warning)
                             .padding(.horizontal, 40)
                     }
@@ -1262,12 +1279,15 @@ struct OnboardingView: View {
         }
     }
 
-    private func durationStepper(label: String, value: Binding<Int>, range: ClosedRange<Int>) -> some View {
+    /// `text` is built by the caller rather than assembled from a noun parameter:
+    /// automatic grammar agreement needs the noun as a literal in the pattern, so
+    /// "^[\(n) \(noun)](inflect: true)" cannot inflect and would read "1 Years".
+    private func durationStepper(text: LocalizedStringKey, value: Binding<Int>, range: ClosedRange<Int>) -> some View {
         VStack(spacing: 8) {
             Stepper("", value: value, in: range)
                 .labelsHidden()
                 .tint(.white)
-            Text("\(value.wrappedValue) \(label)\(value.wrappedValue == 1 ? "" : "s")")
+            Text(text)
                 .font(.system(size: 20, weight: .medium, design: .rounded))
                 .foregroundStyle(.white.opacity(0.9))
         }
@@ -1337,13 +1357,17 @@ struct OnboardingView: View {
     }
 
     private var esterList: some View {
-        let items: [(name: String, tHalf: Double)] = {
+        let items: [(name: String, tHalf: Double, tPeak: Double, calibrated: Bool)] = {
             // `injectableCases` excludes the Oral/Transdermal route pseudo-esters, which
             // must never appear here — this list is only shown for the Injectable route.
             if selectedType == "Estrogen" {
-                return MedicationEster.injectableCases.map { ($0.rawValue, $0.halfLifeDays) }
+                return MedicationEster.injectableCases.map {
+                    ($0.rawValue, $0.halfLifeDays, $0.timeToPeakDays, $0.isTmaxCalibrated)
+                }
             } else {
-                return TestosteroneEster.injectableCases.map { ($0.rawValue, $0.halfLifeDays) }
+                return TestosteroneEster.injectableCases.map {
+                    ($0.rawValue, $0.halfLifeDays, $0.timeToPeakDays, $0.isTmaxCalibrated)
+                }
             }
         }()
 
@@ -1360,7 +1384,7 @@ struct OnboardingView: View {
                             Text(item.name)
                                 .font(.body)
                                 .foregroundStyle(.white.opacity(0.9))
-                            Text("Half‑life ~\(String(format: "%.1f", item.tHalf)) days · Peaks day \(peakDay(halfLife: item.tHalf))")
+                            Text(esterSubtitle(tHalf: item.tHalf, tPeak: item.tPeak, calibrated: item.calibrated))
                                 .font(.caption)
                                 .foregroundStyle(.white.opacity(0.5))
                         }
@@ -1420,9 +1444,30 @@ struct OnboardingView: View {
         }
     }
 
-    private func peakDay(halfLife: Double) -> String {
-        let tMax = halfLife * 1.44
-        return String(format: "%.0f", tMax)
+    /// Subtitle for a row in the ester picker.
+    ///
+    /// Replaces a `halfLife × 1.44` approximation that ignored the elimination rate
+    /// entirely and so ran 2–44× long (TU read "Peaks day 29" against a modeled
+    /// 0.66 d). Peak day now comes from `timeToPeakDays`, the same exact Bateman
+    /// t_max the graph and `expectedTimeToPeak(for:)` use.
+    ///
+    /// Esters whose Tmax is not yet calibrated (TP alone since 2026-08-02 — still on
+    /// the placeholder 2 h `ke`, see OPEN_CONCERNS.md §3) deliberately show no peak
+    /// day. TE and TU now show one: 2 d and 7 d. Their
+    /// computed value is right for the constants but wrong about the drug, and this
+    /// is the screen where someone *chooses* an ester, so a confidently-wrong
+    /// sub-day peak is worse than no peak at all.
+    private func esterSubtitle(tHalf: Double, tPeak: Double, calibrated: Bool) -> String {
+        let halfLife = "Half‑life ~\(String(format: "%.1f", tHalf)) days"
+        // `isFinite` is belt-and-braces: transdermal's t_max is NaN (ke is infinite on
+        // that route) and `Int(Double.nan)` traps. It can't reach here today — the list
+        // is built from `injectableCases` and transdermal is not calibrated — but a
+        // trap in onboarding is a bad way to find out that changed.
+        guard calibrated, tPeak.isFinite else { return "\(halfLife) · peak timing pending calibration" }
+        // Every calibrated injectable peaks at ≥1.8 d, but floor at 1 anyway so a
+        // future fast ester can never render "Peaks day 0".
+        let day = max(1, Int(tPeak.rounded()))
+        return "\(halfLife) · Peaks day \(day)"
     }
 
     private var hrtSummary: String {
@@ -1545,8 +1590,10 @@ struct OnboardingView: View {
     }
 }
 
+#if DEBUG
 #Preview {
     OnboardingView()
         .environment(\.medicationManager, MedicationManager.shared)
         .environment(\.profileManager, ProfileManager.shared)
 }
+#endif

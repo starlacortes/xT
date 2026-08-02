@@ -38,7 +38,8 @@ struct TimeBodyDetailView: View {
 
                 detailDivider()
 
-                // Science section
+                // Everything from here down is general educational content, closed
+                // out by the EducationalFooter below.
                 detailSection(
                     title: "What's happening",
                     icon: "text.book.closed.fill",
@@ -47,9 +48,10 @@ struct TimeBodyDetailView: View {
 
                 detailDivider()
 
-                // Timeline section
+                // "Typical", not "Your" — this is the population timeline, and the
+                // app has no way to know where this particular user will land on it.
                 detailSection(
-                    title: "Your timeline",
+                    title: "Typical timeline",
                     icon: "clock.fill",
                     content: detail.timelineText
                 )
@@ -83,6 +85,10 @@ struct TimeBodyDetailView: View {
                         content: maintenanceNote
                     )
                 }
+
+                detailDivider()
+
+                EducationalFooter(accent: detail.palette.accent)
 
                 // Spacer for bottom padding
                 Color.clear.frame(height: 40)
@@ -176,7 +182,8 @@ struct TimeBodyDetailView: View {
     }
 
     private var tenureBannerTitle: String {
-        let monthStr = "\(engine.months) month\(engine.months == 1 ? "" : "s")"
+        let monthStr = String(localized: "^[\(engine.months) month](inflect: true)",
+                              comment: "A number of months, e.g. '7 months'")
         switch tier {
         case .t1Beginning: return "Body is actively adapting — \(monthStr)"
         case .t2Emerging:  return "First visible changes emerging — \(monthStr)"
@@ -184,20 +191,31 @@ struct TimeBodyDetailView: View {
         case .t4Deepening: return "Changes are deepening — \(monthStr)"
         case .t5Settled:   return "Changes largely settled — \(monthStr)"
         case .t6Rooted:    return "Long-term maintenance — \(monthStr)"
-        case .t7Veteran:   return "Health monitoring is key — \(monthStr)"
+        case .t7Veteran:   return "Long-term health monitoring — \(monthStr)"
         }
     }
 
+    /// Months on therapy, plus what the tenure band describes. The banner title
+    /// already names the stage, so this states the elapsed time and the one fact
+    /// the band adds — no emoji, no verdict on the stage.
     private var tenureBannerSubtitle: String {
-        let monthStr = "\(engine.months) month\(engine.months == 1 ? "" : "s") on HRT"
+        let monthStr = String(localized: "^[\(engine.months) month](inflect: true) on HRT",
+                              comment: "Elapsed time on hormone therapy, e.g. '7 months on HRT'")
         switch tier {
-        case .t1Beginning: return "\(tier.statusEmoji) \(monthStr) — body is reacting, not yet adapting."
-        case .t2Emerging:  return "\(tier.statusEmoji) \(monthStr) — first physical changes appearing."
-        case .t3InMotion:  return "\(tier.statusEmoji) \(monthStr) — most rapid visible shift."
-        case .t4Deepening: return "\(tier.statusEmoji) \(monthStr) — still changing, not established."
-        case .t5Settled:   return "\(tier.statusEmoji) \(monthStr) — shift from 'what's changing' to 'maintain + screen'."
-        case .t6Rooted:    return "\(tier.statusEmoji) \(monthStr) — 5–10 years; maintenance, richer health surveillance."
-        case .t7Veteran:   return "\(tier.statusEmoji) \(monthStr) — 10+ years; long-term health is the whole story."
+        case .t1Beginning: return String(localized: "\(monthStr) — responses precede adaptation.",
+                                         comment: "What the earliest tenure band describes")
+        case .t2Emerging:  return String(localized: "\(monthStr) — first physical changes appear.",
+                                         comment: "What this tenure band describes")
+        case .t3InMotion:  return String(localized: "\(monthStr) — the period of most rapid visible change.",
+                                         comment: "What this tenure band describes")
+        case .t4Deepening: return String(localized: "\(monthStr) — changes continue but are not yet settled.",
+                                         comment: "What this tenure band describes")
+        case .t5Settled:   return String(localized: "\(monthStr) — changes are largely settled; screening intervals begin.",
+                                         comment: "What this tenure band describes")
+        case .t6Rooted:    return String(localized: "\(monthStr) — 5–10 years; maintenance and health surveillance.",
+                                         comment: "What this tenure band describes")
+        case .t7Veteran:   return String(localized: "\(monthStr) — 10+ years; long-term health monitoring.",
+                                         comment: "What this tenure band describes")
         }
     }
 
@@ -232,6 +250,7 @@ struct TimeBodyDetailView: View {
     }
 }
 
+#if DEBUG
 #Preview {
     NavigationStack {
         TimeBodyDetailView(
@@ -258,7 +277,7 @@ struct TimeBodyDetailView: View {
                 regimenSegments: [],
                 onTimeStreak: 4,
                 relativeDoseIntensity: 1.0,
-                doseIntensityDisclaimer: nil,
+                doseIntensityNote: nil,
                 bloodTestSchedulingText: "Schedule your next blood test around month 9.",
                 suggestedBloodTestMonth: 9,
                 calibrationContext: nil
@@ -266,3 +285,4 @@ struct TimeBodyDetailView: View {
         )
     }
 }
+#endif

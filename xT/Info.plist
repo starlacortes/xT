@@ -4,9 +4,5 @@
 <dict>
 	<key>CFBundleIconName</key>
 	<string>xTGlassIcon</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>xT saves timeline photos to track physical changes during HRT.</string>
-	<key>NSCameraUsageDescription</key>
-	<string>xT uses the camera to capture timeline progress photos.</string>
 </dict>
 </plist>

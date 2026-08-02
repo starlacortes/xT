@@ -112,7 +112,13 @@ struct FlatGraphView: View {
 
                     gridLayer(values: values, bounds: bounds, w: w, h: h)
 
-                    therapeuticReferenceLines(bounds: bounds, w: w, h: h)
+                    // Only drawn against the user's own target. The population
+                    // defaults these used to fall back to were rendered as
+                    // "Trough 100–200" — a goal line the user never set, on their
+                    // own chart. With no target configured, the curve stands alone.
+                    if medicationManager.userTherapeuticTarget != nil {
+                        therapeuticReferenceLines(bounds: bounds, w: w, h: h)
+                    }
 
                     currentDot(bounds: bounds, w: w, h: h)
 
@@ -336,7 +342,7 @@ struct FlatGraphView: View {
                 }
                 .stroke(color, lineWidth: 0.5)
 
-                Text("\(Int(ticks[i]))")
+                Text(verbatim: AppNumberFormatters.hormoneLevel.string(ticks[i]))
                     .font(.system(size: 9))
                     .foregroundStyle(Theme.Colors.Graph.yAxisLabel)
                     .position(x: w - 20, y: y)
@@ -355,7 +361,7 @@ struct FlatGraphView: View {
             let peakY = CurveLayout.yPos(value: effectivePeakCeiling, min: minV, range: range,
                                           height: h, dataFraction: dataRegionFraction)
             dashedLine(at: peakY, w: w, color: lineColor)
-            Text("Peak ceiling \(Int(effectivePeakCeiling))")
+            Text("Peak ceiling \(AppNumberFormatters.hormoneLevel.string(effectivePeakCeiling))")
                 .font(.system(size: 8))
                 .foregroundStyle(Theme.Colors.successBrand.opacity(0.38))
                 .position(x: 8, y: peakY - 8)
@@ -369,7 +375,7 @@ struct FlatGraphView: View {
             dashedLine(at: troughMinY, w: w, color: lineColor)
             dashedLine(at: troughMaxY, w: w, color: lineColor)
 
-            Text("Trough \(Int(effectiveTroughMin))–\(Int(effectiveTroughMax))")
+            Text("Trough \(AppNumberFormatters.hormoneLevel.string(effectiveTroughMin))–\(AppNumberFormatters.hormoneLevel.string(effectiveTroughMax))")
                 .font(.system(size: 8))
                 .foregroundStyle(Theme.Colors.successBrand.opacity(0.38))
                 .position(x: 8, y: troughMaxY + 8)
@@ -505,6 +511,7 @@ struct FlatGraphView: View {
 
 }
 
+#if DEBUG
 #Preview {
     SpoofPreview {
         FlatGraphView(scrubFraction: .constant(nil), scrubValue: .constant(nil), scrubDate: .constant(nil))
@@ -513,3 +520,4 @@ struct FlatGraphView: View {
             .frame(height: 400)
     }
 }
+#endif

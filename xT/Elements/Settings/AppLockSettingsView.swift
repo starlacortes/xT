@@ -342,15 +342,6 @@ struct TestBiometricSheet: View {
             Image(systemName: "xmark.circle.fill")
                 .font(.system(size: 64))
                 .foregroundStyle(.orange)
-            Text("Authentication Failed")
-                .font(.title2)
-                .fontWeight(.medium)
-                .foregroundStyle(.white)
-            Text("Your biometric data doesn't match. Please try again.")
-                .font(.body)
-                .foregroundStyle(.white.opacity(0.85))
-                .multilineTextAlignment(.center)
-            
             Button(action: { Task { await testAgain() } }) {
                 Text("Try Again")
                     .font(.headline)
@@ -410,7 +401,9 @@ enum TestResult {
     case success, failure, cancelled
 }
 
+#if DEBUG
 #Preview {
     AppLockSettingsView()
         .environment(\.authenticationManager, AuthenticationManager.shared)
 }
+#endif

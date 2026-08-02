@@ -9,17 +9,20 @@ enum BodyType: String, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .neutral:   return "Neutral"
-        case .feminine:  return "Feminine"
-        case .masculine: return "Masculine"
+        case .neutral:   return String(localized: "Neutral", comment: "Body silhouette option")
+        case .feminine:  return String(localized: "Feminine", comment: "Body silhouette option")
+        case .masculine: return String(localized: "Masculine", comment: "Body silhouette option")
         }
     }
 
     var subtitle: String {
         switch self {
-        case .neutral:   return "An androgynous figure — works for anyone"
-        case .feminine:  return "A feminine-proportioned silhouette"
-        case .masculine: return "A masculine-proportioned silhouette"
+        case .neutral:   return String(localized: "An androgynous figure",
+                                       comment: "Describes the neutral body silhouette option")
+        case .feminine:  return String(localized: "A feminine-proportioned silhouette",
+                                       comment: "Describes the feminine body silhouette option")
+        case .masculine: return String(localized: "A masculine-proportioned silhouette",
+                                       comment: "Describes the masculine body silhouette option")
         }
     }
 

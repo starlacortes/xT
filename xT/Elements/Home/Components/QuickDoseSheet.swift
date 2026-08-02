@@ -17,6 +17,10 @@ struct QuickDoseSheet: View {
     @State private var doseUnit: String = "mg"
     @State private var mgAmount: Double = 2.0
     @State private var mlAmount: Double = 0.05
+    @State private var mgText: String = "2.0"
+    @State private var mlText: String = "0.050"
+    @FocusState private var mgFieldFocused: Bool
+    @FocusState private var mlFieldFocused: Bool
     @State private var concentration: Double = 40.0
     @State private var showCustomConcentration: Bool = false
     @State private var customConcentrationText: String = ""
@@ -179,12 +183,12 @@ struct QuickDoseSheet: View {
 
             VStack(spacing: 12) {
                 summaryRow(label: "Dose",
-                           value: "\(String(format: "%.1f", mgAmount)) mg  (\(String(format: "%.3f", mlAmount)) mL)")
+                           value: "\(AppNumberFormatters.dose.string(mgAmount)) mg  (\(AppNumberFormatters.volume.string(mlAmount)) mL)")
 
                 Divider()
 
                 summaryRow(label: "Concentration",
-                           value: "\(String(format: "%.0f", concentration)) mg/mL")
+                           value: "\(AppNumberFormatters.concentration.string(concentration)) mg/mL")
 
                 Divider()
 
@@ -385,7 +389,7 @@ struct QuickDoseSheet: View {
 
             if doseUnit == "mg" {
                 HStack(spacing: 12) {
-                    TextField("mg", value: $mgAmount, format: .number.precision(.fractionLength(1)))
+                    TextField("mg", text: $mgText)
                         .keyboardType(.decimalPad)
                         .font(.system(size: 32, weight: .medium, design: .rounded))
                         .multilineTextAlignment(.center)
@@ -395,6 +399,11 @@ struct QuickDoseSheet: View {
                             RoundedRectangle(cornerRadius: Theme.Radius.sm)
                                 .fill(Color(.secondarySystemBackground))
                         )
+                        .focused($mgFieldFocused)
+                        .onSubmit { commitMgText() }
+                        .onChange(of: mgFieldFocused) { _, focused in
+                            if !focused { commitMgText() }
+                        }
                     Text("mg")
                         .font(.title3)
                         .foregroundStyle(.secondary)
@@ -403,16 +412,16 @@ struct QuickDoseSheet: View {
                 .disabled(isCorrectionMode)
 
                 let volume = MedicationManager.computedVolume(doseMg: mgAmount, concentrationMgPerMl: concentration)
-                Text("= \(String(format: "%.3f", volume)) mL (@ \(String(format: "%.0f", concentration)) mg/mL)")
+                Text("= \(AppNumberFormatters.volume.string(volume)) mL (@ \(AppNumberFormatters.concentration.string(concentration)) mg/mL)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                if let warning = MedicationManager.volumeWarning(for: volume, ester: medicationManager.lastLoggedDose?.ester) {
+                if let warning = MedicationManager.volumeNote(for: volume, ester: medicationManager.lastLoggedDose?.ester) {
                     quickDoseWarning(warning)
                 }
             } else {
                 HStack(spacing: 12) {
-                    TextField("mL", value: $mlAmount, format: .number.precision(.fractionLength(2)))
+                    TextField("mL", text: $mlText)
                         .keyboardType(.decimalPad)
                         .font(.system(size: 32, weight: .medium, design: .rounded))
                         .multilineTextAlignment(.center)
@@ -422,6 +431,11 @@ struct QuickDoseSheet: View {
                             RoundedRectangle(cornerRadius: Theme.Radius.sm)
                                 .fill(Color(.secondarySystemBackground))
                         )
+                        .focused($mlFieldFocused)
+                        .onSubmit { commitMlText() }
+                        .onChange(of: mlFieldFocused) { _, focused in
+                            if !focused { commitMlText() }
+                        }
                     Text("mL")
                         .font(.title3)
                         .foregroundStyle(.secondary)
@@ -430,11 +444,11 @@ struct QuickDoseSheet: View {
                 .disabled(isCorrectionMode)
 
                 let computedMg = mlAmount * concentration
-                Text("= \(String(format: "%.1f", computedMg)) mg (@ \(String(format: "%.0f", concentration)) mg/mL)")
+                Text("= \(AppNumberFormatters.dose.string(computedMg)) mg (@ \(AppNumberFormatters.concentration.string(concentration)) mg/mL)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                if let warning = MedicationManager.volumeWarning(for: mlAmount, ester: medicationManager.lastLoggedDose?.ester) {
+                if let warning = MedicationManager.volumeNote(for: mlAmount, ester: medicationManager.lastLoggedDose?.ester) {
                     quickDoseWarning(warning)
                 }
             }
@@ -457,7 +471,7 @@ struct QuickDoseSheet: View {
                                 Button {
                                     withAnimation { concentration = conc; showCustomConcentration = false }
                                 } label: {
-                                    Text("\(String(format: "%.0f", conc))")
+                                    Text(verbatim: AppNumberFormatters.concentration.string(conc))
                                         .font(.caption)
                                         .fontWeight(.medium)
                                         .padding(.horizontal, 12)
@@ -723,7 +737,7 @@ struct QuickDoseSheet: View {
                     .font(.system(size: 32))
                     .foregroundStyle(.white.opacity(0.7))
 
-                Text("Lightly shaded areas indicate clinically recommended regions.")
+                Text("Shaded areas are the sites commonly used for this route.")
                     .font(Theme.Fonts.callout)
                     .foregroundStyle(.white.opacity(0.85))
                     .multilineTextAlignment(.center)
@@ -1007,6 +1021,28 @@ struct QuickDoseSheet: View {
     private func updateMlFromMg() {
         guard concentration > 0 else { return }
         mlAmount = MedicationManager.computedVolume(doseMg: mgAmount, concentrationMgPerMl: concentration)
+        if !mlFieldFocused {
+            mlText = String(format: "%.3f", mlAmount)
+        }
+    }
+
+    private func commitMgText() {
+        if let val = Double(mgText), val > 0 {
+            mgAmount = val
+            updateMlFromMg()
+        } else {
+            mgText = String(format: "%.1f", mgAmount)
+        }
+    }
+
+    private func commitMlText() {
+        if let val = Double(mlText), val > 0 {
+            mlAmount = val
+            mgAmount = val * concentration
+            mgText = String(format: "%.1f", mgAmount)
+        } else {
+            mlText = String(format: "%.3f", mlAmount)
+        }
     }
 
     private func prefillFromRecentDose() {
@@ -1019,6 +1055,7 @@ struct QuickDoseSheet: View {
             }
             doseDate = original.doseDate
             updateMlFromMg()
+            mgText = String(format: "%.1f", mgAmount)
             return
         }
 
@@ -1034,6 +1071,7 @@ struct QuickDoseSheet: View {
             concentration = defaultConcentration
             updateMlFromMg()
         }
+        mgText = String(format: "%.1f", mgAmount)
     }
 
     private func advanceToStep2() {
@@ -1121,9 +1159,9 @@ struct QuickDoseSheet: View {
             return recentEster
         }
         if medType == "Estrogen" {
-            return "Valerate (EV)"
+            return String(localized: "Valerate (EV)")
         }
-        return "Cypionate (TC)"
+        return String(localized: "Cypionate (TC)")
     }
 
     // MARK: - Volume Warning
@@ -1148,7 +1186,9 @@ struct QuickDoseSheet: View {
     }
 }
 
+#if DEBUG
 #Preview {
     QuickDoseSheet(isPresented: .constant(true))
         .environment(\.medicationManager, MedicationManager.shared)
 }
+#endif

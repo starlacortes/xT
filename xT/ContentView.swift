@@ -52,9 +52,11 @@ struct ContentView: View {
     }
 }
 
+#if DEBUG
 #Preview {
     ContentView()
         .environment(\.medicationManager, MedicationManager.shared)
         .environment(\.profileManager, ProfileManager.shared)
         .environment(\.authenticationManager, AuthenticationManager.shared)
 }
+#endif

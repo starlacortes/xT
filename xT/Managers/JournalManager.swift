@@ -64,17 +64,14 @@ class JournalManager {
     }
 }
 
-// EnvironmentKey for JournalManager.
-// defaultValue is @MainActor because JournalManager is @MainActor.
-// EnvironmentValues is also @MainActor, so there's no actual race condition.
+// MARK: - Environment Key
 @MainActor
-struct JournalManagerKey: EnvironmentKey {
-    @safe static var defaultValue: JournalManager {
-        return JournalManager.shared
-    }
+struct JournalManagerKey: @MainActor EnvironmentKey {
+    static let defaultValue: JournalManager = JournalManager.shared
 }
 
 extension EnvironmentValues {
+    @MainActor
     var journalManager: JournalManager {
         get { self[JournalManagerKey.self] }
         set { self[JournalManagerKey.self] = newValue }

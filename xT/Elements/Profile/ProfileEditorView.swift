@@ -238,9 +238,11 @@ struct ProfileEditorView: View {
 }
 
 // MARK: - Preview
+#if DEBUG
 #Preview {
     NavigationStack {
         ProfileEditorView()
             .environment(\.profileManager, ProfileManager.shared)
     }
 }
+#endif

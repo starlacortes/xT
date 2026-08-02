@@ -59,6 +59,7 @@ struct PreferredZonesEditorView: View {
     }
 }
 
+#if DEBUG
 #Preview {
     PreferredZonesEditorView(
         medication: "Testosterone",
@@ -66,3 +67,4 @@ struct PreferredZonesEditorView: View {
         onSave: { _ in }
     )
 }
+#endif

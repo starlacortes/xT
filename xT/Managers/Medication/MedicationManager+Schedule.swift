@@ -201,14 +201,21 @@ extension MedicationManager {
         return max(monthsFromNow, 1)
     }
 
-    /// Human-readable blood-test scheduling text (#14).
+    /// Blood-test scheduling text (#14).
+    ///
+    /// States the usual monitoring interval and where the next one falls. It does
+    /// not instruct the user to book anything.
     var bloodTestSchedulingText: String {
         let monthsAway = suggestedBloodTestMonth
         guard let mostRecentTest = mostRecentRelevantBloodTest else {
-            return "Schedule your next blood test around month \(monthsAway)."
+            // In this branch `suggestedBloodTestMonth` is a month number on HRT
+            // ("month 6"), not a count of months, so it takes no plural inflection.
+            return String(localized: "Blood tests are typically repeated every 3 months while a dose is being established — around month \(monthsAway) here.",
+                          comment: "Explains the usual blood test interval when the user has recorded no tests yet")
         }
         let lastDrawText = AppDateFormatters.monthDayYear.string(from: mostRecentTest.drawDate)
-        return "Your last test was \(lastDrawText). Schedule your next one in \(monthsAway) month\(monthsAway == 1 ? "" : "s")."
+        return String(localized: "Last test \(lastDrawText). Next test due in ^[\(monthsAway) month](inflect: true).",
+                      comment: "When the last blood test was and when the next is due")
     }
 
 }
