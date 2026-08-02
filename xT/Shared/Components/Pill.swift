@@ -72,6 +72,7 @@ struct Pill: View {
     }
 }
 
+#if DEBUG
 #Preview {
     VStack(spacing: Theme.Spacing.md) {
         Pill(text: "optimal", style: .tinted(Theme.Colors.success))
@@ -81,3 +82,4 @@ struct Pill: View {
     }
     .padding(Theme.Spacing.Gutter.screen)
 }
+#endif

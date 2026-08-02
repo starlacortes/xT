@@ -22,6 +22,8 @@ struct JournalLayoutTest: View {
     }
 }
 
+#if DEBUG
 #Preview {
     JournalLayoutTest()
 }
+#endif

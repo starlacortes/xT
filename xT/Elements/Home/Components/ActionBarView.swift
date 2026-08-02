@@ -154,6 +154,7 @@ private struct JournalIcon: View {
     }
 }
 
+#if DEBUG
 #Preview {
     ActionBarView()
         .environment(\.medicationManager, MedicationManager.shared)
@@ -161,3 +162,4 @@ private struct JournalIcon: View {
         .padding()
         .background(Theme.Colors.glassTint)
 }
+#endif

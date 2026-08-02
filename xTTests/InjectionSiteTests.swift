@@ -44,8 +44,8 @@ struct InjectionSiteTests {
 
     @Test func displayName() {
         #expect(RouteClass.injection.displayName == "Injection (IM/SubQ)")
-        #expect(RouteClass.topical.displayName == "Topical (Gel/Cream)")
-        #expect(RouteClass.patch.displayName == "Transdermal Patch")
+        #expect(RouteClass.topical.displayName == "Topical (gel/cream)")
+        #expect(RouteClass.patch.displayName == "Transdermal patch")
         #expect(RouteClass.oral.displayName == "Oral")
     }
 

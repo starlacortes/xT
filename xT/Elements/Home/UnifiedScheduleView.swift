@@ -85,7 +85,6 @@ struct UnifiedScheduleView: View {
         .navigationTitle("Medication Schedule")
         .background(Color(UIColor.systemBackground))
         .onAppear {
-            authManager.recordActivity()
             selectedDoseDate = medicationManager.lastDoseDate ?? Date()
             medicationManager.refreshState()
         }
@@ -352,6 +351,7 @@ struct UnifiedScheduleView: View {
 
 // MARK: - Preview
 
+#if DEBUG
 #Preview {
     SpoofPreview {
         UnifiedScheduleView()
@@ -359,3 +359,4 @@ struct UnifiedScheduleView: View {
             .environment(\.profileManager, ProfileManager.shared)
     }
 }
+#endif

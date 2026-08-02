@@ -103,3 +103,17 @@ build/
 *.xcresult
 tools/figma-mcp-server
 time-screen-animation.mp4
+
+# LaTeX build artifacts (docs/pk-validation-dossier.tex)
+# Regenerate with: pdflatex -output-directory=docs docs/pk-validation-dossier.tex
+# Run it three times — longtable + hyperref need the third pass to settle
+# cross-references. The .tex and .pk_analysis/dossier_tables.py are the sources.
+*.aux
+*.fdb_latexmk
+*.fls
+*.lof
+*.lot
+*.out
+*.synctex.gz
+*.toc
+docs/*.log

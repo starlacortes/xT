@@ -216,19 +216,24 @@ print("""
   READ: the separation is correct -- the oral segment keeps F = 0.05 and the fast
   rates, the injectable segment keeps F = 1.0 and EV's.
 
-  BUT the oral curve is FLATTER THAN IT SHOULD BE, and that is a finding, not a pass.
-  The model gives Priya a peak/trough of about 1.1x across a day; real oral estradiol
-  on a BID schedule swings considerably more. The cause is the oral rate constants
-  themselves: ka = 2.5/day is an absorption half-life of 6.7 h, which puts Tmax at
-  12.7 h -- longer than the 12 h dosing interval, so each dose is still rising when
-  the next arrives and the curve smooths into a nearly flat line. Published oral
-  estradiol Tmax is on the order of 4-8 h. The engine's own comment described
-  ka = 2.5 as "~1h absorption", which is arithmetically wrong by a factor of ~7.
+  Her intraday swing was ALSO the reason this persona existed. Before the 2026-08-01
+  refit the oral segment came out at a peak/trough of about 1.1x across the day, which
+  is far flatter than real oral estradiol on a BID schedule. The cause was ka = 2.5/day
+  -- an absorption half-life of 6.7 h, putting Tmax at 12.7 h, LONGER than her 12 h
+  dosing interval. Every dose was still rising when the next arrived, so the curve
+  smoothed into a nearly flat line. (The engine's own comment had described ka = 2.5 as
+  "~1h absorption", wrong by a factor of ~7.)
 
-  Cavg is unaffected (it depends only on dose rate, F and ke), so Priya's average and
-  her trough-adjacent numbers are usable; her intraday peak is under-modeled. Logged
-  as a new open concern rather than refit here -- changing ka requires re-deriving S
-  against the same source, which is out of scope for this pass.
+  ka is now 8.762/day, pinning Tmax to 6.0 h -- the midpoint of the published 4-8 h
+  window -- and her swing widens to the ~1.37x reported above. That is the check to
+  watch on this persona: peak/trough should sit near 1.37x, not 1.1x.
+
+  Her Cavg is unchanged by the refit at 180 pg/mL, and that is the stronger guard of
+  the two. AUC per dose is amount*S/ke, which carries no ka term, so no Tmax change can
+  move it. Note 180 and not 90: she is on 2 mg TWICE daily, i.e. 4 mg/day. S was held
+  at 1250 for exactly this reason -- rescaling it to preserve single-dose Cmax would
+  have dropped her average instead, trading a number she lives at for a peak she
+  passes through.
 """)
 
 
@@ -374,12 +379,18 @@ print("""
   identity S = 1e5*ke/(CL_T*F), which follows from the TC refit and needs no TE
   source, brings it onto published TE 100 mg/week data. See verify_constants.py 1b.
 
-  SHAPE: still wrong, and this is what remains open. TE keeps the placeholder 2 h
-  `ke` that TC was refit away from, so its Tmax is 0.46 d against a published window
-  of 1.5-7 d. Jules' peak is right and arrives at roughly the right height; it just
-  arrives several days early, and the curve between peak and trough has the wrong
-  curvature. The same applies to TP and TU. Fixing it needs per-ester absorption
-  data nobody has published in a usable form. OPEN_CONCERNS.md section 3.
+  SHAPE: fixed 2026-08-02. Until then TE kept the placeholder 2 h `ke` that TC had
+  been refit away from, putting its Tmax at 0.46 d against a published window of
+  1.5-7 d -- Jules' peak was the right height but arrived several days early, with
+  the wrong curvature between peak and trough. Ichihara et al. 2020 (IM, n=10
+  transgender men -- Jules' own population) supplies both rates: terminal t1/2 6.6 d
+  and a mean absorption ka of 1.9625 /day. Tmax is now 1.58 d against an observed
+  1.7 +- 0.9. Magnitude is untouched by that refit, by construction: S moved with ke
+  so Cavg is invariant. TU was fixed in the same pass (Tmax 0.66 -> 7.0 d).
+
+  TP is what remains open, and it is a data problem rather than a modeling one: the
+  best published source is a textbook chapter showing a simulated curve, not fitted
+  rate constants. OPEN_CONCERNS.md section 3.
 """)
 
 
@@ -442,9 +453,20 @@ print("      so the engine used a hardcoded scaling constant. Fixed both ends.")
 print("    - Jules (7): TE steady-state Cavg was 2x too high and contradicted")
 print("      primary-sourced TC. Fixed by the conservation identity.")
 print()
+print("  A third was found here and has since been fixed:")
+print("    - Priya (3): oral estradiol Tmax was 12.7 h against a published 4-8 h, and")
+print("      above her 12 h BID interval, so her intraday swing collapsed to ~1.1x.")
+print("      Refit 2026-08-01 to ka = 8.762/day (Tmax 6.0 h); her swing is now ~1.37x.")
+print()
+print("    - Jules (7): TE's absorption rate was a placeholder, putting Tmax at 0.46 d")
+print("      against a published 1.5-7 d. Refit 2026-08-02 from Ichihara et al. 2020")
+print("      (IM, transgender men); Tmax is now 1.58 d. TU was refit in the same pass,")
+print("      0.66 -> 7.0 d. Magnitude unchanged for both -- S moved with ke.")
+print()
 print("  Two limitations are quantified but NOT fixed, and are carried into the dossier:")
-print("    - oral estradiol Tmax is 12.7 h against a published 4-8 h, so intraday")
-print("      swing is under-modeled (Priya, 3).")
-print("    - TE/TP/TU absorption rates are placeholders, so their Tmax is 0.3-0.7 d")
-print("      against published 1.5-7 d. Magnitude right, shape wrong (Jules, 7).")
+print("    - TP's absorption rate is still a placeholder, so its Tmax is 0.55 d against")
+print("      a published 1-2 d. Magnitude right, shape wrong. No usable primary source.")
+print("    - TU's steady-state peak/trough is 8.1x against an observed 1.8x. That is a")
+print("      conflict between two sources' half-lives, not a model limitation; see")
+print("      OPEN_CONCERNS.md section 4a.")
 sys.exit(0)

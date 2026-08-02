@@ -34,8 +34,7 @@ extension MedicationManager {
     /// Loads transient preferences from UserDefaults that are persisted via didSet.
     /// Called during init() and rehydrateManagers() to restore snapshotted state.
     func loadTransientPreferences() {
-        let defaults = UserDefaults.standard
-        antiAndrogenInUse = defaults.bool(forKey: Keys.antiAndrogenInUse)
+                antiAndrogenInUse = defaults.bool(forKey: Keys.antiAndrogenInUse)
         spironolactoneInUse = defaults.bool(forKey: Keys.spironolactoneInUse)
         spironolactoneClearanceEnabled = defaults.bool(forKey: Keys.spironolactoneClearanceEnabled)
         if let raw = defaults.string(forKey: Keys.suppressionSpeed) {
@@ -55,8 +54,7 @@ extension MedicationManager {
     }
 
     func loadSelection() {
-        let defaults = UserDefaults.standard
-        let security = SecurityManager.shared
+                let security = SecurityManager.shared
         if let data = defaults.data(forKey: "encryptedMedicationSelection"),
            let decrypted = try? security.decryptData(data),
            let str = String(data: decrypted, encoding: .utf8) {
@@ -74,8 +72,7 @@ extension MedicationManager {
     }
 
     func persistSelection() {
-        let defaults = UserDefaults.standard
-        let security = SecurityManager.shared
+                let security = SecurityManager.shared
         let str = "\(selectedMedication ?? "")|\(selectedAdministrationMethod ?? "")|\(selectedEster ?? "")"
         if let data = str.data(using: .utf8), let encrypted = try? security.encryptData(data) {
             defaults.set(encrypted, forKey: "encryptedMedicationSelection")
@@ -113,8 +110,7 @@ extension MedicationManager {
     }
 
     func loadDoseDates() {
-        let defaults = UserDefaults.standard
-        let security = SecurityManager.shared
+                let security = SecurityManager.shared
         if let data = defaults.data(forKey: "encryptedDoseDates"),
            let decrypted = try? security.decryptData(data),
            let container = try? JSONDecoder().decode(DoseDatesContainer.self, from: decrypted) {
@@ -125,8 +121,7 @@ extension MedicationManager {
     }
 
     func persistDoseDates() {
-        let defaults = UserDefaults.standard
-        let security = SecurityManager.shared
+                let security = SecurityManager.shared
         let container = DoseDatesContainer(lastDoseDate: lastDoseDate, nextDoseDate: nextDoseDate, hrtStartDate: hrtStartDate)
         if let data = try? JSONEncoder().encode(container), let encrypted = try? security.encryptData(data) {
             defaults.set(encrypted, forKey: "encryptedDoseDates")
@@ -149,8 +144,7 @@ extension MedicationManager {
     }
 
     func migrateToEncryptedStorage() {
-        let defaults = UserDefaults.standard
-        if defaults.object(forKey: "encryptedMedicationSelection") == nil { persistSelection() }
+                if defaults.object(forKey: "encryptedMedicationSelection") == nil { persistSelection() }
         if defaults.object(forKey: "encryptedDoseDates") == nil { persistDoseDates() }
     }
 

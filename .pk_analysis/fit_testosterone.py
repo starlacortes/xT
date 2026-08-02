@@ -427,11 +427,158 @@ def fit_oral():
 
 
 # ======================================================================
+# 4. TESTOSTERONE ENANTHATE and UNDECANOATE  --  shape refit, 2026-08-02
+# ======================================================================
+#
+# These two are structurally simpler than the fits above, because only their
+# SHAPE is being solved for. Magnitude is not free: the conservation-of-mass
+# identity established by the TC refit fixes S once ke is known.
+#
+#     Cavg = Dose*EDF*S/(tau*ke)  must equal  (mg testosterone/day)/CL_T
+#     =>  S = 1e5*ke/(CL_T*F),     CL_T = 2600 * EWF_TC = 1817.4 L/day
+#
+# EWF cancels, so S depends on ke and clearance alone. Every ester must satisfy
+# it, and `verify_constants.py` section 1b asserts that they do.
+
+CL_T = 2600.0 * 0.699    # L/day, per mg of testosterone -- from Bi via EWF_TC
+
+
+def s_from_ke(lam_fast, F=1.0):
+    """The clearance identity, in one place."""
+    return 1e5 * lam_fast / (CL_T * F)
+
+
+def fit_te():
+    print()
+    print("=" * 74)
+    print("4. TESTOSTERONE ENANTHATE (TE)  --  source: Ichihara et al. 2020")
+    print("   doi 10.1089/andro.2020.0002; n=10 transgender men, 250 mg IM")
+    print("=" * 74)
+
+    T_HALF_TERMINAL = 6.6                       # d, reported (+- 1.9)
+    KA_SUBJECTS = [2.82, 3.16, 0.49, 1.38]      # /day, the 4 estimable subjects
+    TMAX_OBS = 1.7                              # d, reported (+- 0.9), all 10 subjects
+    EWF, F = 0.720, 1.00
+
+    ka_mean = sum(KA_SUBJECTS) / len(KA_SUBJECTS)
+    lam_slow = LN2 / T_HALF_TERMINAL            # app's `ka` slot -- the SLOW constant
+    lam_fast = ka_mean                          # app's `ke` slot -- the FAST constant
+
+    print(f"  reported ka per subject: {KA_SUBJECTS}  -> mean {ka_mean:.4f} /day")
+    print(f"  reported terminal t1/2:  {T_HALF_TERMINAL} d -> {lam_slow:.5f} /day")
+    print()
+    print("  NOTE this is NOT a fit -- both rates are taken from the paper directly,")
+    print("  the same way TC's came from Bi. Nothing was solved for. The paper models")
+    print("  a one-compartment system with first-order absorption, and ka (1.96) far")
+    print("  exceeds the rate implied by its own terminal half-life (0.105), so")
+    print("  absorption is the fast process: the ordinary non-flip-flop case, and the")
+    print("  same slow=terminal / fast=absorption assignment TC uses.")
+    print()
+
+    tmax = tmax_bateman(lam_slow, lam_fast)
+    S = s_from_ke(lam_fast, F)
+    print(f"  -> slow half-life = {T_HALF_TERMINAL:.4f} d       (was 7.0, uncited)")
+    print(f"  -> fast half-life = {LN2/lam_fast*24:.4f} h     (was 2.0, placeholder)")
+    print(f"  -> S              = {S:.2f}         (was 457.67)")
+    print()
+    print(f"  CROSS-CHECK, not fit to: Tmax = {tmax:.3f} d against an observed")
+    print(f"  {TMAX_OBS} +- 0.9 d ({(tmax-TMAX_OBS)/TMAX_OBS*100:+.0f}%). The constant came")
+    print("  from the paper's ka estimates (n=4); the target is its observed Tmax")
+    print("  (n=10). Different quantities, different subsets -- so this is a real")
+    print("  check rather than a round trip.")
+    print()
+    print("  DOCUMENTED, NOT FITTED: a single 250 mg dose gives ~881 ng/dL exogenous")
+    print("  here against Ichihara's observed Cmax of 2940 +- 1710. Their cohort's")
+    print("  CLtot/F (~930 L/day at 65 kg) and Vd/F (~7700 L) are each about half the")
+    print("  Bi-derived values the app is anchored to. Taking their clearance for TE")
+    print("  alone would put TE and TC 2x apart on the same molecule and break the")
+    print("  identity above. Shape from Ichihara, magnitude from Bi.")
+
+    return dict(half_life_days=T_HALF_TERMINAL, elim_h=LN2 / lam_fast * 24.0,
+                ewf=EWF, F=F, S=S)
+
+
+def fit_tu():
+    print()
+    print("=" * 74)
+    print("5. TESTOSTERONE UNDECANOATE (TU)  --  Aveed Tmax over Zhang 1998 t1/2")
+    print("=" * 74)
+
+    T_HALF_TERMINAL = 20.0     # d; Zhang 1998: 18.3+-2.3 @500 mg, 23.7+-2.7 @1000 mg
+    TMAX_TARGET = 7.0          # d; Aveed 750 mg IM, median 7 (range 4-42)
+    TAU = 70.0                 # d, the label's 10-week interval
+    PT_OBSERVED = 1.80         # Wang 2010 wk 12: 789.8 / 435.6 ng/dL
+    EWF, F = 0.631, 1.00
+
+    lam_slow = LN2 / T_HALF_TERMINAL
+    print(f"  terminal t1/2 {T_HALF_TERMINAL} d held fixed (inside both Zhang arms)")
+    print(f"  solving for the release rate that puts Tmax at {TMAX_TARGET} d...")
+
+    # tmax_bateman is symmetric in its two arguments, so the root must be
+    # bracketed on the fast > slow branch or bisection can land on the mirror.
+    f = lambda x: tmax_bateman(lam_slow, x) - TMAX_TARGET
+    lam_fast = bisect(f, *find_bracket(f, lam_slow * 1.000001, 50.0))
+
+    S = s_from_ke(lam_fast, F)
+    print(f"  -> slow half-life = {T_HALF_TERMINAL:.4f} d      (unchanged)")
+    print(f"  -> fast half-life = {LN2/lam_fast*24:.4f} h    (was 2.0, placeholder)")
+    print(f"  -> S              = {S:.2f}         (was 457.67)")
+    print(f"  -> Tmax           = {tmax_bateman(lam_slow, lam_fast):.4f} d")
+    print()
+
+    ts, ys = steady_state_curve(lam_slow, lam_fast, tau=TAU, n_doses=200, npts=2000)
+    sh = summarize(ts, ys)
+    print(f"  steady state, 1000 mg q{TAU:.0f}d: peak/trough {sh['cmax']/sh['cmin']:.2f}"
+          f"  against Wang's observed {PT_OBSERVED:.2f}")
+    print()
+    print("  THE REMAINING GAP IS A SOURCE CONFLICT, NOT A MODEL LIMITATION.")
+    decay_bound = 2 ** (TAU / T_HALF_TERMINAL)
+    hl_needed = TAU * LN2 / math.log(PT_OBSERVED)
+    print(f"    Over {TAU:.0f} d, a {T_HALF_TERMINAL:.0f} d half-life is"
+          f" {TAU/T_HALF_TERMINAL:.1f} half-lives, so decay alone")
+    print(f"    bounds peak/trough at >= {decay_bound:.1f}x. Absorption sustaining the")
+    print(f"    trough is what brings the model to {sh['cmax']/sh['cmin']:.1f}x.")
+    print(f"    Decay alone would hit {PT_OBSERVED:.1f}x at a terminal half-life of"
+          f" {hl_needed:.1f} d.")
+    print()
+
+    # The constructive refutation of the retired "TU needs 3 parameters" claim.
+    # Solve for the half-life whose *simulated* peak/trough is the observed one --
+    # not the pure-decay bound above, which ignores that absorption keeps refilling
+    # the trough and so overshoots the required half-life by ~12%.
+    def pt_at(hl):
+        ls = LN2 / hl
+        g = lambda x: tmax_bateman(ls, x) - TMAX_TARGET
+        lf = bisect(g, *find_bracket(g, ls * 1.000001, 50.0))
+        s = summarize(*steady_state_curve(ls, lf, tau=TAU, n_doses=200, npts=2000))
+        return s['cmax'] / s['cmin'], lf
+
+    h = lambda hl: pt_at(hl)[0] - PT_OBSERVED
+    hl_alt = bisect(h, *find_bracket(h, 30.0, 200.0))
+    pt_alt, lam_fast_alt = pt_at(hl_alt)
+    print(f"    And BOTH targets are jointly reachable in this 2-rate model: pairing")
+    print(f"    {hl_alt:.1f} d with {LN2/lam_fast_alt*24:.1f} h gives"
+          f" Tmax {tmax_bateman(LN2/hl_alt, lam_fast_alt):.2f} d AND peak/trough"
+          f" {pt_alt:.2f}.")
+    print(f"    That half-life is {hl_alt/T_HALF_TERMINAL:.1f}x Zhang's measurement.")
+    print("    That is the constructive disproof of the retired claim that TU needs a")
+    print("    3-parameter or population-PK model (OPEN_CONCERNS.md section 4). It is")
+    print("    not adopted, because a 74 d terminal half-life contradicts the only")
+    print("    direct measurement anyone has published. See section 4a for the action:")
+    print("    read Wang 2010's sampling schedule before touching the engine.")
+
+    return dict(half_life_days=T_HALF_TERMINAL, elim_h=LN2 / lam_fast * 24.0,
+                ewf=EWF, F=F, S=S)
+
+
+# ======================================================================
 
 def main():
     tc = fit_tc()
     td = fit_transdermal()
     orl = fit_oral()
+    te = fit_te()
+    tu = fit_tu()
 
     print()
     print("=" * 74)
@@ -452,9 +599,17 @@ def main():
     print(f"      esterWeightFactor         {orl['ewf']}")
     print(f"      bioavailability           {orl['F']}")
     print(f"      scalingConstant           {orl['S']:.2f}")
+    print(f"  TestosteroneEster.enanthate (refit 2026-08-02):")
+    print(f"      halfLifeDays              {te['half_life_days']:.4f}   (was 7.0)")
+    print(f"      eliminationHalfLifeHours  {te['elim_h']:.4f}   (was 2.0)")
+    print(f"      scalingConstant           {te['S']:.2f}   (was 457.67)")
+    print(f"  TestosteroneEster.undecanoate (refit 2026-08-02):")
+    print(f"      halfLifeDays              {tu['half_life_days']:.4f}   (unchanged)")
+    print(f"      eliminationHalfLifeHours  {tu['elim_h']:.4f}   (was 2.0)")
+    print(f"      scalingConstant           {tu['S']:.2f}   (was 457.67)")
     print()
-    print("  TE / TP / TU injectable: UNCHANGED. No primary-quality source was")
-    print("  reached for these; see OPEN_CONCERNS.md sections 3-4.")
+    print("  TP injectable: UNCHANGED, still on the 2.0 h placeholder and S = 457.67.")
+    print("  No primary-quality source was reached for it; see OPEN_CONCERNS.md 3.")
 
 
 if __name__ == "__main__":

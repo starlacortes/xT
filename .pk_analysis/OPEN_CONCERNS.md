@@ -20,11 +20,12 @@ scenarios). The full write-up is `docs/pk-validation-dossier.tex`.
 |---|---|---|---|
 | 1 | PK test suite has a test-isolation defect; results are unreliable | High | **Resolved 2026-07-31** |
 | 2 | The TC Tmax target encoded in our own harness is probably wrong | High | **Resolved 2026-07-31** — the encoded window was right |
-| 3 | Testosterone esters are uncalibrated (Tmax off by 3–13×) | Medium | **Partly resolved** — magnitude fixed for all four; TC shape fixed; TE/TP/TU shape still open |
-| 4 | TU cannot be modeled correctly by a 2-parameter Bateman | Medium | Open — modeling decision, deliberately deferred |
+| 3 | Testosterone esters are uncalibrated (Tmax off by 3–13×) | Medium | **Partly resolved** — magnitude fixed for all four; TC/TE/TU shape fixed; **TP shape still open** (2026-08-02) |
+| 4 | ~~TU cannot be modeled correctly by a 2-parameter Bateman~~ | Medium | **Withdrawn 2026-08-02** — the claim was false. Superseded by 4a |
+| 4a | TU's terminal half-life and its observed steady-state flatness cannot both be true | Medium | **New 2026-08-02** — source conflict, needs Wang 2010's primary sampling schedule |
 | 5 | Predicted levels change substantially for existing users | Medium | Open — product / comms |
 | 6 | Amplitude re-anchoring was an engineering call, not a clinical one | Medium | Open — clinical sign-off |
-| 7 | Oral estradiol Tmax is ~12.7 h against a published 4–8 h | Medium | **New 2026-07-31** — open |
+| 7 | Oral estradiol Tmax is ~12.7 h against a published 4–8 h | Medium | **Resolved 2026-08-01** — ka refit, Tmax pinned to 6.0 h |
 | 8 | Transdermal intraday ripple is structurally under-modeled | Low | **New 2026-07-31** — documented, not fixable in this model |
 | 9 | Transdermal dose-response is anchored to the 50 mg arm only | Low | **New 2026-07-31** — documented |
 
@@ -118,51 +119,133 @@ artifact: S depends only on `ke` and clearance.
 Guarded by `testosteroneScalingSatisfiesClearanceIdentity` and
 `cypionateScalingMatchesAnalyticForm`.
 
+### Also resolved, 2026-08-02 — TE and TU shape
+
+Both are driven by `docs/TESTOSTERONE_ESTER_RESEARCH_MEMO.md`, which found the sources
+the previous pass had gone looking for and failed to find.
+
+**TE — Ichihara K, Masumori N, Fujii S, Toda T (2020),** "Pharmacokinetics of
+Testosterone Enanthate After Intramuscular Injection for Transgender Men," *Androgens:
+Clinical Research and Therapeutics*, doi [10.1089/andro.2020.0002](https://doi.org/10.1089/andro.2020.0002).
+Open access, n=10, single 250 mg IM. This is the study the old item 1 below said was
+needed: it is IM, it is primary, and it is in this app's own population, so the
+subcutaneous figure that was rejected for not transferring to IM is now moot.
+
+| | before | after | source |
+|---|---|---|---|
+| `halfLifeDays` | 7.0 (uncited) | **6.6** | terminal t½ 6.6 ± 1.9 d |
+| `eliminationHalfLifeHours` | 2.0 (placeholder) | **8.4767** | mean of the 4 estimable per-subject ka (2.82, 3.16, 0.49, 1.38 → 1.9625 /d) |
+| `scalingConstant` | 457.67 | **107.98** | forced by the §3 clearance identity, not refit |
+| modeled Tmax | 0.54 d | **1.58 d** | observed 1.7 ± 0.9 d |
+
+The paper models a one-compartment first-order-absorption system and reports ka ≫ the
+rate implied by its own terminal half-life (1.96 vs 0.105 /d) — the ordinary
+non-flip-flop case, so the app's slow/fast slots hold terminal/absorption here exactly
+as TC's do.
+
+**Known, documented, deliberately not fitted:** a single 250 mg dose gives 881 ng/dL
+exogenous here against Ichihara's observed Cmax of 2940 ± 1710. That is a cohort
+difference, not an error — their CLtot/F (≈930 L/day at 65 kg) and Vd/F (≈7700 L) are
+each about half the Bi-derived values the app is anchored to. Adopting their clearance
+for TE alone would put TE and TC 2× apart on the same molecule and break the
+conservation-of-mass identity that keeps the four esters mutually consistent. Shape was
+taken from Ichihara; magnitude stays with Bi. Their CV on Vd/F is 0.58, so this is not a
+sharp contradiction at the individual level, and the per-user blood-test factor α is
+what absorbs the rest.
+
+**TU — Aveed clinical pharmacology (Tmax median 7 d, range 4–42) over Zhang et al. 1998**
+([PMID 9876028](https://pubmed.ncbi.nlm.nih.gov/9876028/), terminal t½ 18.3 ± 2.3 d at
+500 mg / 23.7 ± 2.7 d at 1000 mg).
+
+| | before | after |
+|---|---|---|
+| `halfLifeDays` | 20.0 | **20.0** (unchanged; inside both Zhang arms) |
+| `eliminationHalfLifeHours` | 2.0 (placeholder) | **44.3883** (fitted to Tmax 7.0 d) |
+| `scalingConstant` | 457.67 | **20.62** |
+| modeled Tmax | 0.66 d | **7.00 d** |
+| steady-state peak/trough, 1000 mg q70d | 11.0× | **8.1×** (observed 1.8×) |
+
+TU's remaining gap is now §4a, and it is a different problem from the one §4 claimed.
+
+**Magnitude is unchanged for both.** `Cavg = Dose·EDF·S/(τ·ke)` holds S/ke fixed, so
+this pass moved shape only — TE 100 mg q7d stays at Cavg 566 ng/dL and TU 1000 mg q70d
+at 496. That invariance is asserted directly in `verify_constants.py` §1b rather than
+left to the algebra.
+
 ### What is still open
 
-**TE, TP and TU keep the placeholder 2 h `eliminationHalfLifeHours`.** Their magnitude
-is now right; their *shape* is not. Tmax lands at 0.3–0.7 d against published windows
-of 1.5–7 d, so the peak arrives days early and the curvature between peak and trough
-is wrong.
+**TP keeps the placeholder 2 h `eliminationHalfLifeHours`.** Its magnitude is right; its
+*shape* is not. Tmax lands at 0.55 d against a published 1–2 d.
 
-Why they were not fitted:
+Why it was not fitted: the best available source is Behre/Wang/Handelsman/Nieschlag
+(2004), *Testosterone: Action, Deficiency, Substitution* (Cambridge UP) — a textbook
+chapter showing a *simulated* 50 mg twice-weekly curve, not fitted rate constants and
+not raw single-dose concentration-time data. The only other figure surfaced is a 1974
+three-man series confounded by a mixed 20 mg TP + 115.7 mg TE injection. A
+fabricated-precision fit would be worse than the honest `isTmaxCalibrated = false`.
 
-1. **TE's usable steady-state profile is subcutaneous** (100 mg/week, week 6:
-   Cmax 1427, Cmin 584, Cavg 895.5 ng/dL, Tmax 33.9 h). SC absorbs more slowly and
-   flatter than the IM route modeled here, so its `ka` does not transfer without
-   justification. That figure also comes from a secondary summary, not a primary table.
-2. **TP has sparse published PK data.**
-3. **TU needs a structurally different model** — see §4 — not merely a different `ka`.
-
-A visible consequence, deliberately left in place and asserted by a test
-(`undecanoatePeakTimeIsUncalibrated`): TU's modeled Tmax (0.66 d) is now *earlier* than
-TC's (1.84 d), inverting the clinical ordering. That test passed before this pass only
-because TC was also wrong, in the same direction, by more. It now documents the
-inversion rather than hiding it, and instructs whoever fixes TU's `ka` to delete it and
-restore the clinical assertion.
-
-**Action:** someone with institutional access should pull the TE Phase II autoinjector
-study (IM arm) and any primary TP source. `fit_testosterone.py` will fit them unchanged
-once the targets are trustworthy.
+**Action:** find a primary single-dose IM TP PK study. `fit_testosterone.py` will fit it
+unchanged once the target is trustworthy. This is a data problem, not a modeling one.
 
 ---
 
-## 4. TU needs a different model, not different constants
+## 4. ~~TU needs a different model, not different constants~~ — **withdrawn 2026-08-02**
 
-A two-parameter Bateman over a 70-day interval produces a peak/trough ratio of **~11×**.
-The real drug is ~2–3×.
+**The claim was false.** It read: "This is structural. No choice of (ka, ke, S) in a
+2-parameter model reproduces that flatness — it needs a 3-parameter or population-PK
+fit." Two independent refutations:
 
-This is structural. No choice of (ka, ke, S) in a 2-parameter model reproduces that
-flatness — it needs a 3-parameter or population-PK fit.
+1. **The published pharmacometrics say otherwise.** Every population PK analysis of
+   injectable TU located fits it with a one-compartment, first-order-absorption,
+   first-order-elimination model — structurally the same 2-rate Bateman used here.
+   Pastuszak AW et al. (2021), *J Clin Pharmacol*
+   ([PMID 34269421](https://pubmed.ncbi.nlm.nih.gov/34269421/)), states it outright:
+   "A 1-compartment model with first-order absorption into the central compartment and
+   first-order elimination from the central compartment" best described IM TU.
+2. **Direct construction.** Pairing a 73.8 d slow rate with a 27.5 h release rate gives
+   Tmax 7.0 d *and* peak/trough 1.80× simultaneously in this exact model. Both numbers
+   are asserted in `verify_constants.py` §1d — the peak/trough half by simulation
+   through the app's own superposition, not in closed form — so the refutation cannot
+   silently rot.
 
-The §3 magnitude correction improves TU's Cavg (232 → 496 ng/dL exogenous, against a
-published ~500–600 total) but makes its Cmax overshoot, because correcting magnitude
-cannot correct shape. That trade was taken knowingly: Cavg is what clinicians titrate on
-and what a user lives at, and the peak was already wrong before.
+How the error happened is worth recording: a 2-parameter curve with grossly mismatched
+rate constants cannot reproduce a flat curve, and the inference drawn was "therefore add
+parameters." The actual conclusion available was "therefore fix the rate constants."
 
-**Action:** treat as a modeling enhancement. Explicitly deferred — a 3-parameter engine
-is out of scope for a calibration pass. Until then TU predictions are directionally
-useful and quantitatively poor across the dosing interval.
+Superseded by §4a.
+
+---
+
+## 4a. TU's terminal half-life and its observed flatness cannot both be true — **new 2026-08-02**
+
+After the shape refit, 1000 mg q70d gives a steady-state peak/trough of **8.1×** against
+the **1.8×** Wang et al. 2010 report at week 12 (789.8 / 435.6 ng/dL). Better than the
+11× before, still not close.
+
+The remaining gap is arithmetic, and it isolates the conflict precisely:
+
+- Over a 70-day interval, a 20 d terminal half-life is 3.5 half-lives of decay, so
+  peak/trough cannot fall below **11.3×** on decay alone. Absorption sustaining the
+  trough is what brings the model to 8.1×.
+- Reaching 1.8× requires a terminal half-life of **73.8 d — 3.7× what Zhang measured**,
+  in either dose arm, well outside their reported spread. (Decay alone would not get
+  there until 82.5 d; absorption refilling the trough buys back the difference.)
+
+So Zhang's measured terminal half-life and Wang's observed steady-state flatness cannot
+both be right. Neither is obviously the one to discard: Zhang's is a direct fit to
+single-dose concentration-time data (n=8), Wang's is a steady-state observation from a
+much larger Phase III. One suggestive detail on Wang's side — Zhang's own half-life is
+**dose-dependent** (18.3 d at 500 mg, 23.7 d at 1000 mg), which is what absorption-
+limited kinetics looks like and hints that the "terminal" phase they measured may be a
+truncated view of a slower depot release.
+
+**Action:** pull Wang 2010's primary sampling schedule and check whether that week-12
+peak/trough pair spans one full inter-dose interval. Aveed doses at week 0, week 4, then
+q10wk, so a "week 12" pair could easily be sampling something narrower than a 70-day
+cycle — which would deflate the observed ratio and dissolve the conflict. This is a
+half-day of reading a paper, not a modeling project. **Do not** reach for a
+dual-absorption-pathway or multi-compartment engine before doing it; §4 above is what
+happens when a structural fix is inferred from a calibration symptom.
 
 ---
 
@@ -273,27 +356,54 @@ change made** pending product/clinical confirmation of which quantity it means.
 
 ---
 
-## 7. Oral estradiol Tmax is too late — **new 2026-07-31**
+## 7. Oral estradiol Tmax is too late — **resolved 2026-08-01**
 
-The engine's oral rate constants are ka = 2.5 /day and ke = 1.386 /day, giving
-Tmax = 12.7 h. Published oral estradiol Tmax is on the order of 4–8 h.
+**The defect (found 2026-07-31).** The engine's oral rate constants were ka = 2.5 /day
+and ke = 1.386 /day, giving Tmax = 12.7 h. Published oral estradiol Tmax is on the order
+of 4–8 h.
 
-The consequence shows up on a BID schedule: Tmax exceeds the 12 h dosing interval, so
-each dose is still rising when the next arrives and the modeled curve flattens to a
-peak/trough of ~1.1× across the day. Real oral estradiol swings considerably more. This
-is visible in `personas.py` persona 3 (Priya).
-
-Cavg is unaffected — it depends only on dose rate, F and ke — so average and
-trough-adjacent numbers remain usable. The intraday peak is under-modeled.
+The consequence showed up on a BID schedule: Tmax exceeded the 12 h dosing interval, so
+each dose was still rising when the next arrived and the modeled curve flattened to a
+peak/trough of ~1.1× across the day. Real oral estradiol swings considerably more. It was
+visible in `personas.py` persona 3 (Priya).
 
 Note also that the engine's own comment described ka = 2.5 as "≈1h absorption", which is
 arithmetically wrong: ln2/2.5 d = 6.7 h. That comment is gone along with the hardcoded
 literals; the rates now live in `MedicationEster.oral` where they can be seen and changed.
 
-**Action:** refitting `ka` requires re-deriving S against the same source, since the two
-are coupled through the peak. Out of scope for this pass; the numbers were restated
-exactly (0.5 d → 0.2773 d, 3.0 h → 12.0035 h) so that oral E2 predictions are
-bit-identical to before while the constants stop lying about what the engine uses.
+**The fix.** `MedicationEster.oral.halfLifeDays` 0.2773 → **0.0791 d**, i.e.
+ka 2.5 → **8.762 /day**, putting Tmax at **6.0 h**. ke and S are untouched.
+
+Two judgement calls are baked into that, and both are choices rather than fits:
+
+*Where inside 4–8 h.* Nothing selects a point in the window — it is a range from
+secondary sources, not a distribution with a mode. Tmax is pinned to the 6 h **midpoint**
+and documented as a stated choice. (Solving `ln(ka/ke)/(ka−ke) = t` also requires
+bracketing on the ka > ke branch: the expression is symmetric under ka↔ke, so it has two
+roots. `oralKaGreaterThanKe` now guards the branch.)
+
+*Which quantity to preserve.* S and ka are coupled through the peak but **not** through
+the average: integrating the Bateman term gives AUC/dose = amount·S/ke exactly, with no
+ka in it. So a single (S, ka) pair cannot hold both the published Tmax and the published
+Cmax, and the earlier "refitting ka requires re-deriving S" framing was really a hidden
+choice of anchor. We anchored on **Cavg** — 2 mg daily stays at 90 pg/mL, unchanged, and
+that is the quantity clinicians titrate on and users live at. The accepted cost is that
+single-dose Cmax rises 60 → 88 pg/mL for 2 mg, superseding the `Oral 2 mg → peak
+~60 pg/mL` line in the `scalingConstant` doc comment. Holding Cmax at 60 instead would
+have required S = 848.5 and dropped Cavg to 61 pg/mL — moving every average and trough
+number in the app to buy back one single-dose peak. This is the same reasoning as the
+2026-07-29 injectable re-anchor.
+
+**Result:** Priya's modeled intraday swing goes 1.11× → **1.37×**; her Cavg stays at
+180 pg/mL (2 mg *BID* = 4 mg/day — the 90 figure is once-daily). EV/EC steady-state Cmax
+are unmoved, as only `.oral` changed.
+
+**Verification.** `verify_constants.py` previously *pinned* oral ka to 2.5 to prove the
+07-31 restatement was a no-op; that pin would have failed by construction on any Tmax fix
+and has been retired in favour of a Tmax-window probe plus the ke and Cavg invariants.
+`PharmacokineticTests.swift` gained `oralE2TmaxInRange`, and its `oralKaGreaterThanKe`
+— which asserted the literal `2.5 > 1.386` and so could never have caught this — now
+reads the enum.
 
 ---
 

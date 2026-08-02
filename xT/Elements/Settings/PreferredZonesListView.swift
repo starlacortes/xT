@@ -63,7 +63,7 @@ struct PreferredZonesListView: View {
                             Text("\(combo.medication) — \(combo.routeClass.displayName)")
                                 .font(Theme.Fonts.callout)
                                 .foregroundStyle(.primary)
-                            Text("\(count) \(count == 1 ? "zone" : "zones")")
+                            Text("^[\(count) zone](inflect: true)")
                                 .font(Theme.Fonts.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -84,8 +84,10 @@ struct PreferredZonesListView: View {
     }
 }
 
+#if DEBUG
 #Preview {
     NavigationStack {
         PreferredZonesListView()
     }
 }
+#endif

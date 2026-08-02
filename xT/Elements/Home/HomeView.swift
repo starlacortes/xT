@@ -218,6 +218,7 @@ private struct HomeGradientBackground: View {
 
 // MARK: - Preview
 
+#if DEBUG
 #Preview {
     SpoofPreview {
         HomeView()
@@ -225,3 +226,4 @@ private struct HomeGradientBackground: View {
             .environment(\.journalManager, JournalManager.shared)
     }
 }
+#endif

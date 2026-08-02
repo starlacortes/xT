@@ -81,7 +81,7 @@ struct JournalView: View {
                     }
                     .scrollIndicators(.hidden)
                 }
-                .navigationTitle("")
+                .navigationTitle(Text(verbatim: ""))
                 .navigationBarTitleDisplayMode(.inline)
                 .background(Color(.systemBackground))
                 .sheet(isPresented: $showingComposer) {
@@ -156,7 +156,7 @@ struct JournalView: View {
 
             let count = journalManager.entries.count
             if count > 0 {
-                Text(count == 1 ? "1 entry" : "\(count) entries")
+                Text("^[\(count) entry](inflect: true)")
                     .font(Theme.Fonts.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -253,12 +253,10 @@ struct TimelineScrubber: View {
         if cal.isDateInYesterday(date) { return "Yesterday" }
         let days = cal.dateComponents([.day], from: date, to: Date()).day ?? 0
         if days < 7 {
-            let f = DateFormatter()
-            f.dateFormat = "EEE"
+            let f = AppDateFormatters.weekdayShort
             return f.string(from: date)
         }
-        let f = DateFormatter()
-        f.dateFormat = "MMM d"
+        let f = AppDateFormatters.monthDay
         return f.string(from: date)
     }
 }
@@ -347,6 +345,7 @@ struct EmptyJournalView: View {
 
 // MARK: - Preview
 
+#if DEBUG
 #Preview {
     SpoofPreview {
         JournalView()
@@ -354,3 +353,4 @@ struct EmptyJournalView: View {
             .environment(\.medicationManager, MedicationManager.shared)
     }
 }
+#endif

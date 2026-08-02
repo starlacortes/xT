@@ -96,8 +96,12 @@ oral_doses = [DoseEvent(t_days=0.0, ester="Oral", medication="Estrogen", route="
 grid = [i * 0.0417 for i in range(int(2 / 0.0417))]  # 0..2 days, hourly
 old_oral = simulate_buggy(oral_doses, "Oral", grid, use_old_constants=True)
 new_oral = simulate_fixed(oral_doses, grid)
-print(f"Oral 2mg single dose:  OLD Cmax = {max(old_oral):.2f} pg/mL   NEW Cmax = {max(new_oral):.1f} pg/mL   "
-      f"(app target ~60 pg/mL; single-dose literature ~31 pg/mL fasting, Kim et al.)")
+print(f"Oral 2mg single dose:  OLD Cmax = {max(old_oral):.2f} pg/mL   NEW Cmax = {max(new_oral):.1f} pg/mL")
+print("  NOTE: the ~60 pg/mL single-dose target this line used to quote was retired on 2026-08-01.")
+print("  S is now anchored to Cavg (2 mg daily -> 90 pg/mL) and single-dose Cmax is a DERIVED value,")
+print("  because S and ka cannot both hold the published Tmax and the published Cmax -- see concern #7.")
+print("  Single-dose literature is ~31 pg/mL fasting (Kim et al.), which the model overshot at 60 and")
+print("  overshoots by more at the derived value; the model is not anchored to that figure.")
 
 td_doses = [DoseEvent(t_days=d, ester="Transdermal", medication="Estrogen", route="Cream", dose_mg=1.0) for d in range(10)]
 grid2 = [9 + i * 0.02 for i in range(51)]

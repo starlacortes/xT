@@ -61,7 +61,9 @@ print("  Regimen: Oral estradiol 4 mg/day (2x the 2mg reference dose used to cal
 doses = daily_route("Oral", "Estrogen", 4.0, n_days=14, route="Oral")
 peak, trough, avg = run_regimen(doses, 12, 13)
 print(f"  Model (steady-state, last day): peak={peak:.0f} pg/mL, trough={trough:.0f} pg/mL, avg={avg:.0f} pg/mL")
-print(f"  Reference: 2mg/day single-dose model peak ~60 pg/mL -> 4mg/day should be ~2x at same dose-intensity")
+print(f"  Reference: 2mg/day steady-state Cavg is 90 pg/mL -> 4mg/day should be ~2x at same dose-intensity.")
+print(f"  (Cavg, not the single-dose peak: since the 2026-08-01 ka refit, S is anchored to the average and")
+print(f"   single-dose Cmax is derived rather than targeted. See concern #7.)")
 print(f"  Dose-proportionality check: model is linear in dose (by construction of the Bateman/exponential math),")
 print(f"  so this is a sanity check on linearity rather than an independent accuracy claim.")
 

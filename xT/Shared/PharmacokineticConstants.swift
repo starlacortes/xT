@@ -33,20 +33,31 @@ enum MedicationEster: String, CaseIterable {
     /// Oral/transdermal are elimination-dominated and were left as-is (already validated).
     /// See `.pk_analysis/fit_constants.py`.
     ///
-    /// **`.oral` restated 2026‑07‑31: 0.5 → 0.2773 d. This is not a recalibration —
-    /// it is a no-op that makes the constant honest.** `estimatedLevels()` never read
+    /// **`.oral` restated 2026‑07‑31: 0.5 → 0.2773 d. This was not a recalibration —
+    /// it was a no-op that made the constant honest.** `estimatedLevels()` never read
     /// this value for oral doses; it hardcoded `oralKa = 2.5` and `oralKe = 1.386`
-    /// inline, and `scalingConstant` 1250 was fit against *those* rates. Now that the
-    /// engine resolves oral rates from this enum (so testosterone can have its own —
-    /// see `TestosteroneEster.oral`), the stored value has to reproduce what the
-    /// engine actually used: ln2/2.5 = 0.2773 d. Every oral E2 prediction is
-    /// bit-identical before and after. The old 0.5 d was the *elimination* half-life,
-    /// which lives in `eliminationHalfLifeHours` (12.0 h) where the engine looks for it.
+    /// inline, and `scalingConstant` 1250 was fit against *those* rates. Once the
+    /// engine began resolving oral rates from this enum (so testosterone can have its
+    /// own — see `TestosteroneEster.oral`), the stored value had to reproduce what the
+    /// engine actually used: ln2/2.5 = 0.2773 d. The old 0.5 d was the *elimination*
+    /// half-life, which lives in `eliminationHalfLifeHours` where the engine looks for it.
+    ///
+    /// **`.oral` refit 2026‑08‑01: 0.2773 → 0.0791 d — a real recalibration, closing
+    /// concern #7.** ka = 2.5 /day put Tmax at 12.7 h against a published oral
+    /// estradiol Tmax of 4–8 h. Worse, 12.7 h exceeds the 12 h interval of a BID
+    /// schedule, so each dose was still rising when the next arrived and the modeled
+    /// curve flattened to a peak/trough of ~1.1× across the day. Tmax is now pinned to
+    /// **6.0 h**, the midpoint of the published window — no physical principle picks a
+    /// point inside 4–8 h, and the sources are secondary, so the midpoint is a stated
+    /// choice rather than a fit. Solving ln(ka/ke)/(ka−ke) = 0.25 d on the ka > ke
+    /// branch (the formula is symmetric under ka↔ke, so the root must be bracketed)
+    /// gives ka = 8.762 /day → ln2/8.762 = 0.0791 d. Modeled BID peak/trough becomes
+    /// ~1.37×. `scalingConstant` is deliberately NOT rescaled — see the note there.
     var halfLifeDays: Double {
         switch self {
         case .valerate: return 2.60
         case .cypionate: return 6.47
-        case .oral: return 0.2773      // ka = ln2/0.2773 = 2.5 /day (was inline in the engine)
+        case .oral: return 0.0791      // ka = ln2/0.0791 = 8.762 /day → Tmax 6.0 h (concern #7)
         case .transdermal: return 1.5  // ka = ln2/1.5 — already matched the engine's inline value
         }
     }
@@ -66,6 +77,11 @@ enum MedicationEster: String, CaseIterable {
     /// **`.oral` restated 2026‑07‑31: 3.0 → 12.0 h — again a no-op, not a refit.**
     /// See the note on `halfLifeDays`. ln2/(12.0035/24) = 1.386 /day, exactly the
     /// `oralKe` the engine previously hardcoded. The old 3.0 h was never read.
+    /// Unchanged by the 2026‑08‑01 Tmax refit: that moved ka only. Note that at
+    /// runtime this ke is scaled by `spiroClearanceFactor` when the user has
+    /// spironolactone clearance enabled (see `pkParams` in
+    /// `MedicationManager+Pharmacokinetics.swift`), so any Tmax assertion must be
+    /// made against the enum or with that setting off.
     ///
     /// `.transdermal` is unused: the transdermal route is modeled as 24 hourly
     /// micro-doses with ke = 0 (single-exponential), so no `ke` is derived from it.
@@ -75,6 +91,41 @@ enum MedicationEster: String, CaseIterable {
         case .cypionate: return 38.6
         case .oral: return 12.0035     // ke = 1.386 /day (was inline in the engine)
         case .transdermal: return 3.0  // unused — transdermal micro-doses set ke = 0
+        }
+    }
+
+    /// Exact Bateman time to peak, in days: `t_max = ln(ka/ke) / (ka − ke)`.
+    ///
+    /// This is the single source of truth for time-to-peak.
+    /// `MedicationManager.expectedTimeToPeak(for:)` delegates here, and any UI that
+    /// wants to show a peak day must read this rather than re-deriving one — the
+    /// onboarding ester picker previously carried its own `halfLife × 1.44`
+    /// approximation, which ignored `ke` entirely and ran 2–44× long.
+    ///
+    /// Note this reads the enum's own rates, so it is unaffected by the
+    /// spironolactone `ke` scaling the engine applies to the estrogen branch (see
+    /// the `eliminationHalfLifeHours` note above) — which is exactly what an
+    /// ester-level label wants.
+    var timeToPeakDays: Double {
+        let ka = log(2) / halfLifeDays
+        let ke = log(2) / (eliminationHalfLifeHours / 24.0)
+        guard abs(ka - ke) > 0.0001 else { return 1.0 / ka }
+        return log(ka / ke) / (ka - ke)
+    }
+
+    /// Whether `timeToPeakDays` rests on a primary- or label-anchored fit, and may
+    /// therefore be shown to the user as fact.
+    ///
+    /// All three usable estrogen routes qualify: EV and EC were re-anchored
+    /// 2026‑07‑29 against transfemscience Table 10, and oral was refit 2026‑08‑01
+    /// to pin Tmax at 6.0 h inside the published 4–8 h window (OPEN_CONCERNS.md §7).
+    /// `.transdermal` is false only because it has no meaningful Tmax — it is
+    /// modeled as hourly micro-doses with ke = 0, so the Bateman does not apply.
+    /// It never reaches the picker, which lists `injectableCases`.
+    var isTmaxCalibrated: Bool {
+        switch self {
+        case .valerate, .cypionate, .oral: return true
+        case .transdermal: return false
         }
     }
 
@@ -147,6 +198,20 @@ enum MedicationEster: String, CaseIterable {
     /// Oral and transdermal are unchanged — they are elimination‑dominated, already
     /// validated end to end, and have no flip‑flop identifiability problem.
     /// See `.pk_analysis/fit_constants.py`.
+    ///
+    /// **`.oral` held at 1250 through the 2026‑08‑01 Tmax refit (concern #7) — a
+    /// deliberate choice of anchor, and it supersedes the `Oral 2 mg → peak ~60 pg/mL`
+    /// line above.** S and ka are coupled through the peak but not through the average:
+    /// integrating the Bateman term gives AUC per dose = amount·S/ke exactly, with no ka
+    /// in it, so Cavg is invariant to ka while Cmax is not. A single (S, ka) pair cannot
+    /// therefore hold both the published Tmax and the published Cmax. Anchoring on Cavg
+    /// keeps 2 mg daily at 90 pg/mL — unchanged by the refit, and the quantity clinicians
+    /// titrate on — at the cost of single-dose Cmax rising 60 → 88 pg/mL for 2 mg. The
+    /// alternative (rescaling S to 848.5 to hold Cmax at 60) would have dropped Cavg to
+    /// 61 pg/mL, moving every average and trough number in the app to buy back a
+    /// single-dose peak. Same reasoning as the injectable re‑anchor above. The 60 pg/mL
+    /// figure is a *single-dose* Cmax: S = 1250 reproduces it to five figures for one
+    /// 2 mg dose, which is how the anchor was identified.
     var scalingConstant: Double {
         switch self {
         case .valerate: return 396.4
@@ -208,17 +273,30 @@ enum TestosteroneEster: String, CaseIterable {
     /// the value that belongs here is the exogenous-only figure. See
     /// `.pk_analysis/fit_testosterone.py`.
     ///
-    /// **Consequence, flagged deliberately:** TC (3.84 d) is now shorter than TE
-    /// (7.0 d), inverting the previous ordering, even though the two are clinically
-    /// near-interchangeable. This is an artifact of TC being the only ester with a
-    /// primary-source refit — not a claim that TC clears twice as fast as TE. TE/TP/TU
-    /// remain uncalibrated; see the note below and OPEN_CONCERNS.md §3.
+    /// **Consequence, flagged deliberately:** TC (3.84 d) is shorter than TE (6.6 d)
+    /// even though the two are clinically near-interchangeable. That is not an
+    /// artifact: Bi's 3.84 d is *exogenous-only* (endogenous secretion modeled
+    /// separately, as xT does with `baseLevel`), while Ichihara's 6.6 d is a
+    /// total-testosterone terminal half-life measured in a population with roughly
+    /// half Bi's clearance. The two numbers answer different questions in different
+    /// cohorts; see the magnitude note on `scalingConstant`.
+    ///
+    /// **TE recalibrated 2026‑08‑02** from 7.0 → 6.6 d, the terminal half-life
+    /// reported by Ichihara et al. 2020 (doi 10.1089/andro.2020.0002) — n=10
+    /// transgender men, single 250 mg IM, the population this app actually serves,
+    /// and the primary IM source OPEN_CONCERNS.md §3 was blocked on. The old 7.0 was
+    /// an uncited round number that happened to land within 6% of it.
+    ///
+    /// TU's 20.0 d is retained: Zhang et al. 1998 measured 18.3 ± 2.3 d (500 mg) and
+    /// 23.7 ± 2.7 d (1000 mg), and 20.0 sits inside both. The dose dependence there is
+    /// itself a hint that TU's terminal phase is absorption-limited; see the
+    /// peak/trough note on `eliminationHalfLifeHours`.
     var halfLifeDays: Double {
         switch self {
         case .cypionate: return 3.839
-        case .enanthate: return 7.0
+        case .enanthate: return 6.6     // Ichihara 2020, terminal t½ 6.6 ± 1.9 d
         case .propionate: return 1.0
-        case .undecanoate: return 20.0
+        case .undecanoate: return 20.0  // Zhang 1998, 18.3 d (500 mg) / 23.7 d (1000 mg)
         case .oral: return 0.09          // Jatenzo, fit to Tmax 3 h + Cavg
         case .transdermal: return 0.5784 // AndroGel washout: 5% remaining at 60 h
         }
@@ -227,23 +305,36 @@ enum TestosteroneEster: String, CaseIterable {
     /// Terminal half-life (days) is the effective clinical half-life.
     /// Under flip-flop kinetics for depot esters, this ≈ ln(2) / ka (absorption-limited).
 
-    // MARK: Calibration status by ester (updated 2026‑07‑31)
+    // MARK: Calibration status by ester (updated 2026‑08‑02)
     //
     // TC was refit on 2026‑07‑31 once the primary source became available
     // (Bi et al. 2018, doi 10.1002/psp4.12287 — the paper OPEN_CONCERNS.md §3 was
     // blocked on). Oral and transdermal testosterone were added at the same time to
     // close a live 1000×-overprediction defect (see `scalingConstant` below).
     //
-    // TE / TP / TU remain UNCALIBRATED and keep the fixed 2 h `ke`, so they still
-    // peak at ~0.55 d against published windows of 1.5–7 d. Why they were left:
+    // TE and TU were refit on 2026‑08‑02 (docs/TESTOSTERONE_ESTER_RESEARCH_MEMO.md).
+    // Both now carry a real absorption rate instead of the placeholder 2 h `ke`:
     //
-    //  1. TE's usable steady-state profile (100 mg/week, week 6: Cmax 1427,
-    //     Cmin 584, Cavg 895.5 ng/dL, Tmax 33.9 h) is **subcutaneous**, and SC
-    //     absorbs more slowly and flatter than the IM route modeled here, so its
-    //     `ka` does not transfer without justification.
-    //  2. That figure also comes from a secondary summary, not the primary table.
-    //  3. TP has sparse published PK data; TU needs a structurally different model
-    //     (see §4 note on `scalingConstant`), not merely different constants.
+    //  * TE — Ichihara et al. 2020, the IM study in transgender men that the former
+    //    item 1 of this note said was missing. It supersedes the *subcutaneous*
+    //    steady-state figure that was rejected here for not transferring to IM: this
+    //    one is IM, primary, open access, and in the right population.
+    //  * TU — Aveed's FDA clinical pharmacology Tmax (median 7 d, range 4–42) over
+    //    Zhang 1998's terminal half-life. The former item 3 claimed TU "needs a
+    //    structurally different model." That was wrong, and the memo's §2 is the
+    //    refutation: every population PK analysis of injectable TU found (Pastuszak
+    //    2021; the 2022 J Clin Pharmacol 8-week-interval study) fits it with a
+    //    one-compartment first-order-absorption model — the same two-rate-constant
+    //    Bateman used here. What remains open for TU is a source conflict about the
+    //    terminal half-life, not the number of compartments; see the peak/trough
+    //    note on `eliminationHalfLifeHours`.
+    //
+    // TP remains UNCALIBRATED and keeps the fixed 2 h `ke`, so it still peaks at
+    // ~0.55 d against a published window of 1–2 d. Deliberately left: the best source
+    // is a textbook chapter (Behre 2004) showing a *simulated* twice-weekly curve, not
+    // fitted rate constants or raw single-dose concentration-time data, and the only
+    // other figure surfaced is a 1974 three-man series confounded by a mixed TP+TE
+    // injection. A fabricated-precision fit would be worse than the honest flag.
     //
     // RESOLVED 2026‑07‑31 — the former item 2 of this note claimed the encoded TC
     // Tmax window (1.0–2.0 d) "looks wrong" because a secondary source put Cmax at
@@ -257,24 +348,125 @@ enum TestosteroneEster: String, CaseIterable {
 
     /// The FAST Bateman constant — `ke = ln2 / (eliminationHalfLifeHours / 24)`.
     ///
-    /// For TE/TP/TU this remains the physiological ~2 h clearance of free
-    /// testosterone, which forces Tmax to ~0.55 d regardless of ester (see the
-    /// calibration-status note above).
+    /// **This slot holds two different pharmacological quantities. Read before editing.**
     ///
-    /// **TC recalibrated 2026‑07‑31** from 2.0 → 13.64 h, from Bi et al.'s
-    /// Ka = 1.22 /day (t½ = ln2/1.22 = 0.568 d = 13.64 h). Under flip-flop kinetics
-    /// the assignment of "absorption" vs "elimination" to the two exponentials is
-    /// ambiguous — Bi says so explicitly — but the Bateman is symmetric in Tmax
-    /// under that swap and the amplitude difference is absorbed into `scalingConstant`,
-    /// so the observable curve is unaffected by which label we attach.
+    ///   * **TC (13.64 h)** is Bi et al.'s *absorption* rate Ka = 1.22 /day
+    ///     (t½ = ln2/1.22 = 0.568 d = 13.64 h) — depot release from the oil vehicle.
+    ///   * **TE (8.4767 h)** is Ichihara 2020's *absorption* rate — the mean of the
+    ///     four per-subject ka values the paper could estimate (2.82, 3.16, 0.49,
+    ///     1.38 /day → 1.9625 /day, t½ = 8.4767 h). Same quantity as TC's.
+    ///   * **TU (44.3883 h)** is a *fitted* depot-release rate, not a reported one:
+    ///     0.37477 /day, the value that puts Tmax at Aveed's median 7 d given the
+    ///     20 d terminal half-life. See the peak/trough note below.
+    ///   * **TP (2.0 h)** is the *physiological clearance* of free testosterone — a
+    ///     placeholder, not a depot rate. It forces Tmax to ~0.55 d (see the
+    ///     calibration-status note above).
+    ///
+    /// So the gap between 13.64 and TP's 2.0 is not a claim that TC releases 6.8×
+    /// slower than TP. They are answers to different questions, and TP's is a stand-in.
+    /// Do **not** "correct" TP's 2.0 toward its siblings to close the gap. When TP is
+    /// eventually calibrated, both rates should come from one primary source the way
+    /// TC's do from Bi — and `scalingConstant` must be recomputed alongside, since
+    /// S is pinned to `ke` by the clearance identity (see `scalingConstant`).
+    ///
+    /// **TC recalibrated 2026‑07‑31** from 2.0 → 13.64 h.
+    /// **TE and TU recalibrated 2026‑08‑02** from 2.0 → 8.4767 h and 44.3883 h.
+    /// Effect on Tmax: TE 0.54 → 1.58 d (observed 1.7 ± 0.9 d), TU 0.66 → 7.00 d
+    /// (Aveed median 7 d). `scalingConstant` moved with them, as required above.
+    ///
+    /// **TU's remaining gap is a source conflict, not a missing compartment.**
+    /// Wang et al. 2010 report a steady-state peak/trough of 1.8× (789.8 / 435.6
+    /// ng/dL at week 12). The model gives 8.1× at 1000 mg q70d — better than the 11×
+    /// it gave before this refit, but not close. That is arithmetic, not a modeling
+    /// choice: over a 70-day interval a terminal half-life of 20 d is 3.5 half-lives
+    /// of decay, so peak/trough cannot fall below ~11× on decay alone (absorption
+    /// sustaining the trough is what brings it to 8.1×). Both targets *are* jointly
+    /// reachable in this two-rate Bateman — a 73.8 d terminal half-life paired with a
+    /// 27.5 h release rate hits Tmax 7 d **and** peak/trough 1.80× — which is
+    /// precisely why the old "TU needs a 3-parameter model" claim was wrong. But
+    /// 73.8 d is **3.7× what Zhang measured**, in either dose arm. The blocker is that Zhang's
+    /// measured terminal half-life and Wang's observed flatness cannot both be true.
+    /// Resolving it needs Wang's primary sampling schedule — specifically whether that
+    /// week-12 peak/trough pair spans one full inter-dose interval — not a rewrite.
+    ///
+    /// Note this puts Bi's Ka in *this* slot and Bi's disposition rate CL/V = 0.1806 /day
+    /// in `halfLifeDays` — i.e. the app stores them swapped relative to Bi's own labels.
+    /// That is xT's modeling choice, not Bi's: Bi identifies Ka as absorption and
+    /// CL/V as elimination, and with Ka > CL/V the model is not flip-flop, so no
+    /// ambiguity is being invoked here. The swap is harmless because the Bateman is
+    /// symmetric in Tmax under it and the amplitude difference is absorbed into
+    /// `scalingConstant`, leaving the observable curve unchanged.
+    ///
+    /// **Consequence for future work:** because the labels are swapped, a drug
+    /// interaction that alters testosterone *clearance* must scale the slow rate —
+    /// `halfLifeDays` — and NOT this property, which for TC is an absorption rate.
+    /// This is the mirror image of how `spiroClearanceFactor` is applied on the
+    /// estrogen branch (`MedicationManager+Pharmacokinetics.swift`, `pkParams`),
+    /// where the unswapped `ke` genuinely is elimination.
     var eliminationHalfLifeHours: Double {
         switch self {
         case .cypionate: return 13.64
-        case .enanthate: return 2.0
-        case .propionate: return 2.0
-        case .undecanoate: return 2.0
+        case .enanthate: return 8.4767   // Ichihara 2020, mean ka 1.9625 /day
+        case .propionate: return 2.0     // placeholder — TP is still uncalibrated
+        case .undecanoate: return 44.3883 // fit to Aveed Tmax 7.0 d at t½ 20 d
         case .oral: return 2.003     // Jatenzo, fit jointly with halfLifeDays to Tmax 3 h
         case .transdermal: return 0  // single-exponential route; ke is unused
+        }
+    }
+
+    /// Exact Bateman time to peak, in days: `t_max = ln(ka/ke) / (ka − ke)`.
+    ///
+    /// Single source of truth for time-to-peak;
+    /// `MedicationManager.expectedTimeToPeak(for:)` delegates here. Correct for the
+    /// shipped constants in every case — but see `isTmaxCalibrated` before showing
+    /// the result to a user, because "correct for the constants" and "correct about
+    /// the drug" still diverge for TP.
+    ///
+    /// **Returns NaN for `.transdermal`**, whose `eliminationHalfLifeHours` is 0 —
+    /// that route is modeled as hourly micro-doses with no elimination phase, so
+    /// `ke` is infinite and t_max is genuinely undefined rather than merely unknown.
+    /// NaN is the honest answer; `isTmaxCalibrated` is false there for the same
+    /// reason. Callers that format this into a string must gate on `isFinite`, since
+    /// `Int(Double.nan)` traps in Swift.
+    var timeToPeakDays: Double {
+        let ka = log(2) / halfLifeDays
+        let ke = log(2) / (eliminationHalfLifeHours / 24.0)
+        guard abs(ka - ke) > 0.0001 else { return 1.0 / ka }
+        return log(ka / ke) / (ka - ke)
+    }
+
+    /// Whether `timeToPeakDays` rests on a primary- or label-anchored fit, and may
+    /// therefore be shown to the user as fact.
+    ///
+    /// **False for TP alone as of 2026‑08‑02.** It still carries the placeholder 2 h
+    /// `ke` above, which puts its computed Tmax at 0.55 d against a published window
+    /// of 1–2 d (OPEN_CONCERNS.md §3). Its *magnitude* was fixed by the 2026‑07‑31
+    /// clearance identity and its terminal decay is governed by `halfLifeDays`, so
+    /// only the first ~24 h of the curve is wrong — but that is precisely where Tmax
+    /// lives, so the number must not be presented as a fact about the drug.
+    ///
+    /// True for TC (Bi et al. 2018, Tmax 1.84 d), TE (Ichihara et al. 2020, modeled
+    /// 1.58 d against an observed 1.7 ± 0.9 d), TU (Aveed clinical pharmacology,
+    /// modeled 7.00 d against a reported median of 7 d) and oral (Jatenzo label,
+    /// Tmax 3 h).
+    ///
+    /// Note this flag is specifically about *time to peak*. TU's steady-state
+    /// peak/trough ratio is still wrong by ~4× and that gap is documented on
+    /// `eliminationHalfLifeHours`, but a peak *day* of 7 is now a sourced fact and is
+    /// safe to show. If a future UI wants to state TU's peak *height*, it needs its
+    /// own flag rather than this one.
+    ///
+    /// `.transdermal` is false because it has no meaningful Tmax — hourly micro-doses
+    /// with ke = 0, so the Bateman does not apply.
+    ///
+    /// Callers must degrade gracefully rather than hide the ester: see
+    /// `OnboardingView.esterList`, which shows half-life and a "calibration pending"
+    /// note instead of a peak day.
+    var isTmaxCalibrated: Bool {
+        switch self {
+        case .cypionate, .enanthate, .undecanoate, .oral: return true
+        case .propionate: return false
+        case .transdermal: return false
         }
     }
 
@@ -330,16 +522,21 @@ enum TestosteroneEster: String, CaseIterable {
     ///     consistent estimate; published TG pharmacokinetic data is sparse]
     ///   - TU 1000 mg → peak T ~400–700 ng/dL  [LOW CONFIDENCE — single-source]
     ///
-    /// TU is **not** the flat profile this comment previously claimed. A two-parameter
-    /// Bateman over a 70-day interval produces a peak/trough ratio of ~11×, where the
-    /// real drug is ~2–3×. The 2-param model structurally cannot represent that
-    /// flatness; a genuine fit needs a 3-parameter or population-PK model. Logged as a
-    /// future enhancement — deliberately not attempted here.
+    /// TU is **not** the flat profile this comment originally claimed, and the reason
+    /// given for that (2026‑07‑28: "the 2-param model structurally cannot represent
+    /// that flatness; a genuine fit needs a 3-parameter or population-PK model") was
+    /// **withdrawn 2026‑08‑02** — it is disproven both by the published pharmacometrics
+    /// (Pastuszak 2021 fits IM TU with a one-compartment first-order-absorption model)
+    /// and by direct construction (a 73.8 d / 27.5 h pair reproduces Tmax 7 d and
+    /// peak/trough 1.80× simultaneously in this very model). The residual 8.1× is a
+    /// conflict between two sources' half-lives. See `eliminationHalfLifeHours`.
     ///
     /// The TU target range above (400–700 ng/dL) also sits well below the ~1100 ng/dL
     /// Cmax reported for a single 1000 mg injection (Wang et al. 2010). The range may
     /// be describing an intended steady-state trough rather than a single-dose peak.
     /// Flagged for product/clinical confirmation; deliberately NOT changed here.
+    /// (For reference, after the 2026‑08‑02 refit a single 1000 mg dose peaks at
+    /// 944 ng/dL exogenous at day 7, down from 1176 at day 0.66.)
     /// Used in the Bateman biexponential to convert mg → concentration.
     ///
     /// Recalibrated 2026‑07‑28 (QA pass): the previous values (11 / 11 / 18 / 5)
@@ -413,10 +610,38 @@ enum TestosteroneEster: String, CaseIterable {
     ///
     ///     S = 1e5 · ke / (CL_T · F),   CL_T = 1817.4 L/day = Bi's CL/F 2600 × EWF_TC
     ///
-    /// So S is fixed by `ke` and clearance alone. Since TE, TP and TU all still carry
-    /// the same 2 h `ke`, they all take the same S = 1e5 × 8.3178 / 1817.4 = 457.67.
-    /// TC satisfies this identity already (implied 67.11 vs the encoded 67.13), which
-    /// is the check that the identity and the analytic TC fit agree.
+    /// So S is fixed by `ke` and clearance alone. At the time all three of TE, TP and
+    /// TU carried the same 2 h `ke`, so all three took the same S = 1e5 × 8.3178 /
+    /// 1817.4 = 457.67. TC satisfies this identity already (implied 67.11 vs the
+    /// encoded 67.13), which is the check that the identity and the analytic TC fit
+    /// agree.
+    ///
+    /// **TE → 107.98 and TU → 20.62 on 2026‑08‑02, forced by the `ke` refit.** Not a
+    /// new decision — the same identity, re-evaluated at the new rates:
+    ///
+    ///     TE: 1e5 × 1.9625  / 1817.4 = 107.98
+    ///     TU: 1e5 × 0.37477 / 1817.4 =  20.62
+    ///
+    /// TP keeps 457.67 because it keeps the 2 h `ke`. The three no longer share one S,
+    /// and that is correct rather than a regression: they shared it only because they
+    /// shared a placeholder. Steady-state Cavg is unchanged for all three by
+    /// construction (S/ke is invariant), so this moves shape without moving magnitude:
+    ///
+    ///     TE 100 mg q7d    Cmax 750 → 703,  Cmin 397 → 405, Cavg 566 (unchanged)
+    ///     TU 1000 mg q70d  Cmax 1290 → 1045, Cmin 117 → 129, Cavg 496 (unchanged)
+    ///
+    /// **Known magnitude discrepancy for TE, documented not fitted.** A single 250 mg
+    /// dose gives 881 ng/dL exogenous here against Ichihara's observed Cmax of
+    /// 2940 ± 1710 ng/dL. The gap is cohort, not error: Ichihara's own CLtot/F
+    /// (14.3 L/day/kg ≈ 930 L/day at 65 kg) is about half the CL_T = 1817.4 L/day this
+    /// app inherits from Bi, and their Vd/F (118.7 L/kg ≈ 7700 L) about half Bi's
+    /// 14400 L. Adopting Ichihara's clearance for TE would put TE and TC 2× apart on
+    /// the *same molecule*, breaking the conservation-of-mass identity that is the only
+    /// thing keeping the esters mutually consistent. Magnitude therefore stays anchored
+    /// to Bi; only shape was taken from Ichihara. Note their Cmax SD (±1710 on a mean
+    /// of 2940, CV 0.58 on Vd/F) is wide enough that the two are not sharply in
+    /// conflict at the individual level — this is what the per-user blood-test
+    /// calibration factor α exists to absorb.
     ///
     /// What was wrong: the previous values were mutually inconsistent, spanning 0.47×
     /// to 2.02× of the implied value, so the app told users on different esters
@@ -431,17 +656,17 @@ enum TestosteroneEster: String, CaseIterable {
     /// 2× despite the two being clinically near-interchangeable, and the corrected
     /// 100 mg/week profile (peak ≈ 750, trough ≈ 397 exogenous) matches published TE.
     ///
-    /// TU's Cavg improves but its Cmax now overshoots, because correcting the magnitude
-    /// cannot correct the shape: the 2-parameter Bateman gives TU a peak/trough of ~11×
-    /// where the real drug is ~2–3×. That is the structural limitation recorded above
-    /// and in OPEN_CONCERNS.md §4, and it is unchanged by this correction.
+    /// TU's Cavg improves but its Cmax overshoots, because correcting the magnitude
+    /// cannot correct the shape. (The 2026‑08‑02 refit narrowed this: peak/trough 11×
+    /// → 8.1× against an observed 1.8×. The remainder is the half-life source conflict
+    /// on `eliminationHalfLifeHours`, not the compartment count.)
     ///
     /// The single-dose peak targets listed at the top of this comment are therefore now
     /// *derived*, not enforced — the same trade the EV/EC re-anchoring made on
     /// 2026‑07‑29, and for the same reason: single-dose and steady-state targets are not
     /// simultaneously reachable in a 2-parameter model, and steady state is what users
-    /// actually live at. TE/TP/TU `ka` values remain uncalibrated, so their *shape*
-    /// (Tmax ≈ 0.3–0.7 d against published windows of 1.5–7 d) is still wrong.
+    /// actually live at. As of 2026‑08‑02 only TP's `ka` remains uncalibrated, so only
+    /// TP's *shape* (Tmax 0.55 d against a published 1–2 d) is still wrong.
     /// See OPEN_CONCERNS.md §3.
     ///
     /// See `.pk_analysis/fit_testosterone.py` for the full reproducible derivation and
@@ -449,9 +674,9 @@ enum TestosteroneEster: String, CaseIterable {
     var scalingConstant: Double {
         switch self {
         case .cypionate: return 67.13
-        case .enanthate: return 457.67
-        case .propionate: return 457.67
-        case .undecanoate: return 457.67
+        case .enanthate: return 107.98   // 1e5 × 1.9625 / 1817.4
+        case .propionate: return 457.67  // still the placeholder-ke value
+        case .undecanoate: return 20.62  // 1e5 × 0.37477 / 1817.4
         case .oral: return 13.57
         case .transdermal: return 132.98
         }

@@ -67,10 +67,14 @@ enum RouteClass: String, CaseIterable, Codable {
     /// Human-readable display name used in settings, exports, and pill bars.
     var displayName: String {
         switch self {
-        case .injection: return "Injection (IM/SubQ)"
-        case .topical:   return "Topical (Gel/Cream)"
-        case .patch:     return "Transdermal Patch"
-        case .oral:      return "Oral"
+        case .injection: return String(localized: "Injection (IM/SubQ)",
+                                       comment: "Administration route: intramuscular or subcutaneous injection")
+        case .topical:   return String(localized: "Topical (gel/cream)",
+                                       comment: "Administration route: gel or cream applied to skin")
+        case .patch:     return String(localized: "Transdermal patch",
+                                       comment: "Administration route: adhesive patch")
+        case .oral:      return String(localized: "Oral",
+                                       comment: "Administration route: taken by mouth")
         }
     }
 
@@ -330,7 +334,7 @@ extension InjectionSite {
     /// "Last dose: Upper Right Thigh (front)"
     var lastDoseSentence: String {
         let context = viewContext.isEmpty ? "3D" : viewContext
-        return "Last dose: \(zoneLabel) (\(context))"
+        return String(localized: "Last dose: \(zoneLabel) (\(context))")
     }
 
     /// Compact label used in pill bars, history rows, and export summaries.

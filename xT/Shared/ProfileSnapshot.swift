@@ -243,7 +243,7 @@ enum ProfileSnapshot {
         nm.journalReminderEnabled = defaults.bool(forKey: "journalReminderEnabled")
         nm.journalReminderHour = defaults.integer(forKey: "journalReminderHour")
         nm.journalReminderMinute = defaults.integer(forKey: "journalReminderMinute")
-        nm.scheduleAllReminders()
+        Task { await nm.scheduleAllReminders() }
     }
 
     // MARK: - Payload types

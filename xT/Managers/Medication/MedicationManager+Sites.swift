@@ -137,11 +137,11 @@ extension MedicationManager {
 
     private func persistAvoidZones() {
         guard let data = try? JSONEncoder().encode(avoidZones) else { return }
-        UserDefaults.standard.set(data, forKey: "injectionSiteAvoidZones")
+        defaults.set(data, forKey: "injectionSiteAvoidZones")
     }
 
     func loadAvoidZones() {
-        guard let data = UserDefaults.standard.data(forKey: "injectionSiteAvoidZones"),
+        guard let data = defaults.data(forKey: "injectionSiteAvoidZones"),
               let zones = try? JSONDecoder().decode([String: AvoidZoneInfo].self, from: data)
         else { return }
         avoidZones = zones

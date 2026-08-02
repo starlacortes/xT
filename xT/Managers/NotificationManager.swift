@@ -77,6 +77,10 @@ final class NotificationManager: NSObject, ObservableObject {
             print("[NotificationManager] Error requesting authorization: \(error)")
         }
         await checkAuthorizationStatus()
+        // Now that permission may have just been granted, schedule any reminders
+        // the user already configured (e.g. during onboarding). Without this, reminders
+        // configured before authorization would never be scheduled.
+        await scheduleAllReminders()
     }
 
     /// Check current authorization status for both notification types.
@@ -103,8 +107,18 @@ final class NotificationManager: NSObject, ObservableObject {
     // MARK: - Scheduling
 
     /// Schedule or reschedule all active reminders.
-    func scheduleAllReminders() {
+    ///
+    /// Scheduling is gated on notification authorization: `UNUserNotificationCenter`
+    /// rejects `add(_:)` with "Source is not authorized" when permission hasn't been
+    /// granted, so we check first and skip otherwise. Reminders are re-scheduled
+    /// automatically once permission is granted (see `requestAuthorization()`).
+    func scheduleAllReminders() async {
         let center = UNUserNotificationCenter.current()
+        let status = await center.notificationSettings().authorizationStatus
+        guard status == .authorized || status == .provisional else {
+            print("[NotificationManager] Skipping schedule — not authorized (\(status.rawValue))")
+            return
+        }
 
         // Cancel existing notifications first to avoid duplicates
         center.removeAllPendingNotificationRequests()
@@ -224,15 +238,19 @@ final class NotificationManager: NSObject, ObservableObject {
     }
 
     /// Builds the notification content for dose reminders.
+    ///
+    /// The notification reports that a scheduled dose has come due and names what
+    /// it is. It does not instruct the user to take it or to open the app — they
+    /// asked to be told the time; what they do with it is theirs.
     private func doseNotificationContent() -> UNMutableNotificationContent {
         let content = UNMutableNotificationContent()
-        content.title = "Time for your dose"
-        content.body = "Tap to log your dose in xT"
+        content.title = String(localized: "Dose scheduled",
+                               comment: "Notification title when a scheduled dose comes due")
         content.sound = .default
         content.categoryIdentifier = NotificationType.doseReminder.rawValue
 
         if let medInfo = getMedicationContext() {
-            content.body = "Time for your \(medInfo) dose"
+            content.body = medInfo
         }
 
         return content
@@ -255,8 +273,11 @@ final class NotificationManager: NSObject, ObservableObject {
         let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
 
         let content = UNMutableNotificationContent()
-        content.title = "Journal check-in"
-        content.body = "How are you feeling today? Take a moment to write in your journal."
+        // The user set this reminder; it tells them it has fired. It does not ask
+        // them how they feel or urge them to write. No body — the title says
+        // everything the notification knows.
+        content.title = String(localized: "Journal reminder",
+                               comment: "Notification title for the daily journal reminder the user scheduled")
         content.sound = .default
         content.categoryIdentifier = NotificationType.journalReminder.rawValue
 
@@ -326,7 +347,7 @@ final class NotificationManager: NSObject, ObservableObject {
         UserDefaults.standard.set(minute, forKey: "doseReminderMinute")
 
         // Reschedule
-        scheduleAllReminders()
+        Task { await scheduleAllReminders() }
 
         let label = enabled ? "Dose reminder enabled" : "Dose reminder disabled"
         print("[NotificationManager] \(label) at \(hour):\(String(format: "%02d", minute))")
@@ -348,7 +369,7 @@ final class NotificationManager: NSObject, ObservableObject {
         UserDefaults.standard.set(minute, forKey: "journalReminderMinute")
 
         // Reschedule
-        scheduleAllReminders()
+        Task { await scheduleAllReminders() }
 
         let label = enabled ? "Journal reminder enabled" : "Journal reminder disabled"
         print("[NotificationManager] \(label) at \(hour):\(String(format: "%02d", minute))")
@@ -371,7 +392,8 @@ final class NotificationManager: NSObject, ObservableObject {
         let mgr = MedicationManager.shared
         guard let medication = mgr.selectedMedication else { return nil }
         guard let amount = mgr.defaultDoseAmount, amount > 0 else { return medication }
-        return "\(String(format: "%.1f", amount)) mg \(medication)"
+        return String(localized: "\(AppNumberFormatters.dose.string(amount)) mg \(medication)",
+                      comment: "Dose amount and medication name, e.g. '4 mg Estrogen'")
     }
 
     // MARK: - Notification Categories
@@ -384,7 +406,8 @@ final class NotificationManager: NSObject, ObservableObject {
 
         let doseAction = UNNotificationAction(
             identifier: Self.logDoseActionIdentifier,
-            title: "Log Dose",
+            title: String(localized: "Record dose",
+                          comment: "Notification action button that opens the dose entry screen"),
             options: [.foreground]
         )
 
@@ -392,14 +415,16 @@ final class NotificationManager: NSObject, ObservableObject {
             identifier: NotificationType.doseReminder.rawValue,
             actions: [doseAction],
             intentIdentifiers: [],
-            hiddenPreviewsBodyPlaceholder: "Dose reminder"
+            hiddenPreviewsBodyPlaceholder: String(localized: "Dose reminder",
+                comment: "Placeholder shown instead of the notification body when previews are hidden")
         )
 
         let journalCategory = UNNotificationCategory(
             identifier: NotificationType.journalReminder.rawValue,
             actions: [],
             intentIdentifiers: [],
-            hiddenPreviewsBodyPlaceholder: "Journal reminder"
+            hiddenPreviewsBodyPlaceholder: String(localized: "Journal reminder",
+                comment: "Placeholder shown instead of the notification body when previews are hidden")
         )
 
         center.setNotificationCategories([doseCategory, journalCategory])

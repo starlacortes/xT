@@ -195,7 +195,7 @@ struct JournalComposerView: View {
             Image(systemName: "chart.line.uptrend.xyaxis")
                 .font(.system(size: 14))
                 .foregroundStyle(Theme.Colors.Time.mind.base)
-            Text("\(Int(level)) \(unit)")
+            Text("\(AppNumberFormatters.hormoneLevel.string(level)) \(unit)")
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(Color(lightHex: "#3C3489", darkHex: "#ABA7F0"))
             Text(name)
@@ -217,36 +217,12 @@ struct JournalComposerView: View {
     }
 
     private func rangeName(for level: Double) -> String {
-        guard let med = medicationManager.selectedMedication else { return "" }
-        if med == "Estrogen" {
-            if level < 50 { return "Very low" }
-            if level < 100 { return "Low" }
-            if level < 200 { return "Optimal" }
-            if level < 500 { return "High" }
-            return "Very high"
-        } else {
-            if level < 50 { return "Suppressed" }
-            if level < 200 { return "Low male" }
-            if level < 800 { return "Male range" }
-            return "High male"
-        }
+        levelBandLabel(for: level, medication: medicationManager.selectedMedication)
     }
 
-    private func rangeColor(for name: String) -> Color {
-        switch name {
-        case "Optimal", "Suppressed": return Theme.Colors.success
-        case "Low", "Low male":       return Theme.Colors.Time.body.base
-        default:                       return Theme.Colors.Time.cycle.base
-        }
-    }
+    private func rangeColor(for name: String) -> Color { Theme.Colors.Time.cycle.base }
 
-    private func rangeBg(for name: String) -> Color {
-        switch name {
-        case "Optimal", "Suppressed": return Theme.Colors.success.opacity(0.12)
-        case "Low", "Low male":       return Theme.Colors.Time.body.surface
-        default:                       return Theme.Colors.Time.cycle.surface
-        }
-    }
+    private func rangeBg(for name: String) -> Color { Theme.Colors.Time.cycle.surface }
 
     private static let journalText = Color(lightHex: "#72243E", darkHex: "#F4A8C0")
 
@@ -335,36 +311,12 @@ struct HormoneInsightCard: View {
     private static let mindText = Color(lightHex: "#3C3489", darkHex: "#ABA7F0")
 
     private var rangeName: String {
-        guard let med = medicationManager.selectedMedication else { return "" }
-        if med == "Estrogen" {
-            if level < 50 { return "Very low" }
-            if level < 100 { return "Low" }
-            if level < 200 { return "Optimal" }
-            if level < 500 { return "High" }
-            return "Very high"
-        } else {
-            if level < 50 { return "Suppressed" }
-            if level < 200 { return "Low male" }
-            if level < 800 { return "Male range" }
-            return "High male"
-        }
+        levelBandLabel(for: level, medication: medicationManager.selectedMedication)
     }
 
-    private var rangeColor: Color {
-        switch rangeName {
-        case "Optimal", "Suppressed": return Theme.Colors.success
-        case "Low", "Low male":       return Theme.Colors.Time.body.base
-        default:                       return Theme.Colors.Time.cycle.base
-        }
-    }
+    private var rangeColor: Color { Theme.Colors.Time.cycle.base }
 
-    private var rangeBg: Color {
-        switch rangeName {
-        case "Optimal", "Suppressed": return Theme.Colors.success.opacity(0.12)
-        case "Low", "Low male":       return Theme.Colors.Time.body.surface
-        default:                       return Theme.Colors.Time.cycle.surface
-        }
-    }
+    private var rangeBg: Color { Theme.Colors.Time.cycle.surface }
 
     private var unit: String {
         medicationManager.selectedMedication == "Estrogen" ? "pg/mL" : "ng/dL"
@@ -385,7 +337,7 @@ struct HormoneInsightCard: View {
                     .foregroundStyle(Theme.Colors.Time.mind.base)
 
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text("\(Int(level)) \(unit)")
+                    Text("\(AppNumberFormatters.hormoneLevel.string(level)) \(unit)")
                         .font(Theme.Fonts.subheadline)
                         .fontWeight(.medium)
                         .foregroundStyle(Self.mindText)
@@ -415,6 +367,7 @@ struct HormoneInsightCard: View {
 
 // MARK: - Preview
 
+#if DEBUG
 #Preview {
     JournalComposerView()
         .environment(\.journalManager, JournalManager.shared)
@@ -432,4 +385,28 @@ struct HormoneInsightCard: View {
 #Preview("HormoneInsightCard") {
     HormoneInsightCard(level: 150.0)
         .environment(\.medicationManager, MedicationManager.shared)
+}
+#endif
+
+// MARK: - Level band labelling
+
+/// Names the band a level falls in, by its numbers.
+///
+/// This used to return "Optimal" / "High" and tint "Optimal" green. That reads as
+/// a verdict on a reading the journal is only recording alongside an entry — and
+/// the thresholds are population defaults, not anything the user chose. The label
+/// now states the band; the colour is uniform.
+private func levelBandLabel(for level: Double, medication: String?) -> String {
+    guard let med = medication else { return "" }
+    if med == "Estrogen" {
+        if level < 50  { return String(localized: "below 50 pg/mL", comment: "Estradiol band label shown beside a journal entry") }
+        if level < 100 { return String(localized: "50–100 pg/mL", comment: "Estradiol band label shown beside a journal entry") }
+        if level < 200 { return String(localized: "100–200 pg/mL", comment: "Estradiol band label shown beside a journal entry") }
+        if level < 500 { return String(localized: "200–500 pg/mL", comment: "Estradiol band label shown beside a journal entry") }
+        return String(localized: "above 500 pg/mL", comment: "Estradiol band label shown beside a journal entry")
+    }
+    if level < 50  { return String(localized: "below 50 ng/dL", comment: "Testosterone band label shown beside a journal entry") }
+    if level < 200 { return String(localized: "50–200 ng/dL", comment: "Testosterone band label shown beside a journal entry") }
+    if level < 800 { return String(localized: "200–800 ng/dL", comment: "Testosterone band label shown beside a journal entry") }
+    return String(localized: "above 800 ng/dL", comment: "Testosterone band label shown beside a journal entry")
 }

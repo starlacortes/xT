@@ -95,10 +95,13 @@ func tierOrdering() {
     }
 }
 
-@Test("All 7 tiers have distinct emoji")
-func distinctEmoji() {
-    let emojis = Set(TenureTier.allCases.map { $0.statusEmoji })
-    #expect(emojis.count == 7)
+@Test("All 7 tiers have distinct time band labels")
+func distinctTimeBandLabels() {
+    // Tiers used to be distinguished by an emoji as well as a label. The emoji
+    // was decorative and carried an implied verdict on the stage, so the label
+    // is now the only identifier — which means it has to be unique.
+    let labels = Set(TenureTier.allCases.map { $0.timeBandLabel })
+    #expect(labels.count == 7)
 }
 
 @Test("Time band labels are non-empty for all tiers")
@@ -134,7 +137,7 @@ private func engine(
         regimenSegments: [],
         onTimeStreak: 4,
         relativeDoseIntensity: 1.0,
-        doseIntensityDisclaimer: nil,
+        doseIntensityNote: nil,
         bloodTestSchedulingText: "Schedule your next blood test around month 9.",
         suggestedBloodTestMonth: 9,
         calibrationContext: nil
@@ -276,12 +279,14 @@ func t7MilestoneTypes() {
     #expect(titles.contains(where: { $0.contains("Anniversary") }))
 }
 
-@Test("T7 anniversary milestone has celebratory badge")
+@Test("T7 anniversary milestone badge names the milestone")
 func t7AnniversaryBadge() {
     let e = engine(months: 130)
     let anniversary = e.upcomingMilestones.first(where: { $0.title.contains("Anniversary") })
     #expect(anniversary != nil)
-    #expect(anniversary?.badge == "Celebrate")
+    // The badge names the milestone rather than instructing the user to feel
+    // something about it — see EducationalFooter / the tone pass.
+    #expect(anniversary?.badge == "10 years")
 }
 
 // --- Body system detail — does not crash ---
@@ -333,7 +338,7 @@ func screeningBadgeDone() {
         adherenceRate: 0.9,
         cyclePosition: MedicationManager.CyclePosition.midCycle,
         regimenSegments: [], onTimeStreak: 10,
-        relativeDoseIntensity: 1.0, doseIntensityDisclaimer: nil,
+        relativeDoseIntensity: 1.0, doseIntensityNote: nil,
         bloodTestSchedulingText: "test", suggestedBloodTestMonth: 12,
         calibrationContext: nil
     )

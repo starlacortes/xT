@@ -125,9 +125,7 @@ extension DoseRecord {
     }
 
     private static let dateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "MMM d, yyyy"
-        return f
+        return AppDateFormatters.monthDayYear
     }()
 
     /// Is this dose considered active (not soft-deleted)?

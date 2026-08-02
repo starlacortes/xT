@@ -71,6 +71,7 @@ struct TimePickerSheet: View {
     }
 }
 
+#if DEBUG
 #Preview {
     TimePickerSheet(
         title: "Dose reminder time",
@@ -79,3 +80,4 @@ struct TimePickerSheet: View {
         isPresented: .constant(true)
     )
 }
+#endif

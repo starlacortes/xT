@@ -52,9 +52,11 @@ struct LevelOverlayView: View {
                             .font(Theme.Fonts.callout)
                             .foregroundStyle(isScrubbing ? accent : Theme.Colors.Graph.levelTextSecondary)
 
-                        // Hide the status moniker while the user is scrubbing.
-                        if !isScrubbing {
-                            RangePill(text: statusLabel(level), color: statusColor(level))
+                        // Hide the status pill while the user is scrubbing. It is
+                        // also absent when there is nothing factual to assert —
+                        // no user-set range and no threshold crossed.
+                        if !isScrubbing, let pill = level.statusPillText {
+                            RangePill(text: pill, color: level.statusTint)
                         }
                     }
                 }
@@ -75,34 +77,10 @@ struct LevelOverlayView: View {
     }
 
     // MARK: - Derived from manager's classification
-    
-    /// The primary status keyword extracted from the manager's range string.
-    /// e.g. "On Target · Mid-cycle" → "On Target"
-    private func statusLabel(_ level: HormoneLevel) -> String {
-        let status = level.range.components(separatedBy: " · ").first ?? level.range
-        // Simplify verbose safety labels for the pill
-        if status.contains("Safety Check") { return "Safety Check" }
-        if status.contains("Sub-Therapeutic") { return "Sub-Therapeutic" }
-        if status.hasPrefix("Low (Spiro") { return "Low" }
-        return status
-    }
 
     private func unitLabel(_ level: HormoneLevel) -> String {
         let hormone = medicationManager.selectedMedication ?? ""
-        return "\(level.unit) · \(hormone)"
-    }
-    
-    private func statusColor(_ level: HormoneLevel) -> Color {
-        let status = level.range.components(separatedBy: " · ").first ?? ""
-        if status.contains("On Target")             { return Theme.Colors.success }
-        if status.contains("Slightly")              { return Theme.Colors.accent }
-        if status.contains("Critically") || status.contains("Safety") || status.contains("Supraphysiological") || status.contains("Sub-Therapeutic") {
-            return Theme.Colors.error
-        }
-        if status.contains("Very Low") || status.contains("High") || status.contains("Low") {
-            return Theme.Colors.warning
-        }
-        return Theme.Colors.accent
+        return "\(level.unit.symbol) · \(hormone)"
     }
 }
 
@@ -127,6 +105,7 @@ private struct RangePill: View {
     }
 }
 
+#if DEBUG
 #Preview {
     ZStack {
         Theme.Colors.glassTint.ignoresSafeArea()
@@ -134,3 +113,4 @@ private struct RangePill: View {
             .environment(\.medicationManager, MedicationManager.shared)
     }
 }
+#endif

@@ -41,8 +41,7 @@ struct NextDoseRowView: View {
 
     private var nextDoseWeekday: String {
         guard let next = medicationManager.nextDoseDate else { return "—" }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEEE"
+        let formatter = AppDateFormatters.weekday
         return formatter.string(from: next)
     }
 
@@ -237,12 +236,12 @@ struct NextDoseRowView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Missed dose?")
+                    Text("Dose not recorded")
                         .font(Theme.Fonts.callout)
                         .fontWeight(.medium)
                         .foregroundStyle(Self.cycleText)
 
-                    Text("Your dose was due \(missedDays) day\(missedDays == 1 ? "" : "s") ago")
+                    Text("^[\(missedDays) day](inflect: true) since this dose was scheduled")
                         .font(Theme.Fonts.caption)
                         .foregroundStyle(Theme.Colors.textTertiary)
                 }
@@ -252,7 +251,7 @@ struct NextDoseRowView: View {
 
             HStack(spacing: Theme.Spacing.md) {
                 Button(action: { showingRecordDose = true }) {
-                    Text("Record dose now")
+                    Text("Record dose")
                         .font(Theme.Fonts.footnote)
                         .fontWeight(.medium)
                         .lineLimit(1)
@@ -297,9 +296,11 @@ struct NextDoseRowView: View {
 
 // MARK: - Preview
 
+#if DEBUG
 #Preview {
     NextDoseRowView()
         .environment(\.medicationManager, MedicationManager.shared)
         .padding()
         .background(Theme.Colors.glassTint)
 }
+#endif

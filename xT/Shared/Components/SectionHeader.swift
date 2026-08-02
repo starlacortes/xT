@@ -42,6 +42,7 @@ struct SectionHeader: View {
     }
 }
 
+#if DEBUG
 #Preview {
     VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
         SectionHeader(text: "Medication", emphasis: .accent)
@@ -51,3 +52,4 @@ struct SectionHeader: View {
     .frame(maxWidth: .infinity, alignment: .leading)
     .padding(Theme.Spacing.Gutter.screen)
 }
+#endif

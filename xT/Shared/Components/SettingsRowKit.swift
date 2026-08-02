@@ -127,6 +127,7 @@ extension View {
     }
 }
 
+#if DEBUG
 #Preview {
     ScrollView {
         VStack(alignment: .leading, spacing: Theme.Spacing.xl) {
@@ -157,3 +158,4 @@ extension View {
     }
     .background(Color(.secondarySystemBackground))
 }
+#endif

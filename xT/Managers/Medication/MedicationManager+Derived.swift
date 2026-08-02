@@ -76,7 +76,7 @@ extension MedicationManager {
     /// settings screen but never read anywhere, so the setting had no effect.
     func rotationWindowDays(for routeClass: RouteClass) -> Int {
         let key = Self.rotationWindowDefaultsKey(for: routeClass)
-        let stored = UserDefaults.standard.integer(forKey: key)
+        let stored = defaults.integer(forKey: key)
         return stored > 0 ? stored : routeClass.defaultRotationWindowDays
     }
 }

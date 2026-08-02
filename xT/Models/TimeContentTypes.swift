@@ -42,18 +42,6 @@ enum TenureTier: String, Comparable, CaseIterable {
         }
     }
 
-    var statusEmoji: String {
-        switch self {
-        case .t1Beginning: return "🌱"
-        case .t2Emerging:  return "🌿"
-        case .t3InMotion:  return "🍃"
-        case .t4Deepening: return "🌾"
-        case .t5Settled:   return "🌳"
-        case .t6Rooted:    return "🌀"
-        case .t7Veteran:   return "🏔️"
-        }
-    }
-
     /// Human-readable time band, shown greyed in the subtitle per spec §3.1.
     var timeBandLabel: String {
         switch self {

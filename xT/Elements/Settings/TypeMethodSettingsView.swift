@@ -263,7 +263,8 @@ struct TypeMethodSettingsView: View {
     }
 
     private func halfLifeLabel(_ days: Double) -> String {
-        "Half-life ~\(String(format: "%.0f", days)) days"
+        String(localized: "Half-life ~^[\(Int(days.rounded())) day](inflect: true)",
+               comment: "Approximate elimination half-life of the selected ester")
     }
 
     private static func defaultEster(for type: String, method: String) -> String {

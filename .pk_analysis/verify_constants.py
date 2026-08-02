@@ -155,11 +155,150 @@ print("""
   Ka without reference to this identity, so the two agreeing to 0.03% is independent
   confirmation that both derivations are right.
 
-  Note all three of TE/TP/TU take the SAME S. That is not a copy-paste artifact -- S
-  depends only on ke and clearance, and all three still share the placeholder 2 h ke.
-  Their ka values (and therefore Tmax, and the shape of the curve within an interval)
-  remain uncalibrated. Magnitude is now right; shape is not. OPEN_CONCERNS.md sec. 3.
+  Until 2026-08-02 all three of TE/TP/TU took the SAME S, because all three shared the
+  placeholder 2 h ke. TE and TU now carry sourced absorption rates, so their S values
+  moved with them (identity, not refit) and only TP still sits at 457.67. Magnitude is
+  unchanged for all three -- Cavg = Dose*EDF*S/(tau*ke) holds S/ke fixed. Sections 1c
+  and 1d below check the shape that actually moved.
 """)
+
+# The refit's central claim is that it moved shape without moving magnitude. Cavg is
+# the invariant that must survive it, so assert that directly rather than by algebra.
+print("  Magnitude invariance across the 2026-08-02 refit (Cavg must not have moved):")
+for name, dose, tau, cavg_before in (("Enanthate (TE)", 100.0, 7.0, 566.0),
+                                     ("Undecanoate (TU)", 1000.0, 70.0, 496.0)):
+    _, _, cavg_i = steady_state("Testosterone", name, "Injectable", dose, tau)
+    check(f"{name} {dose:.0f} mg q{tau:.0f}d Cavg unchanged", cavg_i, cavg_before, 1.0,
+          "pre-refit value; S and ke moved together so this is required to hold")
+
+
+# ======================================================================
+print()
+print("=" * 96)
+print("1c. TESTOSTERONE ENANTHATE (IM depot)")
+print("    source: Ichihara et al. 2020, Androgens Clin Res Ther, doi 10.1089/andro.2020.0002")
+print("            n=10 transgender men, single 250 mg IM -- the app's own population")
+print("=" * 96)
+
+te = T_ESTERS["Enanthate (TE)"]
+ka_te, ke_te = ka_ke(te)
+print(f"  encoded: t1/2(slow) {te['half_life_days']:.3f} d -> ka {ka_te:.4f} /d")
+print(f"           t1/2(fast) {te['elim_h']:.4f} h -> ke {ke_te:.4f} /d")
+print(f"           EWF {te['ewf']}, F {te['F']}, S {te['S']}")
+print()
+
+check("terminal half-life (days)", math.log(2) / ka_te, 6.6, 1.0,
+      "Ichihara reported 6.6 +- 1.9 d for total testosterone")
+# The paper could estimate ka in 4 of 10 subjects: 2.82, 3.16, 0.49, 1.38 /day.
+check("absorption rate ka (/day)", ke_te, sum([2.82, 3.16, 0.49, 1.38]) / 4.0, 1.0,
+      "mean of the four per-subject estimates the paper reports")
+print("  note ka (1.96 /d) >> the elimination rate implied by 6.6 d (0.105 /d), so this")
+print("  is the ordinary non-flip-flop case: elimination is rate-limiting, as the paper")
+print("  states. The app's slow/fast slots therefore hold terminal/absorption here, the")
+print("  same assignment TC uses.")
+print()
+
+cmax_te_sd, tmax_te = single_dose("Testosterone", "Enanthate (TE)", "Injectable", 250.0, 40.0)
+check("single 250 mg Tmax (days)", tmax_te, 1.7, 30.0,
+      "observed 1.7 +- 0.9 d; NOT fit to -- ka came from the paper's own estimates")
+
+# Magnitude is deliberately NOT taken from Ichihara. Record the size of the gap rather
+# than fitting it away, and show where it comes from.
+print(f"\n  single 250 mg Cmax, exogenous only: {cmax_te_sd:.0f} ng/dL"
+      f"  vs Ichihara's observed {2940:.0f} +- 1710")
+print("  -> DOCUMENTED, NOT FITTED. Ichihara's own cohort parameters are roughly half")
+print("     the Bi-derived values this app is anchored to:")
+print(f"       CLtot/F  14.3 L/day/kg x 65 kg = {14.3*65:.0f} L/day   vs CL_T {2600*0.699:.0f}")
+print(f"       Vd/F    118.7 L/kg    x 65 kg = {118.7*65:.0f} L        vs V/F  14400")
+print("     Adopting their clearance for TE alone would put TE and TC 2x apart on the")
+print("     same molecule and break the conservation-of-mass identity checked in 1b.")
+print("     Shape is taken from Ichihara; magnitude stays with Bi. Their Cmax CV is")
+print("     wide enough (+-1710 on 2940) that this is not a sharp contradiction, and")
+print("     the per-user blood-test factor alpha is what absorbs the remainder.")
+
+cmax_te, cmin_te, cavg_te = steady_state("Testosterone", "Enanthate (TE)", "Injectable", 100.0, 7.0)
+print(f"\n  weekly 100 mg steady state, exogenous only:"
+      f" Cmax {cmax_te:.0f}  Cmin {cmin_te:.0f}  Cavg {cavg_te:.0f} ng/dL"
+      f"  (P/T {cmax_te/cmin_te:.2f})")
+check("weekly 100 mg Cavg = Dose*EWF/(CL_T*tau)", cavg_te,
+      100.0 * te["ewf"] / (2600.0 * 0.699 * 7.0) * 1e5, 1.0,
+      "steady-state identity -- must be untouched by an absorption-rate refit")
+
+
+# ======================================================================
+print()
+print("=" * 96)
+print("1d. TESTOSTERONE UNDECANOATE (IM depot)")
+print("    sources: Zhang 1998 (J Androl 19:761-8) terminal t1/2; Aveed clinical")
+print("             pharmacology Tmax; Wang 2010 (doi 10.2164/jandrol.109.009597) P/T")
+print("=" * 96)
+
+tu = T_ESTERS["Undecanoate (TU)"]
+ka_tu, ke_tu = ka_ke(tu)
+print(f"  encoded: t1/2(slow) {tu['half_life_days']:.3f} d -> ka {ka_tu:.5f} /d")
+print(f"           t1/2(fast) {tu['elim_h']:.4f} h ({tu['elim_h']/24:.3f} d)"
+      f" -> ke {ke_tu:.5f} /d")
+print(f"           EWF {tu['ewf']}, F {tu['F']}, S {tu['S']}")
+print()
+
+hl_tu = math.log(2) / ka_tu
+inside_zhang = 18.3 - 2.3 <= hl_tu <= 23.7 + 2.7
+print(f"  [{'PASS' if inside_zhang else 'FAIL'}] terminal half-life {hl_tu:.1f} d inside"
+      f" Zhang's two dose arms (18.3+-2.3 @500 mg, 23.7+-2.7 @1000 mg)")
+if not inside_zhang:
+    FAILS.append(f"TU terminal half-life {hl_tu:.1f} d outside Zhang's arms")
+
+cmax_tu_sd, tmax_tu = single_dose("Testosterone", "Undecanoate (TU)", "Injectable", 1000.0, 200.0)
+check("single 1000 mg Tmax (days)", tmax_tu, 7.0, 3.0,
+      "Aveed 750 mg IM: median 7 d (range 4-42). ke was fit to this, so this is a "
+      "round-trip check on the fit, not independent evidence")
+print(f"  single 1000 mg Cmax, exogenous only: {cmax_tu_sd:.0f} ng/dL"
+      f"  (Wang reports ~1100 total for 1000 mg)")
+
+cmax_tu, cmin_tu, cavg_tu = steady_state("Testosterone", "Undecanoate (TU)", "Injectable", 1000.0, 70.0)
+pt = cmax_tu / cmin_tu
+print(f"\n  1000 mg q70d steady state, exogenous only:"
+      f" Cmax {cmax_tu:.0f}  Cmin {cmin_tu:.0f}  Cavg {cavg_tu:.0f} ng/dL")
+print(f"  peak/trough {pt:.2f}  vs Wang 2010's observed 1.80 (789.8 / 435.6 ng/dL, wk 12)")
+print(f"  (pre-refit this was 11.01; the absorption fit closed roughly a third of it)")
+print()
+print("  -> OPEN, and the reason is a SOURCE CONFLICT, not a missing compartment.")
+decay_bound = 2 ** (70.0 / hl_tu)
+hl_for_18 = 70.0 * math.log(2) / math.log(1.8)
+print(f"     Over a 70 d interval, {hl_tu:.0f} d is {70.0/hl_tu:.1f} half-lives, so pure")
+print(f"     decay alone bounds peak/trough at >= {decay_bound:.1f}x. Absorption sustaining")
+print(f"     the trough is what brings the model to {pt:.1f}x. Decay alone would not")
+print(f"     reach 1.8x until a terminal half-life of {hl_for_18:.1f} d.")
+print()
+print("     That target IS reachable in this two-rate Bateman: pairing a 73.8 d slow")
+print("     rate with a 27.5 h release rate gives Tmax 7.0 d AND peak/trough 1.80x --")
+print("     3.7x Zhang's measured half-life. So the pre-2026-08-02 claim that TU")
+print("     'needs a 3-parameter or population-PK model' is disproven by construction,")
+print("     and separately by Pastuszak 2021, which fits IM TU with one compartment and")
+print("     first-order absorption. What is actually needed is Wang's primary sampling")
+print("     schedule -- specifically whether that week-12 peak/trough pair spans one")
+print("     full inter-dose interval.")
+
+# Assert the constructive claim rather than leaving it in prose. Both halves matter:
+# the pair must hit Tmax 7 d AND, run through the app's own superposition, peak/trough
+# 1.80. The second is why the counterexample is 73.8 d and not the 82.5 d the pure-decay
+# bound suggests -- absorption keeps refilling the trough, so a shorter half-life
+# suffices. Simulated, not closed-form, precisely so that distinction cannot be lost.
+_ALT_HL, _ALT_FAST_H = 73.8, 27.5
+_ka_alt = math.log(2) / _ALT_HL
+_ke_alt = math.log(2) / (_ALT_FAST_H / 24.0)
+check("the 73.8 d / 27.5 h counterexample gives Tmax 7 d",
+      math.log(_ka_alt / _ke_alt) / (_ka_alt - _ke_alt), 7.0, 2.0,
+      "half of what makes the 'needs more compartments' claim false")
+_alt = dict(half_life_days=_ALT_HL, elim_h=_ALT_FAST_H, ewf=tu["ewf"], F=tu["F"],
+            S=tu["S"])
+T_ESTERS["__tu_counterexample__"] = _alt
+_cmax_alt, _cmin_alt, _ = steady_state("Testosterone", "__tu_counterexample__",
+                                       "Injectable", 1000.0, 70.0)
+del T_ESTERS["__tu_counterexample__"]
+check("...and, simulated, peak/trough 1.80", _cmax_alt / _cmin_alt, 1.80, 3.0,
+      "the other half -- and the reason the counterexample is 73.8 d, not the 82.5 d "
+      "the pure-decay bound implies")
 
 
 # ======================================================================
@@ -259,17 +398,33 @@ print("     a mean of 1008).")
 # ======================================================================
 print()
 print("=" * 96)
-print("4. ESTROGEN -- REGRESSION: the 2026-07-31 refactor must not move these")
-print("   source: transfemscience.org Tables 9/10; unchanged constants")
+print("4. ESTROGEN -- oral Tmax refit (2026-08-01), and what it must NOT move")
+print("   source: transfemscience.org Tables 9/10; oral Tmax window from secondary sources")
 print("=" * 96)
 
-# Oral E2's stored half-lives were restated to match what the engine hardcoded. If that
-# restatement is truly a no-op, driving the NEW constants through the NEW code must
-# reproduce the OLD hardcoded rates exactly.
+# Oral E2, refit 2026-08-01 (concern #7). Until then this block pinned ka to the 2.5 /day
+# the engine used to hardcode, to prove the 07-31 restatement was a no-op. That pin has
+# done its job and is now retired -- keeping it would have made this script fail by
+# construction on any Tmax fix. What replaces it is a probe, not a pin: Tmax against the
+# published window, plus the ke and Cavg invariants the refit was required NOT to move.
 ev = E2_ESTERS["Oral"]
 ka_e, ke_e = ka_ke(ev)
-check("oral E2 ka reproduces the old hardcoded 2.5 /day", ka_e, 2.5, 0.05)
-check("oral E2 ke reproduces the old hardcoded 1.386 /day", ke_e, 1.386, 0.05)
+_, tmax_e = single_dose("Estrogen", "Oral", "Oral", 2.0, 1.0)
+check("oral E2 Tmax (hours)", tmax_e * 24.0, 6.0, 33.0,
+      "published window 4-8 h; pinned to the 6 h midpoint (no principle picks a point inside it)")
+check("oral E2 ke unchanged by the Tmax refit", ke_e, 1.386, 0.05,
+      "the refit moved ka only -- ke is the elimination side")
+
+# The whole case for holding S = 1250 through the refit is that AUC/dose = amount*S/ke
+# carries no ka term, so Cavg cannot move. Assert that rather than trusting the algebra.
+_, _, cavg_e2_qd = steady_state("Estrogen", "Oral", "Oral", 2.0, 1.0)
+check("oral E2 2 mg daily steady-state Cavg", cavg_e2_qd, 90.2, 2.0,
+      "ka-invariant -- this is the real regression guard on the refit")
+cmax_e2_sd, _ = single_dose("Estrogen", "Oral", "Oral", 2.0, 1.0)
+print(f"  Cmax {cmax_e2_sd:.0f} pg/mL for a single 2 mg dose, up from 60 before the refit.")
+print("  -> ACCEPTED CONSEQUENCE, not a regression: S and ka are coupled through the peak")
+print("     but not the average, so pinning Tmax and holding Cavg necessarily moves Cmax.")
+print("     Holding Cmax at 60 instead would need S = 848.5 and would drop Cavg to 61.")
 
 td_e2 = E2_ESTERS["Transdermal"]
 check("transdermal E2 ka reproduces the old hardcoded ln2/1.5",

@@ -110,6 +110,7 @@ struct SelectableOptionRow: View {
     }
 }
 
+#if DEBUG
 #Preview("Surface") {
     VStack(spacing: Theme.Spacing.sm) {
         SelectableOptionRow(title: "Injectable", subtitle: "Typical cycle: 7 days",
@@ -131,3 +132,4 @@ struct SelectableOptionRow: View {
     .padding(Theme.Spacing.Gutter.onboarding)
     .background(Theme.Gradients.brand)
 }
+#endif

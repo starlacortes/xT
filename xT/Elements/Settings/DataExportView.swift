@@ -130,7 +130,7 @@ struct DataExportView: View {
 
             Spacer()
 
-            Text("\(count)")
+            Text(verbatim: AppNumberFormatters.percent.string(count))
                 .font(Theme.Fonts.callout)
                 .foregroundStyle(.secondary)
         }
@@ -213,6 +213,7 @@ private struct ShareSheet: UIViewControllerRepresentable {
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
+#if DEBUG
 #Preview {
     SpoofPreview {
         NavigationStack {
@@ -223,3 +224,4 @@ private struct ShareSheet: UIViewControllerRepresentable {
         }
     }
 }
+#endif

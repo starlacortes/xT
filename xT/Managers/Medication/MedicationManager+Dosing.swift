@@ -120,7 +120,7 @@ extension MedicationManager {
     /// Volumes past the largest stocked size fall through to a 5 mL barrel.
     static func recommendedSyringe(for volumeMl: Double) -> String {
         guard let barrelMl = PKConstants.syringeSizesMl.first(where: { volumeMl <= $0 }) else {
-            return "5 mL syringe"
+            return String(localized: "5 mL syringe")
         }
         // Sub-millilitre barrels are insulin syringes, which carry unit markings.
         let isInsulin = barrelMl < 1.0
@@ -128,15 +128,20 @@ extension MedicationManager {
         return "\(size) mL \(isInsulin ? "insulin syringe" : "syringe")"
     }
 
-    /// Generates a warning message (or nil) for a given volume.
-    static func volumeWarning(for volumeMl: Double, ester: String? = nil) -> String? {
+    /// States a fact about the volume this dose works out to, when the number is
+    /// outside the range a syringe measures well. It reports the measurement
+    /// problem; choosing a different concentration, syringe or split is the
+    /// user's call to make with their provider.
+    static func volumeNote(for volumeMl: Double, ester: String? = nil) -> String? {
         let isLong = ester == "Undecanoate (TU)"
         if isVolumeTooSmall(volumeMl) {
             let syringe = recommendedSyringe(for: volumeMl)
-            return "A volume of \(String(format: "%.3f", volumeMl)) mL can be difficult to measure accurately. Consider a lower-concentration formulation or a \(syringe) with unit markings."
+            return String(localized: "This dose works out to \(AppNumberFormatters.volume.string(volumeMl)) mL, below what a standard syringe measures accurately. A \(syringe) has markings at this scale.",
+                          comment: "Note shown when a computed injection volume is too small to measure reliably")
         }
         if isVolumeTooLarge(volumeMl, isLongActing: isLong) {
-            return "A volume of \(String(format: "%.1f", volumeMl)) mL is quite large — consider splitting the dose or using multiple injection sites."
+            return String(localized: "This dose works out to \(AppNumberFormatters.volume.string(volumeMl)) mL, a large volume for a single injection site.",
+                          comment: "Note shown when a computed injection volume is large for one site")
         }
         return nil
     }
@@ -153,15 +158,6 @@ extension MedicationManager {
         refreshState()
     }
 
-    func clearSelection() {
-        selectedMedication = nil
-        selectedAdministrationMethod = nil
-        lastDoseDate = nil
-        nextDoseDate = nil
-        persistSelection()
-        persistDoseDates()
-        refreshState()
-    }
 
     /// Records a full dose with amount, ester, method, concentration, optional notes,
     /// and optional injection site tracking data.

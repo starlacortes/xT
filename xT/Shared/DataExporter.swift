@@ -242,9 +242,10 @@ struct DataExporter {
     // MARK: - Timestamp for filenames
 
     static func exportFilename(prefix: String, ext: String) -> String {
-        let df = DateFormatter()
-        df.dateFormat = "yyyy-MM-dd"
-        return "xT_\(prefix)_\(df.string(from: Date())).\(ext)"
+        // Filenames must not vary by locale or calendar — `isoDay` is POSIX- and
+        // UTC-locked, so a device on a Buddhist or Japanese calendar still writes
+        // xT_doses_2026-08-02.csv rather than xT_doses_2569-08-02.csv.
+        return "xT_\(prefix)_\(AppDateFormatters.isoDay.string(from: Date())).\(ext)"
     }
 
     // MARK: - Helpers

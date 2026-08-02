@@ -20,19 +20,28 @@ struct EsterConstantsTests {
     func estrogenHalfLives() {
         // EV/EC recalibrated 2026-07-29 so the modeled steady-state trough matches
         // transfemscience Table 10 (5 mg weekly). See .pk_analysis/fit_constants.py.
-        // Oral restated 2026-07-31 from 0.5 to 0.2773 d. Behaviour-neutral: the engine
-        // hardcoded ka = 2.5 for oral doses and never read this field, and S = 1250 was
-        // fit against that rate. ln2/0.2773 = 2.5, so oral E2 predictions are unchanged.
+        // Oral restated 2026-07-31 from 0.5 to 0.2773 d. That was behaviour-neutral: the
+        // engine hardcoded ka = 2.5 for oral doses and never read this field, and S = 1250
+        // was fit against that rate, so ln2/0.2773 = 2.5 left predictions unchanged.
+        //
+        // Oral refit 2026-08-01 to 0.0791 d (concern #7) — this one DOES move predictions.
+        // ka 2.5 -> 8.762 /day pulls Tmax from 12.7 h to 6.0 h, inside the published
+        // 4-8 h window. See `oralE2TmaxInRange`, and PharmacokineticConstants.swift for
+        // why S was held at 1250 rather than rescaled alongside it.
         let expected: [String: Double] = [
             "Valerate (EV)": 2.60,
             "Cypionate (EC)": 6.47,
-            "Oral": 0.2773,
+            "Oral": 0.0791,
             "Transdermal": 1.5
         ]
         for ester in MedicationEster.allCases {
             let halfLife = ester.halfLifeDays
             #expect(halfLife > 0, "\(ester.rawValue) half-life must be positive")
-            #expect(halfLife >= 0.25 && halfLife <= 10.0,
+            // Lower bound relaxed 0.25 -> 0.05 d for the oral refit. This field is the
+            // *absorption* half-life (it sets ka), so for a fast oral route sub-0.25 d is
+            // the expected regime, not an out-of-range value; the old floor only held
+            // because oral's ka was mis-set. 0.05 d = 1.2 h still catches a zeroing bug.
+            #expect(halfLife >= 0.05 && halfLife <= 10.0,
                     "\(ester.rawValue) half-life \(halfLife) outside clinical range")
             #expect(halfLife == expected[ester.rawValue],
                     "\(ester.rawValue) half-life changed from expected \(expected[ester.rawValue]!) to \(halfLife)")
@@ -45,9 +54,13 @@ struct EsterConstantsTests {
         // 2018 Table 2. Deliberately not the commonly quoted 7-8 d: that figure assumes
         // zero endogenous secretion, and xT models endogenous production separately as
         // `baseLevel`. See PharmacokineticConstants.swift for the full note.
+        // TE recalibrated 2026-08-02 from 7.0 to 6.6 d, the terminal half-life reported
+        // by Ichihara et al. 2020 (IM, n=10 transgender men). The old 7.0 was an
+        // uncited round number. TU's 20.0 is retained: Zhang 1998 measured 18.3 d at
+        // 500 mg and 23.7 d at 1000 mg, and 20.0 sits inside both arms.
         let expected: [String: Double] = [
             "Cypionate (TC)": 3.839,
-            "Enanthate (TE)": 7.0,
+            "Enanthate (TE)": 6.6,
             "Propionate (TP)": 1.0,
             "Undecanoate (TU)": 20.0
         ]
@@ -98,17 +111,20 @@ struct EsterConstantsTests {
     }
 
     /// TC was refit from Bi et al. 2018 on 2026-07-31 (2.0 → 13.64 h = ln2/Ka 1.22).
-    /// TE, TP and TU keep the placeholder 2 h value, which is why their Tmax is still
-    /// wrong (0.3–0.7 d against published 1.5–7 d) even though their *magnitude* was
-    /// corrected in the same pass. This test is the guard that the gap stays visible.
-    @Test("T elimination half-lives: TC is fitted, the rest are still placeholders")
+    /// TE and TU followed on 2026-08-02. Only TP still carries the placeholder 2 h
+    /// value, which is why its Tmax is still wrong (0.55 d against a published 1–2 d)
+    /// even though its *magnitude* was corrected on 2026-07-31. This test is the guard
+    /// that the remaining gap stays visible.
+    @Test("T elimination half-lives: only TP is still a placeholder")
     func testosteroneEliminationHalfLife() {
         #expect(TestosteroneEster.cypionate.eliminationHalfLifeHours == 13.64,
                 "TC ke comes from Bi et al. Ka = 1.22/day")
-        for ester in [TestosteroneEster.enanthate, .propionate, .undecanoate] {
-            #expect(ester.eliminationHalfLifeHours == 2.0,
-                    "\(ester.rawValue) still carries the uncalibrated 2.0 h placeholder — see OPEN_CONCERNS.md §3")
-        }
+        #expect(TestosteroneEster.enanthate.eliminationHalfLifeHours == 8.4767,
+                "TE ke comes from Ichihara et al. 2020, mean of the four reported per-subject ka (1.9625/day)")
+        #expect(TestosteroneEster.undecanoate.eliminationHalfLifeHours == 44.3883,
+                "TU ke is fitted so Tmax lands on Aveed's median 7 d at the 20 d terminal half-life")
+        #expect(TestosteroneEster.propionate.eliminationHalfLifeHours == 2.0,
+                "TP still carries the uncalibrated 2.0 h placeholder — see OPEN_CONCERNS.md §3")
     }
 
     @Test("E2 ester weight factors match molecular-weight calculations")
@@ -379,9 +395,19 @@ struct FlipFlopKineticsTests {
 
     @Test("Oral route: kₐ > kₑ (absorption faster than elimination)")
     func oralKaGreaterThanKe() {
-        // Oral: ka = 2.5, ke = 1.386 (absorption faster than elimination)
-        // This is NOT flip-flop; terminal slope is elimination-limited
-        #expect(2.5 > 1.386, "Oral ka (2.5) should be > ke (1.386)")
+        // This is NOT flip-flop; terminal slope is elimination-limited.
+        //
+        // Rewritten 2026-08-01: this test used to assert the literal `2.5 > 1.386`,
+        // which is a tautology — it never read the enum, so it would have passed
+        // unchanged no matter what the constants became. It now reads them.
+        //
+        // The ordering also matters beyond the flip-flop question: t_max =
+        // ln(ka/ke)/(ka−ke) is symmetric under ka↔ke, so the constants alone do not
+        // say which root the fit landed on. ka > ke is what pins it to the
+        // absorption-limited branch.
+        let ka = log(2) / MedicationEster.oral.halfLifeDays
+        let ke = log(2) / (MedicationEster.oral.eliminationHalfLifeHours / 24.0)
+        #expect(ka > ke, "Oral ka (\(ka)) should be > ke (\(ke))")
     }
 }
 
@@ -397,8 +423,7 @@ struct TimeToPeakTests {
     @MainActor
     @Test("EV t_max matches literature 1.9–2.1 d (transfemscience/Tiong)")
     func valeratePeakTime() {
-        let mgr = MedicationManager()
-        mgr.clearSelection()
+        let mgr = TestDefaults.manager()
         mgr.selectedMedication = "Estrogen"
         let tMax = mgr.expectedTimeToPeak(for: MedicationEster.valerate)
         // EV: ka=0.267, ke=0.774 → t_max ≈ 2.10 (was ~0.52 with the 3 h ke)
@@ -406,11 +431,33 @@ struct TimeToPeakTests {
                 "EV t_max should be within the 1.5–2.5 d literature window, got \(tMax)")
     }
 
+    /// Added 2026-08-01 with the oral ka refit (concern #7). Before it, ka = 2.5 /day
+    /// put oral E2 t_max at 12.7 h — outside the published window, and longer than the
+    /// 12 h interval of a BID schedule, which flattened the modeled intraday swing to
+    /// ~1.1×. Nothing in the suite caught that: there was no oral t_max test at all,
+    /// and the one oral constants test was a tautology (see `oralKaGreaterThanKe`).
+    ///
+    /// Asserted against the enum rather than through `estimatedLevels` on purpose:
+    /// `pkParams` scales ke by `spiroClearanceFactor` when a user has spironolactone
+    /// clearance enabled, which would move t_max out from under this assertion.
+    @MainActor
+    @Test("Oral E2 t_max is inside the published 4–8 h window")
+    func oralE2TmaxInRange() {
+        let mgr = TestDefaults.manager()
+        mgr.selectedMedication = "Estrogen"
+        let tMaxHours = mgr.expectedTimeToPeak(for: MedicationEster.oral) * 24.0
+        #expect(tMaxHours > 4.0 && tMaxHours < 8.0,
+                "Oral E2 t_max should be within the 4–8 h literature window, got \(tMaxHours) h")
+        // Pinned to the midpoint — no physical principle picks a point inside 4–8 h,
+        // so this second assertion guards against silent drift off a stated choice.
+        #expect(abs(tMaxHours - 6.0) < 0.1,
+                "Oral E2 t_max should sit at the pinned 6.0 h midpoint, got \(tMaxHours) h")
+    }
+
     @MainActor
     @Test("EC t_max matches literature 3.1–4.3 d (transfemscience)")
     func cypionatePeakTime() {
-        let mgr = MedicationManager()
-        mgr.clearSelection()
+        let mgr = TestDefaults.manager()
         mgr.selectedMedication = "Estrogen"
         let tMax = mgr.expectedTimeToPeak(for: MedicationEster.cypionate)
         // EC: ka=0.107, ke=0.431 → t_max ≈ 4.30 (was ~0.77 with the 3 h ke)
@@ -428,8 +475,7 @@ struct TimeToPeakTests {
     @MainActor
     @Test("TC t_max = 1.84 d, matching Bi et al. 2018 Table 2")
     func cypionateTPeakTime() {
-        let mgr = MedicationManager()
-        mgr.clearSelection()
+        let mgr = TestDefaults.manager()
         mgr.selectedMedication = "Testosterone"
         // ka = ln2/3.839 = 0.1806 (= CL/V), ke = ln2/(13.64/24) = 1.2196 (= Bi's Ka)
         let tMax = mgr.expectedTimeToPeak(for: TestosteroneEster.cypionate)
@@ -442,8 +488,7 @@ struct TimeToPeakTests {
     @MainActor
     @Test("TP t_max ≈ 0.2–0.5 days (rapid)")
     func propionatePeakTime() {
-        let mgr = MedicationManager()
-        mgr.clearSelection()
+        let mgr = TestDefaults.manager()
         mgr.selectedMedication = "Testosterone"
         let tMax = mgr.expectedTimeToPeak(for: TestosteroneEster.propionate)
         // TP: ka = 0.693, ke = 8.318 → t_max ≈ 0.33 days (~8 hours)
@@ -451,32 +496,163 @@ struct TimeToPeakTests {
                 "TP t_max should be 0.1–0.6 days, got \(tMax)")
     }
 
-    /// This test previously asserted TU t_max > TC t_max, which is clinically true —
-    /// TU genuinely peaks weeks after TC — but is NOT true of the encoded constants,
-    /// and stopped passing on 2026-07-31 when TC's Tmax moved from 0.55 d to a
-    /// primary-sourced 1.84 d while TU kept the placeholder 2 h `ke` that pins it to
-    /// 0.66 d. The test was passing before only because TC was also wrong, in the same
-    /// direction, by more.
+    /// The clinical ordering, restored 2026-08-02.
     ///
-    /// Rewritten to assert what is actually true of the model and to fail loudly if
-    /// anyone tries to reconcile the two by moving TC back. TU's absorption rate is the
-    /// thing that needs a source; until it has one, this documents the known-wrong
-    /// ordering rather than hiding it. OPEN_CONCERNS.md §3 and §4.
+    /// History, because it explains why this assertion is worth keeping: the original
+    /// version of this test asserted TU t_max > TC t_max and passed for the wrong
+    /// reason — both esters carried the same placeholder 2 h `ke`, so the ordering came
+    /// entirely from their half-lives. It broke on 2026-07-31 when TC alone got a real
+    /// absorption rate (t_max 0.55 → 1.84 d) while TU stayed pinned at 0.66 d, and was
+    /// rewritten to document that inversion with an explicit instruction to restore the
+    /// clinical assertion once TU was given a source. That has now happened.
+    ///
+    /// Both numbers are now sourced independently — TC from Bi et al. 2018, TU from
+    /// Aveed's clinical pharmacology (median 7 d, range 4–42) — so the ordering is a
+    /// real prediction rather than an artifact of shared constants.
     @MainActor
-    @Test("KNOWN GAP: TU t_max is earlier than TC's, because TU's ka is uncalibrated")
-    func undecanoatePeakTimeIsUncalibrated() {
-        let mgr = MedicationManager()
-        mgr.clearSelection()
+    @Test("TU peaks weeks after TC, and both t_max values are primary-sourced")
+    func undecanoatePeaksAfterCypionate() {
+        let mgr = TestDefaults.manager()
         mgr.selectedMedication = "Testosterone"
         let tcMax = mgr.expectedTimeToPeak(for: TestosteroneEster.cypionate)
         let tuMax = mgr.expectedTimeToPeak(for: TestosteroneEster.undecanoate)
 
-        #expect(tuMax < tcMax,
-                "Documented inversion: TU t_max \(tuMax) d vs TC \(tcMax) d. If this now fails because TU was given a real absorption rate, delete the test and restore the clinical ordering assertion.")
-        #expect(tuMax > 0.5 && tuMax < 1.0,
-                "TU t_max is pinned near 0.66 d by the placeholder 2 h ke, got \(tuMax)")
-        #expect(TestosteroneEster.undecanoate.eliminationHalfLifeHours == 2.0,
-                "The inversion above is caused by this placeholder; they must move together")
+        #expect(tuMax > tcMax,
+                "TU should peak after TC; got TU \(tuMax) d vs TC \(tcMax) d")
+        #expect(abs(tuMax - 7.0) < 0.2,
+                "TU t_max should be ≈7 d (Aveed median), got \(tuMax)")
+        #expect(TestosteroneEster.undecanoate.eliminationHalfLifeHours == 44.3883,
+                "TU t_max is a function of this rate; they must move together")
+    }
+
+    /// TE's t_max, from the one IM study run in this app's own population.
+    ///
+    /// Note the target is the paper's *observed* Tmax while the constant came from its
+    /// *reported ka values* — two different quantities from the same paper, estimated
+    /// in different subsets (Tmax in all 10, ka in the 4 where it was estimable). So
+    /// this is a genuine cross-check rather than a round trip, which is why the
+    /// tolerance is the paper's own spread rather than something tighter.
+    @MainActor
+    @Test("TE t_max ≈ 1.6 d, inside Ichihara's observed 1.7 ± 0.9 d")
+    func enanthatePeakTime() {
+        let mgr = TestDefaults.manager()
+        mgr.selectedMedication = "Testosterone"
+        let teMax = mgr.expectedTimeToPeak(for: TestosteroneEster.enanthate)
+
+        #expect(abs(teMax - 1.58) < 0.05,
+                "TE t_max should be ≈1.58 d for the encoded constants, got \(teMax)")
+        #expect(teMax > 0.8 && teMax < 2.6,
+                "TE t_max should sit inside Ichihara's observed 1.7 ± 0.9 d, got \(teMax)")
+    }
+
+    /// The Bateman t_max formula moved onto the ester enums as `timeToPeakDays` so UI
+    /// with no manager in scope reads the same number the engine does; the manager
+    /// methods now delegate. This pins the two together across every case of both
+    /// enums, so a future edit to one cannot silently diverge from the other.
+    @MainActor
+    @Test("timeToPeakDays and expectedTimeToPeak(for:) agree for every ester")
+    func timeToPeakDaysMatchesExpectedTimeToPeak() {
+        let mgr = TestDefaults.manager()
+
+        // NaN != NaN, so compare bit patterns: TestosteroneEster.transdermal has
+        // eliminationHalfLifeHours = 0, giving an infinite ke and an undefined t_max.
+        // That is the correct answer for a route with no elimination phase, and the
+        // delegation must reproduce it exactly rather than paper over it.
+        func agrees(_ a: Double, _ b: Double) -> Bool {
+            (a.isNaN && b.isNaN) || a == b
+        }
+
+        for ester in MedicationEster.allCases {
+            #expect(agrees(mgr.expectedTimeToPeak(for: ester), ester.timeToPeakDays),
+                    "MedicationEster.\(ester.rawValue): manager and enum disagree")
+        }
+        for ester in TestosteroneEster.allCases {
+            #expect(agrees(mgr.expectedTimeToPeak(for: ester), ester.timeToPeakDays),
+                    "TestosteroneEster.\(ester.rawValue): manager and enum disagree")
+        }
+
+        // Every ester the picker can actually show must yield a usable number —
+        // this is the assertion that would catch a NaN reaching `Int()` in the UI.
+        for ester in MedicationEster.injectableCases where ester.isTmaxCalibrated {
+            #expect(ester.timeToPeakDays.isFinite && ester.timeToPeakDays > 0,
+                    "MedicationEster.\(ester.rawValue) is shown in the picker but has no usable t_max")
+        }
+        for ester in TestosteroneEster.injectableCases where ester.isTmaxCalibrated {
+            #expect(ester.timeToPeakDays.isFinite && ester.timeToPeakDays > 0,
+                    "TestosteroneEster.\(ester.rawValue) is shown in the picker but has no usable t_max")
+        }
+    }
+
+    /// Regression test for the onboarding ester picker, which carried its own
+    /// `halfLife × 1.44` approximation of t_max. That heuristic ignored `ke`
+    /// completely, so it ran 3–44× long on testosterone (TU: "Peaks day 29" against a
+    /// modeled 0.66 d) and ~2× long on estrogen (EC: "day 9" against 4.30 d).
+    ///
+    /// Asserts both that the exact values are right and that the old heuristic is
+    /// gone — the second half is what actually catches a reintroduction, since a
+    /// plausible-looking wrong formula would still pass a loose range check.
+    @MainActor
+    @Test("Ester picker peak day uses exact Bateman t_max, not halfLife × 1.44")
+    func onboardingPeakDayMatchesBatemanTmax() {
+        // Primary/label-anchored esters — the only ones the picker shows a peak for.
+        // TE and TU joined this list on 2026-08-02, when they stopped being placeholders.
+        // TU is the sharpest case for the second assertion below: the retired heuristic
+        // said "peaks day 29" for TU against a real 7 d.
+        let expected: [(name: String, tPeak: Double, tHalf: Double)] = [
+            ("TC", TestosteroneEster.cypionate.timeToPeakDays, TestosteroneEster.cypionate.halfLifeDays),
+            ("TE", TestosteroneEster.enanthate.timeToPeakDays, TestosteroneEster.enanthate.halfLifeDays),
+            ("TU", TestosteroneEster.undecanoate.timeToPeakDays, TestosteroneEster.undecanoate.halfLifeDays),
+            ("EV", MedicationEster.valerate.timeToPeakDays, MedicationEster.valerate.halfLifeDays),
+            ("EC", MedicationEster.cypionate.timeToPeakDays, MedicationEster.cypionate.halfLifeDays),
+        ]
+        let targets = ["TC": 1.84, "TE": 1.58, "TU": 7.00, "EV": 2.10, "EC": 4.30]
+
+        for row in expected {
+            #expect(abs(row.tPeak - targets[row.name]!) < 0.05,
+                    "\(row.name) t_max should be ≈\(targets[row.name]!) d, got \(row.tPeak)")
+            // The retired heuristic. Every one of these is off by enough that a 0.2 d
+            // tolerance cleanly separates it from the exact value.
+            #expect(abs(row.tPeak - row.tHalf * 1.44) > 0.2,
+                    "\(row.name): value matches the retired halfLife × 1.44 heuristic — has it been reintroduced?")
+        }
+
+        // The floor the picker applies (`max(1, rounded)`) must never be load-bearing
+        // for a calibrated ester; if it becomes so, the label is hiding a sub-day peak.
+        for row in expected {
+            #expect(row.tPeak.rounded() >= 1,
+                    "\(row.name) rounds to day 0 — the picker's floor would be masking it")
+        }
+    }
+
+    /// `isTmaxCalibrated` gates whether the picker shows a peak day at all. It is a
+    /// hand-maintained flag, so it can drift out of sync with the constants it
+    /// describes. This fails if someone recalibrates an ester's `ke` without clearing
+    /// the flag, or flags one as calibrated while it still carries the placeholder.
+    @MainActor
+    @Test("isTmaxCalibrated matches which esters still carry the placeholder ke")
+    func uncalibratedEstersAreFlagged() {
+        #expect(TestosteroneEster.cypionate.isTmaxCalibrated)
+        #expect(TestosteroneEster.enanthate.isTmaxCalibrated)    // Ichihara 2020
+        #expect(TestosteroneEster.undecanoate.isTmaxCalibrated)  // Aveed, 2026-08-02
+        #expect(TestosteroneEster.oral.isTmaxCalibrated)
+        #expect(MedicationEster.valerate.isTmaxCalibrated)
+        #expect(MedicationEster.cypionate.isTmaxCalibrated)
+        #expect(MedicationEster.oral.isTmaxCalibrated)
+
+        // The placeholder 2 h ke and the false flag must move together, in both
+        // directions — see OPEN_CONCERNS.md §3. TP is the last ester holding both.
+        #expect(!TestosteroneEster.propionate.isTmaxCalibrated,
+                "TP is flagged calibrated")
+        #expect(TestosteroneEster.propionate.eliminationHalfLifeHours == 2.0,
+                "TP no longer carries the placeholder ke — clear isTmaxCalibrated and give it a real peak day in the picker")
+
+        // The converse guard: nothing may claim calibration while still sitting on the
+        // placeholder. Without this the pairing above only constrains TP by name, so a
+        // newly added ester could arrive flagged-true with a copy-pasted 2.0.
+        for ester in TestosteroneEster.allCases where ester.isTmaxCalibrated {
+            #expect(ester.eliminationHalfLifeHours != 2.0,
+                    "\(ester.rawValue) is flagged calibrated but still carries the 2 h placeholder")
+        }
     }
 }
 
@@ -489,8 +665,7 @@ struct DynamicBaselineTests {
     @MainActor
     @Test("Returns suppressed baseline when anti-androgen is in use")
     func antiAndrogenSuppressesT() {
-        let mgr = MedicationManager()
-        mgr.clearSelection()
+        let mgr = TestDefaults.manager()
         mgr.selectedMedication = "Testosterone"
         mgr.antiAndrogenInUse = true
         mgr.hrtStartDate = Date()
@@ -504,8 +679,7 @@ struct DynamicBaselineTests {
     @MainActor
     @Test("Returns full baseline when no HRT start date")
     func noHRTStartDateReturnsFull() {
-        let mgr = MedicationManager()
-        mgr.clearSelection()
+        let mgr = TestDefaults.manager()
         mgr.selectedMedication = "Estrogen"
         mgr.hrtStartDate = nil
         mgr.lastDoseDate = nil
@@ -519,8 +693,7 @@ struct DynamicBaselineTests {
     @MainActor
     @Test("Returns fully suppressed after 2 years on HRT")
     func fullySuppressedAfterTwoYears() {
-        let mgr = MedicationManager()
-        mgr.clearSelection()
+        let mgr = TestDefaults.manager()
         mgr.selectedMedication = "Estrogen"
         mgr.antiAndrogenInUse = false
 
@@ -535,8 +708,7 @@ struct DynamicBaselineTests {
     @MainActor
     @Test("Baseline decreases monotonically over time (fast suppression)")
     func suppressionMonotonic() {
-        let mgr = MedicationManager()
-        mgr.clearSelection()
+        let mgr = TestDefaults.manager()
         mgr.selectedMedication = "Estrogen"
         mgr.antiAndrogenInUse = false
         mgr.suppressionSpeed = .fast  // 4 weeks
@@ -565,8 +737,7 @@ struct DynamicBaselineTests {
     @MainActor
     @Test("Slow suppression takes longer than fast suppression")
     func slowVsFast() {
-        let mgr = MedicationManager()
-        mgr.clearSelection()
+        let mgr = TestDefaults.manager()
         mgr.selectedMedication = "Estrogen"
         mgr.antiAndrogenInUse = false
 
@@ -586,8 +757,7 @@ struct DynamicBaselineTests {
     @MainActor
     @Test("Baseline bounded between suppressed and full values")
     func baselineBounded() {
-        let mgr = MedicationManager()
-        mgr.clearSelection()
+        let mgr = TestDefaults.manager()
         mgr.selectedMedication = "Estrogen"
         mgr.antiAndrogenInUse = false
 
@@ -613,83 +783,65 @@ struct DynamicBaselineTests {
 struct DeviationClassificationTests {
 
     @MainActor
-    @Test("Equal actual and predicted → On Track")
+    @Test("Equal actual and predicted → on track")
     func equalIsOnTrack() {
-        let mgr = MedicationManager()
-        let (label, _) = mgr.deviationClassification(actual: 200, predicted: 200)
-        #expect(label == "On Track")
+        let mgr = TestDefaults.manager()
+        #expect(mgr.deviationClassification(actual: 200, predicted: 200) == .onTrack)
     }
 
     @MainActor
-    @Test("Actual < 0.5× predicted → Critically Below Expected")
-    func criticallyBelow() {
-        let mgr = MedicationManager()
-        let (label, _) = mgr.deviationClassification(actual: 80, predicted: 200)
-        #expect(label == "Critically Below Expected", "ratio=0.4 should be critically below")
+    @Test("Actual < 0.7× predicted → below")
+    func below() {
+        let mgr = TestDefaults.manager()
+        #expect(mgr.deviationClassification(actual: 80, predicted: 200) == .below, "ratio=0.4")
+        #expect(mgr.deviationClassification(actual: 120, predicted: 200) == .below, "ratio=0.6")
     }
 
     @MainActor
-    @Test("Actual 0.5–0.7× predicted → Below Expected")
-    func belowExpected() {
-        let mgr = MedicationManager()
-        let (label, _) = mgr.deviationClassification(actual: 120, predicted: 200)
-        #expect(label == "Below Expected", "ratio=0.6 should be below expected")
-    }
-
-    @MainActor
-    @Test("Actual 0.7–1.3× predicted → On Track")
+    @Test("Actual 0.7–1.3× predicted → on track")
     func onTrackRange() {
-        let mgr = MedicationManager()
+        let mgr = TestDefaults.manager()
         for ratio in [0.7, 0.85, 1.0, 1.15, 1.29] {
-            let (label, _) = mgr.deviationClassification(actual: ratio * 200, predicted: 200)
-            #expect(label == "On Track", "ratio=\(ratio) should be On Track, got \(label)")
+            let result = mgr.deviationClassification(actual: ratio * 200, predicted: 200)
+            #expect(result == .onTrack, "ratio=\(ratio) should be on track, got \(result)")
         }
     }
 
     @MainActor
-    @Test("Actual 1.3–2.0× predicted → Above Expected")
-    func aboveExpected() {
-        let mgr = MedicationManager()
-        let (label, _) = mgr.deviationClassification(actual: 300, predicted: 200)
-        #expect(label == "Above Expected", "ratio=1.5 should be above expected")
+    @Test("Actual > 1.3× predicted → above")
+    func above() {
+        let mgr = TestDefaults.manager()
+        #expect(mgr.deviationClassification(actual: 300, predicted: 200) == .above, "ratio=1.5")
+        #expect(mgr.deviationClassification(actual: 500, predicted: 200) == .above, "ratio=2.5")
     }
 
     @MainActor
-    @Test("Actual > 2.0× predicted → Unusually High")
-    func unusuallyHigh() {
-        let mgr = MedicationManager()
-        let (label, _) = mgr.deviationClassification(actual: 500, predicted: 200)
-        #expect(label == "Unusually High", "ratio=2.5 should be unusually high")
-    }
-
-    @MainActor
-    @Test("Very low predicted value → Unable to Compare")
-    func unableToCompare() {
-        let mgr = MedicationManager()
-        let (label, _) = mgr.deviationClassification(actual: 1.0, predicted: 0.5)
-        #expect(label == "Unable to Compare")
+    @Test("Very low predicted value → incomparable")
+    func incomparable() {
+        let mgr = TestDefaults.manager()
+        #expect(mgr.deviationClassification(actual: 1.0, predicted: 0.5) == .incomparable)
     }
 
     @MainActor
     @Test("Boundary exact values")
     func boundaryValues() {
-        let mgr = MedicationManager()
+        let mgr = TestDefaults.manager()
+        // Bin edges are [0, 0.7) below, [0.7, 1.3) on track, [1.3, ∞) above.
+        #expect(mgr.deviationClassification(actual: 100.0, predicted: 200.0) == .below,   "ratio=0.5 exact")
+        #expect(mgr.deviationClassification(actual: 140.0, predicted: 200.0) == .onTrack, "ratio=0.7 exact")
+        #expect(mgr.deviationClassification(actual: 260.0, predicted: 200.0) == .above,   "ratio=1.3 exact")
+        #expect(mgr.deviationClassification(actual: 400.0, predicted: 200.0) == .above,   "ratio=2.0 exact")
+    }
 
-        // Exactly 0.5 → should be "Below Expected" (upper bound of "Critically Below" is exclusive)
-        let (label1, _) = mgr.deviationClassification(actual: 100.0, predicted: 200.0)
-        #expect(label1 == "Below Expected", "ratio=0.5 exact")
-
-        // Exactly 0.7
-        let (label2, _) = mgr.deviationClassification(actual: 140.0, predicted: 200.0)
-        #expect(label2 == "On Track", "ratio=0.7 exact")
-
-        // Exactly 1.3
-        let (label3, _) = mgr.deviationClassification(actual: 260.0, predicted: 200.0)
-        #expect(label3 == "Above Expected", "ratio=1.3 exact")
-
-        // Exactly 2.0
-        let (label4, _) = mgr.deviationClassification(actual: 400.0, predicted: 200.0)
-        #expect(label4 == "Unusually High", "ratio=2.0 exact")
+    @MainActor
+    @Test("An on-track or incomparable deviation produces no user-facing note")
+    func noNoteWhenOnTrack() {
+        // The deviation note exists to report a divergence. When there is none,
+        // the app says nothing rather than reassuring the user.
+        let level = HormoneLevel(value: 200, unit: .picogramsPerMilliliter, status: .inRange,
+                                 phase: .trough, deviation: .onTrack, safety: nil,
+                                 bounds: LevelBounds(min: 100, max: 200), boundsSource: .userSet)
+        #expect(level.deviationNote == nil)
     }
 }
 
@@ -700,54 +852,65 @@ struct DeviationClassificationTests {
 struct SafetyOverrideTests {
 
     @MainActor
-    @Test("E2 > 1000 pg/mL → Very High safety check")
+    @Test("E2 > 1000 pg/mL → estrogen ceiling flag")
     func estrogenVeryHigh() {
-        let mgr = MedicationManager()
-        let result = mgr.safetyOverride(level: 1200, medication: .estrogen, contextLabel: "Expected Peak")
-        #expect(result == "Very High – Safety Check")
+        let mgr = TestDefaults.manager()
+        #expect(mgr.safetyOverride(level: 1200, medication: .estrogen, phase: .nearPeak) == .estrogenCeiling)
     }
 
     @MainActor
     @Test("E2 at exactly 1000 does NOT trigger safety")
     func estrogenExactly1000() {
-        let mgr = MedicationManager()
-        // The test checks `level > 1000`, so exactly 1000 should NOT trigger
-        let result = mgr.safetyOverride(level: 1000, medication: .estrogen, contextLabel: "Expected Peak")
-        #expect(result == nil, "Exactly 1000 pg/mL should not trigger safety")
+        let mgr = TestDefaults.manager()
+        // The threshold is `level > 1000`, so exactly 1000 should NOT trigger.
+        #expect(mgr.safetyOverride(level: 1000, medication: .estrogen, phase: .nearPeak) == nil)
     }
 
     @MainActor
-    @Test("T > 1500 ng/dL → Supraphysiological")
+    @Test("T > 1500 ng/dL → supraphysiologic flag")
     func testosteroneSupraphysiological() {
-        let mgr = MedicationManager()
-        let result = mgr.safetyOverride(level: 1600, medication: .testosterone, contextLabel: "Expected Peak")
-        #expect(result == "Supraphysiological")
+        let mgr = TestDefaults.manager()
+        #expect(mgr.safetyOverride(level: 1600, medication: .testosterone, phase: .nearPeak) == .testosteroneSupraphysiologic)
     }
 
     @MainActor
-    @Test("E2 < 50 at trough → Sub-Therapeutic")
+    @Test("E2 < 50 at trough → sub-therapeutic trough flag")
     func estrogenSubTherapeuticTrough() {
-        let mgr = MedicationManager()
-        let result = mgr.safetyOverride(level: 30, medication: .estrogen, contextLabel: "Target Trough")
-        #expect(result == "Sub-Therapeutic (Trough)")
+        let mgr = TestDefaults.manager()
+        #expect(mgr.safetyOverride(level: 30, medication: .estrogen, phase: .trough) == .subTherapeuticTrough)
     }
 
     @MainActor
     @Test("E2 < 50 NOT at trough → no safety flag")
     func lowEstrogenNotTroughNoFlag() {
-        let mgr = MedicationManager()
-        let result = mgr.safetyOverride(level: 30, medication: .estrogen, contextLabel: "Expected Peak")
-        #expect(result == nil, "Low E2 at peak should not trigger trough warning")
+        let mgr = TestDefaults.manager()
+        #expect(mgr.safetyOverride(level: 30, medication: .estrogen, phase: .nearPeak) == nil,
+                "Low E2 at peak should not trigger the trough flag")
     }
 
     @MainActor
     @Test("Normal levels → no override")
     func normalNoOverride() {
-        let mgr = MedicationManager()
-        let eResult = mgr.safetyOverride(level: 200, medication: .estrogen, contextLabel: "Expected Peak")
-        let tResult = mgr.safetyOverride(level: 600, medication: .testosterone, contextLabel: "Expected Peak")
-        #expect(eResult == nil)
-        #expect(tResult == nil)
+        let mgr = TestDefaults.manager()
+        #expect(mgr.safetyOverride(level: 200, medication: .estrogen, phase: .nearPeak) == nil)
+        #expect(mgr.safetyOverride(level: 600, medication: .testosterone, phase: .nearPeak) == nil)
+    }
+
+    @MainActor
+    @Test("Safety notes state an association and issue no instruction")
+    func safetyNotesAreNotInstructions() {
+        // The app reports clinical facts; deciding what to do with them is the
+        // user's and their provider's call. Guard against advisory copy creeping back.
+        let imperatives = ["consider", "contact your", "consult", "you should",
+                           "monitor for", "reduce your", "talk to"]
+        for flag: SafetyFlag in [.estrogenCeiling, .testosteroneSupraphysiologic,
+                                 .subTherapeuticTrough, .spironolactoneClearance] {
+            let note = flag.note.lowercased()
+            for phrase in imperatives {
+                #expect(!note.contains(phrase),
+                        "SafetyFlag.\(flag) note contains advisory phrase \"\(phrase)\": \(flag.note)")
+            }
+        }
     }
 }
 
@@ -760,7 +923,7 @@ struct AromatizationTests {
     @MainActor
     @Test("0.2% conversion: 1000 ng/dL T → 2.0 pg/mL E2")
     func conversionRate() {
-        let mgr = MedicationManager()
+        let mgr = TestDefaults.manager()
         let e2 = mgr.estimatedE2FromTestosterone(1000.0)
         #expect(abs(e2 - 2.0) < 0.01, "1000 ng/dL T → E2 should be ~2.0 pg/mL, got \(e2)")
     }
@@ -768,7 +931,7 @@ struct AromatizationTests {
     @MainActor
     @Test("Aromatization yields 0 at zero T")
     func zeroT() {
-        let mgr = MedicationManager()
+        let mgr = TestDefaults.manager()
         let e2 = mgr.estimatedE2FromTestosterone(0.0)
         #expect(e2 == 0.0, "Zero T should yield zero E2")
     }
@@ -776,7 +939,7 @@ struct AromatizationTests {
     @MainActor
     @Test("Assessment: elevated when E2 > 40")
     func elevatedAssessment() {
-        let mgr = MedicationManager()
+        let mgr = TestDefaults.manager()
         // 25000 ng/dL T * 0.002 = 50 pg/mL E2 > 40 → elevated
         let (e2, isElevated, _) = mgr.aromatizationAssessment(for: 25000.0)
         #expect(isElevated, "E2 of \(e2) pg/mL from 25000 ng/dL T should be elevated (>40)")
@@ -785,7 +948,7 @@ struct AromatizationTests {
     @MainActor
     @Test("Assessment: normal when E2 10–40")
     func normalAssessment() {
-        let mgr = MedicationManager()
+        let mgr = TestDefaults.manager()
         // 8000 ng/dL T * 0.002 = 16 pg/mL → normal
         let (e2, isElevated, _) = mgr.aromatizationAssessment(for: 8000.0)
         #expect(!isElevated, "E2 of \(e2) pg/mL should NOT be elevated")
@@ -794,7 +957,7 @@ struct AromatizationTests {
     @MainActor
     @Test("Assessment: below range when E2 < 10")
     func belowRangeAssessment() {
-        let mgr = MedicationManager()
+        let mgr = TestDefaults.manager()
         // 2000 ng/dL T * 0.002 = 4 pg/mL → below range
         let (e2, isElevated, _) = mgr.aromatizationAssessment(for: 2000.0)
         #expect(!isElevated, "E2 of \(e2) pg/mL should NOT trigger elevated")
@@ -803,7 +966,7 @@ struct AromatizationTests {
     @MainActor
     @Test("Aromatization scales linearly")
     func linearScaling() {
-        let mgr = MedicationManager()
+        let mgr = TestDefaults.manager()
         for t in [100.0, 500.0, 1000.0, 3000.0, 10000.0] {
             let e2 = mgr.estimatedE2FromTestosterone(t)
             let expected = t * 0.002
@@ -822,8 +985,7 @@ struct DoseIntensityTests {
     @MainActor
     @Test("No doses → intensity = 1.0")
     func noDosesDefaultIntensity() {
-        let mgr = MedicationManager()
-        mgr.clearSelection()
+        let mgr = TestDefaults.manager()
         mgr.doseHistory = []
         let intensity = mgr.relativeDoseIntensity
         #expect(intensity == 1.0, "No doses should default to intensity 1.0, got \(intensity)")
@@ -832,8 +994,7 @@ struct DoseIntensityTests {
     @MainActor
     @Test("Standard E dose → intensity ≈ 1.0")
     func standardDoseIntensity() {
-        let mgr = MedicationManager()
-        mgr.clearSelection()
+        let mgr = TestDefaults.manager()
         mgr.selectedMedication = "Estrogen"
         let now = Date()
 
@@ -856,8 +1017,7 @@ struct DoseIntensityTests {
     @MainActor
     @Test("Double standard dose → intensity > 1.0")
     func highDoseIntensity() {
-        let mgr = MedicationManager()
-        mgr.clearSelection()
+        let mgr = TestDefaults.manager()
         mgr.selectedMedication = "Estrogen"
         let now = Date()
 
@@ -878,8 +1038,7 @@ struct DoseIntensityTests {
     @MainActor
     @Test("Half standard T dose → intensity < 1.0")
     func lowDoseIntensity() {
-        let mgr = MedicationManager()
-        mgr.clearSelection()
+        let mgr = TestDefaults.manager()
         mgr.selectedMedication = "Testosterone"
         let now = Date()
 
@@ -908,8 +1067,7 @@ struct PKEngineNominalTests {
     @MainActor
     @Test("Single EV dose produces clinically plausible peak ~200–250 pg/mL")
     func evSingleDosePeak() {
-        let mgr = MedicationManager()
-        mgr.clearSelection()
+        let mgr = TestDefaults.manager()
         mgr.selectedMedication = "Estrogen"
         mgr.selectedAdministrationMethod = "Injectable"
         mgr.antiAndrogenInUse = false
@@ -951,8 +1109,7 @@ struct PKEngineNominalTests {
     @MainActor
     @Test("Single TC dose produces clinically plausible peak ~600–900 ng/dL")
     func tcSingleDosePeak() {
-        let mgr = MedicationManager()
-        mgr.clearSelection()
+        let mgr = TestDefaults.manager()
         mgr.selectedMedication = "Testosterone"
         mgr.selectedAdministrationMethod = "Injectable"
         mgr.antiAndrogenInUse = false
@@ -982,8 +1139,7 @@ struct PKEngineNominalTests {
     @MainActor
     @Test("Oral E2 produces rapid spike and fast decay")
     func oralE2Kinetics() {
-        let mgr = MedicationManager()
-        mgr.clearSelection()
+        let mgr = TestDefaults.manager()
         mgr.selectedMedication = "Estrogen"
         mgr.selectedAdministrationMethod = "Oral"
         mgr.antiAndrogenInUse = false
@@ -1009,19 +1165,32 @@ struct PKEngineNominalTests {
         let maxLevel = points.map(\.value).max() ?? 0
         let lastLevel = points.last!.value
         // Peak is above baseline, and the curve is declining from peak by 24h.
-        // oralKe = ln2/0.5d (12h half-life) means the 24h level is ~78% of peak —
-        // a 50%-within-24h requirement is too tight for these constants.
-        #expect(maxLevel > points.first!.value + 20,
-                "Oral E2 2mg should produce a real peak above baseline, got peak=\(maxLevel)")
-        #expect(lastLevel < maxLevel,
-                "Oral level should be declining from peak at 24h: peak=\(maxLevel), 24h=\(lastLevel)")
+        //
+        // Tightened 2026-08-01 with the ka refit. The old comment here said a
+        // "50%-within-24h requirement is too tight for these constants" — true at
+        // ka = 2.5, where the 24 h level sat at ~78% of peak because the curve was
+        // still nearly flat. At ka = 8.762 the dose peaks at 6 h and 24 h lands at
+        // ~42% of peak, so "fast decay" is now actually assertable, which is what
+        // this test claims in its name.
+        //
+        // The decay ratio is taken on the dose's contribution ABOVE baseline, not on
+        // the raw level: `estimatedLevels` returns baseLevel + spike (see the sum in
+        // MedicationManager+Pharmacokinetics), and dividing raw levels would let a
+        // nonzero `dynamicBaseline` mask the decay. At t=0 the Bateman term is exactly
+        // zero, so the first point is the baseline.
+        let baseline = points.first!.value
+        let peakSpike = maxLevel - baseline
+        let spikeAt24h = lastLevel - baseline
+        #expect(peakSpike > 20,
+                "Oral E2 2mg should produce a real peak above baseline, got spike=\(peakSpike)")
+        #expect(spikeAt24h < peakSpike * 0.5,
+                "Oral E2 should decay below half its peak within 24h: peak spike=\(peakSpike), 24h spike=\(spikeAt24h)")
     }
 
     @MainActor
     @Test("Calibration factor scales levels proportionally")
     func calibrationScaling() {
-        let mgr = MedicationManager()
-        mgr.clearSelection()
+        let mgr = TestDefaults.manager()
         mgr.selectedMedication = "Estrogen"
         mgr.selectedAdministrationMethod = "Injectable"
         mgr.antiAndrogenInUse = false
@@ -1072,8 +1241,7 @@ struct PKEngineEdgeCaseTests {
     @MainActor
     @Test("Empty dose history returns empty points array")
     func emptyDoseHistory() {
-        let mgr = MedicationManager()
-        mgr.clearSelection()
+        let mgr = TestDefaults.manager()
         mgr.doseHistory = []
         let points = mgr.estimatedLevels(from: Date(), to: Date().addingTimeInterval(86400))
         // With no medication selected, returns []
@@ -1083,8 +1251,7 @@ struct PKEngineEdgeCaseTests {
     @MainActor
     @Test("No medication selected returns empty")
     func noMedicationSelected() {
-        let mgr = MedicationManager()
-        mgr.clearSelection()
+        let mgr = TestDefaults.manager()
         mgr.selectedMedication = nil
         mgr.selectedAdministrationMethod = nil
         let points = mgr.estimatedLevels(from: Date(), to: Date().addingTimeInterval(86400))
@@ -1094,8 +1261,7 @@ struct PKEngineEdgeCaseTests {
     @MainActor
     @Test("Zero dose amount produces near-baseline levels")
     func zeroDoseAmount() {
-        let mgr = MedicationManager()
-        mgr.clearSelection()
+        let mgr = TestDefaults.manager()
         mgr.selectedMedication = "Estrogen"
         mgr.selectedAdministrationMethod = "Injectable"
         mgr.hrtStartDate = Calendar.current.date(byAdding: .year, value: -3, to: Date())
@@ -1127,8 +1293,7 @@ struct PKEngineEdgeCaseTests {
     @MainActor
     @Test("Start date = end date produces single point")
     func startEqualsEnd() {
-        let mgr = MedicationManager()
-        mgr.clearSelection()
+        let mgr = TestDefaults.manager()
         mgr.selectedMedication = "Estrogen"
         mgr.selectedAdministrationMethod = "Injectable"
         mgr.hrtStartDate = Calendar.current.date(byAdding: .year, value: -3, to: Date())
@@ -1152,8 +1317,7 @@ struct PKEngineEdgeCaseTests {
     @MainActor
     @Test("Start after end produces no points")
     func startAfterEnd() {
-        let mgr = MedicationManager()
-        mgr.clearSelection()
+        let mgr = TestDefaults.manager()
         mgr.selectedMedication = "Estrogen"
         mgr.selectedAdministrationMethod = "Injectable"
         mgr.hrtStartDate = Calendar.current.date(byAdding: .year, value: -3, to: Date())
@@ -1178,8 +1342,7 @@ struct PKEngineEdgeCaseTests {
     @MainActor
     @Test("Very large stepDays produces fewer points")
     func largeStepDays() {
-        let mgr = MedicationManager()
-        mgr.clearSelection()
+        let mgr = TestDefaults.manager()
         mgr.selectedMedication = "Estrogen"
         mgr.selectedAdministrationMethod = "Injectable"
         mgr.hrtStartDate = Calendar.current.date(byAdding: .year, value: -3, to: Date())
@@ -1206,8 +1369,7 @@ struct PKEngineEdgeCaseTests {
     @MainActor
     @Test("Dose from far in the past contributes negligible amounts")
     func veryOldDose() {
-        let mgr = MedicationManager()
-        mgr.clearSelection()
+        let mgr = TestDefaults.manager()
         mgr.selectedMedication = "Estrogen"
         mgr.selectedAdministrationMethod = "Injectable"
         mgr.hrtStartDate = Calendar.current.date(byAdding: .year, value: -3, to: Date())
@@ -1248,8 +1410,7 @@ struct SuperpositionTests {
     @MainActor
     @Test("Two doses sum additively")
     func additiveSuperposition() {
-        let mgr = MedicationManager()
-        mgr.clearSelection()
+        let mgr = TestDefaults.manager()
         mgr.selectedMedication = "Estrogen"
         mgr.selectedAdministrationMethod = "Injectable"
         mgr.hrtStartDate = Calendar.current.date(byAdding: .year, value: -3, to: Date())
@@ -1306,8 +1467,7 @@ struct CalibrationFactorTests {
     @MainActor
     @Test("Alpha clamped to [0.2, 5.0]")
     func alphaClamping() {
-        let mgr = MedicationManager()
-        mgr.clearSelection()
+        let mgr = TestDefaults.manager()
         mgr.selectedMedication = "Estrogen"
         mgr.selectedAdministrationMethod = "Injectable"
         mgr.hrtStartDate = Calendar.current.date(byAdding: .year, value: -3, to: Date())
@@ -1362,8 +1522,7 @@ struct CalibrationFactorTests {
     @MainActor
     @Test("No calibration factor when no blood tests exist")
     func noBloodTestsNilCalibration() {
-        let mgr = MedicationManager()
-        mgr.clearSelection()
+        let mgr = TestDefaults.manager()
         mgr.bloodTestHistory = []
         #expect(mgr.calibrationFactor == nil,
                 "No blood tests → calibration factor should be nil")
@@ -1379,8 +1538,7 @@ struct TestosteroneEsterPKTests {
     @MainActor
     @Test("TU (undecanoate) produces flatter profile than TC")
     func undecanoateFlatterProfile() {
-        let mgr = MedicationManager()
-        mgr.clearSelection()
+        let mgr = TestDefaults.manager()
         mgr.selectedMedication = "Testosterone"
         mgr.selectedAdministrationMethod = "Injectable"
         mgr.hrtStartDate = Calendar.current.date(byAdding: .year, value: -3, to: Date())
@@ -1431,8 +1589,7 @@ struct TestosteroneEsterPKTests {
     @MainActor
     @Test("TP peak arrives faster than TC peak")
     func propionateFasterPeakThanCypionate() {
-        let mgr = MedicationManager()
-        mgr.clearSelection()
+        let mgr = TestDefaults.manager()
 
         let tpMax = mgr.expectedTimeToPeak(for: TestosteroneEster.propionate)
         let tcMax = mgr.expectedTimeToPeak(for: TestosteroneEster.cypionate)
@@ -1450,7 +1607,7 @@ struct ContextualRangeTests {
     @MainActor
     @Test("Peak range > trough range")
     func peakRangeHigherThanTrough() {
-        let mgr = MedicationManager()
+        let mgr = TestDefaults.manager()
         let peak = mgr.contextualRange(for: .estrogen, at: .nearPeak, doseIntensity: 1.0)
         let trough = mgr.contextualRange(for: .estrogen, at: .trough, doseIntensity: 1.0)
         #expect(peak.max > trough.max,
@@ -1460,7 +1617,7 @@ struct ContextualRangeTests {
     @MainActor
     @Test("Higher dose intensity shifts targets upward")
     func doseIntensityShiftsTargets() {
-        let mgr = MedicationManager()
+        let mgr = TestDefaults.manager()
         let lowRange = mgr.contextualRange(for: .estrogen, at: .trough, doseIntensity: 0.25)
         let highRange = mgr.contextualRange(for: .estrogen, at: .trough, doseIntensity: 2.0)
         // High intensity should shift targets up (or at least not below low)
@@ -1471,12 +1628,140 @@ struct ContextualRangeTests {
     @MainActor
     @Test("Unknown cycle position uses fallback range")
     func unknownCycleUsesFallback() {
-        let mgr = MedicationManager()
+        let mgr = TestDefaults.manager()
         let unknown = mgr.contextualRange(for: .estrogen, at: .unknown, doseIntensity: 1.0)
         let trough = mgr.contextualRange(for: .estrogen, at: .trough, doseIntensity: 1.0)
         // Unknown fallback uses troughMin and peakCeiling
         #expect(unknown.min == trough.min,
                 "Unknown should use troughMin (\(trough.min)) for safety, got \(unknown.min)")
+    }
+
+    @MainActor
+    @Test("Bounds are reported as model-derived when the user has set no target")
+    func noUserTargetIsModelDerived() {
+        let mgr = TestDefaults.manager()
+        mgr.userTherapeuticTarget = nil
+        let range = mgr.contextualRange(for: .estrogen, at: .trough, doseIntensity: 1.0)
+        #expect(range.source == .modelDerived)
+    }
+
+    @MainActor
+    @Test("Bounds are reported as user-set once the user configures a target")
+    func userTargetIsUserSet() {
+        let mgr = TestDefaults.manager()
+        mgr.userTherapeuticTarget = MedicationManager.TherapeuticTarget(troughMin: 120, troughMax: 220, peakCeiling: 500)
+        let range = mgr.contextualRange(for: .estrogen, at: .trough, doseIntensity: 1.0)
+        #expect(range.source == .userSet)
+        #expect(range.min == 120)
+        #expect(range.max == 220)
+    }
+
+    @MainActor
+    @Test("Only bounds the user actually entered are marked user-set")
+    func blendedBoundsAreNotAttributedToTheUser() {
+        // Settings collects a trough floor, a trough ceiling and a peak ceiling.
+        // Mid-cycle and near-peak bounds are interpolated against model-scaled peak
+        // values, so they are not numbers the user ever entered. Marking them
+        // `.userSet` made the app say "your set range of 195–425" to someone who
+        // had entered 150–250.
+        let mgr = TestDefaults.manager()
+        mgr.userTherapeuticTarget = MedicationManager.TherapeuticTarget(troughMin: 150, troughMax: 250, peakCeiling: 600)
+
+        for phase: MedicationManager.CyclePosition in [.midCycle, .nearPeak, .unknown] {
+            let range = mgr.contextualRange(for: .estrogen, at: phase, doseIntensity: 1.0)
+            #expect(range.source == .modelDerived,
+                    "\(phase) bounds are blended with model values and must not be attributed to the user")
+        }
+
+        // The trough pair is exactly what the user typed, so it may be quoted back.
+        let trough = mgr.contextualRange(for: .estrogen, at: .trough, doseIntensity: 1.0)
+        #expect(trough.source == .userSet)
+        #expect(trough.min == 150 && trough.max == 250)
+    }
+}
+
+
+// MARK: - Level Copy
+
+/// The app states facts and compares only against bounds the user actually set.
+/// These guard both rules against regression.
+@Suite("Level Copy — Factual Tone and Target Attribution")
+struct LevelCopyTests {
+
+    private func level(status: LevelStatus,
+                       source: RangeSource,
+                       safety: SafetyFlag? = nil,
+                       phase: MedicationManager.CyclePosition = .trough) -> HormoneLevel {
+        HormoneLevel(value: 142, unit: .picogramsPerMilliliter, status: status,
+                     phase: phase, deviation: .onTrack, safety: safety,
+                     bounds: LevelBounds(min: 100, max: 200), boundsSource: source)
+    }
+
+    @MainActor
+    @Test("Model-derived bounds produce no comparison and no status pill")
+    func modelDerivedMakesNoClaim() {
+        // The user never set this range, so the app must not tell them they are
+        // above or below "their" target.
+        for status: LevelStatus in [.criticallyLow, .veryLow, .slightlyBelow,
+                                    .inRange, .slightlyAbove, .high] {
+            let l = level(status: status, source: .modelDerived)
+            #expect(l.boundsRelation == nil)
+            #expect(l.statusPillText == nil, "status \(status) should render no pill")
+            #expect(!l.summaryText.contains("range"),
+                    "summary should make no range claim, got: \(l.summaryText)")
+        }
+    }
+
+    @MainActor
+    @Test("Model-derived bounds are never tinted as good or bad")
+    func modelDerivedIsNeutrallyTinted() {
+        for status: LevelStatus in [.criticallyLow, .inRange, .high] {
+            #expect(level(status: status, source: .modelDerived).statusTint == Theme.Colors.accent)
+        }
+    }
+
+    @MainActor
+    @Test("User-set bounds produce a comparison naming the range")
+    func userSetComparesAgainstTheRange() {
+        #expect(level(status: .inRange, source: .userSet).summaryText.contains("within your set trough range"))
+        #expect(level(status: .veryLow, source: .userSet).summaryText.contains("below your set trough range"))
+        #expect(level(status: .high, source: .userSet).summaryText.contains("above your set trough range"))
+    }
+
+    @MainActor
+    @Test("A safety flag surfaces even with no user-set bounds")
+    func safetyFlagAlwaysSurfaces() {
+        // Crossing a documented clinical threshold is a fact about the estimate,
+        // not a comparison to a target, so it does not depend on user bounds.
+        let l = level(status: .high, source: .modelDerived, safety: .estrogenCeiling)
+        #expect(l.statusPillText != nil)
+        #expect(l.safetyNote != nil)
+        #expect(l.statusTint == Theme.Colors.error)
+    }
+
+    @MainActor
+    @Test("Level copy contains no advisory, evaluative or congratulatory language")
+    func copyIsFactual() {
+        let banned = ["consider", "you should", "keep up", "great", "excellent",
+                      "optimal", "sweet spot", "make sure", "don't forget",
+                      "monitor for", "consult", "contact your", "well done"]
+        var samples: [String] = []
+        for source: RangeSource in [.userSet, .modelDerived] {
+            for status: LevelStatus in [.criticallyLow, .veryLow, .slightlyBelow,
+                                        .inRange, .slightlyAbove, .high] {
+                for phase: MedicationManager.CyclePosition in [.trough, .nearPeak, .midCycle, .unknown] {
+                    let l = level(status: status, source: source, phase: phase)
+                    samples.append(l.summaryText)
+                    if let pill = l.statusPillText { samples.append(pill) }
+                }
+            }
+        }
+        for sample in samples {
+            for phrase in banned {
+                #expect(!sample.lowercased().contains(phrase),
+                        "copy contains \"\(phrase)\": \(sample)")
+            }
+        }
     }
 }
 
@@ -1498,8 +1783,7 @@ struct TestosteronePeakAccuracyTests {
     @MainActor
     @Test("TE 100mg produces clinically plausible peak ~600–900 ng/dL")
     func teSingleDosePeak() {
-        let mgr = MedicationManager()
-        mgr.clearSelection()
+        let mgr = TestDefaults.manager()
         mgr.selectedMedication = "Testosterone"
         mgr.selectedAdministrationMethod = "Injectable"
         mgr.antiAndrogenInUse = false
@@ -1517,6 +1801,11 @@ struct TestosteronePeakAccuracyTests {
         // TE's scaling constant was corrected 2026-07-31 from 923 to 457.67 by the
         // clearance identity; on the old value this same scenario read ~1160 ng/dL.
         // 100 mg weekly is a standard regimen and should land mid-band, not near the top.
+        //
+        // The 2026-08-02 shape refit moved S again (457.67 → 107.98) but deliberately
+        // did NOT move this scenario's magnitude: S and ke changed together, and Cavg
+        // depends only on their ratio. The peak drops slightly (750 → 703 exogenous)
+        // because the curve is now flatter within the interval, not lower overall.
         let maxLevel = points.map(\.value).max() ?? 0
         #expect(maxLevel > 400 && maxLevel < 900,
                 "TE 100mg q7d projected peak should be 400-900 ng/dL, got \(maxLevel)")
@@ -1525,8 +1814,7 @@ struct TestosteronePeakAccuracyTests {
     @MainActor
     @Test("TP 50mg produces clinically plausible peak ~800–1200 ng/dL")
     func tpSingleDosePeak() {
-        let mgr = MedicationManager()
-        mgr.clearSelection()
+        let mgr = TestDefaults.manager()
         mgr.selectedMedication = "Testosterone"
         mgr.selectedAdministrationMethod = "Injectable"
         mgr.antiAndrogenInUse = false
@@ -1553,8 +1841,7 @@ struct TestosteronePeakAccuracyTests {
     @MainActor
     @Test("TU 1000mg produces a non-trivial, clinically plausible peak (not ~13 ng/dL)")
     func tuSingleDosePeak() {
-        let mgr = MedicationManager()
-        mgr.clearSelection()
+        let mgr = TestDefaults.manager()
         mgr.selectedMedication = "Testosterone"
         mgr.selectedAdministrationMethod = "Injectable"
         mgr.antiAndrogenInUse = false
@@ -1570,16 +1857,22 @@ struct TestosteronePeakAccuracyTests {
         let points = mgr.estimatedLevels(from: now, to: now.addingTimeInterval(21 * 86400),
                                           stepDays: 0.5, applyCalibration: false)
         let maxLevel = points.map(\.value).max() ?? 0
-        // OPEN_CONCERNS.md §4: TU needs a 3-parameter model. The 2-parameter Bateman
-        // overstates the peak/trough ratio (~11× observed vs. ~2-3× real). The peak
-        // amplitude is roughly consistent with Wang et al. 2010 (~1100 ng/dL for 1000mg IM);
-        // the range below is a plausibility check, not a calibration target.
+        // The peak amplitude is roughly consistent with Wang et al. 2010 (~1100 ng/dL
+        // for 1000mg IM); the range below is a plausibility check, not a calibration
+        // target.
         //
         // Two 2026-07-31 changes pull in opposite directions here and roughly cancel:
         // S rose 214 → 457.67 (clearance identity), while the forward projection moved
         // from weekly to the ester's real 10-week interval. Net effect on this scenario
-        // is ~1190 ng/dL, against ~1050 before. Had only the first landed it would read
+        // was ~1190 ng/dL, against ~1050 before. Had only the first landed it would read
         // ~2850, which is why `typicalIntervalDays` exists.
+        //
+        // The 2026-08-02 shape refit then moved the peak to ~944 ng/dL and, more to the
+        // point, moved *when* it arrives: day 7 rather than day 0.66. This 21-day window
+        // now genuinely brackets the peak instead of catching the tail of a curve that
+        // had already turned over. The former comment here cited OPEN_CONCERNS.md §4's
+        // claim that TU "needs a 3-parameter model"; that claim was withdrawn — see §4a
+        // for what is actually still open (a half-life source conflict, not compartments).
         #expect(maxLevel > 800 && maxLevel < 2000,
                 "TU 1000mg peak should be in the plausible range 800–2000 ng/dL, got \(maxLevel)")
     }
@@ -1596,8 +1889,7 @@ struct RouteDoseResponseTests {
     @MainActor
     @Test("Oral E2 2mg produces a real, dose-responsive peak (not <1 pg/mL)")
     func oralProducesRealPeak() {
-        let mgr = MedicationManager()
-        mgr.clearSelection()
+        let mgr = TestDefaults.manager()
         mgr.selectedMedication = "Estrogen"
         mgr.selectedAdministrationMethod = "Oral"
         mgr.antiAndrogenInUse = false
@@ -1621,8 +1913,7 @@ struct RouteDoseResponseTests {
     @MainActor
     @Test("Transdermal E2 1mg/day produces a real, dose-responsive steady level (not <1 pg/mL)")
     func transdermalProducesRealLevel() {
-        let mgr = MedicationManager()
-        mgr.clearSelection()
+        let mgr = TestDefaults.manager()
         mgr.selectedMedication = "Estrogen"
         mgr.selectedAdministrationMethod = "Cream"
         mgr.antiAndrogenInUse = false
@@ -1658,8 +1949,7 @@ struct SkippedDoseExclusionTests {
     @MainActor
     @Test("A skipped dose contributes nothing to predicted levels")
     func skippedDoseContributesNothing() {
-        let mgr = MedicationManager()
-        mgr.clearSelection()
+        let mgr = TestDefaults.manager()
         mgr.selectedMedication = "Testosterone"
         mgr.selectedAdministrationMethod = "Injectable"
         mgr.antiAndrogenInUse = false
@@ -1704,8 +1994,7 @@ struct RouteSwitchConsistencyTests {
     @MainActor
     @Test("An oral dose retains oral-scale kinetics even after switching the app's selected route to Injectable")
     func oralDoseUnaffectedByLaterRouteSwitch() {
-        let mgr = MedicationManager()
-        mgr.clearSelection()
+        let mgr = TestDefaults.manager()
         mgr.selectedMedication = "Estrogen"
         mgr.antiAndrogenInUse = false
         mgr.hrtStartDate = Calendar.current.date(byAdding: .year, value: -3, to: Date())
@@ -1748,8 +2037,7 @@ struct ChartWindowSkippedDoseTests {
     @MainActor
     @Test("A skipped dose does not stretch the chart's date window")
     func skippedDoseDoesNotStretchWindow() {
-        let mgr = MedicationManager()
-        mgr.clearSelection()
+        let mgr = TestDefaults.manager()
         mgr.selectedMedication = "Estrogen"
         // Non-injectable route: the injectable branch of refreshState() hard-codes
         // its own window, so it never consults the dose list at all.
@@ -1789,7 +2077,5 @@ struct ChartWindowSkippedDoseTests {
                 "A skipped dose should not move the chart's window start: without=\(startA), with=\(startB)")
         #expect(withoutSkip.count == withSkip.count,
                 "A skipped dose should not change the number of plotted points: without=\(withoutSkip.count), with=\(withSkip.count)")
-
-        mgr.clearSelection()
     }
 }

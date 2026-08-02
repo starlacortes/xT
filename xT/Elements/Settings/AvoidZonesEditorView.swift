@@ -157,9 +157,11 @@ struct AvoidZoneRow: View {
 
 // MARK: - Preview
 
+#if DEBUG
 #Preview {
     NavigationStack {
         AvoidZonesEditorView()
             .environment(\.medicationManager, MedicationManager.shared)
     }
 }
+#endif

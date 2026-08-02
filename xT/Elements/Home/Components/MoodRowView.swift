@@ -66,6 +66,7 @@ struct MoodRowView: View {
     }
 }
 
+#if DEBUG
 #Preview {
     MoodRowView()
         .environment(\.journalManager, JournalManager.shared)
@@ -73,3 +74,4 @@ struct MoodRowView: View {
         .padding()
         .background(Theme.Colors.glassTint)
 }
+#endif

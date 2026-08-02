@@ -50,7 +50,7 @@ struct AdherenceView: View {
             }
         }
         .scrollIndicators(.hidden)
-        .navigationTitle("")
+        .navigationTitle(Text(verbatim: ""))
         .navigationBarTitleDisplayMode(.inline)
         .background(Color(.systemBackground))
     }
@@ -104,8 +104,6 @@ struct AdherenceView: View {
                 .tracking(0.5)
 
             let rate = medicationManager.adherenceRate ?? 0
-            let isExcellent = rate >= 0.9
-            let isGood = rate >= 0.75
 
             ZStack {
                 // Background ring
@@ -113,40 +111,23 @@ struct AdherenceView: View {
                     .stroke(Color.primary.opacity(0.08), lineWidth: 10)
                     .frame(width: 140, height: 140)
 
-                // Progress ring
+                // Progress ring. A red-to-green sweep would grade the user's
+                // consistency; the ring just shows how much of the month is filled.
                 Circle()
                     .trim(from: 0, to: CGFloat(rate))
                     .stroke(
-                        AngularGradient(
-                            colors: [
-                                Theme.Colors.error,
-                                Theme.Colors.warning,
-                                Theme.Colors.success,
-                                Theme.Colors.accent
-                            ],
-                            center: .center,
-                            startAngle: .degrees(-90),
-                            endAngle: .degrees(270)
-                        ),
+                        Theme.Colors.accent,
                         style: StrokeStyle(lineWidth: 10, lineCap: .round)
                     )
                     .frame(width: 140, height: 140)
                     .rotationEffect(.degrees(-90))
                     .animation(.easeInOut(duration: 1.0), value: rate)
 
-                // Center text
-                VStack(spacing: 2) {
-                    Text("\(Int(rate * 100))%")
-                        .font(.system(size: 32, weight: .bold, design: .rounded))
-                        .foregroundStyle(.primary)
-                    Text(isExcellent ? "Excellent" : isGood ? "Good" : "Needs work")
-                        .font(Theme.Fonts.caption2)
-                        .foregroundStyle(
-                            isExcellent ? Theme.Colors.success :
-                            isGood ? Theme.Colors.warning :
-                            Theme.Colors.error
-                        )
-                }
+                // The percentage stands on its own. A word grading it ("Excellent",
+                // "Needs work") would be the app passing judgement on the user.
+                Text(verbatim: "\(AppNumberFormatters.percent.string(rate * 100))%")
+                    .font(.system(size: 32, weight: .bold, design: .rounded))
+                    .foregroundStyle(.primary)
             }
 
             // Detail text
@@ -159,7 +140,7 @@ struct AdherenceView: View {
             let intervalDays = dosingIntervalDays
             let scheduledCount = max(1, Int(ceil(30.0 / Double(intervalDays))))
 
-            Text("\(takenCount) of \(scheduledCount) scheduled doses taken")
+            Text("\(takenCount) of \(scheduledCount) scheduled doses recorded")
                 .font(Theme.Fonts.caption)
                 .foregroundStyle(.secondary)
         }
@@ -176,38 +157,37 @@ struct AdherenceView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                // A flame and the word "streak" turn a schedule into a score to
+                // protect. It is a count of consecutive on-schedule doses; that is
+                // what it now says, in the same neutral treatment as its neighbours.
                 statCard(
-                    icon: "flame.fill",
-                    iconColor: Theme.Colors.warning,
+                    icon: "checkmark.circle",
+                    iconColor: Theme.Colors.Time.mind.base,
                     value: "\(medicationManager.onTimeStreak)",
-                    label: "On-time streak",
-                    subtitle: "Consecutive doses"
+                    label: "Consecutive on-schedule doses"
                 )
 
                 statCard(
-                    icon: "calendar.badge.exclamationmark",
-                    iconColor: medicationManager.hasMissedDose ? Theme.Colors.error : Theme.Colors.success,
+                    icon: "calendar",
+                    iconColor: Theme.Colors.Time.body.base,
                     value: medicationManager.hasMissedDose
                         ? (medicationManager.daysSinceMissedDose.map { "\($0)d" } ?? "—")
                         : "0",
-                    label: "Since missed",
-                    subtitle: medicationManager.hasMissedDose ? "Days overdue" : "On schedule"
+                    label: "Since a missed dose"
                 )
 
                 statCard(
                     icon: "clock.arrow.circlepath",
                     iconColor: Theme.Colors.Time.mind.base,
                     value: "\(medicationManager.monthsOnHRT)",
-                    label: "Months on HRT",
-                    subtitle: "Since start date"
+                    label: "Months on HRT"
                 )
 
                 statCard(
                     icon: "syringe.fill",
                     iconColor: Theme.Colors.Time.body.base,
                     value: "\(medicationManager.doseHistory.filter { $0.isActive && DoseStatus(rawValue: $0.doseStatus) == .taken }.count)",
-                    label: "Total doses",
-                    subtitle: "Lifetime recorded"
+                    label: "Doses recorded"
                 )
             }
         }
@@ -276,7 +256,7 @@ struct AdherenceView: View {
                 Text("·")
                     .foregroundStyle(.secondary)
 
-                Text("\(String(format: "%.1f", segment.doseAmount)) mg")
+                Text("\(AppNumberFormatters.dose.string(segment.doseAmount)) mg")
                     .font(Theme.Fonts.callout)
                     .foregroundStyle(.primary)
             }
@@ -290,7 +270,7 @@ struct AdherenceView: View {
                 if let conc = segment.concentrationMgPerMl {
                     Text("·")
                         .foregroundStyle(.secondary)
-                    Text("@ \(String(format: "%.0f", conc)) mg/mL")
+                    Text("@ \(AppNumberFormatters.concentration.string(conc)) mg/mL")
                         .font(Theme.Fonts.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -303,7 +283,7 @@ struct AdherenceView: View {
                 HStack(spacing: 4) {
                     Image(systemName: currConc > prevConc ? "arrow.up" : "arrow.down")
                         .font(.system(size: 9))
-                    Text("Concentration changed from \(String(format: "%.0f", prevConc)) → \(String(format: "%.0f", currConc)) mg/mL")
+                    Text("Concentration changed from \(AppNumberFormatters.concentration.string(prevConc)) to \(AppNumberFormatters.concentration.string(currConc)) mg/mL")
                         .font(.system(size: 10))
                 }
                 .foregroundStyle(Theme.Colors.warning)
@@ -369,21 +349,17 @@ struct AdherenceView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                // Current value
-                HStack {
-                    Text("\(String(format: "%.2f", intensity))× standard dose")
-                        .font(Theme.Fonts.footnote)
-                        .fontWeight(.medium)
-                        .foregroundStyle(.primary)
-
-                    Text(intensityLabel(intensity))
-                        .font(Theme.Fonts.caption)
-                        .foregroundStyle(intensityColor(intensity))
-                }
-                .padding(.top, 4)
+                // Current value. The multiplier is the fact; a band label on top of
+                // it ("Below standard", "High") only grades the user's regimen.
+                Text("\(AppNumberFormatters.multiplier.string(intensity))× reference dose")
+                    .font(Theme.Fonts.footnote)
+                    .fontWeight(.medium)
+                    .foregroundStyle(.primary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 4)
 
                 // Disclaimer
-                if let disclaimer = medicationManager.doseIntensityDisclaimer {
+                if let disclaimer = medicationManager.doseIntensityNote {
                     Text(disclaimer)
                         .font(Theme.Fonts.micro)
                         .foregroundStyle(.secondary)
@@ -401,8 +377,10 @@ struct AdherenceView: View {
 
     // MARK: - Helpers
 
+    /// `subtitle` is optional: several stats had one that only restated the label
+    /// ("Total doses" / "Lifetime recorded"), which is noise at a glance.
     private func statCard(icon: String, iconColor: Color, value: String,
-                          label: String, subtitle: String) -> some View {
+                          label: String, subtitle: String? = nil) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
                 Image(systemName: icon)
@@ -419,9 +397,11 @@ struct AdherenceView: View {
                 .fontWeight(.medium)
                 .foregroundStyle(.primary)
 
-            Text(subtitle)
-                .font(.system(size: 10))
-                .foregroundStyle(.secondary)
+            if let subtitle {
+                Text(subtitle)
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
@@ -441,25 +421,16 @@ struct AdherenceView: View {
     }
 
     private func dateRangeLabel(from start: Date, to end: Date?) -> String {
-        let df = DateFormatter()
-        df.dateFormat = "MMM d, yyyy"
-        let startStr = df.string(from: start)
-        let endStr = end.map { df.string(from: $0) } ?? "Present"
+        let startStr = AppDateFormatters.monthDayYear.string(from: start)
+        let endStr = end.map { AppDateFormatters.monthDayYear.string(from: $0) }
+            ?? String(localized: "Present", comment: "End of a date range that has not ended yet")
         return "\(startStr) – \(endStr)"
     }
 
+    /// The bar is a scale, not a verdict — a single neutral fill, with the marker
+    /// at 1.0 showing where the reference dose sits.
     private func intensityColor(_ intensity: Double) -> Color {
-        if intensity < 0.5 { return Theme.Colors.Time.mind.base }
-        if intensity > 1.5 { return Theme.Colors.warning }
-        return Theme.Colors.success
-    }
-
-    private func intensityLabel(_ intensity: Double) -> String {
-        if intensity < 0.5 { return "Low" }
-        if intensity < 0.8 { return "Below standard" }
-        if intensity <= 1.2 { return "Standard" }
-        if intensity <= 1.5 { return "Above standard" }
-        return "High"
+        Theme.Colors.accent
     }
 
     private func sectionDivider() -> some View {
@@ -469,6 +440,7 @@ struct AdherenceView: View {
 
 // MARK: - Preview
 
+#if DEBUG
 #Preview {
     SpoofPreview {
         NavigationStack {
@@ -478,3 +450,4 @@ struct AdherenceView: View {
         }
     }
 }
+#endif
