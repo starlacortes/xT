@@ -64,42 +64,30 @@ extension MedicationManager {
         guard !suppressRefresh else { return }
 
         currentHormoneLevel = getCurrentHormoneLevel()
-        let now = Date()
-        // Size the chart's date window from the same doses that actually contribute to the
-        // computed levels, so a skipped/pending dose can't stretch the x-axis into a window
-        // containing no plotted contribution. Matches the `.taken`-only filter used by
-        // `estimatedLevels`. See xTTests/PharmacokineticTests.swift
+
+        // The window is sized from the ester actually being plotted and anchored on
+        // `now`. See `PKChartWindow` for the rule; `chartWindow()` resolves the effective
+        // ester and gates its t_max on `isTmaxCalibrated`.
+        //
+        // This replaces a window that was anchored on the dose history and branched on
+        // the manager's *globally selected* route. That branch is what let the default
+        // 1-day step land on the 1-day oral dosing interval, sampling every point at the
+        // same phase of the cycle and flattening the oral curve to a line.
+        //
+        // Anchoring on `now` also makes the skipped-dose guarantee structural instead of
+        // incidental: a dose that contributes nothing to the curve cannot stretch the
+        // x-axis, because no dose positions it at all. See xTTests/PharmacokineticTests.swift
         // "A skipped dose does not stretch the chart's date window".
-        let activeDoses = doseHistory.filter { $0.isActive && $0.medicationType == selectedMedication && DoseStatus(rawValue: $0.doseStatus) == .taken }
+        //
+        // Accepted consequence: markers leave the visible range for part of a cycle, in
+        // both directions. On TU (70-day interval, 10.5-day window) a dose taken five
+        // days ago is already off the left edge mid-cycle, and the next dose sits off the
+        // right edge for most of the interval. That is the window being honest about its
+        // timescale, not a positioning bug.
+        let window = chartWindow()
+        recentLevels = estimatedLevels(from: window.start, to: window.end,
+                                       stepDays: window.stepDays)
 
-        var start: Date
-        var end: Date
-
-        if activeDoses.count <= 1, let last = lastDoseDate {
-            let freqDays: Int = {
-                if let custom = customFrequencyDays, custom > 0 { return custom }
-                if let methodStr = selectedAdministrationMethod,
-                   let method = AdministrationMethod(rawValue: methodStr) { return method.frequencyDays }
-                return 7
-            }()
-            start = Calendar.current.date(byAdding: .day, value: -max(3, Int(Double(freqDays) * 0.5)), to: last) ?? now
-            end = max(now, Calendar.current.date(byAdding: .day, value: Int(Double(freqDays) * 1.5), to: last) ?? now)
-        } else {
-            end = now
-            start = Calendar.current.date(byAdding: .day, value: -7, to: end) ?? end
-        }
-
-        let isInjectable = AdministrationMethod(rawValue: selectedAdministrationMethod ?? "") == .injectable
-        if isInjectable {
-            end = now
-            start = Calendar.current.date(byAdding: .day, value: -1, to: end) ?? end
-            end = Calendar.current.date(byAdding: .day, value: 2, to: end) ?? end
-            let halfLife = currentEster?.halfLifeDays ?? 5.0
-            let step = max(2.0 / 24.0, halfLife / 30.0)
-            recentLevels = estimatedLevels(from: start, to: end, stepDays: step)
-        } else {
-            recentLevels = estimatedLevels(from: start, to: end)
-        }
         recomputeRegimenHistory()
         recomputeAdherenceRate()
         recomputeOnTimeStreak()
@@ -669,20 +657,9 @@ extension MedicationManager {
                 // was projected forward as weekly 1000 mg injections, roughly 2.4× the
                 // level a correctly-spaced regimen reaches. Ask the ester instead; it is
                 // the thing that determines a sane interval. See `typicalIntervalDays`.
-                let freqDays: Int = {
-                    if let custom = customFrequencyDays, custom > 0 { return custom }
-                    let effEster = Self.effectiveEsterName(ester: refEster, route: refRoute)
-                    if medication == "Estrogen", let e = MedicationEster(rawValue: effEster) {
-                        return e.typicalIntervalDays
-                    }
-                    if medication == "Testosterone", let e = TestosteroneEster(rawValue: effEster) {
-                        return e.typicalIntervalDays
-                    }
-                    if let method = AdministrationMethod(rawValue: refRoute) {
-                        return method.frequencyDays
-                    }
-                    return 7
-                }()
+                let freqDays = effectivePKIntervalDays(ester: refEster,
+                                                       route: refRoute,
+                                                       medication: medication)
 
                 let lookaheadLimit = calendar.date(byAdding: .day, value: 90, to: end) ?? end
                 let now = Date()
