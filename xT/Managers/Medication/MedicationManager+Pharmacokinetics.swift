@@ -614,9 +614,21 @@ extension MedicationManager {
                                                              amount: effAmount))
             }
 
-            // When dose history is sparse (1 active dose — fresh onboarding),
-            // generate synthetic FORWARD-only doses so the chart can preview the
+            // Generate synthetic FORWARD-only doses so the chart can preview the
             // user's projected trajectory if they stay on schedule.
+            //
+            // This used to be gated on `activeDoses.count == 1` (fresh onboarding),
+            // which meant an established user got no forward projection at all: past
+            // the next scheduled dose the curve fell away into a washout that isn't
+            // going to happen. That was invisible while the chart window ended ~2 days
+            // out and injectables dose weekly, but the ester-aware window (see
+            // `PKChartWindow`) extends 2W/3 into the future, and daily oral/cream
+            // regimens cross their next dose well inside it — roughly 18% of the
+            // window at a typical phase, up to ~33% depending on time of day. The
+            // guard now only requires that at least one real dose exists to project
+            // from; the reference is the MOST RECENT one, so the projection follows
+            // the regimen the user is actually on rather than whatever they logged
+            // first.
             //
             // QA fix (2026-07-28): this used to ALSO backfill synthetic doses
             // BACKWARD up to 90 days before the user's one real dose, at full
@@ -640,16 +652,17 @@ extension MedicationManager {
             // distort "now", and it lets the chart preview an upcoming
             // trajectory the user hasn't actually experienced yet — which is
             // clearly labeled as projection, unlike fabricated history.
-            if activeDoses.count == 1 {
-                let latestReal = activeDoses.map(\.doseDate).max() ?? start
-                let refDose = activeDoses.first
-                let effAmount = refDose.map { $0.doseAmount * dosePotencyFactor(for: $0) } ?? (baseLevel * 0.5)
-                let refEster = refDose?.ester ?? defaultEsterName
+            if let refDose = activeDoses.last {
+                // `activeDoses` is sorted ascending, so `.last` is both the most recent
+                // dose and the anchor the projection cadence counts forward from.
+                let latestReal = refDose.doseDate
+                let effAmount = refDose.doseAmount * dosePotencyFactor(for: refDose)
+                let refEster = refDose.ester
                 // Project on the reference dose's OWN route. Previously this gated on
                 // `isInjectable` (the manager's global selection) and otherwise emitted
                 // an unscaled single-exponential, so oral and transdermal users got a
                 // projected trajectory that was effectively flat at baseline.
-                let refRoute = refDose?.administrationMethod ?? methodStr
+                let refRoute = refDose.administrationMethod
 
                 // Projection interval. A user-set frequency always wins. Failing that,
                 // this used to fall straight to `AdministrationMethod.frequencyDays`,

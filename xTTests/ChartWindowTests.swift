@@ -331,3 +331,139 @@ struct OralChartAliasingTests {
                 "the rendered oral curve should not be flat, got \(hi / lo)× across \(values.count) points")
     }
 }
+
+// MARK: - Forward projection
+
+@Suite("Chart window — an established regimen projects forward")
+struct ForwardProjectionTests {
+
+    /// Was: `estimatedLevels` only synthesised forward doses when exactly ONE dose was
+    /// logged, so an established user's curve simply decayed once the last real dose
+    /// wore off. Nothing in the model says they are about to stop; the washout is an
+    /// artifact of the projection guard.
+    ///
+    /// It stayed invisible while the chart ended ~2 days out and injectables dose
+    /// weekly. The ester-aware window puts 2W/3 in the future, and a daily regimen
+    /// crosses its next scheduled dose well inside that — so the artifact became a
+    /// visible slide toward baseline over the last chunk of the chart.
+    ///
+    /// Asserted as *non-monotonicity* of the forward region rather than a level: with
+    /// the projection missing, every point after the last real dose is absorbed is
+    /// strictly lower than the one before it, and no threshold has to be guessed.
+    @MainActor
+    ///
+    /// `lastDoseDaysAgo` is chosen per ester so the next scheduled dose lands strictly
+    /// inside the forward region and not on either edge of it. Spacing the history at
+    /// exact multiples of the interval instead puts that dose at exactly `now`, where
+    /// the projection loop's `cursor > now` guard rightly declines to emit a dose the
+    /// user has not taken yet — and for EV the following one is already past the
+    /// window's 2.1-day forward extent.
+    @Test("The forward region rises again at the next scheduled dose",
+          arguments: [("Estrogen", MedicationEster.oral.rawValue, "Oral", 2.0, 1, 0.6),
+                      ("Estrogen", MedicationEster.valerate.rawValue, "Injectable", 4.0, 7, 5.5),
+                      ("Estrogen", MedicationEster.transdermal.rawValue, "Cream", 3.0, 1, 0.6)])
+    func forwardRegionIsNotAWashout(medication: String, ester: String,
+                                    route: String, dose: Double, intervalDays: Int,
+                                    lastDoseDaysAgo: Double) {
+        let mgr = TestDefaults.manager()
+        mgr.selectedMedication = medication
+        mgr.selectedAdministrationMethod = route
+        mgr.customFrequencyDays = nil
+        mgr.hrtStartDate = Calendar.current.date(byAdding: .year, value: -3, to: Date())
+        mgr.bloodTestHistory = []
+
+        // Six on-schedule doses, the most recent `lastDoseDaysAgo` back, so the next one
+        // is due partway into the window's forward region.
+        let now = Date()
+        let doses = (0..<6).reversed().map { k in
+            let daysAgo = lastDoseDaysAgo + Double(k * intervalDays)
+            return DoseRecord(doseDate: now.addingTimeInterval(-daysAgo * 86400.0),
+                              medicationType: medication, ester: ester,
+                              administrationMethod: route, doseAmount: dose, doseStatus: .taken)
+        }
+        mgr.doseHistory = doses
+        mgr.lastDoseDate = doses.last?.doseDate
+
+        let window = mgr.chartWindow(now: now)
+        let points = mgr.estimatedLevels(from: window.start, to: window.end,
+                                         stepDays: window.stepDays, applyCalibration: false)
+        let forward = points.filter { $0.date > now }.map(\.value)
+
+        #expect(forward.count > 4,
+                "\(ester) needs a forward region to test, got \(forward.count) points")
+
+        let rises = zip(forward, forward.dropFirst()).contains { $0 < $1 * 0.999 }
+        #expect(rises,
+                "\(ester) forward region only ever falls (\(forward.first ?? 0) → \(forward.last ?? 0)) — the next dose is not being projected")
+    }
+
+    /// The projection anchors on the MOST RECENT dose, not the oldest. `activeDoses` is
+    /// sorted ascending and the old code read `.first`, which was harmless only because
+    /// the branch required a count of exactly one. With the guard relaxed, reading the
+    /// wrong end would project a user's long-abandoned starting dose forever.
+    ///
+    /// Both histories share an ancient dose that has fully washed out, so any difference
+    /// in the forward peak comes from which dose the projection copied.
+    @MainActor
+    @Test("The projection copies the most recent dose, not the first")
+    func projectionFollowsTheLatestDose() {
+        func forwardPeak(oldAmount: Double, recentAmount: Double) -> Double {
+            let mgr = TestDefaults.manager()
+            mgr.selectedMedication = "Estrogen"
+            mgr.selectedAdministrationMethod = "Oral"
+            mgr.customFrequencyDays = nil
+            mgr.hrtStartDate = Calendar.current.date(byAdding: .year, value: -3, to: Date())
+            mgr.bloodTestHistory = []
+
+            let now = Date()
+            func makeDose(_ daysAgo: Double, _ amount: Double) -> DoseRecord {
+                DoseRecord(doseDate: now.addingTimeInterval(-daysAgo * 86400.0),
+                           medicationType: "Estrogen", ester: MedicationEster.oral.rawValue,
+                           administrationMethod: "Oral", doseAmount: amount, doseStatus: .taken)
+            }
+            mgr.doseHistory = [makeDose(30, oldAmount), makeDose(1, recentAmount)]
+            mgr.lastDoseDate = mgr.doseHistory.last?.doseDate
+
+            let window = mgr.chartWindow(now: now)
+            let points = mgr.estimatedLevels(from: window.start, to: window.end,
+                                             stepDays: window.stepDays, applyCalibration: false)
+            return points.filter { $0.date > now }.map(\.value).max() ?? 0
+        }
+
+        let steppedUp = forwardPeak(oldAmount: 1.0, recentAmount: 6.0)
+        let steppedDown = forwardPeak(oldAmount: 6.0, recentAmount: 1.0)
+
+        #expect(steppedUp > steppedDown,
+                "projecting from the latest dose should put the 6 mg regimen above the 1 mg one, got \(steppedUp) vs \(steppedDown)")
+    }
+
+    /// A history of nothing but skipped doses must not synthesise a regimen out of
+    /// thin air — the relaxed guard is `activeDoses.last`, so an empty filtered list
+    /// still projects nothing.
+    @MainActor
+    @Test("Skipped-only history projects nothing")
+    func skippedOnlyHistoryProjectsNothing() {
+        let mgr = TestDefaults.manager()
+        mgr.selectedMedication = "Estrogen"
+        mgr.selectedAdministrationMethod = "Injectable"
+        mgr.customFrequencyDays = nil
+        mgr.hrtStartDate = Calendar.current.date(byAdding: .year, value: -3, to: Date())
+        mgr.bloodTestHistory = []
+
+        let now = Date()
+        mgr.doseHistory = (1...3).reversed().map { n in
+            DoseRecord(doseDate: now.addingTimeInterval(-Double(n * 7) * 86400.0),
+                       medicationType: "Estrogen", ester: MedicationEster.valerate.rawValue,
+                       administrationMethod: "Injectable", doseAmount: 4.0, doseStatus: .skipped)
+        }
+        mgr.lastDoseDate = mgr.doseHistory.last?.doseDate
+
+        let window = mgr.chartWindow(now: now)
+        let points = mgr.estimatedLevels(from: window.start, to: window.end,
+                                         stepDays: window.stepDays, applyCalibration: false)
+        let forward = points.filter { $0.date > now }.map(\.value)
+        let rises = zip(forward, forward.dropFirst()).contains { $0 < $1 * 0.999 }
+
+        #expect(!rises, "no dose was ever taken, so nothing should be projected forward")
+    }
+}
