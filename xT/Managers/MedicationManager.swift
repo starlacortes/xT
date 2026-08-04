@@ -544,6 +544,15 @@ class MedicationManager: ObservableObject {
         modelContext?.insert(record)
         try? modelContext?.save()
     }
+
+    /// Removes a screening record, symmetric with `removeBloodTest(withId:)`.
+    func removeScreening(withId id: String) {
+        if let index = screeningRecords.firstIndex(where: { $0.id == id }) {
+            modelContext?.delete(screeningRecords[index])
+            screeningRecords.remove(at: index)
+            try? modelContext?.save()
+        }
+    }
     // MARK: - Dose Deletion
 
     func softDeleteDose(id: String) {

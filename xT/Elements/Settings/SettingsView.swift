@@ -337,6 +337,20 @@ struct SettingsView: View {
                 )
             }
             .buttonStyle(.plain)
+
+            settingsDivider()
+
+            NavigationLink(destination: ScreeningHistoryView()) {
+                settingsRowContent(
+                    icon: "heart.text.square",
+                    iconBg: Theme.Colors.Time.mind.surface,
+                    iconColor: Theme.Colors.Time.mind.base,
+                    title: "Screenings",
+                    subtitle: screeningHistorySubtitle,
+                    trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(.secondary) }
+                )
+            }
+            .buttonStyle(.plain)
         }
     }
 
@@ -772,6 +786,13 @@ struct SettingsView: View {
         if count == 0 { return "No blood tests logged yet" }
         return String(localized: "^[\(count) blood test](inflect: true) logged",
                       comment: "Settings row subtitle counting logged blood tests")
+    }
+
+    private var screeningHistorySubtitle: String {
+        let count = medicationManager.screeningRecords.count
+        if count == 0 { return "No screenings logged yet" }
+        return String(localized: "^[\(count) screening](inflect: true) logged",
+                      comment: "Settings row subtitle counting logged health screenings")
     }
 
     private var avoidZonesSubtitle: String {

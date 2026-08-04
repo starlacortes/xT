@@ -190,4 +190,148 @@ enum TimeBodyRegions {
         BodyRegionCallout(key: "glutes", xFrac: 0.13, yFrac: 0.78),
         BodyRegionCallout(key: "chest",  xFrac: 0.15, yFrac: 0.38),
     ]
+
+    // MARK: - Mind (Testosterone)
+
+    /// Same region keys as `mindRegions` (`pfc`, `hippocampus`, `amygdala`,
+    /// `synaptic`) so the brain point-cloud's geometric tagging in
+    /// `ConstellationCloud.brain(months:)` — which assigns a region by position,
+    /// not by medication — keeps working unmodified.
+    static let mindRegionsT: [BodyRegion] = [
+        BodyRegion(
+            key: "pfc",
+            label: "Prefrontal Cortex",
+            icon: "brain.head.profile",
+            startMonth: 1, peakMonth: 12, completeMonth: 24,
+            earlyText: "Androgen receptors in the prefrontal cortex begin responding to rising testosterone. Some report an early shift toward more direct, decisive thinking — though these first weeks are also when levels are least stable dose to dose, so day-to-day variation is normal.",
+            midText: "Testosterone and its metabolite DHT continue modulating PFC circuits involved in risk assessment and executive control. Verbal fluency patterns can shift, and many describe a more linear thought process alongside growing decisiveness.",
+            lateText: "PFC function has adapted to the androgen-dominant environment. The shift toward more direct executive processing is typically stable by this point, reflecting a settled circuit rather than an ongoing change."
+        ),
+        BodyRegion(
+            key: "hippocampus",
+            label: "Hippocampus",
+            icon: "waveform.path.ecg",
+            startMonth: 1, peakMonth: 12, completeMonth: 24,
+            earlyText: "Testosterone acts on androgen receptors densely expressed in the hippocampus. Androgen-administration research links this to measurable gains in spatial navigation and mental rotation tasks, though individual variation is wide.",
+            midText: "Spatial memory and navigation performance are commonly reported to improve over this window, consistent with androgen-receptor-mediated support for hippocampal circuitry. Verbal memory shows less consistent change than the spatial gains.",
+            lateText: "Hippocampal adaptation to sustained testosterone is complete. Spatial-cognition benefits associated with androgen exposure are maintained for as long as levels stay in range."
+        ),
+        BodyRegion(
+            key: "amygdala",
+            label: "Amygdala",
+            icon: "heart.fill",
+            startMonth: 1, peakMonth: 9, completeMonth: 18,
+            earlyText: "Testosterone begins modulating amygdala reactivity to emotionally charged and threat-related stimuli. This is an active area of neuroendocrine research, and effects on emotional reactivity vary between individuals rather than following one fixed pattern.",
+            midText: "Functional imaging studies of exogenous testosterone report blunted amygdala response to distressing stimuli. Many trans masculine people describe feeling less easily moved to tears and more emotionally contained during this window — a commonly reported experience, not a guaranteed one.",
+            lateText: "Amygdala reactivity has recalibrated to the androgen-dominant hormonal environment. Where a shift toward a more contained emotional response occurred, it's typically stable from here."
+        ),
+        BodyRegion(
+            key: "synaptic",
+            label: "Synaptic Plasticity",
+            icon: "sparkles",
+            startMonth: 1, peakMonth: 12, completeMonth: 36,
+            earlyText: "Androgen receptor activation begins promoting dendritic spine formation in the hippocampus and cortex — a process distinct from, but analogous to, estrogen's effect on synaptic density. Testosterone can also be locally converted to estradiol via aromatase in some brain regions, adding a second signaling pathway.",
+            midText: "Spine density continues increasing in androgen-receptor-rich regions. The dual pathway — direct androgen receptor signaling plus local aromatization to estradiol — means testosterone's neural effects aren't purely androgenic; both signaling routes are active in the brain at once.",
+            lateText: "Synaptic architecture has stabilized under sustained testosterone exposure. The combined androgen and local-estrogen signaling that developed over the past several years is now the steady state your brain operates on."
+        ),
+    ]
+
+    // MARK: - Body (Testosterone)
+
+    /// Same region keys as `bodyRegions` (`chest`, `waist`, `hips`, `glutes`,
+    /// `thighs`) so `bodyRegionCallouts` and the y-band tagging in
+    /// `ConstellationCloud.body(months:)` keep working unmodified — only the
+    /// meaning attached to each key differs by medication.
+    static let bodyRegionsT: [BodyRegion] = [
+        BodyRegion(
+            key: "chest",
+            label: "Chest",
+            icon: "figure.strengthtraining.traditional",
+            startMonth: 3, peakMonth: 14, completeMonth: 30,
+            earlyText: "Androgen receptors in pectoral muscle begin responding to testosterone's anabolic signal, and 5\u{03B1}-reductase converts a share of testosterone to DHT in chest-wall hair follicles, priming them for terminal hair growth. Chest hair follows the same body-hair timeline as elsewhere — later than the legs and abdomen.",
+            midText: "Pectoral muscle mass is measurably increasing with resistance training, broadening the chest wall. DHT-driven chest hair is typically visible by now, in the same pattern developing on the abdomen and back.",
+            lateText: "Chest muscle development has largely matched its training stimulus by this point — further growth depends more on continued training than on additional time on T. Chest hair, where it develops, is fully in and permanent."
+        ),
+        BodyRegion(
+            key: "waist",
+            label: "Waist",
+            icon: "arrow.up.and.down",
+            startMonth: 3, peakMonth: 18, completeMonth: 36,
+            earlyText: "Testosterone shifts fat storage toward a more androgenic, abdomen-leaning pattern as visceral and subcutaneous fat distribution responds to androgen receptor signaling — the reverse of estrogen's hip-and-thigh-directed pattern. Core muscle definition can also begin increasing with resistance training.",
+            midText: "Waist composition continues shifting toward an androgenic pattern. Combined with broadening shoulders, this changes the overall silhouette even where absolute waist circumference doesn't move much.",
+            lateText: "Fat distribution has settled into its androgen-dominant pattern. From here, waist size tracks diet, training and age the way it does for anyone — testosterone's redistribution effect is complete."
+        ),
+        BodyRegion(
+            key: "hips",
+            label: "Hips",
+            icon: "figure.stand",
+            startMonth: 1, peakMonth: 14, completeMonth: 30,
+            earlyText: "Hip circumference doesn't meaningfully change on testosterone — bone structure is set by puberty, and androgens don't cause fat to redistribute away from the hips the way some expect. What does shift the visual proportion is above: broadening shoulders and fat redistributing toward the abdomen rather than away from the hips.",
+            midText: "As shoulders and chest continue broadening, the hip-to-shoulder ratio that defines silhouette keeps shifting even though the hips themselves are largely unchanged in circumference.",
+            lateText: "Hip proportions are stable and were never expected to change structurally. The masculinized silhouette at this point comes almost entirely from the shoulders, chest and fat redistribution above the waist."
+        ),
+        BodyRegion(
+            key: "glutes",
+            label: "Glutes",
+            icon: "oval.fill",
+            startMonth: 3, peakMonth: 18, completeMonth: 36,
+            earlyText: "Gluteal muscle responds to testosterone's anabolic signal the same way any skeletal muscle does — androgen receptor activation supports protein synthesis and hypertrophy with resistance training. Unlike hip fat, this is a muscle response, so training stimulus matters more here than time on T alone.",
+            midText: "With consistent resistance training, gluteal muscle mass is measurably increasing. Without training, testosterone alone produces comparatively little change in this region.",
+            lateText: "Gluteal muscle has typically matched its training stimulus by this stage. As with any muscle group, further change from here depends on continued training rather than additional time on hormone therapy."
+        ),
+        BodyRegion(
+            key: "thighs",
+            label: "Thighs",
+            icon: "figure.walk",
+            startMonth: 2, peakMonth: 14, completeMonth: 28,
+            earlyText: "Thigh muscle — quadriceps and hamstrings — responds to testosterone's anabolic effect on skeletal muscle, amplified by resistance or lower-body training. This is measurable within the first few months for many people.",
+            midText: "Thigh size from muscle growth is often the most visible lower-body change on T, particularly with squat- or leg-press-style training. Strength gains here frequently outpace upper-body gains early on.",
+            lateText: "Thigh muscle development has typically plateaued relative to training stimulus. Continued growth from here tracks progressive overload in training rather than time on testosterone."
+        ),
+    ]
+
+    // MARK: - Stats (Testosterone)
+
+    static func mindStatsT(months: Int) -> [(value: String, label: String, sub: String)] {
+        let m = Double(months)
+        let ar          = 1.0 + min(1.0, m / 12.0) * 0.55
+        let spatial     = 1.0 + min(1.0, m / 18.0) * 0.20
+        let reactivity  = max(0.55, 1.0 - min(1.0, m / 9.0) * 0.45)
+        return [
+            (String(format: "%.1fx", ar),         "AR Activation",       months >= 12 ? "Peak reached"  : "Rising"),
+            (String(format: "%.1fx", spatial),     "Spatial Cognition",  months >= 18 ? "Plateaued"      : "Rising"),
+            (String(format: "%.1fx", reactivity),  "Amygdala Reactivity", months >= 9  ? "Stabilized"    : "Declining"),
+        ]
+    }
+
+    static func bodyStatsT(months: Int) -> [(value: String, label: String, sub: String)] {
+        func pct(start: Int, complete: Int) -> Int {
+            guard months >= start else { return 0 }
+            if months >= complete { return 100 }
+            return Int(Double(months - start) / Double(complete - start) * 100)
+        }
+        return [
+            ("\(pct(start: 3, complete: 30))%",  "Chest",       months >= 30 ? "Established" : "Peak M14"),
+            ("\(pct(start: 3, complete: 36))%",  "Waist Shift", months >= 36 ? "Established" : "Peak M18"),
+            ("\(pct(start: 2, complete: 28))%",  "Thighs",      months >= 28 ? "Established" : "Peak M14"),
+        ]
+    }
+
+    // MARK: - Insights (Testosterone)
+
+    static func mindInsightT(months: Int) -> String {
+        if months < 3  { return "Androgen receptors across the hippocampus, amygdala, and prefrontal cortex are activating for the first time in this hormonal context. Levels are also still stabilizing dose to dose, so early cognitive and emotional shifts can feel inconsistent." }
+        if months < 12 { return "Testosterone is actively reshaping neural circuits tied to executive function, spatial cognition, and emotional reactivity. Many report feeling more direct and less prone to emotional flooding, alongside gains in spatial-task performance." }
+        if months < 36 { return "Amygdala reactivity to distressing stimuli has typically settled into its androgen-adapted pattern. Spatial-cognition gains associated with sustained testosterone exposure continue to be reflected in hippocampal function." }
+        if months < 60 { return "Neural adaptation to sustained testosterone is essentially complete. Cognitive and emotional patterns tied to androgen signaling are stable rather than still shifting." }
+        return String(localized: "Your brain's neural architecture has been androgen-adapted for years. The androgen receptor and local-aromatization signaling that shaped this adaptation continues to maintain it as an ongoing, active state.")
+    }
+
+    static func bodyInsightT(months: Int) -> String {
+        if months < 3  { return "Muscle and fat redistribution haven't meaningfully started yet. As testosterone rises, skeletal muscle will begin responding to androgen receptor signaling, and fat storage will gradually shift toward a more androgenic, abdomen-leaning pattern." }
+        if months < 12 { return "Early muscle growth is underway, especially in the upper body, and is amplified substantially by resistance training. Fat is beginning to redistribute away from a gynoid pattern toward an abdominal one." }
+        if months < 36 { return "This is typically the most active window for visible change — shoulders and chest are broadening, waist-to-hip proportion is shifting, and muscle mass is climbing measurably with training." }
+        if months < 60 { return "Muscle and fat-distribution changes are maturing. Further gains increasingly depend on training stimulus rather than additional time on testosterone." }
+        return String(localized: "Your body composition is fully adapted to sustained testosterone. The androgenic fat-distribution pattern and elevated baseline muscle mass are maintained for as long as levels stay in range — further change from here tracks training and age, not hormone tenure.")
+    }
 }

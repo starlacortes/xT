@@ -129,7 +129,6 @@ struct RegionDetailCard: View {
 // MARK: - Mood & Mind Detail View
 
 struct MoodMindDetailView: View {
-    let system: TimeBodySystem
     let engine: TimeContentEngine
 
     @State private var selectedRegion: String? = nil
@@ -137,9 +136,12 @@ struct MoodMindDetailView: View {
     @State private var showDetails = false
 
     private var months: Int { engine.activeMonthsOnHRT }
-    private var regions: [BodyRegion] { TimeBodyRegions.mindRegions }
+    private var isEstrogen: Bool { engine.medication == "Estrogen" }
+    private var regions: [BodyRegion] { isEstrogen ? TimeBodyRegions.mindRegions : TimeBodyRegions.mindRegionsT }
 
-    /// Screen-fractional anchor points for each region's floating label.
+    /// Screen-fractional anchor points for each region's floating label. Shared
+    /// across medications — both region sets reuse the same keys (`pfc`,
+    /// `hippocampus`, `amygdala`, `synaptic`), only the authored text differs.
     private let regionAnchors: [String: CGPoint] = [
         "pfc":         CGPoint(x: 0.28, y: 0.24),
         "hippocampus": CGPoint(x: 0.70, y: 0.72),
@@ -156,7 +158,7 @@ struct MoodMindDetailView: View {
                 tint: Theme.Colors.Time.mind.base,
                 secondaryTint: Theme.Colors.Time.cycle.base,
                 selectedRegion: selectedRegion,
-                regionActivity: { ConstellationCloud.activity(regionKey: $0, months: months) }
+                regionActivity: { ConstellationCloud.activity(regionKey: $0, months: months, medication: engine.medication) }
             )
             .ignoresSafeArea()
             .contentShape(Rectangle())
@@ -256,7 +258,7 @@ struct MoodMindDetailView: View {
     }
 
     private var floatingStats: some View {
-        let stats = TimeBodyRegions.mindStats(months: months)
+        let stats = isEstrogen ? TimeBodyRegions.mindStats(months: months) : TimeBodyRegions.mindStatsT(months: months)
         return HStack(spacing: 10) {
             ForEach(stats.indices, id: \.self) { i in
                 VStack(spacing: 2) {
@@ -309,14 +311,14 @@ struct MoodMindDetailView: View {
                         }
 
                         BodySystemStatsRow(
-                            stats: TimeBodyRegions.mindStats(months: months),
+                            stats: isEstrogen ? TimeBodyRegions.mindStats(months: months) : TimeBodyRegions.mindStatsT(months: months),
                             accentColor: Theme.Colors.Time.mind.base
                         )
                         .padding(.horizontal, 22)
                         .padding(.top, 16)
 
                         KeyInsightBanner(
-                            text: TimeBodyRegions.mindInsight(months: months),
+                            text: isEstrogen ? TimeBodyRegions.mindInsight(months: months) : TimeBodyRegions.mindInsightT(months: months),
                             accentColor: Theme.Colors.Time.mind.base
                         )
                         .padding(.horizontal, 22)

@@ -63,8 +63,7 @@ struct TimeView: View {
             relativeDoseIntensity: medicationManager.relativeDoseIntensity,
             doseIntensityNote: medicationManager.doseIntensityNote,
             bloodTestSchedulingText: medicationManager.bloodTestSchedulingText,
-            suggestedBloodTestMonth: medicationManager.suggestedBloodTestMonth,
-            calibrationContext: nil
+            suggestedBloodTestMonth: medicationManager.suggestedBloodTestMonth
         )
     }
 
@@ -105,9 +104,7 @@ struct TimeView: View {
             .navigationDestination(for: BodySystemKey.self) { key in
                 switch key {
                 case .moodAndMind:
-                    if let system = engine.bodySystems.first(where: { $0.systemKey == .moodAndMind }) {
-                        MoodMindDetailView(system: system, engine: engine)
-                    }
+                    MoodMindDetailView(engine: engine)
                 case .bodyShape:
                     BodyArchitectureDetailView(engine: engine)
                 default:
@@ -128,7 +125,7 @@ struct TimeView: View {
         }
         .onChange(of: cloudMonths) { _, _ in
             brainField = ConstellationCloud.brain(months: cloudMonths)
-            bodyField = ConstellationCloud.body(months: cloudMonths)
+            bodyField = ConstellationCloud.body(months: cloudMonths, medication: engine.medication)
         }
     }
 
@@ -149,7 +146,8 @@ struct TimeView: View {
                     field: brainField,
                     tint: Theme.Colors.Time.mind.base,
                     secondaryTint: Theme.Colors.Time.cycle.base,
-                    months: cloudMonths
+                    months: cloudMonths,
+                    medication: engine.medication
                 )
             }
             .buttonStyle(.plain)
@@ -165,7 +163,8 @@ struct TimeView: View {
                     field: bodyField,
                     tint: Theme.Colors.Time.body.base,
                     secondaryTint: nil,
-                    months: cloudMonths
+                    months: cloudMonths,
+                    medication: engine.medication
                 )
             }
             .buttonStyle(.plain)
@@ -211,7 +210,7 @@ struct TimeView: View {
 
     private func regenerateFieldsIfNeeded() {
         if brainField.nodes.isEmpty { brainField = ConstellationCloud.brain(months: cloudMonths) }
-        if bodyField.nodes.isEmpty { bodyField = ConstellationCloud.body(months: cloudMonths) }
+        if bodyField.nodes.isEmpty { bodyField = ConstellationCloud.body(months: cloudMonths, medication: engine.medication) }
     }
 }
 
@@ -305,13 +304,14 @@ struct TimeConstellationSection: View {
     let tint: Color
     var secondaryTint: Color? = nil
     let months: Int
+    let medication: String
 
     var body: some View {
         ConstellationView(
             field: field,
             tint: tint,
             secondaryTint: secondaryTint,
-            regionActivity: { ConstellationCloud.activity(regionKey: $0, months: months) }
+            regionActivity: { ConstellationCloud.activity(regionKey: $0, months: months, medication: medication) }
         )
         .overlay(alignment: .topLeading) {
             Text(title)
