@@ -783,4 +783,50 @@ enum PKConstants {
     /// intensity for estrogen valerate.
     static let referenceEstrogenDoseMg = 2.0
     static let referenceEstrogenConcentrationMgPerMl = 40.0
+
+    // MARK: Chart window
+
+    /// Terms of the chart's window rule. See `PKChartWindow` for the derivation and for
+    /// why the resulting EV window (3.15 d) reproduces the one that shipped before it.
+    ///
+    ///     W    = clamp(1.5 · t_max, lower: min(2 d, 2 · interval), upper: 1.5 · interval)
+    ///     step = max(min(W/40, t_max/8), 15 min)
+
+    /// Window length as a multiple of the ester's time-to-peak.
+    static let chartWindowTmaxMultiplier = 1.5
+
+    /// Ceiling on the window, as a multiple of the dosing interval. Binds for the daily
+    /// routes (oral, cream), where it fixes the window at 1.5 d.
+    static let chartWindowUpperIntervalMultiplier = 1.5
+
+    /// Floor on the window, in days — itself capped at twice the dosing interval so a
+    /// short-interval ester is never given a window wider than two of its own cycles.
+    static let chartWindowLowerCapDays = 2.0
+
+    /// Window length used when the ester's t_max cannot be trusted — uncalibrated
+    /// (`isTmaxCalibrated == false`) or non-finite (the transdermal routes, which have
+    /// no meaningful t_max). Sized to the daily/short-interval case it mostly serves.
+    static let chartWindowFallbackRawDays = 2.0
+
+    /// Target point count for the drawn curve: `step = W / 40`. Keeps every ester at a
+    /// comparable density so curves read alike across very different timescales.
+    static let chartWindowStepDivisor = 40.0
+
+    /// The anti-aliasing guarantee: never sample coarser than `t_max / 8`. This is the
+    /// term that stops the oral curve — dosed at exactly the old 1-day step — from
+    /// collapsing into a flat line.
+    static let chartWindowTmaxStepDivisor = 8.0
+
+    /// Resolution floor for the drawn curve.
+    static let chartWindowMinStepDays = 15.0 / (24.0 * 60.0)
+
+    /// The scrub/dot grid is this many times finer than the drawn curve.
+    static let chartWindowDenseStepDivisor = 4.0
+
+    /// Resolution floor for the scrub/dot grid.
+    static let chartWindowMinDenseStepDays = 5.0 / (24.0 * 60.0)
+
+    /// Smallest dosing interval the window rule will divide by, so a future ester with a
+    /// zero or negative interval degrades to a usable window instead of a zero-width one.
+    static let chartWindowMinIntervalDays = 0.5
 }

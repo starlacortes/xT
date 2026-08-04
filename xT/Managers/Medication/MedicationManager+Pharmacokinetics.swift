@@ -64,42 +64,30 @@ extension MedicationManager {
         guard !suppressRefresh else { return }
 
         currentHormoneLevel = getCurrentHormoneLevel()
-        let now = Date()
-        // Size the chart's date window from the same doses that actually contribute to the
-        // computed levels, so a skipped/pending dose can't stretch the x-axis into a window
-        // containing no plotted contribution. Matches the `.taken`-only filter used by
-        // `estimatedLevels`. See xTTests/PharmacokineticTests.swift
+
+        // The window is sized from the ester actually being plotted and anchored on
+        // `now`. See `PKChartWindow` for the rule; `chartWindow()` resolves the effective
+        // ester and gates its t_max on `isTmaxCalibrated`.
+        //
+        // This replaces a window that was anchored on the dose history and branched on
+        // the manager's *globally selected* route. That branch is what let the default
+        // 1-day step land on the 1-day oral dosing interval, sampling every point at the
+        // same phase of the cycle and flattening the oral curve to a line.
+        //
+        // Anchoring on `now` also makes the skipped-dose guarantee structural instead of
+        // incidental: a dose that contributes nothing to the curve cannot stretch the
+        // x-axis, because no dose positions it at all. See xTTests/PharmacokineticTests.swift
         // "A skipped dose does not stretch the chart's date window".
-        let activeDoses = doseHistory.filter { $0.isActive && $0.medicationType == selectedMedication && DoseStatus(rawValue: $0.doseStatus) == .taken }
+        //
+        // Accepted consequence: markers leave the visible range for part of a cycle, in
+        // both directions. On TU (70-day interval, 10.5-day window) a dose taken five
+        // days ago is already off the left edge mid-cycle, and the next dose sits off the
+        // right edge for most of the interval. That is the window being honest about its
+        // timescale, not a positioning bug.
+        let window = chartWindow()
+        recentLevels = estimatedLevels(from: window.start, to: window.end,
+                                       stepDays: window.stepDays)
 
-        var start: Date
-        var end: Date
-
-        if activeDoses.count <= 1, let last = lastDoseDate {
-            let freqDays: Int = {
-                if let custom = customFrequencyDays, custom > 0 { return custom }
-                if let methodStr = selectedAdministrationMethod,
-                   let method = AdministrationMethod(rawValue: methodStr) { return method.frequencyDays }
-                return 7
-            }()
-            start = Calendar.current.date(byAdding: .day, value: -max(3, Int(Double(freqDays) * 0.5)), to: last) ?? now
-            end = max(now, Calendar.current.date(byAdding: .day, value: Int(Double(freqDays) * 1.5), to: last) ?? now)
-        } else {
-            end = now
-            start = Calendar.current.date(byAdding: .day, value: -7, to: end) ?? end
-        }
-
-        let isInjectable = AdministrationMethod(rawValue: selectedAdministrationMethod ?? "") == .injectable
-        if isInjectable {
-            end = now
-            start = Calendar.current.date(byAdding: .day, value: -1, to: end) ?? end
-            end = Calendar.current.date(byAdding: .day, value: 2, to: end) ?? end
-            let halfLife = currentEster?.halfLifeDays ?? 5.0
-            let step = max(2.0 / 24.0, halfLife / 30.0)
-            recentLevels = estimatedLevels(from: start, to: end, stepDays: step)
-        } else {
-            recentLevels = estimatedLevels(from: start, to: end)
-        }
         recomputeRegimenHistory()
         recomputeAdherenceRate()
         recomputeOnTimeStreak()
@@ -250,13 +238,17 @@ extension MedicationManager {
               medication == record.hormoneType
         else { return }
         
-        // Run model at the exact draw time (± 1 hour window)
-        let modelPoints = estimatedLevels(
-            from: record.drawDate.addingTimeInterval(-1800),
-            to: record.drawDate.addingTimeInterval(1800),
-            stepDays: 1
-        )
-        guard let predicted = modelPoints.last?.value, predicted > 0.01 else {
+        // Run the model at the exact draw instant, uncalibrated. Sampling the draw
+        // date itself (rather than a ±30-minute window stepped at 1 day) fixes two
+        // defects at once: the old window's 86400-second step jumped straight past
+        // `end` and produced a single point at drawDate − 1800s, silently anchoring
+        // α half an hour before the draw; and because that call went through
+        // `estimatedLevels` without `applyCalibration: false`, α was computed
+        // against an already-α-scaled prediction — a circularity that damped every
+        // subsequent calibration. `predictedLevel` defaults to uncalibrated so the
+        // calibration engine never feeds on its own output.
+        guard let predicted = predictedLevel(at: record.drawDate,
+                                             hormoneType: record.hormoneType) else {
             record.calibrationFactor = nil
             return
         }
@@ -281,6 +273,51 @@ extension MedicationManager {
         let fetchDescriptor = FetchDescriptor<BloodTestRecord>(sortBy: [descriptor])
         let allRecords = try? context.fetch(fetchDescriptor)
         bloodTestHistory = allRecords ?? []
+    }
+    
+    /// Runs the PK model at a single instant and returns the predicted level.
+    ///
+    /// This is the calibration engine's sampling primitive. It deliberately defaults
+    /// `applyCalibration` to `false` so the calibration factor is always computed
+    /// against the raw population-model prediction — never against an already-α-scaled
+    /// one (the circularity that the old ±30-minute window introduced). It also samples
+    /// the draw date itself rather than a window, so α is anchored at the exact moment
+    /// the blood was drawn.
+    ///
+    /// - Parameters:
+    ///   - date: The instant to evaluate the model at (typically `record.drawDate`).
+    ///   - hormoneType: The medication type the prediction is for.
+    ///   - applyCalibration: Whether to apply the current calibration factor. Defaults
+    ///     to `false`; the calibration engine must never feed on its own output.
+    /// - Returns: The predicted level, or `nil` when no medication/method is configured
+    ///   or the predicted value is ≤ 0.01 (clinically meaningless as a divisor).
+    func predictedLevel(at date: Date, hormoneType: String, applyCalibration: Bool = false) -> Double? {
+        guard selectedMedication == hormoneType,
+              selectedAdministrationMethod != nil else { return nil }
+        let points = estimatedLevels(from: date, to: date, stepDays: 1,
+                                     applyCalibration: applyCalibration)
+        guard let value = points.last?.value, value > 0.01 else { return nil }
+        return value
+    }
+    
+    /// Maps the blood test history into chart-ready series points.
+    ///
+    /// Lives on the manager (rather than in `LabsChartSeries.swift`) so the shared
+    /// chart model stays a pure-math value type with no manager dependency. The
+    /// predicted value is computed uncalibrated at each draw date, matching how
+    /// `computeCalibrationFactor` derives α.
+    func labsSeriesPoints(for hormoneType: String) -> [LabsSeriesPoint] {
+        bloodTestHistory
+            .filter { $0.hormoneType == hormoneType }
+            .sorted { $0.drawDate < $1.drawDate }
+            .map { record in
+                LabsSeriesPoint(
+                    drawDate: record.drawDate,
+                    measured: record.measuredLevel,
+                    predicted: predictedLevel(at: record.drawDate, hormoneType: hormoneType),
+                    isCalibrated: record.isCalibrated
+                )
+            }
     }
     // MARK: - Layer 1: Time-Contextual + Dose-Scaled Targets
     
@@ -626,9 +663,21 @@ extension MedicationManager {
                                                              amount: effAmount))
             }
 
-            // When dose history is sparse (1 active dose — fresh onboarding),
-            // generate synthetic FORWARD-only doses so the chart can preview the
+            // Generate synthetic FORWARD-only doses so the chart can preview the
             // user's projected trajectory if they stay on schedule.
+            //
+            // This used to be gated on `activeDoses.count == 1` (fresh onboarding),
+            // which meant an established user got no forward projection at all: past
+            // the next scheduled dose the curve fell away into a washout that isn't
+            // going to happen. That was invisible while the chart window ended ~2 days
+            // out and injectables dose weekly, but the ester-aware window (see
+            // `PKChartWindow`) extends 2W/3 into the future, and daily oral/cream
+            // regimens cross their next dose well inside it — roughly 18% of the
+            // window at a typical phase, up to ~33% depending on time of day. The
+            // guard now only requires that at least one real dose exists to project
+            // from; the reference is the MOST RECENT one, so the projection follows
+            // the regimen the user is actually on rather than whatever they logged
+            // first.
             //
             // QA fix (2026-07-28): this used to ALSO backfill synthetic doses
             // BACKWARD up to 90 days before the user's one real dose, at full
@@ -652,16 +701,17 @@ extension MedicationManager {
             // distort "now", and it lets the chart preview an upcoming
             // trajectory the user hasn't actually experienced yet — which is
             // clearly labeled as projection, unlike fabricated history.
-            if activeDoses.count == 1 {
-                let latestReal = activeDoses.map(\.doseDate).max() ?? start
-                let refDose = activeDoses.first
-                let effAmount = refDose.map { $0.doseAmount * dosePotencyFactor(for: $0) } ?? (baseLevel * 0.5)
-                let refEster = refDose?.ester ?? defaultEsterName
+            if let refDose = activeDoses.last {
+                // `activeDoses` is sorted ascending, so `.last` is both the most recent
+                // dose and the anchor the projection cadence counts forward from.
+                let latestReal = refDose.doseDate
+                let effAmount = refDose.doseAmount * dosePotencyFactor(for: refDose)
+                let refEster = refDose.ester
                 // Project on the reference dose's OWN route. Previously this gated on
                 // `isInjectable` (the manager's global selection) and otherwise emitted
                 // an unscaled single-exponential, so oral and transdermal users got a
                 // projected trajectory that was effectively flat at baseline.
-                let refRoute = refDose?.administrationMethod ?? methodStr
+                let refRoute = refDose.administrationMethod
 
                 // Projection interval. A user-set frequency always wins. Failing that,
                 // this used to fall straight to `AdministrationMethod.frequencyDays`,
@@ -669,20 +719,9 @@ extension MedicationManager {
                 // was projected forward as weekly 1000 mg injections, roughly 2.4× the
                 // level a correctly-spaced regimen reaches. Ask the ester instead; it is
                 // the thing that determines a sane interval. See `typicalIntervalDays`.
-                let freqDays: Int = {
-                    if let custom = customFrequencyDays, custom > 0 { return custom }
-                    let effEster = Self.effectiveEsterName(ester: refEster, route: refRoute)
-                    if medication == "Estrogen", let e = MedicationEster(rawValue: effEster) {
-                        return e.typicalIntervalDays
-                    }
-                    if medication == "Testosterone", let e = TestosteroneEster(rawValue: effEster) {
-                        return e.typicalIntervalDays
-                    }
-                    if let method = AdministrationMethod(rawValue: refRoute) {
-                        return method.frequencyDays
-                    }
-                    return 7
-                }()
+                let freqDays = effectivePKIntervalDays(ester: refEster,
+                                                       route: refRoute,
+                                                       medication: medication)
 
                 let lookaheadLimit = calendar.date(byAdding: .day, value: 90, to: end) ?? end
                 let now = Date()

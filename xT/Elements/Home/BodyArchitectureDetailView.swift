@@ -19,8 +19,12 @@ struct BodyArchitectureDetailView: View {
 
     private var months: Int { engine.activeMonthsOnHRT }
     private var tier: TenureTier { engine.tenureTier }
+    private var isEstrogen: Bool { engine.medication == "Estrogen" }
+    private var bodyRegions: [BodyRegion] { isEstrogen ? TimeBodyRegions.bodyRegions : TimeBodyRegions.bodyRegionsT }
 
-    /// Screen-fractional anchor points for each region's floating label.
+    /// Screen-fractional anchor points for each region's floating label. Shared
+    /// across medications — both region sets reuse the same keys (`chest`,
+    /// `waist`, `hips`, `glutes`, `thighs`), only the authored text differs.
     private let regionAnchors: [String: CGPoint] = [
         "chest":  CGPoint(x: 0.62, y: 0.34),
         "waist":  CGPoint(x: 0.66, y: 0.46),
@@ -48,7 +52,7 @@ struct BodyArchitectureDetailView: View {
                 field: field,
                 tint: Theme.Colors.Time.body.base,
                 selectedRegion: selectedRegion,
-                regionActivity: { ConstellationCloud.activity(regionKey: $0, months: months) }
+                regionActivity: { ConstellationCloud.activity(regionKey: $0, months: months, medication: engine.medication) }
             )
             .ignoresSafeArea()
             .contentShape(Rectangle())
@@ -67,7 +71,7 @@ struct BodyArchitectureDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             if field.nodes.isEmpty {
-                field = ConstellationCloud.body(months: months)
+                field = ConstellationCloud.body(months: months, medication: engine.medication)
             }
         }
         .sheet(isPresented: $showDetails) { detailsSheet }
@@ -93,7 +97,7 @@ struct BodyArchitectureDetailView: View {
 
     private var regionLabels: some View {
         GeometryReader { geo in
-            ForEach(TimeBodyRegions.bodyRegions) { region in
+            ForEach(bodyRegions) { region in
                 if let anchor = regionAnchors[region.key] {
                     ConstellationRegionTag(
                         label: region.label,
@@ -129,7 +133,7 @@ struct BodyArchitectureDetailView: View {
     }
 
     private var floatingStats: some View {
-        let stats = TimeBodyRegions.bodyStats(months: months)
+        let stats = isEstrogen ? TimeBodyRegions.bodyStats(months: months) : TimeBodyRegions.bodyStatsT(months: months)
         return HStack(spacing: 10) {
             ForEach(stats.indices, id: \.self) { i in
                 VStack(spacing: 2) {
@@ -176,14 +180,14 @@ struct BodyArchitectureDetailView: View {
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 0) {
                         BodySystemStatsRow(
-                            stats: TimeBodyRegions.bodyStats(months: months),
+                            stats: isEstrogen ? TimeBodyRegions.bodyStats(months: months) : TimeBodyRegions.bodyStatsT(months: months),
                             accentColor: Theme.Colors.Time.body.base
                         )
                         .padding(.horizontal, 22)
                         .padding(.top, 16)
 
                         KeyInsightBanner(
-                            text: TimeBodyRegions.bodyInsight(months: months),
+                            text: isEstrogen ? TimeBodyRegions.bodyInsight(months: months) : TimeBodyRegions.bodyInsightT(months: months),
                             accentColor: Theme.Colors.Time.body.base
                         )
                         .padding(.horizontal, 22)
@@ -200,7 +204,7 @@ struct BodyArchitectureDetailView: View {
                                 .padding(.top, 28)
                                 .padding(.bottom, 10)
 
-                            ForEach(TimeBodyRegions.bodyRegions) { region in
+                            ForEach(bodyRegions) { region in
                                 RegionDetailCard(
                                     region: region,
                                     months: months,
@@ -293,7 +297,7 @@ struct BodyArchitectureDetailView: View {
     private var bodySilhouetteSection: some View {
         ZStack {
             // Animated silhouette
-            ArchitectureBodyCanvas(months: months)
+            ArchitectureBodyCanvas(months: months, isEstrogen: isEstrogen)
                 .allowsHitTesting(false)
 
             // Callout dots
@@ -590,6 +594,7 @@ private struct CollapsibleTextBlock: View {
 
 private struct ArchitectureBodyCanvas: View {
     let months: Int
+    let isEstrogen: Bool
 
     var body: some View {
         GeometryReader { geo in
@@ -600,12 +605,21 @@ private struct ArchitectureBodyCanvas: View {
                 }
                 .stroke(Color.white.opacity(0.06), style: StrokeStyle(lineWidth: 1, dash: [3, 4]))
 
-                DynamicBodySilhouette(elapsedMonths: Double(months))
-                    .fill(Theme.Colors.Time.body.base.opacity(0.08))
+                if isEstrogen {
+                    DynamicBodySilhouette(elapsedMonths: Double(months))
+                        .fill(Theme.Colors.Time.body.base.opacity(0.08))
 
-                DynamicBodySilhouette(elapsedMonths: Double(months))
-                    .stroke(Theme.Colors.Time.body.base.opacity(0.6), lineWidth: 1.2)
-                    .shadow(color: Theme.Colors.Time.body.base.opacity(0.25), radius: 8)
+                    DynamicBodySilhouette(elapsedMonths: Double(months))
+                        .stroke(Theme.Colors.Time.body.base.opacity(0.6), lineWidth: 1.2)
+                        .shadow(color: Theme.Colors.Time.body.base.opacity(0.25), radius: 8)
+                } else {
+                    DynamicBodySilhouetteT(elapsedMonths: Double(months))
+                        .fill(Theme.Colors.Time.body.base.opacity(0.08))
+
+                    DynamicBodySilhouetteT(elapsedMonths: Double(months))
+                        .stroke(Theme.Colors.Time.body.base.opacity(0.6), lineWidth: 1.2)
+                        .shadow(color: Theme.Colors.Time.body.base.opacity(0.25), radius: 8)
+                }
             }
         }
     }
@@ -633,8 +647,7 @@ private struct ArchitectureBodyCanvas: View {
             relativeDoseIntensity: 1.0,
             doseIntensityNote: nil,
             bloodTestSchedulingText: "Schedule your next blood test around month 12.",
-            suggestedBloodTestMonth: 12,
-            calibrationContext: nil
+            suggestedBloodTestMonth: 12
         ))
     }
 }

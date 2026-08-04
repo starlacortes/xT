@@ -200,19 +200,11 @@ struct FlatGraphView: View {
             densePoints = []
             return
         }
-        let method = medicationManager.selectedAdministrationMethod ?? "Injectable"
-        let stepDays: Double
-        switch method {
-        case "Oral":
-            stepDays = 15.0 / (24.0 * 60.0)
-        case "Cream":
-            stepDays = 1.0 / 24.0
-        case "Injectable":
-            let halfLife = medicationManager.currentEster?.halfLifeDays ?? 5.0
-            stepDays = max(1.0 / 24.0, halfLife / 40.0)
-        default:
-            stepDays = 2.0 / 24.0
-        }
+        // The scrub/dot resolution comes from the same rule that sized the drawn curve,
+        // so the two cannot drift apart. This used to be a second, independent per-route
+        // formula here (`halfLife / 40`) against `refreshState`'s (`halfLife / 30`), both
+        // keyed off the manager's global route rather than the ester being plotted.
+        let stepDays = medicationManager.chartWindow().denseStepDays
         let dense = medicationManager.estimatedLevels(from: first, to: last, stepDays: stepDays)
         guard dense.count > 1 else { return }
         densePoints = dense.enumerated().map { i, pt in

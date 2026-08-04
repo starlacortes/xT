@@ -279,8 +279,7 @@ struct TimeBodyDetailView: View {
                 relativeDoseIntensity: 1.0,
                 doseIntensityNote: nil,
                 bloodTestSchedulingText: "Schedule your next blood test around month 9.",
-                suggestedBloodTestMonth: 9,
-                calibrationContext: nil
+                suggestedBloodTestMonth: 9
             )
         )
     }

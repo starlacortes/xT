@@ -37,7 +37,6 @@ struct TimeContentEngine {
     let doseIntensityNote: String?  // disclaimer text for dose scaling
     let bloodTestSchedulingText: String   // dynamic blood test scheduling text
     let suggestedBloodTestMonth: Int?     // suggested month for next lab
-    let calibrationContext: String?       // trough/peak info for calibration factor
 
     // MARK: Tenure tier
 

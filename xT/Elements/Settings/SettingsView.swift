@@ -214,6 +214,10 @@ struct SettingsView: View {
 
     // MARK: - Body & Zones Section
 
+    private var currentRouteClass: RouteClass {
+        RouteClass.from(method: medicationManager.selectedAdministrationMethod ?? "")
+    }
+
     private var settingsBodyZonesSection: some View {
         settingsSection(label: "Body & zones") {
             VStack(alignment: .leading, spacing: 12) {
@@ -242,49 +246,51 @@ struct SettingsView: View {
             .padding(.horizontal, 22)
             .padding(.vertical, 12)
 
-            settingsDivider()
+            if currentRouteClass != .oral {
+                settingsDivider()
 
-            NavigationLink(destination: PreferredZonesListView()) {
-                settingsRowContent(
-                    icon: "star",
-                    iconBg: Theme.Colors.accent.opacity(0.13),
-                    iconColor: Theme.Colors.accent,
-                    title: "Preferred zones",
-                    subtitle: "Favoured injection & application sites",
-                    trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(.secondary) }
-                )
+                NavigationLink(destination: PreferredZonesListView()) {
+                    settingsRowContent(
+                        icon: "star",
+                        iconBg: Theme.Colors.accent.opacity(0.13),
+                        iconColor: Theme.Colors.accent,
+                        title: "Preferred zones",
+                        subtitle: "Favoured injection & application sites",
+                        trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(.secondary) }
+                    )
+                }
+                .buttonStyle(.plain)
+
+                settingsDivider()
+
+                NavigationLink(destination: AvoidZonesEditorView()) {
+                    settingsRowContent(
+                        icon: "exclamationmark.shield",
+                        iconBg: Theme.Colors.warning.opacity(0.13),
+                        iconColor: Theme.Colors.warning,
+                        title: "Avoid zones",
+                        subtitle: avoidZonesSubtitle,
+                        trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(.secondary) }
+                    )
+                }
+                .buttonStyle(.plain)
+
+                settingsDivider()
+
+                Button {
+                    UserDefaults.standard.set(false, forKey: "hasSeenRecommendedZonesInfo")
+                } label: {
+                    settingsRowContent(
+                        icon: "lightspectral.horizontal",
+                        iconBg: Theme.Colors.accent.opacity(0.13),
+                        iconColor: Theme.Colors.accent,
+                        title: "Re-show recommended zones",
+                        subtitle: "Show the clinical zones info overlay again",
+                        trailing: { EmptyView() }
+                    )
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
-
-            settingsDivider()
-
-            NavigationLink(destination: AvoidZonesEditorView()) {
-                settingsRowContent(
-                    icon: "exclamationmark.shield",
-                    iconBg: Theme.Colors.warning.opacity(0.13),
-                    iconColor: Theme.Colors.warning,
-                    title: "Avoid zones",
-                    subtitle: avoidZonesSubtitle,
-                    trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(.secondary) }
-                )
-            }
-            .buttonStyle(.plain)
-
-            settingsDivider()
-
-            Button {
-                UserDefaults.standard.set(false, forKey: "hasSeenRecommendedZonesInfo")
-            } label: {
-                settingsRowContent(
-                    icon: "lightspectral.horizontal",
-                    iconBg: Theme.Colors.accent.opacity(0.13),
-                    iconColor: Theme.Colors.accent,
-                    title: "Re-show recommended zones",
-                    subtitle: "Show the clinical zones info overlay again",
-                    trailing: { EmptyView() }
-                )
-            }
-            .buttonStyle(.plain)
         }
     }
 
@@ -313,6 +319,34 @@ struct SettingsView: View {
                     iconColor: Theme.Colors.Time.cycle.base,
                     title: "Dose history",
                     subtitle: doseHistorySubtitle,
+                    trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(.secondary) }
+                )
+            }
+            .buttonStyle(.plain)
+
+            settingsDivider()
+
+            NavigationLink(destination: BloodTestHistoryView()) {
+                settingsRowContent(
+                    icon: "drop.fill",
+                    iconBg: Theme.Colors.Time.skin.surface,
+                    iconColor: Theme.Colors.Time.skin.base,
+                    title: "Blood test history",
+                    subtitle: bloodTestHistorySubtitle,
+                    trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(.secondary) }
+                )
+            }
+            .buttonStyle(.plain)
+
+            settingsDivider()
+
+            NavigationLink(destination: ScreeningHistoryView()) {
+                settingsRowContent(
+                    icon: "heart.text.square",
+                    iconBg: Theme.Colors.Time.mind.surface,
+                    iconColor: Theme.Colors.Time.mind.base,
+                    title: "Screenings",
+                    subtitle: screeningHistorySubtitle,
                     trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(.secondary) }
                 )
             }
@@ -745,6 +779,20 @@ struct SettingsView: View {
         if count == 0 { return "No doses recorded yet" }
         return String(localized: "Review and correct ^[\(count) dose](inflect: true)",
                       comment: "Settings row subtitle counting doses that need review")
+    }
+
+    private var bloodTestHistorySubtitle: String {
+        let count = medicationManager.bloodTestHistory.count
+        if count == 0 { return "No blood tests logged yet" }
+        return String(localized: "^[\(count) blood test](inflect: true) logged",
+                      comment: "Settings row subtitle counting logged blood tests")
+    }
+
+    private var screeningHistorySubtitle: String {
+        let count = medicationManager.screeningRecords.count
+        if count == 0 { return "No screenings logged yet" }
+        return String(localized: "^[\(count) screening](inflect: true) logged",
+                      comment: "Settings row subtitle counting logged health screenings")
     }
 
     private var avoidZonesSubtitle: String {

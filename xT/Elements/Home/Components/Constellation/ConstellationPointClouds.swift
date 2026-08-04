@@ -32,8 +32,15 @@ struct SeededRNG: RandomNumberGenerator {
 enum ConstellationCloud {
 
     /// How actively a region is changing right now (0…1) — drives glow.
-    static func activity(regionKey: String, months: Int) -> Double {
-        let all = TimeBodyRegions.mindRegions + TimeBodyRegions.bodyRegions
+    /// `medication` selects which authored region set (timing differs by
+    /// medication even where the region key is shared) the lookup reads from.
+    static func activity(regionKey: String, months: Int, medication: String) -> Double {
+        let all: [BodyRegion]
+        if medication == "Estrogen" {
+            all = TimeBodyRegions.mindRegions + TimeBodyRegions.bodyRegions
+        } else {
+            all = TimeBodyRegions.mindRegionsT + TimeBodyRegions.bodyRegionsT
+        }
         guard let r = all.first(where: { $0.key == regionKey }) else { return 0.4 }
         let m = Double(months)
         if m < Double(r.startMonth) { return 0.06 }
@@ -112,14 +119,18 @@ enum ConstellationCloud {
 
     // MARK: Body
 
-    static func body(months: Int) -> ConstellationField {
+    static func body(months: Int, medication: String) -> ConstellationField {
         var rng = SeededRNG(seed: 0xB0D1_5EED)
         let density = min(1.0, Double(max(months, 0)) / 36.0)
         let count = 150 + Int(70 * density)
 
-        // Sample inside the animatable silhouette at the current month.
+        // Sample inside the animatable silhouette at the current month. Estrogen
+        // grows a bust/hips and narrows the waist; testosterone broadens the
+        // shoulders and chest instead — see DynamicBodySilhouette(T).
         let vRect = CGRect(x: 0, y: 0, width: 100, height: 120)
-        let silhouette = DynamicBodySilhouette(elapsedMonths: Double(months)).path(in: vRect)
+        let silhouette: Path = medication == "Estrogen"
+            ? DynamicBodySilhouette(elapsedMonths: Double(months)).path(in: vRect)
+            : DynamicBodySilhouetteT(elapsedMonths: Double(months)).path(in: vRect)
 
         var nodes: [ConstellationNode] = []
         nodes.reserveCapacity(count)

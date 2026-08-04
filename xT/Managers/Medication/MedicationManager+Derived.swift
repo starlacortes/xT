@@ -36,6 +36,89 @@ extension MedicationManager {
     /// Interval used when neither a custom frequency nor a known method is available.
     static let fallbackFrequencyDays = 7
 
+    /// The dosing interval the PK model should assume for a given dose, in days.
+    ///
+    /// Resolution order: the user's custom frequency, then the **ester's** typical
+    /// interval, then the administration method's default, then weekly.
+    ///
+    /// Deliberately distinct from `effectiveFrequencyDays`, which has no ester tier and
+    /// is load-bearing for next-dose due dates (`calculateNextDoseDate()`), the schedule
+    /// summary, and notification scheduling (`NotificationManager.doseFrequencyDays`).
+    /// Giving *that* property an ester tier would silently move every user's due date.
+    /// This one is for model sizing only — the single-dose forward projection in
+    /// `estimatedLevels` and the chart window — where the ester is the better predictor.
+    ///
+    /// TU is the case that separates the two: it is dosed every ~10 weeks, but
+    /// `AdministrationMethod.injectable.frequencyDays` is 7 for everything injectable.
+    func effectivePKIntervalDays(ester: String, route: String, medication: String) -> Int {
+        if let custom = customFrequencyDays, custom > 0 { return custom }
+        let effEster = Self.effectiveEsterName(ester: ester, route: route)
+        if medication == "Estrogen", let e = MedicationEster(rawValue: effEster) {
+            return e.typicalIntervalDays
+        }
+        if medication == "Testosterone", let e = TestosteroneEster(rawValue: effEster) {
+            return e.typicalIntervalDays
+        }
+        if let method = AdministrationMethod(rawValue: route) {
+            return method.frequencyDays
+        }
+        return Self.fallbackFrequencyDays
+    }
+
+    // MARK: - Chart window
+
+    /// The chart's visible time range and sampling resolution, sized from the ester and
+    /// route actually being plotted. See `PKChartWindow` for the rule and its derivation.
+    ///
+    /// Both consumers — `refreshState()`, which builds `recentLevels`, and
+    /// `FlatGraphView.generateDensePoints()`, which builds the scrub grid — read their
+    /// step from here. That is the point: the two used to compute their own, and had
+    /// already drifted apart (`halfLife / 30` against `halfLife / 40`).
+    ///
+    /// The ester is resolved from the most recent **taken** dose, matching the filter
+    /// `estimatedLevels` applies when deciding what actually contributes to the curve.
+    /// With no dose logged, the route alone still resolves the oral and cream
+    /// pseudo-esters; an injectable with no dose yet has no ester to read, so it falls
+    /// back to an uncalibrated window.
+    ///
+    /// This is the **only** place `isTmaxCalibrated` gates a window. `PKChartWindow`
+    /// takes an `Optional` precisely so the check cannot be half-applied elsewhere.
+    func chartWindow(now: Date = Date()) -> PKChartWindow.Window {
+        let medication = selectedMedication ?? ""
+        let latestTaken = latestDose {
+            $0.isActive && $0.medicationType == medication
+                && DoseStatus(rawValue: $0.doseStatus) == .taken
+        }
+
+        let route = latestTaken?.administrationMethod
+            ?? selectedAdministrationMethod
+            ?? AdministrationMethod.injectable.rawValue
+        let ester = latestTaken?.ester ?? ""
+        let effEster = Self.effectiveEsterName(ester: ester, route: route)
+
+        // The gate. An uncalibrated t_max (TP) or a non-finite one (the transdermal
+        // routes, where ke = 0 makes the Bateman inapplicable) becomes `nil` here and
+        // never reaches arithmetic.
+        let tmaxDays: Double? = {
+            func usable(_ value: Double, calibrated: Bool) -> Double? {
+                guard calibrated, value.isFinite, value > 0 else { return nil }
+                return value
+            }
+            if medication == "Estrogen", let e = MedicationEster(rawValue: effEster) {
+                return usable(e.timeToPeakDays, calibrated: e.isTmaxCalibrated)
+            }
+            if medication == "Testosterone", let e = TestosteroneEster(rawValue: effEster) {
+                return usable(e.timeToPeakDays, calibrated: e.isTmaxCalibrated)
+            }
+            return nil
+        }()
+
+        let interval = effectivePKIntervalDays(ester: ester, route: route, medication: medication)
+        return PKChartWindow.compute(tmaxDays: tmaxDays,
+                                     intervalDays: Double(interval),
+                                     now: now)
+    }
+
     // MARK: - Most recent dose
 
     /// The most recent dose satisfying `predicate`.

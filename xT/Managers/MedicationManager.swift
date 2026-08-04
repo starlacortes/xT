@@ -258,7 +258,15 @@ class MedicationManager: ObservableObject {
     /// entry would silently drop a freshly entered lab result from the model.
     var calibrationFactor: Double? {
         var latest: BloodTestRecord?
-        for record in bloodTestHistory where record.isCalibrated {
+        // The factor is only meaningful for the hormone the model is currently
+        // predicting. Previously this scanned every calibrated record regardless of
+        // hormone type, so a user who logged labs for both E2 and T could have the
+        // wrong hormone's α applied to the model — e.g. a testosterone draw silently
+        // rescaling the estrogen curve. `selectedMedication` is the same value
+        // `estimatedLevels` gates its dose events on, so the filter keeps the
+        // calibration and the prediction on the same hormone.
+        for record in bloodTestHistory
+        where record.isCalibrated && record.hormoneType == selectedMedication {
             if let current = latest, current.drawDate >= record.drawDate { continue }
             latest = record
         }
@@ -535,6 +543,15 @@ class MedicationManager: ObservableObject {
         screeningRecords.insert(record, at: 0)
         modelContext?.insert(record)
         try? modelContext?.save()
+    }
+
+    /// Removes a screening record, symmetric with `removeBloodTest(withId:)`.
+    func removeScreening(withId id: String) {
+        if let index = screeningRecords.firstIndex(where: { $0.id == id }) {
+            modelContext?.delete(screeningRecords[index])
+            screeningRecords.remove(at: index)
+            try? modelContext?.save()
+        }
     }
     // MARK: - Dose Deletion
 

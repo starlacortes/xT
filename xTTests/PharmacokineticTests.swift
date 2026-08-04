@@ -2031,6 +2031,11 @@ struct RouteSwitchConsistencyTests {
 /// computation only ever plots `.taken` doses. A skipped (or otherwise
 /// non-taken) record could therefore stretch the x-axis into a region that has
 /// no plotted contribution behind it.
+///
+/// The window is now anchored on `now` and sized by the ester alone (see
+/// `PKChartWindow`), so this property holds structurally rather than by careful
+/// filtering — no dose positions the x-axis, so no dose can stretch it. Kept as a
+/// regression guard against a future change that reintroduces dose-anchored bounds.
 @Suite("Chart Window — Not Stretched By Non-Taken Doses")
 struct ChartWindowSkippedDoseTests {
 
@@ -2039,8 +2044,6 @@ struct ChartWindowSkippedDoseTests {
     func skippedDoseDoesNotStretchWindow() {
         let mgr = TestDefaults.manager()
         mgr.selectedMedication = "Estrogen"
-        // Non-injectable route: the injectable branch of refreshState() hard-codes
-        // its own window, so it never consults the dose list at all.
         mgr.selectedAdministrationMethod = "Oral"
         mgr.customFrequencyDays = nil
         mgr.antiAndrogenInUse = false
