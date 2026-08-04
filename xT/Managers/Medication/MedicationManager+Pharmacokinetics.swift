@@ -238,13 +238,17 @@ extension MedicationManager {
               medication == record.hormoneType
         else { return }
         
-        // Run model at the exact draw time (± 1 hour window)
-        let modelPoints = estimatedLevels(
-            from: record.drawDate.addingTimeInterval(-1800),
-            to: record.drawDate.addingTimeInterval(1800),
-            stepDays: 1
-        )
-        guard let predicted = modelPoints.last?.value, predicted > 0.01 else {
+        // Run the model at the exact draw instant, uncalibrated. Sampling the draw
+        // date itself (rather than a ±30-minute window stepped at 1 day) fixes two
+        // defects at once: the old window's 86400-second step jumped straight past
+        // `end` and produced a single point at drawDate − 1800s, silently anchoring
+        // α half an hour before the draw; and because that call went through
+        // `estimatedLevels` without `applyCalibration: false`, α was computed
+        // against an already-α-scaled prediction — a circularity that damped every
+        // subsequent calibration. `predictedLevel` defaults to uncalibrated so the
+        // calibration engine never feeds on its own output.
+        guard let predicted = predictedLevel(at: record.drawDate,
+                                             hormoneType: record.hormoneType) else {
             record.calibrationFactor = nil
             return
         }
@@ -269,6 +273,51 @@ extension MedicationManager {
         let fetchDescriptor = FetchDescriptor<BloodTestRecord>(sortBy: [descriptor])
         let allRecords = try? context.fetch(fetchDescriptor)
         bloodTestHistory = allRecords ?? []
+    }
+    
+    /// Runs the PK model at a single instant and returns the predicted level.
+    ///
+    /// This is the calibration engine's sampling primitive. It deliberately defaults
+    /// `applyCalibration` to `false` so the calibration factor is always computed
+    /// against the raw population-model prediction — never against an already-α-scaled
+    /// one (the circularity that the old ±30-minute window introduced). It also samples
+    /// the draw date itself rather than a window, so α is anchored at the exact moment
+    /// the blood was drawn.
+    ///
+    /// - Parameters:
+    ///   - date: The instant to evaluate the model at (typically `record.drawDate`).
+    ///   - hormoneType: The medication type the prediction is for.
+    ///   - applyCalibration: Whether to apply the current calibration factor. Defaults
+    ///     to `false`; the calibration engine must never feed on its own output.
+    /// - Returns: The predicted level, or `nil` when no medication/method is configured
+    ///   or the predicted value is ≤ 0.01 (clinically meaningless as a divisor).
+    func predictedLevel(at date: Date, hormoneType: String, applyCalibration: Bool = false) -> Double? {
+        guard selectedMedication == hormoneType,
+              selectedAdministrationMethod != nil else { return nil }
+        let points = estimatedLevels(from: date, to: date, stepDays: 1,
+                                     applyCalibration: applyCalibration)
+        guard let value = points.last?.value, value > 0.01 else { return nil }
+        return value
+    }
+    
+    /// Maps the blood test history into chart-ready series points.
+    ///
+    /// Lives on the manager (rather than in `LabsChartSeries.swift`) so the shared
+    /// chart model stays a pure-math value type with no manager dependency. The
+    /// predicted value is computed uncalibrated at each draw date, matching how
+    /// `computeCalibrationFactor` derives α.
+    func labsSeriesPoints(for hormoneType: String) -> [LabsSeriesPoint] {
+        bloodTestHistory
+            .filter { $0.hormoneType == hormoneType }
+            .sorted { $0.drawDate < $1.drawDate }
+            .map { record in
+                LabsSeriesPoint(
+                    drawDate: record.drawDate,
+                    measured: record.measuredLevel,
+                    predicted: predictedLevel(at: record.drawDate, hormoneType: hormoneType),
+                    isCalibrated: record.isCalibrated
+                )
+            }
     }
     // MARK: - Layer 1: Time-Contextual + Dose-Scaled Targets
     

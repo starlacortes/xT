@@ -52,9 +52,18 @@ class BloodTestRecord: Identifiable, Hashable {
 // MARK: - Convenience
 
 extension BloodTestRecord {
+    /// The display unit for a hormone type's lab result.
+    ///
+    /// Hoisted out of `summary` so the composer and the labs chart can label their
+    /// level fields with the same unit the summary uses, without duplicating the
+    /// ternary. Estrogen is measured in pg/mL; testosterone in ng/dL.
+    static func unit(for hormoneType: String) -> String {
+        hormoneType == "Estrogen" ? "pg/mL" : "ng/dL"
+    }
+
     /// Human-readable summary (e.g., "E2: 185 pg/mL — Jun 15, 2026 (trough)")
     var summary: String {
-        let unit = hormoneType == "Estrogen" ? "pg/mL" : "ng/dL"
+        let unit = BloodTestRecord.unit(for: hormoneType)
         let dateStr = BloodTestRecord.dateFormatter.string(from: drawDate)
         var base = "\(hormoneType): \(String(format: "%.0f", measuredLevel)) \(unit) — \(dateStr)"
         if let hrs = hoursSinceLastDose {
