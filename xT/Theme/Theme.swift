@@ -238,6 +238,8 @@ struct Theme {
 
     /// Shared animation curves so motion feels consistent across the app.
     struct Motion {
+        // Legacy curves — kept for existing callers. Prefer the spring-based
+        // presets below for new code (WWDC23 recommendation: spring(duration:bounce:)).
         /// Gentle spring for entrances and layout settling.
         static let entrance = Animation.spring(response: 0.55, dampingFraction: 0.82)
         /// Quick, lively spring for taps and toggles.
@@ -260,6 +262,30 @@ struct Theme {
         static let reveal   = Animation.easeOut(duration: 1.0)
         /// Continuous attention pulse — the "dose due" indicator. (2 sites)
         static let pulse    = Animation.easeInOut(duration: 1.3).repeatForever(autoreverses: true)
+
+        // MARK: Spring-based presets (iOS 17+, WWDC23 recommended)
+        //
+        // Apple recommends spring(duration:bounce:) over the older
+        // spring(response:dampingFraction:) API. Bounce values:
+        //   0.0   = critically damped — smooth settle, no overshoot
+        //   0.15  = subtle playfulness, slightly brisk tail
+        //   0.30  = noticeable bounce, feels physical
+        //   >0.4  = exaggerated — use sparingly
+        //
+        // Ref: WWDC23 "Animate with springs"
+
+        /// Cards and sections settling into place on first appear.
+        /// Smooth, no bounce — feels like a gentle deceleration.
+        static let settle = Animation.spring(duration: 0.55, bounce: 0.0)
+        /// Lightly playful pop for interactive elements (buttons, selection).
+        static let pop    = Animation.spring(duration: 0.35, bounce: 0.15)
+        /// Gentle attention-grab — noticeable but not jarring. Good for
+        /// overlays and callouts that should feel warm, not aggressive.
+        static let gentle = Animation.spring(duration: 0.45, bounce: 0.08)
+        /// Tactile press-down — tighter, lower bounce than pop.
+        static let tap    = Animation.spring(duration: 0.25, bounce: 0.05)
+        /// Celebration scatter — higher bounce for festive particle bursts.
+        static let burst  = Animation.spring(duration: 0.6, bounce: 0.28)
     }
 
     // MARK: Shadows

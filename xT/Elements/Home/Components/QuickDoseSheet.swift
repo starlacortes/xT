@@ -573,7 +573,7 @@ struct QuickDoseSheet: View {
     @State private var showOverlapDisclaimer = false
     @State private var tapPositions: [String: BodyModel3DView.HitPosition] = [:]
     /// Marks taps that land on the body but outside any clinical zone.
-    @StateObject private var noZoneTaps = NoZoneTapTracker()
+    @State private var noZoneTaps = NoZoneTapTracker()
     /// Live camera yaw in radians, used to record which side of the body was tapped.
     @State private var cameraYaw: Float = 0
     @State private var showInfoPanel = false

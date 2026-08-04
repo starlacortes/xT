@@ -27,6 +27,7 @@ final class DeveloperSettings {
     private enum Keys {
         static let developerMode = "dev.developerModeEnabled"
         static let sampleProfile = "dev.sampleProfileEnabled"
+        static let activePersona = "dev.activePersonaIndex"
     }
 
     /// Filesystem home for DEBUG-only developer artifacts (e.g. the user-data
@@ -37,6 +38,18 @@ final class DeveloperSettings {
             .appendingPathComponent("xT-dev", isDirectory: true)
     }
 
+    /// All available spoof personas. Order matches the UX paper.
+    static let personaNames: [String] = [
+        "Jan (Sample)",
+        "Maya — 4mg EV q7d, first-time",
+        "Devon — 100→200mg TC, regimen change",
+        "Priya — oral E2→EV IM, route switch",
+        "Sam — 50mg/day T gel, missed doses",
+        "Rowan — 4mg/day E2 cream, custom conc.",
+        "Jules — 100mg TE q7d, blood test calib.",
+        "Nadia — 5mg EC q10d, unconventional",
+    ]
+
 #if DEBUG
     /// Master gate. When off, the Sample and Research toggles are visible in
     /// Settings but greyed out.
@@ -44,16 +57,30 @@ final class DeveloperSettings {
         didSet { UserDefaults.standard.set(developerModeEnabled, forKey: Keys.developerMode) }
     }
 
-    /// When on, the "Jan" test profile is the active dataset. The user's real
+    /// When on, a spoof persona is the active dataset. The user's real
     /// data is preserved by `ProfileSnapshot` and restored on toggle-off.
     var sampleProfileEnabled: Bool {
         didSet { UserDefaults.standard.set(sampleProfileEnabled, forKey: Keys.sampleProfile) }
+    }
+
+    /// Which persona is active when sampleProfileEnabled is true.
+    /// Index into `DeveloperSettings.personaNames`. Defaults to 0 (Jan).
+    var activePersonaIndex: Int {
+        didSet { UserDefaults.standard.set(activePersonaIndex, forKey: Keys.activePersona) }
+    }
+
+    /// Convenience: the persona name for the currently selected index.
+    var activePersonaName: String {
+        let i = activePersonaIndex
+        guard i >= 0, i < Self.personaNames.count else { return Self.personaNames[0] }
+        return Self.personaNames[i]
     }
 
     private init() {
         let defaults = UserDefaults.standard
         developerModeEnabled = defaults.bool(forKey: Keys.developerMode)
         sampleProfileEnabled = defaults.bool(forKey: Keys.sampleProfile)
+        activePersonaIndex = defaults.integer(forKey: Keys.activePersona)
     }
 #else
     // RELEASE: hardwired off. Consumers read these without any #if DEBUG.

@@ -9,6 +9,7 @@
 import SwiftUI
 import SwiftData
 import CryptoKit
+import Observation
 
 /// Unit of measure for a hormone level. A value rather than a display string so
 /// that classification and formatting stay independent of the display locale.
@@ -84,7 +85,8 @@ struct HormoneLevel: Equatable {
 /// MedicationManager with a Reactive Data Pipeline to ensure UI synchronization.
 /// This class acts as the Single Source of Truth for all hormone-related state.
 @MainActor
-class MedicationManager: ObservableObject {
+@Observable
+class MedicationManager {
     static let shared = MedicationManager()
 
     /// Backing store for this manager's transient preferences.
@@ -119,35 +121,35 @@ class MedicationManager: ObservableObject {
     }
 
     // MARK: - Core State
-    @Published var selectedMedication: String?
-    @Published var selectedAdministrationMethod: String?
-    @Published var selectedEster: String?
-    @Published var lastDoseDate: Date?
-    @Published var nextDoseDate: Date?
-    @Published var defaultDoseAmount: Double?
-    @Published var defaultInjectionTime: Date?
+    var selectedMedication: String?
+    var selectedAdministrationMethod: String?
+    var selectedEster: String?
+    var lastDoseDate: Date?
+    var nextDoseDate: Date?
+    var defaultDoseAmount: Double?
+    var defaultInjectionTime: Date?
     /// When the user actually began HRT (may predate app install). Drives monthsOnHRT.
-    @Published var hrtStartDate: Date?
+    var hrtStartDate: Date?
 
     // MARK: - Reactive Research Properties (The "Signals" for SwiftUI)
     /// Provides the current level summary, including unit, range, and plain-language explanation.
-    @Published var currentHormoneLevel: HormoneLevel? = nil
+    var currentHormoneLevel: HormoneLevel? = nil
     /// Provides the historical data points used to drive the 7-day and long-term charts.
-    @Published var recentLevels: [EstimatedPoint] = []
+    var recentLevels: [EstimatedPoint] = []
 
     // MARK: - Dose History (The Real Source of Truth)
     /// Full log of all logged doses — the backbone of the PK model.
-    @Published var doseHistory: [DoseRecord] = []
+    var doseHistory: [DoseRecord] = []
 
     /// Incremented each time a dose is successfully recorded. Drives celebration
     /// animations and reactive refresh hooks across the UI.
-    @Published var doseRecordedCount: Int = 0
+    var doseRecordedCount: Int = 0
 
     // MARK: - Injection Site Tracking
 
     /// Zones marked as "avoid" by the user. Key = zone label.
     /// Persisted to UserDefaults for cross-launch durability.
-    @Published var avoidZones: [String: AvoidZoneInfo] = [:]
+    var avoidZones: [String: AvoidZoneInfo] = [:]
 
     /// Convenience accessor: returns the set of zone labels currently marked as avoid.
     var avoidZoneLabels: Set<String> {
@@ -156,6 +158,7 @@ class MedicationManager: ObservableObject {
 
     /// In-memory cache for async heat map computations.
     /// Keyed by "routeClass_windowDays". Invalidated on dose record.
+    @ObservationIgnored
     var heatMapCache: [String: [String: Int]] = [:]
 
     // MARK: - Batch mutation
@@ -166,6 +169,7 @@ class MedicationManager: ObservableObject {
     /// dose history plus a SwiftData save, which is the right behaviour for a single user
     /// action but quadratic when seeding many doses at once (the sample profile logs ~110).
     /// Wrap bulk work in `performBatch(_:)` so the recompute happens once at the end.
+    @ObservationIgnored
     var suppressRefresh: Bool = false
 
     /// Runs `body` with `refreshState()` suppressed, then refreshes exactly once.
@@ -184,7 +188,7 @@ class MedicationManager: ObservableObject {
     // MARK: - Endogenous Suppression Settings
     /// Whether the user takes an anti‑androgen (spironolactone, cyproterone, GnRH agonist).
     /// When true, endogenous testosterone baseline is aggressively suppressed to near‑zero.
-    @Published var antiAndrogenInUse: Bool = false {
+    var antiAndrogenInUse: Bool = false {
         didSet { defaults.set(antiAndrogenInUse, forKey: Keys.antiAndrogenInUse) }
     }
 
@@ -192,7 +196,7 @@ class MedicationManager: ObservableObject {
     /// estradiol clearance. When the user is on spiro, we apply a small multiplier to ke
     /// to reflect this interaction. Typical estimates: 10‑20% faster clearance.
     /// Set to false if the user is on other AAs (cyproterone, GnRH agonists).
-    @Published var spironolactoneInUse: Bool = false {
+    var spironolactoneInUse: Bool = false {
         didSet { defaults.set(spironolactoneInUse, forKey: Keys.spironolactoneInUse) }
     }
 
@@ -202,15 +206,15 @@ class MedicationManager: ObservableObject {
 
     // --- User Preference-Driven Settings (#9, #12, #18) ---
     /// User-configurable suppression timescale (4/8/12 weeks).
-    @Published var suppressionSpeed: SuppressionSpeed = .fast {
+    var suppressionSpeed: SuppressionSpeed = .fast {
         didSet { defaults.set(suppressionSpeed.rawValue, forKey: Keys.suppressionSpeed) }
     }
     /// Whether the spironolactone clearance adjustment is opted in.
-    @Published var spironolactoneClearanceEnabled: Bool = false {
+    var spironolactoneClearanceEnabled: Bool = false {
         didSet { defaults.set(spironolactoneClearanceEnabled, forKey: Keys.spironolactoneClearanceEnabled) }
     }
     /// Custom dosing interval in days; nil = use method default.
-    @Published var customFrequencyDays: Int? = nil {
+    var customFrequencyDays: Int? = nil {
         didSet {
             if let val = customFrequencyDays {
                 defaults.set(val, forKey: Keys.customFrequencyDays)
@@ -222,26 +226,26 @@ class MedicationManager: ObservableObject {
 
     /// When true, the Time tab surfaces relativeDoseIntensity-derived copy.
     /// T5+ users default to off. Persisted via UserPreferences (plan §4.4).
-    @Published var showDoseIntensityInsights: Bool = false
+    var showDoseIntensityInsights: Bool = false
 
     // --- Missed Dose Settings (#1) ---
     /// Grace period in hours after the scheduled dose during which it's still "Due Soon".
     /// Default 12 hours. After this window, the dose is marked "Missed".
-    @Published var missedDoseGracePeriodHours: Double = 12.0 {
+    var missedDoseGracePeriodHours: Double = 12.0 {
         didSet { defaults.set(missedDoseGracePeriodHours, forKey: Keys.missedDoseGracePeriodHours) }
     }
 
     /// Predicted trough drop when a dose is missed (pg/mL or ng/dL).
     /// Computed from the PK model: difference between expected trough with vs. without the missed dose.
-    @Published var predictedTroughDrop: Double? = nil
+    var predictedTroughDrop: Double? = nil
 
     // MARK: - Blood Test Calibration
     /// History of user‑entered lab results used to calibrate the PK model.
-    @Published var bloodTestHistory: [BloodTestRecord] = []
+    var bloodTestHistory: [BloodTestRecord] = []
 
     /// Health screening log (DEXA, breast, cardio, liver, CBC, etc.).
     /// Drives milestone completion tracking for long-term tenure tiers (plan §4.1).
-    @Published var screeningRecords: [ScreeningRecord] = [] {
+    var screeningRecords: [ScreeningRecord] = [] {
         didSet { rebuildScreeningLog() }
     }
 
@@ -351,7 +355,7 @@ class MedicationManager: ObservableObject {
     }
     
     /// User's personal therapeutic target. When nil, clinical defaults are used.
-    @Published var userTherapeuticTarget: TherapeuticTarget? = nil {
+    var userTherapeuticTarget: TherapeuticTarget? = nil {
         didSet {
             if let target = userTherapeuticTarget, let data = try? JSONEncoder().encode(target) {
                 defaults.set(data, forKey: Keys.userTherapeuticTarget)
@@ -523,6 +527,7 @@ class MedicationManager: ObservableObject {
     ///
     /// Cached rather than computed: `TimeView` reads it from `body`, so as a computed
     /// property it rebuilt the whole dictionary on every render pass.
+    @ObservationIgnored
     private(set) var screeningLog: [ScreeningType: Date] = [:]
 
     /// Recomputes ``screeningLog``. Called from `screeningRecords`' observer, which is the
@@ -575,9 +580,9 @@ class MedicationManager: ObservableObject {
     }
     // MARK: - Regimen & Adherence Properties
     
-    @Published var regimenTransitionHistory: [RegimenSegment] = []
-    @Published var adherenceRate: Double? = nil
-    @Published var onTimeStreak: Int = 0
+    var regimenTransitionHistory: [RegimenSegment] = []
+    var adherenceRate: Double? = nil
+    var onTimeStreak: Int = 0
     
 }
 

@@ -7,6 +7,7 @@
 
 import Foundation
 import UserNotifications
+import Observation
 
 /// Manages all local notification scheduling, permission state and tap handling.
 ///
@@ -14,7 +15,8 @@ import UserNotifications
 /// must be called once during startup or notifications will neither appear in the foreground nor
 /// route anywhere when tapped.
 @MainActor
-final class NotificationManager: NSObject, ObservableObject {
+@Observable
+final class NotificationManager: NSObject {
     static let shared = NotificationManager()
 
     enum NotificationType: String {
@@ -31,18 +33,17 @@ final class NotificationManager: NSObject, ObservableObject {
     // MARK: - Properties
 
     /// Set when the user taps a reminder (or its action button); cleared by `consumePendingRoute()`
-    /// once the UI has navigated. Observe with `@ObservedObject`/`@StateObject` — the
-    /// `\.notificationManager` environment key carries the instance, not its change publisher.
-    @Published private(set) var pendingRoute: Route?
+    /// once the UI has navigated.
+    private(set) var pendingRoute: Route?
 
-    @Published var isDoseNotificationsAuthorized = false
-    @Published var isJournalNotificationsAuthorized = false
-    @Published var doseReminderEnabled = UserDefaults.standard.bool(forKey: "doseReminderEnabled")
-    @Published var doseReminderHour = UserDefaults.standard.integer(forKey: "doseReminderHour")
-    @Published var doseReminderMinute = UserDefaults.standard.integer(forKey: "doseReminderMinute")
-    @Published var journalReminderEnabled = UserDefaults.standard.bool(forKey: "journalReminderEnabled")
-    @Published var journalReminderHour = UserDefaults.standard.integer(forKey: "journalReminderHour")
-    @Published var journalReminderMinute = UserDefaults.standard.integer(forKey: "journalReminderMinute")
+    var isDoseNotificationsAuthorized = false
+    var isJournalNotificationsAuthorized = false
+    var doseReminderEnabled = UserDefaults.standard.bool(forKey: "doseReminderEnabled")
+    var doseReminderHour = UserDefaults.standard.integer(forKey: "doseReminderHour")
+    var doseReminderMinute = UserDefaults.standard.integer(forKey: "doseReminderMinute")
+    var journalReminderEnabled = UserDefaults.standard.bool(forKey: "journalReminderEnabled")
+    var journalReminderHour = UserDefaults.standard.integer(forKey: "journalReminderHour")
+    var journalReminderMinute = UserDefaults.standard.integer(forKey: "journalReminderMinute")
 
     /// The dosing frequency in days. Drives whether the dose reminder is daily or on
     /// specific days. Single derivation lives on `MedicationManager`.

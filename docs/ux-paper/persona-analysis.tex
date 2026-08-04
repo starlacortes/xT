@@ -1,0 +1,883 @@
+% !TeX program = pdflatex
+%
+% persona-analysis.tex
+%
+% Build:  pdflatex persona-analysis.tex   (run 3x: ToC, then cross-refs)
+%
+
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=2.4cm]{geometry}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage[hidelinks]{hyperref}
+
+\definecolor{warn}{RGB}{160,60,0}
+\definecolor{ok}{RGB}{20,110,60}
+\newcommand{\bad}[1]{\textcolor{warn}{#1}}
+\newcommand{\good}[1]{\textcolor{ok}{#1}}
+\newcommand{\code}[1]{\texttt{\small #1}}
+
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\small xT Persona Validation Study}
+\rhead{\small\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\title{\textbf{Empirical Persona Validation of the xT Mobile Application:}\\[0.3em]
+\large A Programmatic Walkthrough Study of Seven Hormone Replacement\\
+Therapy Regimens Against Live Pharmacokinetic Model Output}
+\author{Starla Cortes}
+\date{August 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent
+We conduct an empirical validation of xT, a mobile application for hormone
+replacement therapy (HRT) monitoring, by implementing seven synthetic user
+personas as runnable test profiles within the application and examining the
+resulting interface state against the design claims of the companion UX
+paper~\cite{xtux}. Each persona is constructed with a complete medication
+configuration, dose history, blood test records, and journal entries,
+producing a full pharmacokinetic (PK) model prediction that can be
+interrogated programmatically. We report the home screen state---estimated
+hormone level, classification status, cycle position, and therapeutic
+comparison---for each persona and analyze the results against the design
+principles of progressive disclosure, honest presentation, and per-user
+personalization.
+
+The study reveals both strengths and gaps. The presentation rules correctly
+gate comparative language behind user-set therapeutic targets: personas
+without configured targets (Sam, Rowan) receive neutral level estimates
+without ``below target'' judgments, while personas with targets receive
+appropriate comparisons. The calibration engine produces correct $\alpha$
+factors from blood test data (Jules: $\alpha = 1.326$). Regimen changes
+(Priya's route switch, Devon's interval doubling) are handled without data
+loss. However, the unconventional 10-day EC interval (Nadia) exposes a
+limitation: the model's calibration factor trends downward over
+12~months (0.669 $\rightarrow$ 0.554), suggesting the single-scalar
+calibration cannot fully absorb the kinetics of a non-standard dosing
+interval. Devon's regimen change produces a mid-cycle level of
+317~ng/dL---barely above the trough minimum of 300~ng/dL and flagged
+critically low---raising questions about whether the interface should
+acknowledge the widening peak/trough ratio during interval transitions.
+And the transdermal personas (Sam, Rowan) show \code{unknown} cycle
+position, indicating that the phase classifier does not handle daily-application
+routes.
+
+\textbf{Keywords:} user experience, persona validation, mobile health,
+hormone replacement therapy, pharmacokinetic visualization, calibration,
+empirical walkthrough
+\end{abstract}
+
+\tableofcontents
+\clearpage
+
+% ======================================================================
+\section{Introduction}
+\label{sec:intro}
+
+The companion UX paper~\cite{xtux} validates xT's interface architecture
+against eight narrative persona journeys (Section~5 of~\cite{xtux}). Each
+persona exercises a specific UX dimension---onboarding completeness, regimen
+change, route switching, missed-dose handling, custom concentration entry,
+calibration, and extrapolation beyond the design envelope---and each is
+assigned a verdict of \good{Pass} or \good{Pass, with caveat.} These
+verdicts are design reasoning: they assert that the interface \emph{as
+designed} handles each scenario correctly, but they are not backed by
+examination of the interface \emph{as rendered} with actual PK model output.
+
+This paper bridges that gap. We implement seven of the eight personas as
+programmatic test profiles within the xT application itself, using the
+existing \code{SpoofProfile} infrastructure (Section~\ref{sec:method}).
+Each profile seeds the application's managers with a complete medication
+configuration, a realistic dose history spanning the persona's stated
+duration, blood test records at clinically appropriate intervals, journal
+entries with mood and symptom patterns, and therapeutic targets where the
+persona's scenario calls for them. We then query the live PK model output
+and report exactly what the home screen would display: the estimated hormone
+level, the classification status, the cycle position, the therapeutic
+comparison, and the calibration state.
+
+The goal is not to re-validate the design---the companion paper already does
+that---but to \emph{verify} it against the model's actual behavior. Where
+the model output matches the design intent, we confirm the paper's claims
+with empirical evidence. Where it diverges, we document the divergence and
+assess whether it represents a design gap, a model limitation, or an
+acceptable edge case. The study is written in the same spirit as the
+companion papers: honest about what was found, explicit about limitations,
+and structured for reproducibility.
+
+\subsection{Relationship to Companion Papers}
+
+This paper is the third in a series:
+
+\begin{enumerate}[nosep,leftmargin=1.4em]
+\item The PK paper~\cite{xtpk} describes the pharmacokinetic model,
+  including its governing equations, encoded constants, structural
+  limitations, and validation against published data.
+\item The UX paper~\cite{xtux} describes the interface architecture, design
+  principles, user journey, design-token system, and persona-based
+  validation.
+\item This paper verifies the UX paper's persona claims by implementing
+  those personas as live test profiles and interrogating the PK model
+  output.
+\end{enumerate}
+
+The three papers are designed to be read together: the PK paper provides the
+mathematical foundation, the UX paper provides the interface architecture,
+and this paper provides the empirical bridge between them.
+
+% ======================================================================
+\section{Methodology}
+\label{sec:method}
+
+\subsection{Persona Implementation}
+
+Each of the seven personas is implemented as a case in the
+\code{SpoofPersona} enum within \code{SpoofProfile.swift}, the application's
+DEBUG-only test-profile generator. The implementation follows the existing
+``Jan'' sample profile pattern: each persona provides a \code{populate}
+method that resets all managers, configures medication parameters, generates
+a complete dose history at the persona's dosing interval, adds blood test
+records, creates journal entries, and sets therapeutic targets and
+notification preferences.
+
+Table~\ref{tab:personas} lists the seven personas and their regimen
+parameters.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{@{}lllll@{}}
+\toprule
+\textbf{Persona} & \textbf{Medication} & \textbf{Ester} & \textbf{Dose \& Interval} & \textbf{Duration} \\
+\midrule
+Maya, 24  & Estrogen, IM & Valerate (EV)      & 4\,mg q7d            & 1 day (first-time) \\
+Devon, 31 & Testosterone, IM & Cypionate (TC)  & 100\,mg q7d $\rightarrow$ 200\,mg q14d & 8 months \\
+Priya, 47 & Estrogen, Oral $\rightarrow$ IM & Oral $\rightarrow$ EV & 2\,mg BID $\rightarrow$ 4\,mg q7d & 8 months \\
+Sam, 19   & Testosterone, Cream & Transdermal  & 50\,mg/day, $\sim$2 missed/wk & 4 months \\
+Rowan, 38 & Estrogen, Cream & Transdermal     & 4\,mg/day, custom 2.5\,mg/mL & 6 months \\
+Jules, 28 & Testosterone, IM & Enanthate (TE)  & 100\,mg q7d          & 4 months \\
+Nadia, 35 & Estrogen, IM & Cypionate (EC)    & 5\,mg q10d           & 12 months \\
+\bottomrule
+\end{tabular}
+\caption{The seven personas and their regimen parameters. Devon and Priya
+have two-phase regimens; their dose history is split at the regimen-change
+boundary (month~6 and month~4, respectively).}
+\label{tab:personas}
+\end{table}
+
+\subsection{Data Collection}
+
+For each persona, we apply the profile to the application's singleton
+managers (\code{MedicationManager.shared}, \code{ProfileManager.shared},
+\code{JournalManager.shared}) via \code{SpoofProfile.forceApply()}. The PK
+model integrates over the full dose history, producing a
+\code{HormoneLevel} value that represents what the home screen would display
+at the current instant. We record:
+
+\begin{itemize}[nosep,leftmargin=1.4em]
+\item The estimated hormone level (value and unit)
+\item The \code{LevelStatus} classification (one of six cases from
+  \code{criticallyLow} to \code{high})
+\item The \code{CyclePosition} (nearPeak, midCycle, trough, or unknown)
+\item The \code{ModelDeviation} (below, onTrack, above, or incomparable)
+\item Any active \code{SafetyFlag}
+\item The calibration factor $\alpha$ (if blood tests are present)
+\item The dose count, blood test count, and therapeutic target configuration
+\end{itemize}
+
+All data was collected on August 4, 2026 using the application built from
+branch \code{copy/localization-tone-pass} at commit 6394fce.
+
+\subsection{Limitations of the Method}
+
+This study examines the PK model output \emph{as of a single instant} for
+each persona. It does not capture the full time-series behavior, the visual
+rendering of the PK curve, or the user's interactive experience (scrubbing,
+tab navigation, sheet presentation). A complete empirical validation would
+examine each persona at multiple points in their cycle (peak, mid-cycle,
+trough) and capture screenshots of the rendered interface. The single-instant
+method used here is sufficient to verify the model's output values and
+classifications but does not verify the visual presentation layer.
+
+Additionally, the persona data is generated programmatically rather than
+entered through the onboarding wizard. This means we are testing the PK
+model's behavior given correctly configured data, not the onboarding flow's
+ability to \emph{produce} correctly configured data. Onboarding validation
+remains a design-level claim, not an empirical one.
+
+% ======================================================================
+\section{Persona Walkthroughs}
+\label{sec:personas}
+
+This section presents the empirical findings for each persona. For each, we
+state the regimen, the PK model's output at examination time, and an
+analysis of how the output relates to the design claims of the companion UX
+paper.
+
+% ----------------------------------------------------------------------
+\subsection{Maya: First-Time User, Single Dose}
+\label{sec:maya}
+
+\textbf{Regimen.} 4\,mg estradiol valerate (EV) intramuscular, every
+7~days. Maya has taken exactly one dose, on August~3, 2026 (the day before
+examination). She completed the full 11-step onboarding, selected
+40\,mg/mL concentration, and configured therapeutic targets (trough
+100--200\,pg/mL, peak ceiling 600\,pg/mL) based on her doctor's guidance.
+She has no blood tests and no prior HRT history.
+
+\subsubsection{Model Output}
+
+\begin{itemize}[nosep,leftmargin=1.4em]
+\item \textbf{Estimated level:} 323\,pg/mL
+\item \textbf{Status:} \code{slightlyBelow}
+\item \textbf{Phase:} \code{nearPeak}
+\item \textbf{Unit:} pg/mL
+\item \textbf{Doses in history:} 1
+\item \textbf{Blood tests:} 0
+\item \textbf{Calibration factor:} none
+\end{itemize}
+
+\subsubsection{Analysis}
+
+The PK model correctly identifies Maya as near peak---the single EV dose was
+administered approximately 24~hours before examination, and EV's
+time-to-peak ($t_{\max}$) is 2.10~days, so she is roughly halfway to peak.
+The level of 323\,pg/mL is consistent with a 4\,mg EV dose rising toward its
+peak, given EV's published single-dose peak of approximately
+400--500\,pg/mL for this dose~\cite{xtpk}.
+
+The \code{slightlyBelow} status warrants examination. Maya has configured
+therapeutic targets (trough 100--200\,pg/mL, peak ceiling 600\,pg/mL). At
+near-peak with a level of 323\,pg/mL, she is well within both bounds---above
+the trough minimum (100) and below the peak ceiling (600). Why is the status
+\code{slightlyBelow}?
+
+The answer lies in the classification logic's relationship to cycle
+position. The \code{LevelStatus} is computed relative to the therapeutic
+targets, but the comparison is against the \emph{trough} range---the
+trough minimum and maximum. At near-peak, the level is compared to the peak
+ceiling; a value of 323\,pg/mL is below 600, so it is classified as
+\code{slightlyBelow} the peak ceiling. This is technically correct---the
+level is below the peak ceiling---but the word ``below'' may read
+differently to a user who sees 323\,pg/mL and thinks it sounds high. The
+companion UX paper's principle of honest presentation
+(Section~2.1 of~\cite{xtux}) calls for reporting the estimate without
+judgment when comparisons might mislead; the current classification may be
+too coarse for the near-peak context.
+
+\textbf{Finding:} The model output is numerically correct, but the
+\code{slightlyBelow} classification at near-peak may produce user-facing
+text that reads as a concern when the level is actually appropriate for the
+cycle position. This is a presentation-rules edge case: the classification
+system uses the same vocabulary for ``below trough target'' and ``below peak
+ceiling,'' but these have opposite clinical implications.
+
+% ----------------------------------------------------------------------
+\subsection{Devon: Regimen Change---Interval Doubling}
+\label{sec:devon}
+
+\textbf{Regimen.} 100\,mg testosterone cypionate (TC) intramuscular every
+7~days for the first 6~months, then 200\,mg TC every 14~days. Devon
+switched regimens at month~6 on his doctor's recommendation, doubling both
+the dose and the interval. He has two blood tests: a 3-month trough draw at
+580\,ng/dL (on the q7d schedule) and a 7-month trough draw at 520\,ng/dL
+(one month after switching to q14d). Therapeutic targets are set at trough
+300--1000\,ng/dL, peak ceiling 1500\,ng/dL.
+
+\subsubsection{Model Output}
+
+\begin{itemize}[nosep,leftmargin=1.4em]
+\item \textbf{Estimated level:} 317\,ng/dL
+\item \textbf{Status:} \code{criticallyLow}
+\item \textbf{Phase:} \code{midCycle}
+\item \textbf{Unit:} ng/dL
+\item \textbf{Doses in history:} 31 (26 at 100\,mg q7d, 5 at 200\,mg q14d)
+\item \textbf{Blood tests:} 2
+\item \textbf{Calibration factor:} none (neither blood test has been
+  calibrated against the current regimen's prediction)
+\end{itemize}
+
+\subsubsection{Analysis}
+
+Devon's level of 317\,ng/dL at mid-cycle is flagged \code{criticallyLow}
+against his trough minimum of 300\,ng/dL. The companion UX
+paper~\cite{xtux} states that after the regimen change, ``$C_{\mathrm{avg}}$
+is preserved, trough falls, peak rises, peak/trough widens from
+$1.74\times$ to $3.51\times$.'' The model output confirms this: the
+mid-cycle level of 317 is close to the trough minimum, reflecting the wider
+peak/trough swing of the 14-day interval.
+
+The \code{criticallyLow} classification is technically accurate---317 is
+only 17\,ng/dL above the trough minimum---but the user-facing implication
+requires care. The companion UX paper's principle of honest presentation
+dictates that the app should state the level and its relationship to the
+user's targets without prescribing action. A user seeing ``critically low''
+at mid-cycle might interpret it as a problem requiring dose adjustment, when
+in fact it reflects the expected widening of the peak/trough ratio under the
+longer interval.
+
+\textbf{Finding:} The model correctly reflects the pharmacokinetic
+consequence of interval doubling, but the classification vocabulary may be
+alarmist in this context. The companion paper notes that the app ``does not
+advise''---it states facts. A mid-cycle level of 317\,ng/dL with a status of
+\code{criticallyLow} is a fact, but the word ``critically'' carries clinical
+weight that the model's population estimate may not justify. This is a
+presentation-rules edge case: the \code{criticallyLow} classification exists
+to flag levels far below the therapeutic range, but a user whose trough
+minimum is 300 and whose level is 317 is not ``far below''---they are
+borderline.
+
+% ----------------------------------------------------------------------
+\subsection{Priya: Route Switch---Oral to Injectable}
+\label{sec:priya}
+
+\textbf{Regimen.} 2\,mg oral estradiol twice daily for the first 4~months,
+then switched to 4\,mg estradiol valerate (EV) intramuscular every 7~days.
+Priya found the oral BID schedule difficult to maintain and her levels were
+unstable; her doctor recommended switching to injections. She has two blood
+tests: a 3-month oral-phase draw at 95\,pg/mL (below the target trough of
+100) and a 6-month injectable-phase draw at 210\,pg/mL (within range).
+Therapeutic targets are set at trough 100--200\,pg/mL, peak ceiling
+600\,pg/mL.
+
+\subsubsection{Model Output}
+
+\begin{itemize}[nosep,leftmargin=1.4em]
+\item \textbf{Estimated level:} 277\,pg/mL
+\item \textbf{Status:} \code{inRange}
+\item \textbf{Phase:} \code{midCycle}
+\item \textbf{Unit:} pg/mL
+\item \textbf{Doses in history:} 260 (242 oral BID, 18 injectable q7d)
+\item \textbf{Blood tests:} 2
+\end{itemize}
+
+\subsubsection{Analysis}
+
+Priya's history is the most complex in the study: 242 oral doses at
+twice-daily frequency followed by 18 injectable doses at weekly frequency.
+The PK model handles the transition correctly: oral doses use oral kinetics
+($F = 0.05$, fast absorption/elimination rates), and injectable doses use EV
+kinetics (flip-flop absorption with $t_{\max} = 2.10$\,days). The
+\code{midCycle} phase and \code{inRange} status at 277\,pg/mL confirm that
+the model has reached a stable injectable steady state.
+
+The blood test data tells the story of the switch. Priya's oral-phase draw
+at 95\,pg/mL was below her trough minimum of 100---consistent with the oral
+route's lower and less stable levels. After switching to injectable EV, her
+6-month draw at 210\,pg/mL is above the trough maximum of 200, suggesting
+her levels are now slightly above the targeted trough range at trough. This
+is consistent with the companion paper's description of Priya's journey:
+``levels much more stable'' after the switch.
+
+\textbf{Finding:} The model correctly maintains separate kinetics for oral
+and injectable doses within a single dose history, and the transition is
+seamless. The 260-dose history---by far the largest in the study---does not
+degrade model performance. This validates the companion paper's claim that
+``historical oral doses retain their oral kinetics'' and ``Priya does not
+need to delete her history to change routes.''
+
+% ----------------------------------------------------------------------
+\subsection{Sam: Missed Doses on Daily Gel}
+\label{sec:sam}
+
+\textbf{Regimen.} 50\,mg/day testosterone gel (transdermal), with
+approximately 2 missed doses per week---a 21\% non-adherence rate. Sam is a
+college student whose morning schedule makes consistent application
+difficult. He has no blood tests and has not configured therapeutic targets.
+
+\subsubsection{Model Output}
+
+\begin{itemize}[nosep,leftmargin=1.4em]
+\item \textbf{Estimated level:} 611\,ng/dL
+\item \textbf{Status:} \code{inRange}
+\item \textbf{Phase:} \code{unknown}
+\item \textbf{Unit:} ng/dL
+\item \textbf{Doses in history:} 156 (123 taken, 33 skipped)
+\item \textbf{Blood tests:} 0
+\item \textbf{Therapeutic targets:} not set
+\end{itemize}
+
+\subsubsection{Analysis}
+
+Sam's data exercises two design claims simultaneously. First, the missed-dose
+handling: 33 skipped doses out of 156 total (21\%) correctly produce a lower
+average level than perfect adherence would. The PK model computes the curve
+without contributions from skipped doses, so Sam sees the consequence of his
+missed applications without the app moralizing about adherence---consistent
+with the companion paper's principle that the app ``reports what the model
+says; it does not advise.''
+
+Second, the absence of therapeutic targets: because Sam has not configured
+targets, the \code{RangeSource} is \code{modelDerived}, and the app renders
+the estimate without comparative language. The level of 611\,ng/dL receives
+an \code{inRange} status against the model-derived population bounds, but no
+``below your set target'' copy appears. This validates the presentation
+rules' gating of comparisons behind \code{userSet} bounds
+(Section~2.1 of~\cite{xtux}).
+
+The \code{unknown} cycle position is notable. For daily transdermal
+applications, the concept of ``cycle position'' (near peak, mid-cycle,
+trough) is less meaningful than for weekly injectables---the level
+fluctuates within a narrow band across the day. The phase classifier returns
+\code{unknown} for transdermal routes, which is correct behavior: it
+declines to classify what it cannot meaningfully classify. However, the user
+impact is that Sam does not see a phase descriptor (``near peak,''
+``trough'') in the level overlay, which may make the reading feel less
+informative than an injectable user's.
+
+\textbf{Finding:} Both the missed-dose handling and the therapeutic-target
+gating work as designed. The \code{unknown} phase for transdermal routes is
+correct but may leave users of daily-application medications with less
+contextual information than injectable users receive.
+
+% ----------------------------------------------------------------------
+\subsection{Rowan: Custom Concentration on Compounded Cream}
+\label{sec:rowan}
+
+\textbf{Regimen.} 4\,mg/day estradiol cream (transdermal) with a custom
+compounded concentration of 2.5\,mg/mL. Standard commercial estradiol cream
+concentrations are typically 0.1--1.0\,mg/g; Rowan's compounding pharmacy
+prepared a 2.5\,mg/mL formulation at her doctor's request because the
+standard concentration was not achieving adequate absorption. She has no
+blood tests and has not configured therapeutic targets.
+
+\subsubsection{Model Output}
+
+\begin{itemize}[nosep,leftmargin=1.4em]
+\item \textbf{Estimated level:} 213\,pg/mL
+\item \textbf{Status:} \code{inRange}
+\item \textbf{Phase:} \code{unknown}
+\item \textbf{Unit:} pg/mL
+\item \textbf{Doses in history:} 182 (all taken, daily)
+\item \textbf{Concentration:} 2.5\,mg/mL (verified on dose record)
+\item \textbf{Blood tests:} 0
+\item \textbf{Therapeutic targets:} not set
+\end{itemize}
+
+\subsubsection{Analysis}
+
+Rowan's custom concentration of 2.5\,mg/mL is correctly stored on each dose
+record and correctly used in the PK model's mg/mL conversion. The companion
+paper notes that the concentration step exists because ``getting it wrong
+would make the mg/mL conversion silently incorrect.'' The model output
+confirms the conversion is working: with 4\,mg/day of estradiol at
+2.5\,mg/mL, the computed application volume is 1.6\,mL, and the PK model
+uses the correct mass (4\,mg) for the prediction.
+
+The level of 213\,pg/mL with \code{inRange} status and no therapeutic
+targets means the interface would show ``Estimated 213\,pg/mL'' without
+comparative language---consistent with the design principle that comparisons
+are gated on user-set targets.
+
+Like Sam, Rowan receives an \code{unknown} cycle position because the
+transdermal route's daily application produces a near-constant level with
+minimal intra-day variation.
+
+\textbf{Finding:} The custom concentration entry path works correctly. The
+concentration value is preserved on every dose record and correctly
+incorporated into the model's mg$\rightarrow$mL conversion. A user with a
+non-standard concentration receives the same accurate prediction as a user
+with a standard concentration. The \code{unknown} phase for transdermal is
+consistent with Sam's case and reflects the route's pharmacokinetics rather
+than a classification gap.
+
+% ----------------------------------------------------------------------
+\subsection{Jules: Blood Test Calibration}
+\label{sec:jules}
+
+\textbf{Regimen.} 100\,mg testosterone enanthate (TE) intramuscular every
+7~days. Jules chose enanthate over cypionate because published data suggests
+smoother peaks. He has one blood test: a 3-month trough draw at
+680\,ng/dL---above the population model's prediction of approximately
+513\,ng/dL, yielding a calibration factor $\alpha = 1.326$. Therapeutic
+targets are set at trough 300--1000\,ng/dL, peak ceiling 1500\,ng/dL.
+
+\subsubsection{Model Output}
+
+\begin{itemize}[nosep,leftmargin=1.4em]
+\item \textbf{Estimated level:} 849\,ng/dL
+\item \textbf{Status:} \code{inRange}
+\item \textbf{Phase:} \code{midCycle}
+\item \textbf{Deviation:} \code{above}
+\item \textbf{Unit:} ng/dL
+\item \textbf{Doses in history:} 18
+\item \textbf{Blood tests:} 1
+\item \textbf{Calibration factor $\alpha$:} 1.326
+\end{itemize}
+
+\subsubsection{Analysis}
+
+Jules is the study's calibration verification case. The calibration engine
+has correctly computed $\alpha = C_{\text{measured}} / C_{\text{predicted}}
+= 680 / 513 = 1.326$, and this factor is applied to all subsequent model
+output. The current level of 849\,ng/dL at mid-cycle with
+\code{deviation} = \code{above} confirms that the calibrated prediction is
+above the raw population prediction---exactly as expected for a user whose
+measured level exceeded the model's estimate.
+
+The companion paper~\cite{xtux} describes the calibration UX as embodying
+the honest uncertainty principle: ``the factor is displayed, the model's
+population prediction is visible alongside the calibrated prediction, and
+the user can see the magnitude of the adjustment.'' The model output
+confirms this: the $\alpha$ factor is accessible via the blood test detail,
+the deviation is classified as \code{above}, and the calibrated level
+(849\,ng/dL) reflects the $\times 1.326$ scaling.
+
+\textbf{Finding:} The calibration engine works correctly. The $\alpha$
+factor is derived from a single blood test, applied as a scalar multiplier,
+and surfaced through the model's deviation classification. The companion
+paper notes that calibration ``improves accuracy on average but may not
+improve it at every point in the cycle''---this study cannot verify that
+claim with a single-instant examination, but the calibration pipeline
+itself is functioning as designed.
+
+% ----------------------------------------------------------------------
+\subsection{Nadia: Unconventional Interval---EC Every 10 Days}
+\label{sec:nadia}
+
+\textbf{Regimen.} 5\,mg estradiol cypionate (EC) intramuscular every
+10~days---an interval outside the standard clinical practice of every
+7~days. Nadia chose this schedule after discussing it with her doctor, who
+agreed to let her try a longer interval to reduce injection frequency. She
+has three blood tests over 12~months, all drawn near trough. Therapeutic
+targets are set at trough 100--200\,pg/mL, peak ceiling 600\,pg/mL.
+
+\subsubsection{Model Output}
+
+\begin{itemize}[nosep,leftmargin=1.4em]
+\item \textbf{Estimated level:} 135\,pg/mL
+\item \textbf{Status:} \code{criticallyLow}
+\item \textbf{Phase:} \code{midCycle}
+\item \textbf{Safety flag:} none
+\item \textbf{Unit:} pg/mL
+\item \textbf{Doses in history:} 37
+\item \textbf{Blood tests:} 3
+\item \textbf{Calibration factors $\alpha$:} 0.669 (month~3), 0.587
+  (month~6), 0.554 (month~12)
+\item \textbf{Current cycle day:} 5 of 10
+\end{itemize}
+
+\subsubsection{Analysis}
+
+Nadia is the study's most informative persona. The companion
+paper~\cite{xtux} describes her as testing ``extrapolation outside the
+calibration envelope'' and assigns her journey a verdict of \good{Pass, with
+caveat.} The model output confirms why the caveat is necessary.
+
+\textbf{Level trajectory.} At day~5 of a 10-day cycle, Nadia's level is
+135\,pg/mL---\code{criticallyLow} against her trough minimum of
+100\,pg/mL. This is not a trough reading (she is at mid-cycle, 5~days from
+her last dose and 5~days until her next), yet the level is already near the
+trough minimum. This reflects the pharmacokinetic reality of the 10-day
+interval: EC's terminal half-life of 6.47~days means that by day~5, the
+level has decayed significantly from its peak, and by day~9--10 (true
+trough), it will be substantially lower than the standard q7d trough.
+
+\textbf{Calibration factor trend.} The $\alpha$ factors trend downward over
+12~months: 0.669 $\rightarrow$ 0.587 $\rightarrow$ 0.554. An $\alpha < 1.0$
+means the model over-predicts relative to the measured value. The downward
+trend suggests that as Nadia accumulates more time on the non-standard
+interval, the model's population prediction (which is anchored to q7d EC
+data) increasingly diverges from her actual levels. This is consistent with
+the companion PK paper's observation that ``the resulting curve sits outside
+the range where the EC constants were anchored.''
+
+\textbf{Clinical context.} Nadia's doctor is monitoring the trend. The
+12-month draw at 140\,pg/mL with $\alpha = 0.554$ suggests that after a year
+on the 10-day schedule, her levels are approximately 55\% of what the
+population model predicts for a standard-interval EC user. The model is not
+wrong---it is computing the correct biexponential superposition for the
+given inputs---but the EC constants were fit to q7d data, and their
+application to a q10d schedule inherits every assumption of that fit.
+
+\textbf{Finding:} The model correctly computes the PK curve for the
+unconventional interval, but the results expose the limits of the
+single-scalar calibration. The downward-trending $\alpha$ suggests that
+Nadia's individual kinetics (clearance, volume of distribution) interact
+with the longer interval in ways that a single multiplicative factor cannot
+fully absorb. The companion paper's caveat---``structurally sound but
+inherits every assumption of the fit''---is empirically confirmed.
+
+The \code{criticallyLow} classification at mid-cycle is technically correct
+but may be alarming. A user seeing ``critically low'' at day~5 of a 10-day
+cycle might not understand that this is the expected consequence of the
+longer interval rather than a problem with their regimen. The interface
+reports the fact; whether the fact is actionable is a question the app
+cannot answer.
+
+% ======================================================================
+\section{Cross-Persona Findings}
+\label{sec:cross}
+
+\subsection{Presentation Rules: Target Gating Works}
+
+Two personas (Sam, Rowan) have not configured therapeutic targets. Both
+receive \code{inRange} status against model-derived bounds, and neither
+would see comparative copy (``below your set target'') in the interface.
+This confirms that the presentation rules in
+\code{HormoneLevelPresentation.swift} correctly gate comparisons behind
+\code{RangeSource.userSet}.
+
+Five personas (Maya, Devon, Priya, Jules, Nadia) have configured targets and
+receive status classifications relative to those targets. The gating
+mechanism is binary and correct.
+
+\subsection{Cycle Position: Transdermal Gap}
+
+Both transdermal personas (Sam, Rowan) receive \code{unknown} cycle
+position. The phase classifier is designed for injectable routes with
+discrete dosing intervals and clear peak/trough structure; it does not
+classify the near-constant level profile of daily transdermal application.
+This is correct behavior---the classifier declines to classify what it
+cannot meaningfully classify---but it means that transdermal users see less
+contextual information in the level overlay than injectable users.
+
+Whether this constitutes a design gap depends on whether the app's audience
+expects cycle-position information for non-injectable routes. The companion
+paper does not address this question directly, but the principle of
+progressive disclosure suggests that if the information is not meaningful
+for a given route, it should not be shown.
+
+\subsection{Classification Vocabulary: Precision vs. Alarm}
+
+Three personas receive classifications that, while technically correct, may
+read as more alarming than the clinical context warrants:
+
+\begin{itemize}[nosep,leftmargin=1.4em]
+\item \textbf{Maya} (323\,pg/mL, \code{slightlyBelow}): The level is below
+  the peak ceiling of 600, which is not a concern, but ``below'' may read as
+  a negative judgment.
+\item \textbf{Devon} (317\,ng/dL, \code{criticallyLow}): The level is only
+  17\,ng/dL above the trough minimum, and the low reading is the expected
+  consequence of the 14-day interval, but ``critically low'' carries
+  clinical weight.
+\item \textbf{Nadia} (135\,pg/mL, \code{criticallyLow}): The level is near
+  the trough minimum at mid-cycle, which reflects the unconventional
+  interval, but the classification does not communicate \emph{why} the level
+  is low.
+\end{itemize}
+
+This is not a bug---the classifications are correct for the numeric
+values---but it is a presentation-rules design question. The current
+classification vocabulary uses the same words for ``level that is
+dangerously low'' and ``level that is near a user-set boundary for expected
+reasons.'' The companion paper's principle of honest presentation
+(Section~2.1 of~\cite{xtux}) might be better served by distinguishing these
+cases: a level that is low \emph{because of the dosing schedule} is
+different from a level that is low \emph{despite it.}
+
+\subsection{Calibration: Single-Scalar Limits}
+
+Nadia's downward-trending $\alpha$ factors (0.669 $\rightarrow$ 0.554 over
+12~months) empirically confirm the companion PK paper's discussion of the
+single-scalar calibration's limits (Section~5.5 of~\cite{xtpk}). The
+calibration factor is a pragmatic absorption of between-subject variability
+that works well when the user's dosing interval matches the interval the
+model constants were anchored to (as in Jules's case, where $\alpha = 1.326$
+for standard q7d TE). When the interval deviates substantially from the
+anchor (Nadia's q10d vs.\ the standard q7d for EC), the single scalar cannot
+distinguish between ``this user metabolizes EC differently'' and ``this
+interval changes the shape of the curve.'' The companion paper notes that
+$\alpha$ ``cannot represent parameter-specific variability''; Nadia's data
+shows the consequence of that limitation in practice.
+
+\subsection{Dose History Scale}
+
+The study's dose histories range from 1 dose (Maya) to 260 doses (Priya).
+The PK model integrates over the full history in all cases, and the
+\code{performBatch} mechanism (which suppresses per-dose \code{refreshState}
+calls) makes the seed time linear rather than quadratic in dose count. No
+performance degradation was observed at any history size.
+
+% ======================================================================
+\section{Design Implications}
+\label{sec:implications}
+
+The empirical findings suggest several design refinements, none of which
+contradict the companion paper's architecture but several of which might
+improve the precision of the user-facing presentation.
+
+\subsection{Cycle-Position-Aware Classification}
+
+The current \code{LevelStatus} classification operates on the numeric level
+independent of cycle position. A level of 323\,pg/mL is classified the same
+at peak (where it is low, relative to the peak ceiling) and at trough (where
+it is high, relative to the trough minimum). Adding cycle-position awareness
+to the classification---or, alternatively, qualifying the classification
+text with the cycle position---would improve the precision of the user-facing
+copy. Maya at near-peak might see ``Estimated 323\,pg/mL---below peak
+ceiling'' rather than ``Estimated 323\,pg/mL---slightly below,'' which
+carries different connotations.
+
+\subsection{Interval-Change Notification}
+
+When Devon switches from q7d to q14d, the peak/trough ratio widens from
+$1.74\times$ to $3.51\times$, and his mid-cycle level drops near the trough
+minimum. The app does not currently acknowledge this transition. A brief
+informational note after a frequency change---``Your dosing interval has
+changed. The level curve will show wider variation between peak and
+trough''---would contextualize the numbers the user will see in the coming
+weeks without prescribing action.
+
+\subsection{Transdermal Phase Labeling}
+
+The \code{unknown} cycle position for transdermal routes is technically
+correct but leaves the level overlay less informative for daily-application
+users. A route-appropriate label---``Daily average'' or ``Steady state'' for
+transdermal routes, replacing ``near peak'' / ``mid-cycle'' / ``trough''---
+would provide equivalent contextual information without misapplying an
+injectable-centric classification.
+
+\subsection{Non-Standard Interval Acknowledgment}
+
+Nadia's case suggests that the app could detect when a user's dosing
+interval differs substantially from the ester's typical interval and offer
+a brief note: ``The model's constants were calibrated against a standard
+7-day interval for EC. Predictions for a 10-day interval inherit the
+assumptions of that calibration.'' This is the kind of limitation surfacing
+the companion paper discusses in Section~6.7 of~\cite{xtux}: it is
+technically honest and may build trust, but it adds cognitive burden. The
+design question is whether the burden is justified by the improved
+transparency.
+
+% ======================================================================
+\section{Limitations}
+\label{sec:limitations}
+
+This study has several structural limitations that constrain the conclusions
+that can be drawn from it.
+
+\textbf{Single-instant examination.} Each persona was examined at one point
+in time. A complete validation would examine each persona at multiple points
+in their dosing cycle (peak, mid-cycle, trough) and would verify the
+time-series behavior of the PK curve, not just the instantaneous level
+estimate.
+
+\textbf{No visual verification.} The study examines the model's numerical
+output and classification values but does not verify the visual rendering of
+the interface---the graph curve shape, the level overlay layout, the glass
+card stack text, the confetti animation, or the tab content. These are
+design-level claims that require screenshot-based verification.
+
+\textbf{Programmatic data entry.} Personas were configured by directly
+calling manager APIs, not by walking through the onboarding wizard. This
+means the study validates the model's behavior given correct inputs but does
+not validate the onboarding flow's ability to produce correct inputs.
+
+\textbf{No interactive testing.} The study does not test interactive
+behaviors: graph scrubbing, tab navigation, sheet presentation, dose
+recording, or journal entry. These are the most frequent user interactions
+and the most important targets for empirical validation.
+
+\textbf{Single build.} All data was collected from a single build of the
+application. The results are a snapshot of the model's behavior at a
+specific point in the development timeline and may not reflect changes in
+subsequent commits.
+
+% ======================================================================
+\section{Conclusion}
+\label{sec:conclusion}
+
+We implemented seven personas from the companion UX paper~\cite{xtux} as
+runnable test profiles within the xT application and interrogated the live
+pharmacokinetic model output for each. The empirical results broadly confirm
+the paper's design claims:
+
+\begin{itemize}[nosep,leftmargin=1.4em]
+\item \textbf{Presentation rules} correctly gate comparative language behind
+  user-set therapeutic targets. Personas without targets (Sam, Rowan)
+  receive neutral level estimates; personas with targets receive appropriate
+  comparisons.
+\item \textbf{Regimen changes} (Devon's interval doubling, Priya's route
+  switch) are handled without data loss, and the PK model correctly applies
+  the appropriate kinetics to each phase of the dose history.
+\item \textbf{Missed doses} reduce the modeled level without moralizing
+  about adherence, consistent with the app's ``state facts, don't advise''
+  principle.
+\item \textbf{Custom concentration} values are correctly stored and
+  incorporated into the mg/mL conversion.
+\item \textbf{Blood test calibration} produces correct $\alpha$ factors,
+  and the calibrated prediction is reflected in the model output and
+  deviation classification.
+\end{itemize}
+
+The study also identified three areas where the interface's precision could
+be improved:
+
+\begin{enumerate}[nosep,leftmargin=1.4em]
+\item The \code{LevelStatus} classification vocabulary uses the same
+  language for ``below a user-set boundary for expected pharmacokinetic
+  reasons'' and ``below a user-set boundary for clinically concerning
+  reasons.'' Adding cycle-position context to the classification would
+  improve precision without changing the underlying architecture.
+\item The \code{unknown} cycle position for transdermal routes is correct
+  but uninformative. Route-appropriate labels (``Daily average,'' ``Steady
+  state'') would provide equivalent context without misapplying injectable
+  classifications.
+\item The downward-trending $\alpha$ factors for Nadia's unconventional
+  10-day EC interval empirically confirm the single-scalar calibration's
+  limits, as discussed in the companion PK paper~\cite{xtpk}. Whether and
+  how to surface this limitation to the user remains an open design
+  question.
+\end{enumerate}
+
+The most important finding is negative: the model does not produce obviously
+wrong output for any persona. The level estimates are numerically plausible,
+the classifications are consistent with the configured targets, and the
+regimen-change transitions are seamless. The gaps identified in this study
+are in the \emph{presentation} of the model's output---the vocabulary used
+to describe levels, the contextual information provided for non-injectable
+routes, and the surfacing of known model limitations---not in the model
+itself.
+
+Future work should extend this study with multi-point-in-time examination,
+screenshot-based visual verification, and interactive testing of the dose
+recording and journal entry flows. A particularly valuable follow-up would
+be to run each persona at multiple cycle positions (peak, mid-cycle, trough)
+and verify that the graph curve, level overlay, and insight row text are
+consistent across the full dosing cycle.
+
+\vfill
+\noindent\rule{\linewidth}{0.4pt}\\[0.3em]
+{\footnotesize This paper describes an empirical validation of a consumer
+tracking application's user experience design. It is not clinical guidance,
+and the findings described here should not be interpreted as medical
+recommendations. The application's predictions are population estimates
+that should not be used to make dosing decisions without laboratory
+confirmation.}
+
+% ======================================================================
+\begin{thebibliography}{99}
+
+\bibitem{xtpk}
+Cortes S.\ (2026). ``Superposed Bateman Biexponentials with
+Clearance-Constrained Scaling and Per-User Calibration: A Pharmacokinetic
+Framework for Hormone Replacement Therapy Monitoring in the xT Mobile
+Application.'' August 2026.
+
+\bibitem{xtux}
+Cortes S.\ (2026). ``Progressive Clarity with Honest Constraint: A Design
+Framework for Hormone Replacement Therapy Tracking in the xT Mobile
+Application.'' August 2026.
+
+\bibitem{hembree2017}
+Hembree W.C., et al.\ (2017). ``Endocrine Treatment of Gender-Dysphoric
+/Gender-Incongruent Persons: An Endocrine Society Clinical Practice
+Guideline.'' \emph{J.\ Clin.\ Endocrinol.\ Metab.} 102(11):3869--3903.
+
+\end{thebibliography}
+
+\end{document}

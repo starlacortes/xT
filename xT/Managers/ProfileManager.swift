@@ -10,10 +10,12 @@ import SwiftUI
 import PhotosUI
 import UniformTypeIdentifiers
 import CryptoKit
+import Observation
 
 /// ProfileManager for handling user profile information
 @MainActor
-class ProfileManager: ObservableObject {
+@Observable
+class ProfileManager {
     static let shared = ProfileManager()
 
     // MARK: - Constants
@@ -28,14 +30,14 @@ class ProfileManager: ObservableObject {
     static let maxProfileImageBytes = 5 * 1024 * 1024
 
     // Profile information
-    @Published var profileName: String = ""
-    @Published var profileImage: UIImage?
-    @Published var profileImageData: Data?
+    var profileName: String = ""
+    var profileImage: UIImage?
+    var profileImageData: Data?
 
     /// Date of birth — used to compute age at HRT start for milestone branching
     /// (e.g. bone/cardio guidance differs at 20 vs 45). Stored unencrypted in
     /// UserDefaults (plan §4.3).
-    @Published var dateOfBirth: Date?
+    var dateOfBirth: Date?
 
     // Computed properties for consistent display
     var profileDisplayName: String {
@@ -47,9 +49,9 @@ class ProfileManager: ObservableObject {
     }
 
     // Image picker state
-    @Published var showImagePicker: Bool = false
-    @Published var showCamera: Bool = false
-    @Published var selectedPhotoItem: PhotosPickerItem?
+    var showImagePicker: Bool = false
+    var showCamera: Bool = false
+    var selectedPhotoItem: PhotosPickerItem?
 
     init() {
         loadProfile()

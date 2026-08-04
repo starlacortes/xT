@@ -82,8 +82,9 @@ extension View {
 
 /// Small helper the hosting views share, so the expiry logic exists once.
 @MainActor
-final class NoZoneTapTracker: ObservableObject {
-    @Published var taps: [NoZoneTap] = []
+@Observable
+final class NoZoneTapTracker {
+    var taps: [NoZoneTap] = []
     private var nextID = 0
 
     func record(at location: CGPoint) {
