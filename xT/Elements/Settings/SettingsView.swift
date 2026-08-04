@@ -214,6 +214,10 @@ struct SettingsView: View {
 
     // MARK: - Body & Zones Section
 
+    private var currentRouteClass: RouteClass {
+        RouteClass.from(method: medicationManager.selectedAdministrationMethod ?? "")
+    }
+
     private var settingsBodyZonesSection: some View {
         settingsSection(label: "Body & zones") {
             VStack(alignment: .leading, spacing: 12) {
@@ -242,49 +246,51 @@ struct SettingsView: View {
             .padding(.horizontal, 22)
             .padding(.vertical, 12)
 
-            settingsDivider()
+            if currentRouteClass != .oral {
+                settingsDivider()
 
-            NavigationLink(destination: PreferredZonesListView()) {
-                settingsRowContent(
-                    icon: "star",
-                    iconBg: Theme.Colors.accent.opacity(0.13),
-                    iconColor: Theme.Colors.accent,
-                    title: "Preferred zones",
-                    subtitle: "Favoured injection & application sites",
-                    trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(.secondary) }
-                )
+                NavigationLink(destination: PreferredZonesListView()) {
+                    settingsRowContent(
+                        icon: "star",
+                        iconBg: Theme.Colors.accent.opacity(0.13),
+                        iconColor: Theme.Colors.accent,
+                        title: "Preferred zones",
+                        subtitle: "Favoured injection & application sites",
+                        trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(.secondary) }
+                    )
+                }
+                .buttonStyle(.plain)
+
+                settingsDivider()
+
+                NavigationLink(destination: AvoidZonesEditorView()) {
+                    settingsRowContent(
+                        icon: "exclamationmark.shield",
+                        iconBg: Theme.Colors.warning.opacity(0.13),
+                        iconColor: Theme.Colors.warning,
+                        title: "Avoid zones",
+                        subtitle: avoidZonesSubtitle,
+                        trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(.secondary) }
+                    )
+                }
+                .buttonStyle(.plain)
+
+                settingsDivider()
+
+                Button {
+                    UserDefaults.standard.set(false, forKey: "hasSeenRecommendedZonesInfo")
+                } label: {
+                    settingsRowContent(
+                        icon: "lightspectral.horizontal",
+                        iconBg: Theme.Colors.accent.opacity(0.13),
+                        iconColor: Theme.Colors.accent,
+                        title: "Re-show recommended zones",
+                        subtitle: "Show the clinical zones info overlay again",
+                        trailing: { EmptyView() }
+                    )
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
-
-            settingsDivider()
-
-            NavigationLink(destination: AvoidZonesEditorView()) {
-                settingsRowContent(
-                    icon: "exclamationmark.shield",
-                    iconBg: Theme.Colors.warning.opacity(0.13),
-                    iconColor: Theme.Colors.warning,
-                    title: "Avoid zones",
-                    subtitle: avoidZonesSubtitle,
-                    trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(.secondary) }
-                )
-            }
-            .buttonStyle(.plain)
-
-            settingsDivider()
-
-            Button {
-                UserDefaults.standard.set(false, forKey: "hasSeenRecommendedZonesInfo")
-            } label: {
-                settingsRowContent(
-                    icon: "lightspectral.horizontal",
-                    iconBg: Theme.Colors.accent.opacity(0.13),
-                    iconColor: Theme.Colors.accent,
-                    title: "Re-show recommended zones",
-                    subtitle: "Show the clinical zones info overlay again",
-                    trailing: { EmptyView() }
-                )
-            }
-            .buttonStyle(.plain)
         }
     }
 

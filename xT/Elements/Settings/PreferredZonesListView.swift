@@ -11,6 +11,8 @@
 import SwiftUI
 
 struct PreferredZonesListView: View {
+    @Environment(\.medicationManager) private var medicationManager
+
     private let userPreferredZonesKey = "mm.userPreferredZones"
     @State private var userPreferredZones: [String: [String]]
 
@@ -24,15 +26,10 @@ struct PreferredZonesListView: View {
     }
 
     private var medicationRouteCombos: [(medication: String, routeClass: RouteClass)] {
-        let medications = ["Estrogen", "Testosterone", "Progesterone"]
-        let routes = RouteClass.allCases.filter { $0 != .oral }
-        var combos: [(String, RouteClass)] = []
-        for med in medications {
-            for route in routes {
-                combos.append((med, route))
-            }
-        }
-        return combos
+        guard let medication = medicationManager.selectedMedication else { return [] }
+        let route = RouteClass.from(method: medicationManager.selectedAdministrationMethod ?? "")
+        guard route != .oral else { return [] }
+        return [(medication, route)]
     }
 
     var body: some View {

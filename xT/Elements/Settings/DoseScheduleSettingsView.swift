@@ -41,6 +41,10 @@ struct DoseScheduleSettingsView: View {
 
     @State private var showAvoidZones = false
 
+    private var currentRouteClass: RouteClass {
+        RouteClass.from(method: medicationManager.selectedAdministrationMethod ?? "")
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -48,9 +52,11 @@ struct DoseScheduleSettingsView: View {
                     frequencySection
                     doseAmountSection
                     injectionTimeSection
-                    rotationSafetySection
-                    avoidZonesSection
-                    preferredZonesSection
+                    if currentRouteClass != .oral {
+                        rotationSafetySection
+                        avoidZonesSection
+                        preferredZonesSection
+                    }
                     previewSection
                 }
                 .padding(.horizontal, 20)
@@ -273,20 +279,25 @@ struct DoseScheduleSettingsView: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             VStack(spacing: 0) {
-                rotationPickerRow(routeClass: .injection,
-                                  displayName: "Injection (IM/SubQ)",
-                                  value: $rotationWindowInjection,
-                                  options: [7, 14, 21, 30])
-                Divider().padding(.leading, 52)
-                rotationPickerRow(routeClass: .topical,
-                                  displayName: "Topical (Gel/Cream)",
-                                  value: $rotationWindowTopical,
-                                  options: [3, 5, 7, 10])
-                Divider().padding(.leading, 52)
-                rotationPickerRow(routeClass: .patch,
-                                  displayName: "Patch",
-                                  value: $rotationWindowPatch,
-                                  options: [7, 14, 21, 30])
+                switch currentRouteClass {
+                case .injection:
+                    rotationPickerRow(routeClass: .injection,
+                                      displayName: "Injection (IM/SubQ)",
+                                      value: $rotationWindowInjection,
+                                      options: [7, 14, 21, 30])
+                case .topical:
+                    rotationPickerRow(routeClass: .topical,
+                                      displayName: "Topical (Gel/Cream)",
+                                      value: $rotationWindowTopical,
+                                      options: [3, 5, 7, 10])
+                case .patch:
+                    rotationPickerRow(routeClass: .patch,
+                                      displayName: "Patch",
+                                      value: $rotationWindowPatch,
+                                      options: [7, 14, 21, 30])
+                case .oral:
+                    EmptyView()
+                }
             }
             .padding(12)
             .background(
