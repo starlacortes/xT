@@ -317,6 +317,20 @@ struct SettingsView: View {
                 )
             }
             .buttonStyle(.plain)
+
+            settingsDivider()
+
+            NavigationLink(destination: BloodTestHistoryView()) {
+                settingsRowContent(
+                    icon: "drop.fill",
+                    iconBg: Theme.Colors.Time.skin.surface,
+                    iconColor: Theme.Colors.Time.skin.base,
+                    title: "Blood test history",
+                    subtitle: bloodTestHistorySubtitle,
+                    trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(.secondary) }
+                )
+            }
+            .buttonStyle(.plain)
         }
     }
 
@@ -745,6 +759,13 @@ struct SettingsView: View {
         if count == 0 { return "No doses recorded yet" }
         return String(localized: "Review and correct ^[\(count) dose](inflect: true)",
                       comment: "Settings row subtitle counting doses that need review")
+    }
+
+    private var bloodTestHistorySubtitle: String {
+        let count = medicationManager.bloodTestHistory.count
+        if count == 0 { return "No blood tests logged yet" }
+        return String(localized: "^[\(count) blood test](inflect: true) logged",
+                      comment: "Settings row subtitle counting logged blood tests")
     }
 
     private var avoidZonesSubtitle: String {
