@@ -308,6 +308,10 @@ struct MoodMindDetailView: View {
                             hormoneLevelCard(insight: insight)
                                 .padding(.horizontal, 22)
                                 .padding(.top, 16)
+                        } else {
+                            bloodTestNudge
+                                .padding(.horizontal, 22)
+                                .padding(.top, 16)
                         }
 
                         BodySystemStatsRow(
@@ -428,4 +432,56 @@ struct MoodMindDetailView: View {
         case .unknown:  return nil
         }
     }
+
+    private var bloodTestNudge: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "flask")
+                .font(.system(size: 20))
+                .foregroundStyle(Theme.Colors.Time.mind.base.opacity(0.6))
+            VStack(alignment: .leading, spacing: 3) {
+                Text("HORMONE LEVELS")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .tracking(0.5)
+                Text(engine.bloodTestSchedulingText ?? "A blood test will show your hormone levels here.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .lineSpacing(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.md))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.Radius.md)
+                .stroke(Theme.Colors.Time.mind.base.opacity(0.15), lineWidth: 0.5)
+        )
+    }
 }
+
+#if DEBUG
+#Preview {
+    NavigationStack {
+        MoodMindDetailView(engine: TimeContentEngine(
+            medication: "Estrogen",
+            method: "Injectable",
+            months: 8,
+            currentLevel: 185,
+            dayOfCycle: 3,
+            activeMonthsOnHRT: 8,
+            ageAtStart: nil,
+            screeningLog: nil,
+            showDoseIntensity: false,
+            adherenceRate: 0.92,
+            cyclePosition: .midCycle,
+            regimenSegments: [],
+            onTimeStreak: 4,
+            relativeDoseIntensity: 1.0,
+            doseIntensityNote: nil,
+            bloodTestSchedulingText: "Schedule your next blood test around month 9.",
+            suggestedBloodTestMonth: 9
+        ))
+    }
+}
+#endif

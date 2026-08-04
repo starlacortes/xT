@@ -1,0 +1,1292 @@
+% !TeX program = pdflatex
+%
+% pk-research-paper.tex
+%
+% Build:  pdflatex pk-research-paper.tex   (run 3x: ToC, then cross-refs)
+%
+
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=2.4cm]{geometry}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage[hidelinks]{hyperref}
+
+\definecolor{warn}{RGB}{160,60,0}
+\definecolor{ok}{RGB}{20,110,60}
+\newcommand{\bad}[1]{\textcolor{warn}{#1}}
+\newcommand{\good}[1]{\textcolor{ok}{#1}}
+\newcommand{\code}[1]{\texttt{\small #1}}
+
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\small xT Pharmacokinetic Model}
+\rhead{\small\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\title{\textbf{Superposed Bateman Biexponentials with Clearance-Constrained\\
+Scaling and Per-User Calibration:}\\[0.3em]
+\large A Pharmacokinetic Framework for Hormone Replacement\\
+Therapy Monitoring in the xT Mobile Application}
+\author{Starla Cortes}
+\date{August 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent
+We present the pharmacokinetic (PK) model underlying xT, a mobile
+application that predicts serum hormone concentration over time from a
+user's logged dose history for gender-affirming hormone replacement
+therapy (HRT). The model employs a one-compartment Bateman
+biexponential---first-order absorption from an intramuscular depot into a
+single well-mixed compartment, first-order elimination from it---with
+linear superposition of all prior dose contributions, a dynamic
+endogenous baseline that decays under gonadal suppression, and a
+per-user calibration factor $\alpha$ derived from self-reported blood
+tests. Ten medication/route/form combinations are supported: estradiol
+(valerate, cypionate, oral, transdermal) and testosterone (cypionate,
+enanthate, propionate, undecanoate, oral, transdermal).
+
+The scaling constant $S$---an empirical surrogate for $F/V_d$---is
+derived in closed form for testosterone cypionate from a primary
+population-PK source (Bi et al.\ 2018), and for the remaining injectable
+testosterone esters by a conservation-of-mass identity that constrains
+$S$ to depend only on the elimination rate $k_e$ and testosterone
+clearance, independent of the ester's half-life. Estradiol ester
+constants are anchored to compiled steady-state PK tables. Transdermal
+routes are modeled as 24 hourly micro-doses approximating square-wave
+release.
+
+We report accuracy against published anchors (0.0--0.1\% for anchored
+quantities), out-of-sample validation (1--15\% for estradiol and
+testosterone single-dose and steady-state checks), and time-to-peak
+($t_{\max}$) agreement with primary and secondary sources. We
+quantify structural limitations: testosterone undecanoate's peak/trough
+ratio (8.1$\times$ modeled vs.\ 1.8$\times$ observed, a source conflict
+rather than a structural deficiency), transdermal intraday ripple
+($C_{\max}/C_{\min} \approx 1.05$ vs.\ 2.24 observed), and oral
+testosterone peak fluctuation under-prediction. The model is
+honest about where its constants are primary-sourced, where they are
+secondary, and where they remain uncalibrated.
+
+\textbf{Keywords:} pharmacokinetics, Bateman function, hormone
+replacement therapy, testosterone cypionate, estradiol valerate,
+flip-flop kinetics, superposition, per-user calibration, mobile health
+\end{abstract}
+
+\tableofcontents
+\clearpage
+
+% ======================================================================
+\section{Introduction}
+\label{sec:intro}
+
+Gender-affirming hormone replacement therapy (HRT) involves the
+administration of exogenous hormones---estradiol and/or
+testosterone---to align an individual's serum hormone levels with their
+gender identity. Clinical management relies on periodic blood draws to
+measure serum hormone concentration, titrate dosage, and confirm
+therapeutic levels~\cite{hembree2017}. Between draws, patients and
+providers have limited tools to anticipate where levels are heading,
+when a peak or trough is expected, or how a missed dose or regimen
+change will affect the trajectory.
+
+xT is a mobile application that addresses this gap by predicting serum
+hormone concentration over time from the user's logged dose history. It
+implements a pharmacokinetic model that computes, for any point in time,
+the superposed contribution of every dose the user has taken, plus a
+dynamic endogenous baseline, scaled by an optional per-user calibration
+factor derived from blood test results.
+
+The model covers ten medication/route/form combinations across two
+hormone classes (Table~\ref{tab:scope}). Its mathematical core is the
+Bateman biexponential---the analytic solution to one-compartment
+first-order absorption and elimination---which the published
+pharmacometric literature independently identifies as the best-fit model
+for every injectable testosterone ester examined: cypionate~\cite{bi2018},
+enanthate~\cite{ichihara2020}, and
+undecanoate~\cite{pastuszak2021}. This convergence is not incidental;
+it reflects the fact that depot testosterone esters, across a wide range
+of chain lengths and dosing intervals, produce terminal phases that are
+single-exponential on semi-log plots, justifying one-compartment fits.
+
+This paper describes the model in full: its governing equation, the
+provenance and derivation of every constant, the calibration mechanism,
+the accuracy of its predictions against published data, and the
+structural limitations that bound what it can honestly claim. It is
+written to be checkable: every constant is stated with its source, and
+every derivation is given in enough detail to reproduce.
+
+\subsection{Contributions}
+
+\begin{enumerate}[nosep,leftmargin=1.4em]
+\item A complete description of a pharmacokinetic model designed for
+  consumer HRT tracking, including the full constant set, per-form
+  derivations, and the dynamic endogenous baseline model.
+\item A conservation-of-mass identity (Section~\ref{sec:identity}) that
+  constrains the scaling constant $S$ for all injectable testosterone
+  esters to depend only on $k_e$ and clearance, eliminating $S$ as a
+  free parameter and enforcing mutual consistency across esters.
+\item An analytic closed-form derivation of $S$ for testosterone
+  cypionate from primary population-PK parameters
+  (Section~\ref{sec:tc}), which serves as the anchor for the identity
+  above.
+\item A per-user calibration framework ($\alpha = C_{\text{measured}} /
+  C_{\text{predicted}}$) that closes part of the between-subject
+  variability gap without requiring a formal mixed-effects model.
+\item An honest accounting of structural limitations, including a
+  source-conflict diagnosis for testosterone undecanoate's peak/trough
+  ratio that reframes a previously assumed structural deficiency as a
+  calibration problem.
+\end{enumerate}
+
+% ======================================================================
+\section{Methods}
+\label{sec:methods}
+
+\subsection{System overview}
+\label{sec:overview}
+
+xT predicts serum hormone concentration over time from a user's logged
+dose history. Two medication classes are supported, each across three
+administration routes, yielding ten medication/route/form combinations
+(Table~\ref{tab:scope}).
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Medication} & \textbf{Route} & \textbf{Ester / form} & \textbf{Output unit} \\
+\midrule
+Estradiol     & Injectable   & Valerate (EV), Cypionate (EC) & pg/mL \\
+Estradiol     & Oral         & (route pseudo-ester)          & pg/mL \\
+Estradiol     & Cream        & (route pseudo-ester)          & pg/mL \\
+Testosterone  & Injectable   & Cypionate (TC), Enanthate (TE), & ng/dL \\
+              &              & Propionate (TP), Undecanoate (TU) & \\
+Testosterone  & Oral         & undecanoate (route pseudo-ester) & ng/dL \\
+Testosterone  & Cream        & unesterified gel (route pseudo-ester) & ng/dL \\
+\bottomrule
+\end{tabular}
+\caption{The ten medication/route/form combinations the model covers.}
+\label{tab:scope}
+\end{table}
+
+\paragraph{Route pseudo-esters.} The two non-injectable cases in each
+ester enumeration describe a \emph{route}, not a chemical ester. They
+are resolved from the dose record's administration method by a
+route-to-ester mapping function, never chosen by the user directly. This
+design ensures that a dose logged as ``oral testosterone'' uses the
+oral route's bioavailability and rate constants, not those of whatever
+injectable ester was previously selected.
+
+\paragraph{Exogenous and endogenous separation.} The PK engine returns
+the \emph{exogenous} contribution only---the sum of all administered
+dose contributions. Endogenous production is modeled separately as a
+dynamic baseline $C_{\text{base}}(t)$ that decays as gonadal suppression
+progresses (Section~\ref{sec:baseline}). This separation matters for
+interpreting several constants, most importantly testosterone
+cypionate's half-life: the value encoded (3.84\,d) is the
+exogenous-only disposition rate, not the total-testosterone terminal
+half-life of $\sim$7\,d that is commonly quoted and that includes
+endogenous secretion.
+
+\subsection{Governing equation}
+\label{sec:governing}
+
+Each administered dose contributes a Bateman biexponential---first-order
+absorption from a depot into a single well-mixed compartment, first-order
+elimination from it:
+
+\begin{equation}
+C_i(t) = D_i \cdot \mathrm{EDF} \cdot S \cdot
+         \frac{k_a}{k_a - k_e}\left(e^{-k_e t} - e^{-k_a t}\right),
+         \qquad t \ge 0
+\label{eq:bateman}
+\end{equation}
+
+where $D_i$ is the administered dose in mg, $\mathrm{EDF}$ is the
+effective dose factor (Section~\ref{sec:edf}), $S$ is a scaling constant
+with units of concentration per mg, and $k_a, k_e$ are rate constants in
+day$^{-1}$. Total predicted level at time $t$ is the superposition of
+all doses taken before it, plus the endogenous baseline, times a user
+calibration factor:
+
+\begin{equation}
+C(t) = \alpha\left[C_{\text{base}}(t) + \sum_{i \,:\, t_i \le t} C_i(t - t_i)\right]
+\label{eq:superposition}
+\end{equation}
+
+Superposition is exact here because Equation~\ref{eq:bateman} is linear
+in dose. That linearity is also the model's principal simplification:
+there is no saturable protein binding, no SHBG dynamics, no
+dose-dependent clearance.
+
+\paragraph{The $k_a \approx k_e$ limit.} When $|k_a - k_e| < 10^{-4}$,
+Equation~\ref{eq:bateman} is singular, and the engine substitutes its
+limit,
+\[
+D \cdot \mathrm{EDF} \cdot S \cdot k_a\, t\, e^{-k_a t},
+\]
+which is the standard degenerate-case form of the Bateman function when
+the two rate constants coincide.
+
+\paragraph{Transdermal route.} The cream/gel route does not use
+Equation~\ref{eq:bateman}. It is modeled as 24 hourly micro-doses of
+$D/24$ each, decaying single-exponentially ($k_e = 0$), approximating a
+24-hour square-wave release:
+\begin{equation}
+C_{\text{transdermal}}(t) = \sum_{h=0}^{23} \frac{D}{24} \cdot S \cdot e^{-k_a (t - t_h)},
+\qquad t \ge t_h
+\label{eq:transdermal}
+\end{equation}
+where $t_h$ is the time of the $h$-th micro-dose. This construction has
+no absorption phase; Section~\ref{sec:limitations} explains why it
+under-models intraday variation.
+
+\subsection{Time to peak}
+\label{sec:tmax}
+
+Differentiating Equation~\ref{eq:bateman} with respect to $t$ and
+setting the derivative to zero gives the time to peak concentration:
+
+\begin{equation}
+t_{\max} = \frac{\ln(k_a/k_e)}{k_a - k_e}
+\label{eq:tmax}
+\end{equation}
+
+A property of Equation~\ref{eq:tmax} that has practical consequences is
+its \emph{symmetry} under $k_a \leftrightarrow k_e$: swapping the two
+rate constants leaves $t_{\max}$ unchanged. For depot esters the two
+exponentials are not separately identifiable from clinical data, so
+which one is labelled ``absorption'' and which ``elimination'' is a
+modelling convention rather than a finding. The observable curve is
+unchanged by the swap, with the amplitude difference absorbed into $S$.
+
+\subsection{Flip-flop kinetics}
+\label{sec:flipflop}
+
+For depot esters, absorption from the oil vehicle is slower than
+elimination of the released hormone ($k_a \ll k_e$). The terminal slope
+of the curve is then governed by \emph{absorption}, not elimination---
+``flip-flop'' kinetics~\cite{rowland2011}. The practical consequence is
+that the parameter controlling the terminal half-life sets $k_a$ and
+governs the entire inter-dose peak-to-trough decay, while the parameter
+controlling the fast exponential sets $k_e$ and primarily determines
+where the peak falls.
+
+In xT's parameterization, the field \code{halfLifeDays} sets $k_a = \ln
+2 / t_{1/2,\text{term}}$ (the slow rate), and
+\code{eliminationHalfLifeHours} sets $k_e = \ln 2 / (t_{1/2,\text{elim}}
+/ 24)$ (the fast rate). The naming is historical; the doc comments in
+the codebase explicitly note the convention.
+
+\subsection{Effective dose factor}
+\label{sec:edf}
+
+$\mathrm{EDF} = \mathrm{EWF} \times F$ converts administered mg of ester
+into systemically available mg of active hormone.
+
+\subsubsection{Ester weight factor}
+
+The ester weight factor is pure stoichiometry---the mass fraction of the
+ester molecule that is the parent hormone:
+\[
+\mathrm{EWF} = \frac{M_{\text{hormone}}}{M_{\text{ester}}}
+\]
+with $M_{\mathrm{E}_2} = 272.4$ and $M_{\mathrm{T}} = 288.4$\,g/mol.
+These are the only constants in the entire model that are not fitted to
+anything and cannot be wrong. Table~\ref{tab:ewf} gives the values for
+all esters.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{@{}llrl@{}}
+\toprule
+\textbf{Ester} & \textbf{Abbrev.} & \textbf{EWF} & \textbf{Molecular basis} \\
+\midrule
+Estradiol valerate    & EV       & 0.764 & $272.4 / 356.5$ \\
+Estradiol cypionate   & EC       & 0.687 & $272.4 / 396.6$ \\
+Estradiol (oral/TD)   & E2       & 1.000 & base hormone, no ester \\
+Testosterone cypionate & TC      & 0.699 & $288.4 / 412.6$ \\
+Testosterone enanthate & TE      & 0.720 & $288.4 / 400.6$ \\
+Testosterone propionate & TP     & 0.837 & $288.4 / 344.5$ \\
+Testosterone undecanoate & TU    & 0.631 & $288.4 / 456.7$ \\
+Testosterone (gel)    & T        & 1.000 & base hormone, no ester \\
+\bottomrule
+\end{tabular}
+\caption{Ester weight factors from molecular weights. Oral estradiol
+and transdermal routes deliver the base hormone directly, so EWF = 1.}
+\label{tab:ewf}
+\end{table}
+
+\subsubsection{Bioavailability}
+
+$F$ is route bioavailability---the fraction of the administered dose
+reaching systemic circulation:
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Route} & \textbf{$F$} & \textbf{Basis} \\
+\midrule
+Injectable depot & 1.0 & Near-complete absorption from oil depot \\
+Oral estradiol   & 0.05 & First-pass metabolism \\
+Transdermal E2   & 0.15 & Skin barrier limits absorption \\
+Transdermal T    & 0.10 & AndroGel 1\% label \S12.3 (stated verbatim) \\
+Oral TU          & 1.0  & Not established; folded into $S$ (see text) \\
+\bottomrule
+\end{tabular}
+\caption{Route bioavailability values.}
+\label{tab:bioavailability}
+\end{table}
+
+Oral testosterone undecanoate carries $F = 1.0$ not because it is fully
+bioavailable---it is not---but because its absolute bioavailability is
+not established in the source. Since $F$ and $S$ are confounded (only
+their product is identified by the published data), folding
+bioavailability into $S$ avoids inventing a number. Predictions are
+unaffected by where the split is drawn.
+
+\subsection{The scaling constant}
+\label{sec:scaling}
+
+$S$ is an empirical surrogate for $F/V_d$. It is the one constant with
+no direct physical interpretation, and it is the constant most sensitive
+to calibration errors. Wherever the sources allow, $S$ is derived in
+closed form rather than by curve fit; the derivations are given in
+Sections~\ref{sec:tc} and \ref{sec:identity}.
+
+\subsection{Testosterone cypionate: primary-source derivation}
+\label{sec:tc}
+
+Testosterone cypionate (TC) is the only form in the model derived from a
+primary population-PK publication: Bi et al.~\cite{bi2018}, who report
+$\mathrm{CL}/F = 2.6$\,kL/day, $V/F = 14.4$\,kL, and $K_a =
+1.22$\,day$^{-1}$ (Table 2 of the paper, with reported relative standard
+errors and bootstrap confidence intervals).
+
+\subsubsection{Rate constants}
+
+The disposition rate is $\mathrm{CL}/V = 2.6/14.4 = 0.1806$\,day$^{-1}$,
+giving a half-life of 3.839\,d, which sets $k_a$ (the slow rate under
+flip-flop). $K_a = 1.22$ gives $\ln 2 / 1.22 = 13.64$\,h, which sets
+$k_e$ (the fast rate). Per the symmetry noted after
+Equation~\ref{eq:tmax}, the labels are conventional; the observable
+curve is unchanged by the swap, with the amplitude difference absorbed
+into $S$.
+
+\subsubsection{Why 3.84 days and not 7--8}
+
+The commonly quoted TC half-life is around a week. Bi et al.\ address
+this discrepancy directly: noncompartmental analysis of their own data
+yields 6.9\,d, and their model yields 6.87\,d \emph{when endogenous
+secretion is assumed to be zero}---but 4.05\,d once endogenous production
+is accounted for. Because xT models endogenous production separately as
+$C_{\text{base}}(t)$, the exogenous-only figure is the one that belongs
+in the ester constant. Bi's own median post-hoc estimate of 4.05\,d
+agrees with the encoded 3.839\,d to 5.2\%.
+
+\subsubsection{Scaling constant in closed form}
+
+Matching Equation~\ref{eq:bateman} to the one-compartment model
+underlying Bi's parameters gives $S$ analytically rather than by curve
+fit:
+\begin{equation}
+S = \frac{10^5 \cdot K_a}{V_L \cdot \mathrm{EDF} \cdot k_e}
+  = \frac{10^5 \cdot 1.22}{14400 \times 0.699 \times 0.180556} = 67.13
+\label{eq:tcS}
+\end{equation}
+The $10^5$ converts mg/L to ng/dL; $\mathrm{EDF}$ appears because the
+app multiplies the dose by it while Bi's $V/F$ already absorbs ester
+conversion. This reproduces Bi's population model exactly.
+
+\subsubsection{Time to peak}
+
+Bi's parameters give $t_{\max} = 1.84$\,d via Equation~\ref{eq:tmax}.
+Propagating the published 95\% CI on $K_a$ (0.785--2.67) gives a band of
+1.08--2.43\,d. Bi's own limitations section (1--2 absorption-phase
+samples per subject, $K_a$ RSE 44.9\%) explains the imprecision. Read TC
+$t_{\max}$ as $1.84 \pm 0.7$\,d.
+
+\subsection{Clearance identity for TE, TP, and TU}
+\label{sec:identity}
+
+Testosterone enanthate (TE), propionate (TP), and undecanoate (TU) lack
+primary population-PK sources with reported $V/F$ and $K_a$ for the
+intramuscular route in the model's target population. Their scaling
+constants are nonetheless \emph{not} free parameters, because of a
+conservation argument that follows from the TC derivation.
+
+\subsubsection{Derivation}
+
+Integrating Equation~\ref{eq:bateman} over all time gives exactly
+\[
+\int_0^{\infty} \frac{k_a}{k_a-k_e}\left(e^{-k_e t}-e^{-k_a t}\right)\,dt
+= \frac{k_a}{k_a-k_e}\left(\frac{1}{k_e}-\frac{1}{k_a}\right) = \frac{1}{k_e}
+\]
+so at steady state with dosing interval $\tau$, superposition gives
+\begin{equation}
+C_{\mathrm{avg}} = \frac{D \cdot \mathrm{EDF} \cdot S}{\tau \, k_e}
+\label{eq:cavg}
+\end{equation}
+The true steady-state average is (mg of testosterone per day) divided by
+clearance---and clearance is a property of \emph{testosterone}, not of
+the ester carrying it. It is therefore already pinned by the TC refit:
+$\mathrm{CL}_T = 2600 \times \mathrm{EWF}_{TC} = 1817.4$\,L/day.
+Equating the two expressions, the ester weight factor cancels:
+\begin{equation}
+\boxed{\;S = \frac{10^5 \cdot k_e}{\mathrm{CL}_T \cdot F}\;}
+\label{eq:identity}
+\end{equation}
+
+$S$ depends only on $k_e$ and clearance. The ester's half-life ($k_a$)
+does not appear at all---a property worth stating plainly, because it
+means $S$ does not track the ester's terminal half-life but rather its
+fast rate constant, which for depot esters under flip-flop is the
+absorption rate from the oil vehicle.
+
+\subsubsection{The load-bearing check}
+
+TC satisfies Equation~\ref{eq:identity} to 0.03\% \emph{without having
+been fit to it}---its $S$ came from Equation~\ref{eq:tcS}, via $V/F$ and
+$K_a$. Two independent derivations landing on the same number is what
+makes it defensible to apply the identity to the other three esters.
+
+\subsubsection{Application to TE, TP, and TU}
+
+Table~\ref{tab:identity} shows the identity applied. TE and TU now carry
+real absorption rates from primary sources (Section~\ref{sec:te_tu}),
+while TP retains a placeholder 2\,h $k_e$ and is flagged as uncalibrated.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+\textbf{Ester} & $k_e$ (d$^{-1}$) & $S$ (encoded) & $S$ (implied) & \textbf{Error} \\
+\midrule
+Cypionate   & 1.2196 & 67.13  & 67.11  & \good{0.03\%} \\
+Enanthate   & 1.9625 & 107.98 & 107.98 & \good{0.00\%} \\
+Propionate  & 8.3178 & 457.67 & 457.67 & \good{0.00\%} \\
+Undecanoate & 0.3748 & 20.62  & 20.62  & \good{0.00\%} \\
+\bottomrule
+\end{tabular}
+\caption{The clearance identity (Equation~\ref{eq:identity}) applied to
+all injectable testosterone esters. $\mathrm{CL}_T = 1817.4$\,L/day,
+$F = 1.0$ for all.}
+\label{tab:identity}
+\end{table}
+
+\subsubsection{Steady-state predictions at typical regimens}
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{@{}llrrr@{}}
+\toprule
+\textbf{Ester} & \textbf{Regimen} & $C_{\mathrm{avg}}$ & $C_{\max}$ & $C_{\min}$ \\
+\midrule
+TC & 100\,mg q7d   & 550 & 736 & 321 \\
+TE & 100\,mg q7d   & 566 & 703 & 405 \\
+TP & 50\,mg q2d    & 1151 & 1743 & 760 \\
+TU & 1000\,mg q70d & 496 & 1045 & 129 \\
+\bottomrule
+\end{tabular}
+\caption{Steady-state predictions (exogenous only, ng/dL) at typical
+regimens. $C_{\max}$ and $C_{\min}$ are the peak and trough of the
+steady-state oscillation.}
+\label{tab:steady_state}
+\end{table}
+
+\subsection{Testosterone enanthate and undecanoate: absorption rates}
+\label{sec:te_tu}
+
+\subsubsection{Testosterone enanthate (TE)}
+
+TE's absorption rate is derived from Ichihara et al.~\cite{ichihara2020},
+the only identified primary IM pharmacokinetic study in transgender men:
+$n=10$, single 250\,mg IM dose (Enarmon Depot). The paper reports
+per-subject absorption rate constants ($k_a$) in the 4 of 10 subjects
+where it was estimable: 2.82, 3.16, 0.49, 1.38\,day$^{-1}$, giving a
+mean of 1.9625\,day$^{-1}$ ($t_{1/2} = 8.48$\,h). The terminal half-life
+is reported as $6.6 \pm 1.9$\,d, which sets $k_a$ (the slow rate) at
+$\ln 2 / 6.6 = 0.1050$\,day$^{-1}$.
+
+The resulting $t_{\max} = 1.58$\,d agrees with the paper's observed
+$1.7 \pm 0.9$\,d (all subjects peaked within 3 days). The $t_{\max}$
+and the $k_a$ values were estimated in different subsets (Tmax in all
+10, $k_a$ in the 4 where it was estimable), so this is a genuine
+cross-check rather than a round trip.
+
+\paragraph{Magnitude discrepancy.} A single 250\,mg dose gives 881\,ng/dL
+exogenous here against Ichihara's observed $C_{\max}$ of $2940 \pm
+1710$\,ng/dL. The gap is cohort-level, not error: Ichihara's own
+$\mathrm{CL}_{\text{tot}}/F$ ($14.3$\,L/day/kg $\approx 930$\,L/day at
+65\,kg) is about half the $\mathrm{CL}_T = 1817.4$\,L/day inherited from
+Bi, and their $V_d/F$ ($118.7$\,L/kg $\approx 7700$\,L) about half Bi's
+14\,400\,L. Adopting Ichihara's clearance for TE would put TE and TC
+$2\times$ apart on the \emph{same molecule}, breaking the
+conservation-of-mass identity. Magnitude is therefore anchored to Bi;
+only shape was taken from Ichihara. The per-user calibration factor
+$\alpha$ exists to absorb individual-level differences of this
+magnitude, and Ichihara's $C_{\max}$ CV of 0.58 confirms that
+between-subject spread is wide enough to accommodate the gap.
+
+\subsubsection{Testosterone undecanoate (TU)}
+
+TU's terminal half-life (20.0\,d) is retained from Zhang et
+al.~\cite{zhang1998}, who measured $18.3 \pm 2.3$\,d (500\,mg) and
+$23.7 \pm 2.7$\,d (1000\,mg); 20.0 sits inside both arms. The absorption
+rate is fitted so that $t_{\max}$ lands on the Aveed (FDA) clinical
+pharmacology median of 7\,d (range 4--42\,d): solving
+Equation~\ref{eq:tmax} with $k_a = \ln 2 / 20.0 = 0.0347$\,day$^{-1}$
+for $k_e$ gives $k_e = 0.3748$\,day$^{-1}$ ($t_{1/2} = 44.4$\,h), and
+$t_{\max} = 7.00$\,d.
+
+The scaling constant follows from the identity:
+$S = 10^5 \times 0.3748 / 1817.4 = 20.62$.
+
+\paragraph{Peak/trough ratio.} Over a 70-day interval, the model
+produces a peak/trough ratio of 8.1$\times$ (1045/129\,ng/dL). Wang et
+al.~\cite{wang2010} report a steady-state peak/trough of 1.8$\times$
+(789.8/435.6\,ng/dL at week 12). This gap is \emph{arithmetic, not
+structural}: over a 70-day interval, a terminal half-life of 20\,d is
+3.5 half-lives of decay, so peak/trough cannot fall below $\sim$11$\times$
+on decay alone. Both targets \emph{are} jointly reachable in the
+two-rate Bateman---a 73.8\,d terminal half-life paired with a 27.5\,h
+release rate hits $t_{\max} = 7$\,d \emph{and} peak/trough 1.80$\times$
+simultaneously---but 73.8\,d is 3.7$\times$ what Zhang measured. The
+blocker is that Zhang's measured terminal half-life and Wang's observed
+flatness cannot both be true; resolving it requires Wang's primary
+sampling schedule, not a model rewrite. This finding is consistent with
+Pastuszak et al.~\cite{pastuszak2021}, who fit injectable TU with a
+one-compartment first-order-absorption model---the same two-rate-constant
+Bateman used here.
+
+\subsubsection{Testosterone propionate (TP)}
+
+TP remains uncalibrated. It retains a placeholder 2\,h $k_e$
+(physiological clearance of free testosterone), which pins its
+$t_{\max}$ to 0.33\,d against a published window of 1--2\,d. Its
+\emph{magnitude} was corrected by the clearance identity
+(Section~\ref{sec:identity}), so steady-state $C_{\mathrm{avg}}$ is
+correct, but the first $\sim$24\,h of the curve---where $t_{\max}$
+lives---is wrong. The best available source is a textbook
+chapter~\cite{behre2004} showing a simulated twice-weekly curve rather
+than fitted rate constants or raw single-dose data. A fabricated fit
+would be worse than the honest flag.
+
+\subsection{Estradiol ester derivations}
+\label{sec:e2}
+
+\subsubsection{Estradiol valerate (EV) and cypionate (EC)}
+
+EV and EC are calibrated against transfemscience.org's compiled
+tables~\cite{tfs}, which aggregate published single-dose and
+steady-state estradiol PK. The calibration procedure:
+\begin{enumerate}[nosep,leftmargin=1.4em]
+\item $k_e$ was fit so Equation~\ref{eq:tmax} reproduces the published
+  time-to-peak (2.1\,d for EV, 3.1--4.3\,d for EC).
+\item $k_a$ was fit so the modeled steady-state trough reproduces
+  Table 10's 5\,mg-weekly figures.
+\item $S$ was anchored to the same table's steady-state peak.
+\end{enumerate}
+
+The resulting constants reproduce the published steady-state $C_{\max}$
+and $C_{\min}$ to within 0.1\% (Table~\ref{tab:accuracy}). A key
+decision: single-dose and steady-state targets were \emph{not
+simultaneously satisfiable} in the two-parameter model, and steady state
+was chosen on the reasoning that it is what users actually live at and
+what clinicians titrate on. The consequence is that single-dose
+$C_{\max}$ is a derived value, not an enforced target
+(Section~\ref{sec:anchor_choice}).
+
+\subsubsection{Oral estradiol}
+
+Oral estradiol uses the same Bateman biexponential with fast rate
+constants. The absorption rate $k_a = 8.762$\,day$^{-1}$
+($t_{1/2} = 0.0791$\,d) was fit so that $t_{\max} = 6.0$\,h, the
+midpoint of the published 4--8\,h window. The elimination rate $k_e =
+1.386$\,day$^{-1}$ ($t_{1/2} = 12.0$\,h) and $S = 1250$ were anchored to
+reproduce the steady-state average for 2\,mg daily (90\,pg/mL).
+
+A coupling issue arises: $S$ and $k_a$ are coupled through the peak but
+not through the average (integrating the Bateman term gives
+$\mathrm{AUC}/\text{dose} = D^{\mathrm{eff}} S / k_e$, with no $k_a$ in
+it). One $(S, k_a)$ pair cannot hold both the published $t_{\max}$ and
+the published single-dose $C_{\max}$. Anchoring on $C_{\mathrm{avg}}$
+keeps 2\,mg daily at 90\,pg/mL---unchanged by the $k_a$ refit, and the
+quantity clinicians titrate on---at the cost of single-dose $C_{\max}$
+reading 88\,pg/mL rather than 60\,pg/mL for 2\,mg.
+
+\subsubsection{Transdermal estradiol}
+
+Transdermal estradiol uses the 24 hourly micro-dose construction
+(Equation~\ref{eq:transdermal}) with $S = 155$, $F = 0.15$, and $k_a =
+\ln 2 / 1.5 = 0.462$\,day$^{-1}$. The stored $k_e$ is unused because the
+micro-dose branch sets $k_e = 0$ (single-exponential decay).
+
+\subsection{Transdermal testosterone}
+\label{sec:td_t}
+
+Anchored to the AndroGel 1\% prescribing information~\cite{androgel},
+Table 5 (Day 180 steady state, $n=44$): 50\,mg/day $\to
+C_{\mathrm{avg}} = 555$\,ng/dL. The terminal half-life comes from the
+label's washout statement---levels return to baseline in 48--72\,h,
+implying $\sim$5\% residual at 60\,h, giving $t_{1/2} = 0.5784$\,d.
+Transdermal $F = 0.10$ is stated outright in the label's \S12.3:
+``Approximately 10\% of the testosterone dose applied on the skin
+surface from AndroGel is absorbed into systemic circulation.''
+
+The scaling constant $S = 132.98$ is derived from the 50\,mg anchor.
+Two limitations are documented rather than fitted around; both are in
+Section~\ref{sec:limitations}.
+
+\subsection{Oral testosterone undecanoate}
+\label{sec:oral_t}
+
+Anchored to Swerdloff et al.~\cite{swerdloff2020} / the Jatenzo label:
+237\,mg twice daily $\to C_{\mathrm{avg}} = 488.7$\,ng/dL, $t_{\max}$
+2--4\,h. Both rate constants were solved jointly so that $t_{\max}$
+lands at 3\,h and the steady-state $C_{\max}/C_{\mathrm{avg}}$ comes as
+close as the model permits to the reported 2.06. The resulting constants
+are $k_a = 7.702$\,day$^{-1}$ ($t_{1/2} = 0.09$\,d) and $k_e =
+8.305$\,day$^{-1}$ ($t_{1/2} = 2.003$\,h), with $S = 13.57$.
+
+\subsection{Dynamic endogenous baseline}
+\label{sec:baseline}
+
+Endogenous hormone production is modeled as a time-varying baseline
+$C_{\text{base}}(t)$ that decays from an intact gonadal level to a
+suppressed level as HRT progresses. The model uses a saturating
+exponential taper:
+\begin{equation}
+C_{\text{base}}(t) = C_{\text{full}} + (C_{\text{supp}} - C_{\text{full}}) \cdot \left(1 - e^{-2.5 \, p(t)}\right)
+\label{eq:baseline}
+\end{equation}
+where $p(t) = \min(\text{weeks on HRT} / t_{\text{scale}}, 1)$ is the
+normalized progress, $t_{\text{scale}}$ is user-configurable (4, 8, or
+12 weeks), $C_{\text{full}}$ is the intact baseline (100\,pg/mL for
+estradiol, 600\,ng/dL for testosterone), and $C_{\text{supp}}$ is the
+suppressed baseline (5\,pg/mL for estradiol, 15\,ng/dL for
+testosterone). The factor 2.5 in the exponent ensures the suppression
+reaches $\sim$92\% at $p = 1$. After 104 weeks (2 years), the baseline
+is treated as fully suppressed.
+
+\paragraph{Anti-androgen override.} When the user reports taking an
+anti-androgen (spironolactone, cyproterone, or a GnRH agonist), the
+testosterone baseline is set to the suppressed level immediately,
+reflecting the direct gonadal suppression these agents provide.
+
+\subsection{Blood test calibration}
+\label{sec:calibration}
+
+\subsubsection{The calibration factor}
+
+Each blood test record stores a measured hormone level and the date the
+blood was drawn. The calibration factor is the ratio of measured to
+predicted concentration at the draw instant:
+\begin{equation}
+\alpha = \frac{C_{\text{measured}}}{C_{\text{predicted}}}
+\label{eq:alpha}
+\end{equation}
+where $C_{\text{predicted}}$ is computed by running the PK model at the
+exact draw date \emph{without} calibration applied (to avoid
+circularity: the calibration engine must never feed on its own output).
+The factor is clamped to $[0.2, 5.0]$ to exclude clinically implausible
+values. When multiple calibrated blood tests exist, the most recent one
+for the currently selected hormone type is used.
+
+\subsubsection{Application}
+
+$\alpha$ is applied as a multiplicative scalar to the entire model
+output (Equation~\ref{eq:superposition}). This is a pragmatic per-user
+analog of the inter-individual variability (IIV) terms in a formal
+mixed-effects population-PK model. The published literature reports
+substantial between-subject variability: Ichihara et al.~\cite{ichihara2020}
+report a CV of 0.58 on $V_d/F$ for TE, corresponding to an $\sim$8-fold
+individual range. The clamp range $[0.2, 5.0]$ spans most of this
+distribution without admitting values that would indicate a data entry
+error.
+
+\subsubsection{Hormone-type gating}
+
+The calibration factor is only applied when the blood test's hormone
+type matches the currently selected medication. This prevents a
+testosterone draw from silently rescaling the estradiol curve, which
+would occur if the filter were absent.
+
+\subsection{Drug interactions: spironolactone}
+\label{sec:spiro}
+
+Spironolactone is a known CYP3A4 inducer that can modestly increase
+estradiol clearance. When the user has opted in to the spironolactone
+clearance adjustment, the elimination rate $k_e$ for estrogen doses is
+scaled by a factor of 1.15 (15\% faster clearance):
+\begin{equation}
+k_e' = k_e \cdot 1.15
+\label{eq:spiro}
+\end{equation}
+This adjustment is applied at the PK parameter resolution level, before
+the Bateman function is evaluated. It is not applied to testosterone
+doses, as the interaction is specific to estradiol metabolism.
+
+Note that because $t_{\max}$ depends on $k_e$
+(Equation~\ref{eq:tmax}), this adjustment also shifts the peak time
+slightly earlier. The ester-level $t_{\max}$ values reported in
+Table~\ref{tab:tmax} are computed without the spironolactone adjustment.
+
+\subsection{Aromatization estimation}
+\label{sec:aromatization}
+
+For trans men on testosterone therapy, a small fraction of circulating
+testosterone is converted to estradiol via aromatase. The model
+estimates this conversion as:
+\begin{equation}
+E_2^{\text{arom}} = 0.002 \times T_{\text{ng/dL}} \quad \text{(pg/mL)}
+\label{eq:aromatization}
+\end{equation}
+i.e., a 0.2\% conversion rate. This helps trans men monitor whether
+their estradiol is within the male reference range (10--40\,pg/mL). The
+conversion factor is a population average; individual aromatase activity
+varies with body composition, age, and genetic factors.
+
+\subsection{Chart window and sampling resolution}
+\label{sec:chart_window}
+
+The chart's visible time range and sampling step are derived from the
+ester's pharmacokinetic properties, not hardcoded. The rule is:
+\begin{align}
+W    &= \mathrm{clamp}(1.5 \cdot t_{\max},\; \text{lower:}\;\min(2\,\text{d},\; 2\tau),\; \text{upper:}\;1.5\tau) \label{eq:window} \\
+\text{step} &= \max\bigl(\min(W/40,\; t_{\max}/8),\; 15\,\text{min}\bigr) \label{eq:step}
+\end{align}
+where $W$ is the total window width, $\tau$ is the dosing interval, and
+the window is split 1:2 past:future. The $t_{\max}/8$ cap is an
+anti-aliasing guarantee: it ensures the sampling step never exceeds
+one-eighth of the time-to-peak, preventing the drawn curve from
+collapsing into a flat line when the step would otherwise land on the
+same phase of every dose cycle. The $W/40$ term keeps every ester at a
+comparable point count ($\sim$41) so curves read with the same density
+regardless of timescale.
+
+When $t_{\max}$ is uncalibrated or non-finite (the transdermal routes,
+which have no meaningful $t_{\max}$ because $k_e = 0$), a fallback
+window of 2\,d is used.
+
+% ======================================================================
+\section{Encoded constants}
+\label{sec:constants}
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{@{}lrrrrrrr@{}}
+\toprule
+& \multicolumn{2}{c}{\textbf{slow exponential}} & \textbf{fast} & & & & \\
+\cmidrule(lr){2-3}
+\textbf{Form} & $t_{1/2}$ (d) & $k_a$ (d$^{-1}$) & $k_e$ (d$^{-1}$)
+               & EWF & $F$ & $S$ & $t_{\max}$ \\
+\midrule
+EV            & 2.6000 & 0.2667 & 0.7737 & 0.764 & 1.00 & 396.40 & 2.10\,d \\
+EC            & 6.4700 & 0.1071 & 0.4310 & 0.687 & 1.00 & 273.00 & 4.30\,d \\
+E2 oral       & 0.0791 & 8.7629 & 1.3859 & 1.000 & 0.05 & 1250.00 & 6.0\,h \\
+E2 cream      & 1.5000 & 0.4621 & ---    & 1.000 & 0.15 & 155.00 & --- \\
+\midrule
+TC            & 3.8390 & 0.1806 & 1.2196 & 0.699 & 1.00 & 67.13 & 1.84\,d \\
+TE            & 6.6000 & 0.1050 & 1.9625 & 0.720 & 1.00 & 107.98 & 1.58\,d \\
+TP            & 1.0000 & 0.6931 & 8.3178 & 0.837 & 1.00 & 457.67 & 0.33\,d \\
+TU            & 20.0000 & 0.0347 & 0.3748 & 0.631 & 1.00 & 20.62 & 7.00\,d \\
+T oral (TU)   & 0.0900 & 7.7016 & 8.3053 & 0.631 & 1.00 & 13.57 & 3.0\,h \\
+T gel         & 0.5784 & 1.1984 & ---    & 1.000 & 0.10 & 132.98 & --- \\
+\bottomrule
+\end{tabular}
+\caption{Constants as shipped, and the $t_{\max}$ each implies via
+Equation~\ref{eq:tmax}. The cream/gel routes have no $t_{\max}$ because
+they are not modeled with Equation~\ref{eq:bateman}; their $k_e$ is
+stored but unused.}
+\label{tab:constants}
+\end{table}
+
+\paragraph{Calibration status.} Of the eight forms with a $t_{\max}$,
+seven are calibrated against a primary or label source: EV and EC
+against compiled steady-state tables~\cite{tfs}, oral E2 against the
+published 4--8\,h window, TC against Bi et al.~\cite{bi2018}, TE against
+Ichihara et al.~\cite{ichihara2020}, TU against Aveed's FDA clinical
+pharmacology, and oral T against the Jatenzo label~\cite{swerdloff2020}.
+TP alone remains uncalibrated: its $t_{\max}$ of 0.33\,d is known to be
+wrong against a published window of 1--2\,d, and is not presented to
+users as a fact about the drug.
+
+% ======================================================================
+\section{Results}
+\label{sec:results}
+
+\subsection{Accuracy against anchors}
+\label{sec:accuracy}
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{@{}lllrrl@{}}
+\toprule
+\textbf{Regimen} & \textbf{Quantity} & \textbf{Model} & \textbf{Published}
+                 & \textbf{Error} & \textbf{Source} \\
+\midrule
+EV 5\,mg q7d & $C_{\max}$ & 384 & 384 & \good{$+0.1\%$} & TFS Table 10 \\
+EV 5\,mg q7d & $C_{\min}$ & 142 & 142 & \good{$+0.1\%$} & TFS Table 10 \\
+EC 5\,mg q7d & $C_{\max}$ & 339 & 339 & \good{$-0.1\%$} & TFS Table 10 \\
+EC 5\,mg q7d & $C_{\min}$ & 262 & 262 & \good{$-0.1\%$} & TFS Table 10 \\
+TC 100\,mg q7d & $C_{\mathrm{avg}}$ & 550 & 549 & \good{$+0.0\%$} & Bi Table 2 \\
+T gel 50\,mg/d & $C_{\mathrm{avg}}$ & 555 & 555 & \good{$+0.1\%$} & AndroGel Table 5 \\
+T gel 75\,mg/d & $C_{\mathrm{avg}}$ & 833 & 601 & \bad{$+38.6\%$} & AndroGel Table 5 \\
+T gel 100\,mg/d & $C_{\mathrm{avg}}$ & 1111 & 713 & \bad{$+55.8\%$} & AndroGel Table 5 \\
+Oral TU 237\,mg BID & $C_{\mathrm{avg}}$ & 489 & 489 & \good{$-0.0\%$} & Jatenzo \\
+Oral TU 237\,mg BID & $C_{\max}$ & 789 & 1008 & \bad{$-21.7\%$} & Jatenzo \\
+\bottomrule
+\end{tabular}
+\caption{Predicted versus published. Rows with near-zero error are the
+anchors themselves and demonstrate that the fit converged. The three
+coloured rows are the informative ones; both are explained in
+Section~\ref{sec:limitations}. Estradiol in pg/mL, testosterone in
+ng/dL.}
+\label{tab:accuracy}
+\end{table}
+
+Rows in Table~\ref{tab:accuracy} with 0.0\% error demonstrate only that
+the fit converged---a fit agrees with its own target by construction.
+The three coloured rows are the informative ones.
+
+\subsection{Out-of-sample validation}
+\label{sec:out_of_sample}
+
+The following comparisons were \emph{not} used in any fit.
+
+\begin{table}[h]
+\centering
+\footnotesize
+\begin{tabular}{@{}lrrrl@{}}
+\toprule
+\textbf{Check} & \textbf{Model} & \textbf{Published} & \textbf{Error} & \textbf{Source} \\
+\midrule
+TC single 200\,mg $C_{\max}$ (exogenous) & 997 & 872 & $+14.3\%$
+  & 200\,mg IM lit.\ 1112 less 240 basal \\
+TC 100\,mg q7d $C_{\max}$ + basal & 976 & 1150 & $-15.1\%$
+  & Bi Figure 2, 100\,mg panel \\
+EV single 2\,mg $C_{\max}$ & 119 & 118 & \good{$+1.0\%$} & TFS Table 9 \\
+EC single 2\,mg $C_{\max}$ & 59 & 62 & \good{$-5.1\%$} & TFS Table 9 \\
+\bottomrule
+\end{tabular}
+\caption{Independent validation. The estradiol rows are the strongest
+evidence: constants fit purely to steady-state data reproduce
+single-dose peaks within 1\% and 5\%.}
+\label{tab:out_of_sample}
+\end{table}
+
+The two testosterone rows agree to about 15\% in opposite directions,
+which is roughly the precision the source itself supports given Bi's
+reported RSEs. They are consistency checks, not tight validation.
+
+The estradiol rows are the strongest evidence in the model: constants
+fit purely to steady-state data reproduce single-dose peaks within 1\%
+and 5\%. This is a non-trivial result---it demonstrates that the
+two-parameter Bateman, with steady-state-anchored constants, generalizes
+to the single-dose regime without refitting.
+
+\subsection{Time to peak}
+\label{sec:tmax_results}
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Form} & \textbf{Model $t_{\max}$} & \textbf{Published} & \textbf{Source quality} \\
+\midrule
+EV      & 2.10\,d & 2.1\,d & compiled tables \\
+EC      & 4.30\,d & 3.1--4.3\,d & compiled tables \\
+E2 oral & \good{6.0\,h} & \good{4--8\,h} & secondary \\
+TC      & \good{1.84\,d} & \good{1.84\,d} & \textbf{primary} (Bi Table 2) \\
+TE      & \good{1.58\,d} & \good{1.7 $\pm$ 0.9\,d} & \textbf{primary} (Ichihara 2020) \\
+TP      & \bad{0.33\,d} & \bad{1--2\,d} & sparse (uncalibrated) \\
+TU      & \good{7.00\,d} & \good{median 7\,d} & \textbf{label} (Aveed FDA) \\
+T oral  & \good{3.0\,h} & \good{2--4\,h} & label (Jatenzo) \\
+\bottomrule
+\end{tabular}
+\caption{Where the model puts the peak. Seven of eight forms with a
+$t_{\max}$ are calibrated against a primary or label source. TP alone
+remains uncalibrated: its $t_{\max}$ is known to be wrong and is not
+presented to users as fact.}
+\label{tab:tmax}
+\end{table}
+
+\subsection{Persona validation}
+\label{sec:personas}
+
+Section-level agreement with published tables is necessary but not
+sufficient: those tables describe clean steady state on a fixed regimen,
+and real users miss doses, change dose, change route, and dose on
+intervals nobody studied. Eight synthetic users were run end to end
+through the same summation the app performs.
+
+\begin{longtable}{@{}p{2.6cm}p{4.5cm}p{7.4cm}@{}}
+\toprule
+\textbf{Persona} & \textbf{Regimen} & \textbf{What it tests, and the result} \\
+\midrule
+\endhead
+Maya, 24 & 4\,mg EV IM q7d, 18 months, perfect adherence
+ & Control. $C_{\max}$ 307, $C_{\min}$ 114\,pg/mL --- exactly $4/5$ of
+   the 5\,mg source figures, as linearity requires. \good{Pass.} \\[0.4em]
+Devon, 31 & 100\,mg TC q7d $\to$ 200\,mg q14d at month 6
+ & Superposition across a regimen change. $C_{\mathrm{avg}}$ preserved
+   at 790\,ng/dL as it must be; trough falls $561 \to 381$ while peak
+   rises $976 \to 1339$, and peak/trough widens $1.74\times \to
+   3.51\times$. The model reproduces the clinical trade-off and
+   correctly refuses to reward the longer interval. \good{Pass.} \\[0.4em]
+Priya, 47 & 2\,mg oral E2 BID for 4 months, then 4\,mg EV q7d
+ & Route switch; historical doses must keep their own kinetics. They
+   do --- the oral segment retains $F = 0.05$ and the fast rates.
+   Modeled BID swing is $1.37\times$ at an unchanged $C_{\mathrm{avg}}$
+   of 180\,pg/mL. \good{Pass.} \\[0.4em]
+Sam, 19 & 50\,mg/day T gel, misses $\sim$2 days/week
+ & Skipped-dose handling. $C_{\mathrm{avg}}$ 637\,ng/dL; missed days
+   cost 20\% of average and 63\% of trough. \good{Pass.} \\[0.4em]
+Rowan, 38 & 4\,mg/day compounded E2 cream, onboarded in-app
+ & Route pseudo-ester resolution. Cream dose correctly resolves to the
+   transdermal pseudo-ester constants. \good{Pass.} \\[0.4em]
+Kai, 52 & 237\,mg oral TU BID, 10-day interruption
+ & Washout and re-accumulation on the fastest route. Falls to the
+   endogenous floor within a day; no phantom drug survives the gap;
+   recovers to 100\% of pre-gap within 2 days. \good{Pass.} \\[0.4em]
+Jules, 28 & 100\,mg TE IM q7d
+ & TE steady-state. $C_{\max}$ 703, $C_{\min}$ 405, $C_{\mathrm{avg}}$
+   566\,ng/dL (exogenous). Consistent with TC via the clearance
+   identity. $t_{\max}$ 1.58\,d, inside Ichihara's observed $1.7 \pm
+   0.9$\,d. \good{Pass.} \\[0.4em]
+Nadia, 35 & 5\,mg EC q10d --- an interval nobody studied
+ & Extrapolation outside the calibration envelope. Trough holds in
+   band but sits 40\% below the same dose at q7d. Structurally sound
+   but inherits every assumption of the fit. \good{Pass, with caveat.} \\
+\bottomrule
+\end{longtable}
+
+All eight land inside their clinical reference bands. The persona suite
+tests properties that section-level accuracy tables cannot: linear
+scaling (Maya), superposition across regimen changes (Devon), route
+switching with per-dose kinetics (Priya), skipped-dose handling (Sam),
+route pseudo-ester resolution (Rowan), washout and re-accumulation
+(Kai), inter-ester consistency (Jules), and extrapolation outside the
+calibration envelope (Nadia).
+
+% ======================================================================
+\section{Discussion}
+\label{sec:discussion}
+
+\subsection{Structural limitations}
+\label{sec:limitations}
+
+These are quantified rather than fixed. Each needs either a source the
+model does not have or a structurally different approach.
+
+\subsubsection{Testosterone undecanoate peak/trough ratio}
+\label{sec:tu_limitation}
+
+Over a 70-day interval, the model produces a peak/trough ratio of
+8.1$\times$ against Wang et al.'s~\cite{wang2010} observed 1.8$\times$.
+This is not a structural deficiency of the two-rate Bateman: as noted in
+Section~\ref{sec:te_tu}, both targets are jointly reachable with a
+73.8\,d terminal half-life, but that value is 3.7$\times$ what Zhang et
+al.~\cite{zhang1998} measured. The blocker is a \emph{source conflict}
+between Zhang's terminal half-life and Wang's observed flatness, not the
+number of compartments. Pastuszak et al.~\cite{pastuszak2021} fit
+injectable TU with the same one-compartment first-order-absorption model
+used here, confirming the model family is appropriate.
+
+The magnitude correction via the clearance identity improves TU's
+$C_{\mathrm{avg}}$ (496\,ng/dL exogenous, against a published
+$\sim$500--600 total) but its $C_{\max}$ overshoots (1045 vs.\ 790\,ng/dL
+observed), because correcting magnitude cannot correct shape. The trade
+was taken knowingly: $C_{\mathrm{avg}}$ is what clinicians titrate on
+and what a user lives at.
+
+\subsubsection{Transdermal intraday ripple}
+\label{sec:td_ripple}
+
+The 24-hourly-micro-dose construction has no absorption phase and tops
+out at $C_{\max}/C_{\min} \approx 1.05$ for testosterone gel, against an
+observed 2.24. Reproducing 2.24 would require a terminal half-life near
+1\,h, which contradicts the label's own 48--72\,h washout by an order of
+magnitude. The two cannot be satisfied together in this model.
+$C_{\mathrm{avg}}$ is exact.
+
+\subsubsection{Transdermal dose-response sublinearity}
+\label{sec:td_dose_response}
+
+The AndroGel 1\% label's dose-response is markedly sublinear:
+50\,mg $\to$ 555, 75\,mg $\to$ 601, 100\,mg $\to$ 713\,ng/dL. The 1.62\%
+label inverts outright: 81\,mg $C_{\mathrm{avg}}$ 537 is \emph{below}
+60.75\,mg $C_{\mathrm{avg}}$ 643.
+
+This is a titration artifact: higher-dose arms are enriched for poor
+absorbers, because subjects were escalated precisely when they responded
+badly. It is selection confounding, not saturable pharmacokinetics, and
+a linear model should not be bent to reproduce it. $S$ is anchored to
+the 50\,mg arm---the standard starting dose and the least
+confounded---so predictions at 75 and 100\,mg run high by 39\% and 56\%
+(Table~\ref{tab:accuracy}).
+
+Gel absorption also varies enormously between individuals. The
+calibration factor $\alpha$ is the intended remedy and is more important
+on this route than on any other.
+
+\subsubsection{Oral testosterone peak fluctuation}
+\label{sec:oral_t_limitation}
+
+With $t_{\max}$ pinned to the reported 2--4\,h window, the model's
+achievable $C_{\max}/C_{\mathrm{avg}}$ tops out at 1.61 against a
+reported 2.06, so $C_{\max}$ reads 789 rather than 1008\,ng/dL.
+
+The reported ratio is itself inflated by mean-of-maxima bias: the
+published $C_{\max}$ is the mean of per-subject maxima, and
+$\mathbb{E}[\max] \ge \max[\mathbb{E}]$, with a reported SD of $\pm 581$
+on a mean of 1008. Anchoring to $C_{\mathrm{avg}}$---the label's own
+primary endpoint---and accepting a documented under-prediction of the
+peak was judged the better trade.
+
+\subsubsection{Testosterone propionate remains uncalibrated}
+\label{sec:tp_limitation}
+
+TP retains a placeholder 2\,h $k_e$, which pins its $t_{\max}$ to 0.33\,d
+against a published window of 1--2\,d. Its magnitude was corrected by
+the clearance identity, so steady-state $C_{\mathrm{avg}}$ is correct,
+but the peak arrives too early and the curvature between peak and trough
+is wrong. The best available source is a textbook chapter~\cite{behre2004}
+showing a simulated curve, not fitted rate constants. A fabricated fit
+would be worse than the honest flag.
+
+\subsubsection{Model-wide simplifications}
+\label{sec:simplifications}
+
+The model assumes:
+\begin{itemize}[nosep,leftmargin=1.4em]
+\item \textbf{Dose-linearity} with no saturable protein binding or SHBG
+  dynamics.
+\item \textbf{A single well-mixed compartment} with constant clearance.
+\item \textbf{No covariates}: body composition, age, hepatic function,
+  and concomitant medications (beyond the one spironolactone adjustment)
+  are not represented.
+\item \textbf{No between-subject variability} in the population
+  prediction. Predictions are population means, not individual
+  forecasts. The per-user calibration factor $\alpha$ exists to close
+  some of that gap once blood tests are available.
+\end{itemize}
+
+These are standard simplifications for a one-compartment model and are
+shared by the published population-PK models cited
+above~\cite{bi2018,ichihara2020,pastuszak2021}, with the caveat that
+those models additionally include IIV terms and covariates (e.g., body
+weight and SHBG in Pastuszak's TU model).
+
+\subsection{The steady-state vs.\ single-dose anchor choice}
+\label{sec:anchor_choice}
+
+For both estradiol esters and all four testosterone esters, the
+single-dose peak targets and the published steady-state data were
+\emph{mutually unsatisfiable} in the two-parameter model. For estradiol
+the gap was large: holding the single-dose targets put steady state
+$+110\%$ (EV) and $+206\%$ (EC) above the published table.
+
+Steady state was chosen, in every case, on the reasoning that it is what
+users actually live at and what clinicians titrate on. The consequence
+is that single-dose figures are derived values, not enforced targets.
+This is a modelling decision, not a derivation, and it has a cost:
+single-dose $C_{\max}$ for EV (119\,pg/mL for 2\,mg) and EC (59\,pg/mL
+for 2\,mg) are lower than some published single-dose figures, though
+they agree with the transfemscience Table 9 values to within 1\% and
+5\% respectively (Table~\ref{tab:out_of_sample}).
+
+\subsection{Source quality hierarchy}
+\label{sec:source_quality}
+
+The model's constants rest on a hierarchy of source quality:
+
+\begin{enumerate}[nosep,leftmargin=1.4em]
+\item \textbf{Primary population-PK} (TC): Bi et al.~\cite{bi2018}
+  supply $\mathrm{CL}/F$, $V/F$, and $K_a$ with RSEs and bootstrap CIs.
+  This is the strongest source in the model.
+\item \textbf{Primary single-dose PK} (TE): Ichihara et
+  al.~\cite{ichihara2020} supply terminal half-life and per-subject
+  absorption rates in the target population (transgender men, IM
+  route).
+\item \textbf{Regulatory labels} (T gel, oral T, TU $t_{\max}$):
+  AndroGel~\cite{androgel} and Jatenzo~\cite{swerdloff2020} supply
+  steady-state $C_{\mathrm{avg}}$, $C_{\max}$, and $t_{\max}$ from FDA
+  registration trials. Aveed's FDA clinical pharmacology supplies TU's
+  median $t_{\max}$.
+\item \textbf{High-quality secondary compilation} (EV, EC):
+  transfemscience.org~\cite{tfs} aggregates published single-dose and
+  steady-state estradiol data. Not a primary table, and flagged as
+  such.
+\item \textbf{Secondary literature} (TU terminal half-life): Zhang et
+  al.~\cite{zhang1998} and Wang et al.~\cite{wang2010} supply
+  terminal half-life and steady-state peak/trough, respectively. These
+  two sources are in conflict (Section~\ref{sec:tu_limitation}).
+\item \textbf{Nothing} (TP): beyond the clearance identity that ties
+  TP's magnitude to TC, there is no primary source for TP's absorption
+  rate. The placeholder is flagged.
+\end{enumerate}
+
+\subsection{The per-user calibration factor as a pragmatic IIV analog}
+\label{sec:iiv}
+
+The published population-PK models for testosterone esters all report
+substantial inter-individual variability. Ichihara et al.~\cite{ichihara2020}
+report a CV of 0.58 on $V_d/F$ for TE, and Bi et al.~\cite{bi2018} report
+IIV terms on clearance and volume. A formal mixed-effects model would
+represent this variability with $\eta$ terms on each parameter, drawn
+from a population distribution.
+
+xT's calibration factor $\alpha$ is a simpler approach: a single scalar
+multiplier on the entire model output, derived from the user's own blood
+test. It cannot represent parameter-specific variability (e.g., a user
+with fast clearance but normal volume), and it cannot provide
+population-level confidence intervals. But it is practical for a
+consumer application: it requires no raw data access, no fitting
+infrastructure, and no statistical expertise from the user, and it
+absorbs the dominant source of individual-level error once a blood test
+is available.
+
+The clamp range $[0.2, 5.0]$ spans most of the reported IIV distribution
+without admitting values that would indicate a data entry error. For
+routes with especially high between-subject variability---transdermal in
+particular---$\alpha$ is more important than on any other route.
+
+% ======================================================================
+\section{Conclusion}
+\label{sec:conclusion}
+
+We have presented the pharmacokinetic model underlying xT, a mobile
+application for hormone replacement therapy monitoring. The model
+employs a one-compartment Bateman biexponential with linear
+superposition of dose contributions, a dynamic endogenous baseline, and
+a per-user calibration factor. Ten medication/route/form combinations
+are supported across estradiol and testosterone.
+
+The model's key structural features are:
+\begin{itemize}[nosep,leftmargin=1.4em]
+\item A \textbf{conservation-of-mass identity} that constrains the
+  scaling constant $S$ for all injectable testosterone esters to depend
+  only on $k_e$ and clearance, eliminating $S$ as a free parameter and
+  enforcing mutual consistency across esters.
+\item An \textbf{analytic closed-form derivation} of $S$ for
+  testosterone cypionate from primary population-PK parameters, which
+  anchors the identity.
+\item A \textbf{per-user calibration factor} $\alpha$ that serves as a
+  pragmatic analog of inter-individual variability terms in formal
+  mixed-effects models.
+\item A \textbf{dynamic endogenous baseline} that models gonadal
+  suppression over time, separating exogenous from endogenous
+  contributions.
+\end{itemize}
+
+The model achieves 0.0--0.1\% accuracy against its anchors and 1--15\%
+on out-of-sample checks. Seven of eight forms with a $t_{\max}$ are
+calibrated against primary or label sources; one (TP) is honestly
+flagged as uncalibrated. Structural limitations are quantified rather
+than hidden: TU's peak/trough ratio is a source conflict, not a
+structural deficiency; transdermal intraday ripple is under-modeled by
+construction; and oral peak fluctuation is under-predicted by an
+anchoring choice that prioritizes $C_{\mathrm{avg}}$.
+
+The model is honest about where its constants are primary-sourced, where
+they are secondary, and where they remain uncalibrated. This honesty---
+the explicit marking of what is known, what is estimated, and what is
+placeholder---is, in our view, the most important property of a
+pharmacokinetic model used in a consumer health context, where users
+may make medical decisions based on its output.
+
+\vfill
+\noindent\rule{\linewidth}{0.4pt}\\[0.3em]
+{\footnotesize This paper describes a consumer tracking application's
+internal model. It is not clinical guidance, and its predictions are
+population estimates that should not be used to make dosing decisions
+without laboratory confirmation.}
+
+% ======================================================================
+\begin{thebibliography}{99}
+
+\bibitem{bi2018}
+Bi Y., et al.\ (2018). ``Population Pharmacokinetic/Pharmacodynamic
+Modeling of Depot Testosterone Cypionate in Healthy Male Subjects.''
+\emph{CPT: Pharmacometrics \& Systems Pharmacology}.
+\texttt{doi:10.1002/psp4.12287}.
+
+\bibitem{ichihara2020}
+Ichihara K., Masumori N., Fujii S., Toda T.\ (2020). ``Pharmacokinetics
+of Testosterone Enanthate After Intramuscular Injection for Transgender
+Men.'' \emph{Androgens: Clinical Research and Therapeutics}.
+\texttt{doi:10.1089/andro.2020.0002}.
+
+\bibitem{zhang1998}
+Zhang G.Y., Gu Y.Q., Wang X.H., Cui Y.G., Bremner W.J.\ (1998). ``A
+pharmacokinetic study of injectable testosterone undecanoate in
+hypogonadal men.'' \emph{J.\ Androl.} 19(6):761--8.
+PMID: 9876028.
+
+\bibitem{wang2010}
+Wang C., et al.\ (2010). ``Pharmacokinetics and Safety of Long-Acting
+Testosterone Undecanoate Injections in Hypogonadal Men: An 84-Week
+Phase III Clinical Trial.'' \emph{J.\ Androl.}
+\texttt{doi:10.2164/jandrol.109.009597}.
+
+\bibitem{pastuszak2021}
+Pastuszak A.W., Gittelman M., Tursi J.P., Jaffe J.S., Miner M.M.\
+(2021). ``Population Pharmacokinetic Modeling and Simulations to
+Evaluate a Potential Dose Regimen of Testosterone Undecanoate in
+Hypogonadal Males.'' \emph{J.\ Clin.\ Pharmacol.}
+PMID: 34269421.
+
+\bibitem{swerdloff2020}
+Swerdloff R.S., et al.\ (2020) / Jatenzo (testosterone undecanoate)
+prescribing information. FDA label.
+
+\bibitem{androgel}
+AndroGel 1\% (testosterone gel) prescribing information. FDA label,
+\S12.3 and Table 5.
+
+\bibitem{tfs}
+transfemscience.org compiled tables (9 and 10). Estradiol ester
+pharmacokinetics. Secondary compilation of published single-dose and
+steady-state data.
+
+\bibitem{behre2004}
+Behre H.M., Wang C., Handelsman D.J., Nieschlag E.\ (2004).
+``Pharmacology of testosterone preparations.'' In \emph{Testosterone:
+Action, Deficiency, Substitution}, Cambridge University Press.
+
+\bibitem{hembree2017}
+Hembree W.C., et al.\ (2017). ``Endocrine Treatment of Gender-Dysphoric
+/Gender-Incongruent Persons: An Endocrine Society Clinical Practice
+Guideline.'' \emph{J.\ Clin.\ Endocrinol.\ Metab.} 102(11):3869--3903.
+
+\bibitem{rowland2011}
+Rowland M., Tozer T.N.\ (2011). \emph{Clinical Pharmacokinetics and
+Pharmacodynamics: Concepts and Applications}. 4th ed. Lippincott
+Williams \& Wilkins.
+
+\end{thebibliography}
+
+\end{document}

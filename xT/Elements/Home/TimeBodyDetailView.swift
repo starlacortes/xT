@@ -29,6 +29,12 @@ struct TimeBodyDetailView: View {
                     .padding(.top, 20)
                     .padding(.bottom, 20)
 
+                if system.systemKey == .voice {
+                    VoiceProgressView(months: engine.activeMonthsOnHRT, tier: engine.tenureTier)
+                        .padding(.horizontal, 22)
+                        .padding(.bottom, 20)
+                }
+
                 detailDivider()
 
                 // Tenure status banner
@@ -247,6 +253,101 @@ struct TimeBodyDetailView: View {
 
     private func detailDivider() -> some View {
         Divider().opacity(0.5)
+    }
+}
+
+// MARK: - Voice Progress View
+
+private struct VoiceProgressView: View {
+    let months: Int
+    let tier: TenureTier
+
+    private var progress: Double {
+        switch tier {
+        case .t1Beginning: return 0.05
+        case .t2Emerging:  return 0.25
+        case .t3InMotion:  return 0.55
+        case .t4Deepening: return 0.78
+        case .t5Settled, .t6Rooted, .t7Veteran: return 0.95
+        }
+    }
+
+    private var stageLabel: String {
+        switch tier {
+        case .t1Beginning: return "Pre-change"
+        case .t2Emerging:  return "Shifting"
+        case .t3InMotion:  return "Deepening"
+        case .t4Deepening: return "Settling"
+        case .t5Settled, .t6Rooted, .t7Veteran: return "Settled"
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("VOICE RANGE")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .tracking(0.5)
+                Spacer()
+                Text(stageLabel)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(Theme.Colors.Time.mind.base)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Theme.Colors.Time.mind.surface)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+            }
+
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    LinearGradient(
+                        colors: [
+                            Theme.Colors.Time.cycle.base.opacity(0.25),
+                            Theme.Colors.Time.body.base.opacity(0.25)
+                        ],
+                        startPoint: .leading, endPoint: .trailing
+                    )
+                    .frame(height: 8)
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
+
+                    LinearGradient(
+                        colors: [
+                            Theme.Colors.Time.cycle.base,
+                            Theme.Colors.Time.body.base
+                        ],
+                        startPoint: .leading, endPoint: .trailing
+                    )
+                    .frame(width: geo.size.width * progress, height: 8)
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                    .animation(.easeInOut(duration: 0.6), value: progress)
+
+                    Circle()
+                        .fill(Color(.systemBackground))
+                        .frame(width: 14, height: 14)
+                        .overlay(Circle().stroke(Theme.Colors.Time.body.base, lineWidth: 2))
+                        .offset(x: geo.size.width * progress - 7)
+                        .animation(.easeInOut(duration: 0.6), value: progress)
+                }
+            }
+            .frame(height: 14)
+
+            HStack {
+                Text("Higher range")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text("Lower range")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(14)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.md))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.Radius.md)
+                .stroke(Theme.Colors.Time.mind.base.opacity(0.15), lineWidth: 0.5)
+        )
     }
 }
 

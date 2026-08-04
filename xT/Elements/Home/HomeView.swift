@@ -50,13 +50,14 @@ struct HomeView: View {
 
                     if medicationManager.isFullyConfigured {
                         FlatGraphView(dataRegionFraction: 0.55,
+                                      journalEntries: journalManager.entries,
                                       scrubFraction: $scrubFraction,
                                       scrubValue: $scrubValue,
                                       scrubDate: $scrubDate)
                     }
 
                     if medicationManager.isFullyConfigured {
-                        LevelOverlayView(scrubValue: scrubValue)
+                        LevelOverlayView(scrubValue: scrubValue, scrubDate: scrubDate)
                     }
 
                     if celebrateDose {
@@ -70,6 +71,7 @@ struct HomeView: View {
                 .overlay(alignment: .bottom) {
                     if medicationManager.isFullyConfigured {
                         UnifiedStackView()
+                            .background(Color.clear.contentShape(Rectangle()))
                             .padding(.horizontal, hPad)
                             .padding(.bottom, Theme.Spacing.sm)
                     } else {

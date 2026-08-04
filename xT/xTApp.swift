@@ -69,41 +69,18 @@ struct xTApp: App {
         do {
             return try ModelContainer(for: schema, configurations: [modelConfiguration])
         } catch {
+            // Leave the on-disk store untouched so user data is never actively destroyed.
+            // A transient error gets another chance on the next launch; a genuine schema
+            // conflict will be resolved by CloudKit sync rather than a local wipe.
             print("[xTApp] Failed to create ModelContainer: \(error)")
-            print("[xTApp] Deleting corrupted store and retrying...")
-
-            // No application support directory means there is no store to delete;
-            // fall through and let the retry below report the real failure.
-            if let supportDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
-                let storeURL = supportDir.appendingPathComponent("xT.store")
-                for url in [storeURL,
-                            URL(fileURLWithPath: storeURL.path + "-shm"),
-                            URL(fileURLWithPath: storeURL.path + "-wal")] {
-                    do {
-                        try FileManager.default.removeItem(at: url)
-                    } catch CocoaError.fileNoSuchFile {
-                        continue // nothing to clean up
-                    } catch {
-                        print("[xTApp] Could not remove \(url.lastPathComponent): \(error)")
-                    }
-                }
-            } else {
-                print("[xTApp] No application support directory — skipping store cleanup")
-            }
-
-            // Retry on disk first: with the corrupt store gone this normally succeeds, and
-            // the user keeps a persisting app instead of one that silently forgets on quit.
-            if let recovered = try? ModelContainer(for: schema, configurations: [modelConfiguration]) {
-                return recovered
-            }
+            print("[xTApp] Falling back to in-memory store — data will not persist this session.")
 
             let memoryConfig = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
             do {
                 return try ModelContainer(for: schema, configurations: [memoryConfig])
             } catch {
-                // Last resort. An in-memory container fails only if the schema itself is
-                // invalid — a build-time programmer error, not a runtime condition — and
-                // every screen reads through this container, so there is nothing to degrade to.
+                // An in-memory container fails only if the schema itself is invalid —
+                // a build-time programmer error — so there is nothing to degrade to.
                 fatalError("Could not create in-memory ModelContainer from schema: \(error)")
             }
         }

@@ -15,7 +15,24 @@ struct LevelOverlayView: View {
     /// Scrubbed value from graph interaction — when non-nil, overrides current level.
     var scrubValue: Double? = nil
 
+    /// Scrubbed date from graph interaction — drives the relative-time label.
+    var scrubDate: Date? = nil
+
     private var isScrubbing: Bool { scrubValue != nil }
+
+    private var scrubTimeLabel: String? {
+        guard let date = scrubDate else { return nil }
+        let interval = Swift.abs(date.timeIntervalSinceNow)
+        if interval < 3 * 60      { return "~now" }
+        if interval < 90 * 60     { return "~\(Int(interval / 60))min" }
+        if interval < 48 * 3600   { return "~\(Int((interval / 3600).rounded()))hrs" }
+        return "~\(Int((interval / 86400).rounded())) days"
+    }
+
+    private var scrubTimeColor: Color {
+        guard let date = scrubDate else { return .secondary }
+        return date < .now ? Theme.Colors.Graph.levelTextSecondary : Theme.Colors.accent
+    }
 
     /// Horizontal position (0…1) of the highest point across the recent-levels curve.
     private var peakFraction: CGFloat {
@@ -46,6 +63,13 @@ struct LevelOverlayView: View {
                     .foregroundStyle(isScrubbing ? accent : Theme.Colors.Graph.levelText)
                     .tracking(-0.04 * 52)
 
+                if isScrubbing, let label = scrubTimeLabel {
+                    Text(label)
+                        .font(Theme.Fonts.caption)
+                        .foregroundStyle(scrubTimeColor)
+                        .tracking(0.01)
+                }
+
                 if let level = level {
                     HStack(spacing: 8) {
                         Text(unitLabel(level))
@@ -74,6 +98,7 @@ struct LevelOverlayView: View {
         .frame(maxWidth: .infinity, alignment: alignRight ? .trailing : .leading)
         .padding(.horizontal, 22)
         .animation(.easeOut(duration: 0.15), value: scrubValue)
+        .animation(.easeOut(duration: 0.15), value: scrubDate)
     }
 
     // MARK: - Derived from manager's classification

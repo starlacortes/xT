@@ -231,3 +231,16 @@ struct ConstellationRegionTag: View {
         .contentShape(Capsule())
     }
 }
+
+#if DEBUG
+#Preview {
+    ConstellationView(
+        field: ConstellationCloud.brain(months: 12),
+        tint: .purple,
+        secondaryTint: .blue
+    )
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .background(Color.black)
+    .ignoresSafeArea()
+}
+#endif

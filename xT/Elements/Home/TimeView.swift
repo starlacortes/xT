@@ -26,6 +26,11 @@ struct TimeView: View {
     @State private var isUpNextOpen = false
     @State private var dragTranslation: CGFloat = 0
 
+    // Tier milestone celebration.
+    @AppStorage("lastSeenTierRawValue") private var lastSeenTierRawValue: String = ""
+    @State private var showingTierCelebration = false
+    @State private var celebrationTier: TenureTier? = nil
+
     private let peekHeight: CGFloat = 54
 
     /// The content model for this screen, derived from the manager's published state.
@@ -116,6 +121,7 @@ struct TimeView: View {
             .onAppear {
                 medicationManager.refreshState()
                 regenerateFieldsIfNeeded()
+                checkForTierTransition()
             }
         }
         // `engine` is derived fresh from the manager, so a recorded dose only needs the
@@ -127,12 +133,34 @@ struct TimeView: View {
             brainField = ConstellationCloud.brain(months: cloudMonths)
             bodyField = ConstellationCloud.body(months: cloudMonths, medication: engine.medication)
         }
+        .onChange(of: engine.tenureTier) { old, new in
+            if new > old {
+                withAnimation(Theme.Motion.entrance) {
+                    celebrationTier = new
+                    showingTierCelebration = true
+                }
+                lastSeenTierRawValue = new.rawValue
+            }
+        }
+        .overlay {
+            if showingTierCelebration, let tier = celebrationTier {
+                TierCelebrationOverlay(tier: tier) {
+                    withAnimation(Theme.Motion.snappy) {
+                        showingTierCelebration = false
+                    }
+                }
+                .transition(.opacity.combined(with: .scale(scale: 0.95)))
+            }
+        }
     }
 
     // MARK: - Main content (Header + Mind + Body)
 
     @ViewBuilder
     private func mainContent(mindP: Double, bodyP: Double) -> some View {
+        let secondarySystems = engine.bodySystems.filter {
+            $0.systemKey != .moodAndMind && $0.systemKey != .bodyShape
+        }
         VStack(spacing: 0) {
             TimeHeroHeader(engine: engine)
                 .padding(.horizontal, 22)
@@ -173,6 +201,13 @@ struct TimeView: View {
             .modifier(CascadeDismiss(progress: bodyP, maxBlur: 16, maxLift: 180,
                                      minScale: 0.55, minOpacity: 0.15, reduceMotion: reduceMotion))
             .entrance(delay: 0.16)
+
+            if !secondarySystems.isEmpty {
+                TimeSystemsStrip(systems: secondarySystems)
+                    .modifier(CascadeDismiss(progress: bodyP, maxBlur: 16, maxLift: 180,
+                                             minScale: 0.55, minOpacity: 0.15, reduceMotion: reduceMotion))
+                    .entrance(delay: 0.22)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
@@ -211,6 +246,18 @@ struct TimeView: View {
     private func regenerateFieldsIfNeeded() {
         if brainField.nodes.isEmpty { brainField = ConstellationCloud.brain(months: cloudMonths) }
         if bodyField.nodes.isEmpty { bodyField = ConstellationCloud.body(months: cloudMonths, medication: engine.medication) }
+    }
+
+    private func checkForTierTransition() {
+        let current = engine.tenureTier
+        defer { lastSeenTierRawValue = current.rawValue }
+        guard !lastSeenTierRawValue.isEmpty,
+              let stored = TenureTier(rawValue: lastSeenTierRawValue),
+              current > stored else { return }
+        withAnimation(Theme.Motion.entrance) {
+            celebrationTier = current
+            showingTierCelebration = true
+        }
     }
 }
 
@@ -428,6 +475,128 @@ struct TimeMilestoneRow: View {
         case "clock":     return "clock"
         case "test-pipe": return "flask"
         default:          return "star"
+        }
+    }
+}
+
+// MARK: - Secondary Systems Strip
+
+struct TimeSystemsStrip: View {
+    let systems: [TimeBodySystem]
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                ForEach(systems) { system in
+                    NavigationLink(value: system.systemKey) {
+                        TimeSystemChip(system: system)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 22)
+            .padding(.vertical, 8)
+        }
+        .frame(height: 64)
+    }
+}
+
+struct TimeSystemChip: View {
+    let system: TimeBodySystem
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: system.icon)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(system.palette.accent)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(system.title)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                Text(system.progressLabel)
+                    .font(.system(size: 10))
+                    .foregroundStyle(system.palette.accent)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(system.palette.accent.opacity(0.2), lineWidth: 0.5)
+        )
+    }
+}
+
+// MARK: - Tier Celebration Overlay
+
+struct TierCelebrationOverlay: View {
+    let tier: TenureTier
+    let onDismiss: () -> Void
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.45)
+                .ignoresSafeArea()
+                .onTapGesture { onDismiss() }
+
+            VStack(spacing: 16) {
+                Image(systemName: "star.fill")
+                    .font(.system(size: 32))
+                    .foregroundStyle(tierColor)
+
+                VStack(spacing: 6) {
+                    Text("MILESTONE")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .tracking(0.5)
+                    Text(tier.timeBandLabel)
+                        .font(.system(size: 22, weight: .bold))
+                        .foregroundStyle(.primary)
+                    Text(subtitle)
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(3)
+                        .padding(.horizontal, 8)
+                }
+
+                Button("Continue") { onDismiss() }
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(tierColor)
+                    .padding(.top, 4)
+            }
+            .padding(28)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
+            .overlay(
+                RoundedRectangle(cornerRadius: 20)
+                    .stroke(tierColor.opacity(0.2), lineWidth: 0.5)
+            )
+            .padding(.horizontal, 44)
+            .shadow(color: tierColor.opacity(0.15), radius: 30)
+        }
+    }
+
+    private var tierColor: Color {
+        switch tier {
+        case .t1Beginning, .t2Emerging, .t3InMotion: return .blue
+        case .t4Deepening: return .green
+        case .t5Settled:   return .purple
+        case .t6Rooted:    return .indigo
+        case .t7Veteran:   return .orange
+        }
+    }
+
+    private var subtitle: String {
+        switch tier {
+        case .t1Beginning: return "Your body is beginning to adapt to HRT."
+        case .t2Emerging:  return "First changes are starting to emerge."
+        case .t3InMotion:  return "This is the most active phase of change."
+        case .t4Deepening: return "Changes continue to deepen and settle."
+        case .t5Settled:   return "Changes are largely settled. You've reached a new baseline."
+        case .t6Rooted:    return "Five years on HRT — an established part of your health."
+        case .t7Veteran:   return "Ten years. A milestone worth acknowledging."
         }
     }
 }

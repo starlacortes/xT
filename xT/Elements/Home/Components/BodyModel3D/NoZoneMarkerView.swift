@@ -96,3 +96,13 @@ final class NoZoneTapTracker: ObservableObject {
         }
     }
 }
+
+#if DEBUG
+#Preview {
+    ZStack {
+        Color(UIColor.systemBackground).ignoresSafeArea()
+        NoZoneMarkerView(location: CGPoint(x: 200, y: 300))
+    }
+    .frame(width: 400, height: 600)
+}
+#endif

@@ -179,6 +179,16 @@ struct BodyArchitectureDetailView: View {
             ScrollViewReader { proxy in
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 0) {
+                        if let insight = engine.hormoneInsight {
+                            hormoneLevelCard(insight: insight)
+                                .padding(.horizontal, 22)
+                                .padding(.top, 16)
+                        } else {
+                            bloodTestNudge
+                                .padding(.horizontal, 22)
+                                .padding(.top, 16)
+                        }
+
                         BodySystemStatsRow(
                             stats: isEstrogen ? TimeBodyRegions.bodyStats(months: months) : TimeBodyRegions.bodyStatsT(months: months),
                             accentColor: Theme.Colors.Time.body.base
@@ -225,6 +235,10 @@ struct BodyArchitectureDetailView: View {
                         // Physical changes capsule pills
                         if !physicalChanges.isEmpty {
                             changesSection
+                                .padding(.horizontal, 22)
+                                .padding(.top, 24)
+                        } else {
+                            changesPlaceholder
                                 .padding(.horizontal, 22)
                                 .padding(.top, 24)
                         }
@@ -289,6 +303,110 @@ struct BodyArchitectureDetailView: View {
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
             }
+        }
+    }
+
+    // MARK: - Hormone Level Card
+
+    private func hormoneLevelCard(insight: TimeHormoneInsight) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("HORMONE LEVELS")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.Time.body.base)
+                    .tracking(0.5)
+                Spacer()
+                Text(insight.rangeLabel)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(insight.rangePalette.accent)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(insight.rangePalette.surface)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+            }
+
+            HStack(alignment: .firstTextBaseline, spacing: 5) {
+                AnimatedCounter(value: insight.level)
+                    .font(.system(size: 30, weight: .medium))
+                    .foregroundStyle(.primary)
+                    .contentTransition(.numericText())
+                Text(insight.unit)
+                    .font(Theme.Fonts.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            Text(insight.bodyDescription)
+                .font(Theme.Fonts.footnote)
+                .foregroundStyle(.secondary)
+                .lineSpacing(3)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(14)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.md))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.Radius.md)
+                .stroke(insight.rangePalette.border.opacity(0.3), lineWidth: 0.5)
+        )
+    }
+
+    private var bloodTestNudge: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "flask")
+                .font(.system(size: 20))
+                .foregroundStyle(Theme.Colors.Time.body.base.opacity(0.6))
+            VStack(alignment: .leading, spacing: 3) {
+                Text("HORMONE LEVELS")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .tracking(0.5)
+                Text(engine.bloodTestSchedulingText ?? "A blood test will show your hormone levels here.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .lineSpacing(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.md))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.Radius.md)
+                .stroke(Theme.Colors.Time.body.base.opacity(0.15), lineWidth: 0.5)
+        )
+    }
+
+    private var changesPlaceholder: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("PHYSICAL CHANGES")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .tracking(0.5)
+
+            HStack(spacing: 10) {
+                Image(systemName: "hourglass")
+                    .font(.system(size: 14))
+                    .foregroundStyle(Theme.Colors.Time.body.base.opacity(0.5))
+                Text(changesPlaceholderText)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .lineSpacing(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(.secondarySystemBackground).opacity(0.5),
+                        in: RoundedRectangle(cornerRadius: 10))
+        }
+    }
+
+    private var changesPlaceholderText: String {
+        switch tier {
+        case .t1Beginning:
+            return "First body changes typically begin appearing in months 3–6."
+        case .t2Emerging:
+            return "Early changes are beginning to emerge — visible changes develop over the coming months."
+        default:
+            return "Body changes develop gradually over time."
         }
     }
 

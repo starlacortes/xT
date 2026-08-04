@@ -423,3 +423,12 @@ struct DoseScheduleSettingsView: View {
         dismiss()
     }
 }
+
+#if DEBUG
+#Preview {
+    SpoofPreview {
+        DoseScheduleSettingsView()
+            .environment(\.medicationManager, MedicationManager.shared)
+    }
+}
+#endif

@@ -310,3 +310,12 @@ struct TypeMethodSettingsView: View {
         dismiss()
     }
 }
+
+#if DEBUG
+#Preview {
+    SpoofPreview {
+        TypeMethodSettingsView()
+            .environment(\.medicationManager, MedicationManager.shared)
+    }
+}
+#endif

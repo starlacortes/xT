@@ -72,3 +72,12 @@ struct RecordDoseView: View {
         }
     }
 }
+
+#if DEBUG
+#Preview {
+    SpoofPreview {
+        RecordDoseView()
+            .environment(\.medicationManager, MedicationManager.shared)
+    }
+}
+#endif
