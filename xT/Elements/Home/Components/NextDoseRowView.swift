@@ -27,9 +27,8 @@ struct NextDoseRowView: View {
     }
 
     private var completedDays: Int {
-        guard let last = medicationManager.lastDoseDate else { return 0 }
-        let elapsed = Calendar.current.dateComponents([.day], from: last, to: Date()).day ?? 0
-        return min(elapsed + 1, cycleDays)
+        guard medicationManager.lastDoseDate != nil else { return 0 }
+        return min(daysSinceLastDose + 1, cycleDays)
     }
 
     private var isToday: Bool { completedDays >= cycleDays }
@@ -72,13 +71,13 @@ struct NextDoseRowView: View {
         }
         .onAppear {
             if missedDays > 2 { startPulsing() }
-            if isToday { startTodayPulse() }
+            if isToday && !isMissed { startTodayPulse() }
         }
         .onChange(of: missedDays) { _, days in
             if days > 2 { startPulsing() }
         }
         .onChange(of: isToday) { _, today in
-            if today {
+            if today && !isMissed {
                 startTodayPulse()
             }
         }
@@ -241,7 +240,7 @@ struct NextDoseRowView: View {
                         .fontWeight(.medium)
                         .foregroundStyle(Self.cycleText)
 
-                    Text("^[\(missedDays) day](inflect: true) since this dose was scheduled")
+                    Text("^[\(missedDays) day](inflect: true) overdue")
                         .font(Theme.Fonts.caption)
                         .foregroundStyle(Theme.Colors.textTertiary)
                 }

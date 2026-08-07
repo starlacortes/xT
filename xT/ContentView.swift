@@ -34,6 +34,11 @@ struct ContentView: View {
                 showOnboarding = true
             }
         }
+        .onChange(of: hasCompletedOnboarding) { _, newValue in
+            if !newValue {
+                showOnboarding = true
+            }
+        }
         .fullScreenCover(isPresented: $showOnboarding) {
             OnboardingView(onboardingComplete: {
                 hasCompletedOnboarding = true

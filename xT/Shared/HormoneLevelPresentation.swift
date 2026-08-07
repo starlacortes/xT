@@ -124,6 +124,7 @@ extension HormoneLevel {
     /// Error red is reserved for documented clinical thresholds. Sitting outside a
     /// self-chosen range is not an error, so it takes the neutral accent — and with
     /// no user-set range there is nothing to colour at all.
+    @MainActor
     var statusTint: Color {
         if safety != nil { return Theme.Colors.error }
         return Theme.Colors.accent

@@ -151,7 +151,6 @@ extension MedicationManager {
     func updateSelection(type: MedicationType, method: AdministrationMethod) {
         selectedMedication = type.rawValue
         selectedAdministrationMethod = method.rawValue
-        persistSelection()
 
         let next = calculateNextDoseDate(from: Date())
         updateDoseDates(last: Date(), next: next)
@@ -204,7 +203,7 @@ extension MedicationManager {
         }
 
         try? modelContext?.save()
-        persistDoseDates()
+        persistUserPreferences()
 
         // Bump celebration counter BEFORE refreshState so HomeView.onChange
         // triggers a UI-driven refresh while the doseHistory is already updated
@@ -219,30 +218,56 @@ extension MedicationManager {
         }
     }
 
-    /// Removes a dose (soft delete — keeps it in history for audit purposes).
-    func removeDose(withId id: String) {
-        if let index = doseHistory.firstIndex(where: { $0.id == id }) {
-            doseHistory[index].isDeleted = true
-            try? modelContext?.save()
-            var updated = doseHistory
-            updated.remove(at: index)
-            doseHistory = updated
-            refreshState()
-        }
+    /// Delay before HomeView's celebration confetti fires after a dose recorded
+    /// via `recordDose(on:)`. Longer than `MedicationManager.defaultCelebrationDelay`
+    /// (tuned for `QuickDoseSheet`, which dismisses itself immediately) because
+    /// `RecordDoseView` shows an in-sheet confirmation before dismissing.
+    static let recordDoseCelebrationDelay: TimeInterval = 1.2
+
+    /// Ester/amount/concentration to assume for a dose the caller didn't fully
+    /// specify: the most recently logged dose's values, or a medication-typical
+    /// default when there's no prior dose to read from. Shared by `skipDose` and
+    /// `recordDose`, both of which only capture a date from the user.
+    private func defaultDoseDetails(for medType: String) -> (ester: String, amount: Double, concentration: Double?) {
+        let ester = lastLoggedDose?.ester
+            ?? (medType == "Estrogen" ? "Valerate (EV)" : "Cypionate (TC)")
+        let amount = lastLoggedDose?.doseAmount
+            ?? (medType == "Estrogen" ? 2.0 : 40.0)
+        let concentration = lastLoggedDose?.concentrationMgPerMl
+        return (ester, amount, concentration)
     }
 
+    /// Records a dose from the lightweight "Record dose" quick action (the
+    /// next-dose row's sheet), which captures a date but no amount/ester/
+    /// concentration. Routes through `addDose` — using the same last-logged-dose
+    /// defaulting as `skipDose` — so this dose actually lands in `doseHistory`
+    /// rather than only nudging the `lastDoseDate`/`nextDoseDate` convenience
+    /// fields. Without a real `DoseRecord`, `estimatedLevels` (which builds the
+    /// curve exclusively from `doseHistory` once it's non-empty) never saw this
+    /// dose, and a later Journal delete's history-only recompute of `nextDoseDate`
+    /// would silently discard it too.
     func recordDose(on date: Date = Date()) {
-        lastDoseDate = date
-        if selectedMedication != nil, selectedAdministrationMethod != nil {
-            nextDoseDate = calculateNextDoseDate(from: date)
+        guard let medType = selectedMedication,
+              let medMethod = selectedAdministrationMethod else {
+            lastDoseDate = date
+            persistUserPreferences()
+            refreshState()
+            if let next = nextDoseDate {
+                NotificationManager.shared.rescheduleAfterDose(nextDoseDate: next)
+            }
+            return
         }
-        persistDoseDates()
-        refreshState()
 
-        // Reschedule dose reminder to next dose date (frequency-aware)
-        if let next = nextDoseDate {
-            NotificationManager.shared.rescheduleAfterDose(nextDoseDate: next)
-        }
+        let details = defaultDoseDetails(for: medType)
+        celebrationDelay = Self.recordDoseCelebrationDelay
+        addDose(
+            date: date,
+            type: medType,
+            ester: details.ester,
+            method: medMethod,
+            doseAmount: details.amount,
+            concentrationMgPerMl: details.concentration
+        )
     }
 
     /// Logs an intentionally skipped dose. Does NOT advance `nextDoseDate`;
@@ -252,19 +277,15 @@ extension MedicationManager {
         guard let medType = selectedMedication,
               let medMethod = selectedAdministrationMethod else { return }
 
-        let ester = lastLoggedDose?.ester
-            ?? (medType == "Estrogen" ? "Valerate (EV)" : "Cypionate (TC)")
-        let amount = lastLoggedDose?.doseAmount
-            ?? (medType == "Estrogen" ? 2.0 : 40.0)
-        let concentration = lastLoggedDose?.concentrationMgPerMl
+        let details = defaultDoseDetails(for: medType)
 
         let record = DoseRecord(
             doseDate: date,
             medicationType: medType,
-            ester: ester,
+            ester: details.ester,
             administrationMethod: medMethod,
-            doseAmount: amount,
-            concentrationMgPerMl: concentration,
+            doseAmount: details.amount,
+            concentrationMgPerMl: details.concentration,
             doseStatus: .skipped,
             skipReason: reason
         )

@@ -97,8 +97,8 @@ struct LevelOverlayView: View {
         .padding(.top, 56)
         .frame(maxWidth: .infinity, alignment: alignRight ? .trailing : .leading)
         .padding(.horizontal, 22)
-        .animation(.easeOut(duration: 0.15), value: scrubValue)
-        .animation(.easeOut(duration: 0.15), value: scrubDate)
+        .animation(.easeOut(duration: 0.075), value: scrubValue)
+        .animation(.easeOut(duration: 0.075), value: scrubDate)
     }
 
     // MARK: - Derived from manager's classification

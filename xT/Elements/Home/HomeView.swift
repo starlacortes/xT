@@ -125,10 +125,14 @@ struct HomeView: View {
             guard newCount > lastRecordedCount else { return }
             lastRecordedCount = newCount
 
-            // Delay celebration by 0.55s so the QuickDoseSheet has time to finish
-            // dismissing. Without this, the confetti runs behind the sheet and is
-            // invisible to the user.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.55) {
+            // Delay celebration so the recording sheet has time to finish
+            // dismissing first. Without this, the confetti runs behind the sheet
+            // and is invisible to the user. The delay is per-flow (each sheet
+            // dismisses on its own schedule) — read once, then reset to the
+            // default so it doesn't leak into the next dose recorded elsewhere.
+            let delay = medicationManager.celebrationDelay
+            medicationManager.celebrationDelay = MedicationManager.defaultCelebrationDelay
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
                 confettiTrigger &+= 1
                 celebrationGlowTrigger &+= 1
                 celebrateDose = true

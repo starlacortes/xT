@@ -38,7 +38,10 @@ struct RecordDoseView: View {
                 Button {
                     medicationManager.recordDose(on: selectedDate)
                     showingConfirmation = true
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                    // 0.8s so the sheet is gone before HomeView's celebration
+                    // confetti fires at MedicationManager.recordDoseCelebrationDelay
+                    // (1.2s) — leaves a buffer for the dismiss animation itself.
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
                         dismiss()
                     }
                 } label: {

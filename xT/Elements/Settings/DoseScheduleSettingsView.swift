@@ -15,9 +15,9 @@ struct DoseScheduleSettingsView: View {
     @State private var defaultDoseAmount: Double
     @State private var defaultInjectionTime: Date
 
-    @AppStorage("mm.rotationWindow_injection") private var rotationWindowInjection: Int = 14
-    @AppStorage("mm.rotationWindow_topical") private var rotationWindowTopical: Int = 7
-    @AppStorage("mm.rotationWindow_patch") private var rotationWindowPatch: Int = 30
+    @State private var rotationWindowInjection: Int
+    @State private var rotationWindowTopical: Int
+    @State private var rotationWindowPatch: Int
 
     private let doseAmounts: [Double] = {
         var amounts: [Double] = []
@@ -34,6 +34,9 @@ struct DoseScheduleSettingsView: View {
         _customFrequencyDays = State(initialValue: mgr.customFrequencyDays ?? Self.defaultFrequencyDays(for: mgr.selectedAdministrationMethod))
         _defaultDoseAmount = State(initialValue: mgr.defaultDoseAmount ?? Self.defaultDose(for: mgr.selectedMedication))
         _defaultInjectionTime = State(initialValue: mgr.defaultInjectionTime ?? Self.defaultTime())
+        _rotationWindowInjection = State(initialValue: mgr.rotationWindowInjection)
+        _rotationWindowTopical = State(initialValue: mgr.rotationWindowTopical)
+        _rotationWindowPatch = State(initialValue: mgr.rotationWindowPatch)
 
         doseUnit = mgr.selectedMedication == "Testosterone" ? "mg" : "mg"
         medicationName = mgr.selectedMedication ?? "Medication"
@@ -418,6 +421,9 @@ struct DoseScheduleSettingsView: View {
         medicationManager.customFrequencyDays = customFrequencyDays
         medicationManager.defaultDoseAmount = defaultDoseAmount
         medicationManager.defaultInjectionTime = defaultInjectionTime
+        medicationManager.rotationWindowInjection = rotationWindowInjection
+        medicationManager.rotationWindowTopical = rotationWindowTopical
+        medicationManager.rotationWindowPatch = rotationWindowPatch
         medicationManager.persistUserPreferences()
         medicationManager.refreshState()
         dismiss()

@@ -153,13 +153,13 @@ extension MedicationManager {
     }
 
     /// How many days a zone should rest before it is offered again.
-    ///
-    /// Reads the user's per-route override when one has been set, falling back to the
-    /// route's clinical default. The override was previously written by the schedule
-    /// settings screen but never read anywhere, so the setting had no effect.
+    /// Reads from in-memory state (loaded from UserPreferences SwiftData, synced via CloudKit).
     func rotationWindowDays(for routeClass: RouteClass) -> Int {
-        let key = Self.rotationWindowDefaultsKey(for: routeClass)
-        let stored = defaults.integer(forKey: key)
-        return stored > 0 ? stored : routeClass.defaultRotationWindowDays
+        switch routeClass {
+        case .injection: return rotationWindowInjection > 0 ? rotationWindowInjection : routeClass.defaultRotationWindowDays
+        case .topical:   return rotationWindowTopical > 0 ? rotationWindowTopical : routeClass.defaultRotationWindowDays
+        case .patch:     return rotationWindowPatch > 0 ? rotationWindowPatch : routeClass.defaultRotationWindowDays
+        case .oral:      return 0
+        }
     }
 }

@@ -13,10 +13,10 @@ import SwiftData
 /// and how long it had been since the last dose (auto‑computed from dose history).
 @Model
 class BloodTestRecord: Identifiable, Hashable {
-    @Attribute(.unique) var id: String
-    var drawDate: Date                    // when the blood was drawn
-    var measuredLevel: Double             // lab result in pg/mL (E2) or ng/dL (T)
-    var hormoneType: String               // "Estrogen" or "Testosterone"
+    var id: String = UUID().uuidString
+    var drawDate: Date = Date()           // when the blood was drawn
+    var measuredLevel: Double = 0         // lab result in pg/mL (E2) or ng/dL (T)
+    var hormoneType: String = ""          // "Estrogen" or "Testosterone"
     var hoursSinceLastDose: Double?       // time between last dose and draw (auto‑calculated)
     var notes: String?                    // optional user notes (e.g., "Quest Diagnostics, trough draw")
 

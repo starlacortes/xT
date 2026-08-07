@@ -139,8 +139,7 @@ private func engine(
         relativeDoseIntensity: 1.0,
         doseIntensityNote: nil,
         bloodTestSchedulingText: "Schedule your next blood test around month 9.",
-        suggestedBloodTestMonth: 9,
-        calibrationContext: nil
+        suggestedBloodTestMonth: 9
     )
 }
 
@@ -339,8 +338,7 @@ func screeningBadgeDone() {
         cyclePosition: MedicationManager.CyclePosition.midCycle,
         regimenSegments: [], onTimeStreak: 10,
         relativeDoseIntensity: 1.0, doseIntensityNote: nil,
-        bloodTestSchedulingText: "test", suggestedBloodTestMonth: 12,
-        calibrationContext: nil
+        bloodTestSchedulingText: "test", suggestedBloodTestMonth: 12
     )
     let milestones = e.upcomingMilestones
     let dexa = milestones.first(where: { $0.title.contains("Bone density") })

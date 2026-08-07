@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import SwiftData
 import PhotosUI
 import UniformTypeIdentifiers
 import CryptoKit
@@ -53,7 +54,18 @@ class ProfileManager {
     var showCamera: Bool = false
     var selectedPhotoItem: PhotosPickerItem?
 
+    /// Injected from xTApp after the ModelContainer is created.
+    @ObservationIgnored var modelContext: ModelContext?
+
     init() {
+        loadProfile()
+    }
+
+    /// Wire the SwiftData context, migrate any existing encrypted UserDefaults data,
+    /// then reload so CloudKit-synced data takes precedence.
+    func setModelContext(_ context: ModelContext) {
+        modelContext = context
+        migrateProfileToUserPreferences()
         loadProfile()
     }
 
@@ -141,92 +153,115 @@ class ProfileManager {
 
 // MARK: - Private Methods
 internal extension ProfileManager {
+
     func loadProfile() {
+        // SwiftData-backed path: reads from UserPreferences, which CloudKit keeps in sync.
+        if let context = modelContext,
+           let prefs = try? context.fetch(FetchDescriptor<UserPreferences>()).first {
+            profileName = prefs.profileName ?? ""
+            dateOfBirth = prefs.profileDateOfBirth
+            if let data = prefs.profileImageData, let image = UIImage(data: data) {
+                profileImageData = data
+                profileImage = image
+            } else {
+                profileImageData = nil
+                profileImage = nil
+            }
+            return
+        }
+        // Fallback: encrypted UserDefaults (pre-context or pre-migration path).
+        loadProfileFromUserDefaults()
+    }
+
+    /// One-time migration: copy encrypted UserDefaults profile data into UserPreferences
+    /// SwiftData so it becomes CloudKit-synced. Guarded by a UserDefaults flag.
+    func migrateProfileToUserPreferences() {
+        let defaults = UserDefaults.standard
+        guard !defaults.bool(forKey: "profileCloudKitMigrationDone") else { return }
+        defaults.set(true, forKey: "profileCloudKitMigrationDone")
+
+        guard let context = modelContext,
+              let prefs = try? context.fetch(FetchDescriptor<UserPreferences>()).first
+        else { return }
+
+        // Don't overwrite data that arrived from CloudKit on this device.
+        guard prefs.profileName == nil && prefs.profileImageData == nil else { return }
+
+        let securityManager = SecurityManager.shared
+
+        if let encryptedNameData = defaults.data(forKey: "encryptedProfileName"),
+           let decryptedNameData = try? securityManager.decryptData(encryptedNameData),
+           let savedName = String(data: decryptedNameData, encoding: .utf8) {
+            prefs.profileName = savedName.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        if let encryptedImageData = defaults.data(forKey: "encryptedProfileImageData"),
+           let decryptedImageData = try? securityManager.decryptData(encryptedImageData),
+           UIImage(data: decryptedImageData) != nil {
+            prefs.profileImageData = decryptedImageData
+        }
+
+        prefs.profileDateOfBirth = defaults.object(forKey: "profileDateOfBirth") as? Date
+
+        try? context.save()
+    }
+
+    func persistProfile() {
+        // SwiftData-backed path (synced via CloudKit).
+        if let context = modelContext,
+           let prefs = try? context.fetch(FetchDescriptor<UserPreferences>()).first {
+            prefs.profileName = profileName.isEmpty ? nil : profileName
+            prefs.profileImageData = profileImageData
+            prefs.profileDateOfBirth = dateOfBirth
+            try? context.save()
+            return
+        }
+        // Fallback: encrypted UserDefaults (no context yet).
+        persistProfileToUserDefaults()
+    }
+
+    // MARK: - UserDefaults fallback (migration source, no longer primary storage)
+
+    private func loadProfileFromUserDefaults() {
         let defaults = UserDefaults.standard
         let securityManager = SecurityManager.shared
 
-        // Load profile name with validation and decryption
         if let encryptedNameData = defaults.data(forKey: "encryptedProfileName"),
            let decryptedNameData = try? securityManager.decryptData(encryptedNameData),
            let savedName = String(data: decryptedNameData, encoding: .utf8) {
             profileName = savedName.trimmingCharacters(in: .whitespacesAndNewlines)
         } else if let savedName = defaults.string(forKey: "profileName") {
-            // Fallback for unencrypted data (migration)
             profileName = savedName.trimmingCharacters(in: .whitespacesAndNewlines)
-            // Migrate to encrypted storage
             migrateToEncryptedStorage()
         } else {
             profileName = ""
         }
 
-        // Load date of birth
         dateOfBirth = defaults.object(forKey: "profileDateOfBirth") as? Date
 
-        // Load profile image data with validation and decryption
         if let encryptedImageData = defaults.data(forKey: "encryptedProfileImageData"),
-           let decryptedImageData = try? securityManager.decryptData(encryptedImageData) {
-            // Validate image data
-            if let image = UIImage(data: decryptedImageData) {
-                profileImageData = decryptedImageData
-                profileImage = image
-            } else {
-                // Invalid image data, clear it
-                defaults.removeObject(forKey: "encryptedProfileImageData")
-                profileImageData = nil
-                profileImage = nil
-            }
-        } else if let imageData = defaults.data(forKey: "profileImageData") {
-            // Fallback for unencrypted data (migration)
-            // Validate image data
-            if let image = UIImage(data: imageData) {
-                profileImageData = imageData
-                profileImage = image
-                // Migrate to encrypted storage
-                migrateToEncryptedStorage()
-            } else {
-                // Invalid image data, clear it
-                defaults.removeObject(forKey: "profileImageData")
-                profileImageData = nil
-                profileImage = nil
-            }
+           let decryptedImageData = try? securityManager.decryptData(encryptedImageData),
+           let image = UIImage(data: decryptedImageData) {
+            profileImageData = decryptedImageData
+            profileImage = image
+        } else if let imageData = defaults.data(forKey: "profileImageData"),
+                  let image = UIImage(data: imageData) {
+            profileImageData = imageData
+            profileImage = image
+            migrateToEncryptedStorage()
         }
     }
 
-    /// Migrate existing unencrypted data to encrypted storage
-    private func migrateToEncryptedStorage() {
+    private func persistProfileToUserDefaults() {
         let defaults = UserDefaults.standard
         let securityManager = SecurityManager.shared
 
-        // Migrate profile name
-        if let unencryptedName = defaults.string(forKey: "profileName") {
-            if let nameData = unencryptedName.data(using: .utf8),
-               let encryptedName = try? securityManager.encryptData(nameData) {
-                defaults.set(encryptedName, forKey: "encryptedProfileName")
-                defaults.removeObject(forKey: "profileName")
-            }
-        }
-
-        // Migrate profile image
-        if let unencryptedImageData = defaults.data(forKey: "profileImageData") {
-            if let encryptedImage = try? securityManager.encryptData(unencryptedImageData) {
-                defaults.set(encryptedImage, forKey: "encryptedProfileImageData")
-                defaults.removeObject(forKey: "profileImageData")
-            }
-        }
-    }
-
-    func persistProfile() {
-        let defaults = UserDefaults.standard
-        let securityManager = SecurityManager.shared
-
-        // Save date of birth
         if let dob = dateOfBirth {
             defaults.set(dob, forKey: "profileDateOfBirth")
         } else {
             defaults.removeObject(forKey: "profileDateOfBirth")
         }
 
-        // Save profile name with validation and encryption
         let trimmedName = profileName.trimmingCharacters(in: .whitespacesAndNewlines)
         if let nameData = trimmedName.data(using: .utf8),
            let encryptedName = try? securityManager.encryptData(nameData) {
@@ -235,26 +270,31 @@ internal extension ProfileManager {
             defaults.removeObject(forKey: "encryptedProfileName")
         }
 
-        // Save profile image data with validation and encryption
-        if let imageData = profileImageData {
-            // Validate that the data can be converted to UIImage
-            if UIImage(data: imageData) != nil {
-                if let encryptedImage = try? securityManager.encryptData(imageData) {
-                    defaults.set(encryptedImage, forKey: "encryptedProfileImageData")
-                } else {
-                    // Encryption failed, clear the data
-                    defaults.removeObject(forKey: "encryptedProfileImageData")
-                    profileImageData = nil
-                    profileImage = nil
-                }
-            } else {
-                // Invalid image data, clear it
-                defaults.removeObject(forKey: "encryptedProfileImageData")
-                profileImageData = nil
-                profileImage = nil
-            }
+        if let imageData = profileImageData, UIImage(data: imageData) != nil,
+           let encryptedImage = try? securityManager.encryptData(imageData) {
+            defaults.set(encryptedImage, forKey: "encryptedProfileImageData")
         } else {
             defaults.removeObject(forKey: "encryptedProfileImageData")
+            if profileImageData != nil { profileImageData = nil; profileImage = nil }
+        }
+    }
+
+    /// Migrate existing unencrypted UserDefaults data to encrypted UserDefaults storage.
+    private func migrateToEncryptedStorage() {
+        let defaults = UserDefaults.standard
+        let securityManager = SecurityManager.shared
+
+        if let unencryptedName = defaults.string(forKey: "profileName"),
+           let nameData = unencryptedName.data(using: .utf8),
+           let encryptedName = try? securityManager.encryptData(nameData) {
+            defaults.set(encryptedName, forKey: "encryptedProfileName")
+            defaults.removeObject(forKey: "profileName")
+        }
+
+        if let unencryptedImageData = defaults.data(forKey: "profileImageData"),
+           let encryptedImage = try? securityManager.encryptData(unencryptedImageData) {
+            defaults.set(encryptedImage, forKey: "encryptedProfileImageData")
+            defaults.removeObject(forKey: "profileImageData")
         }
     }
 

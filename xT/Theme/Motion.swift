@@ -214,7 +214,8 @@ private enum CelebrationPhase: CaseIterable {
 extension View {
     /// Apply a celebratory glow pulse triggered by `trigger` value changes.
     /// Uses PhaseAnimator for a bloom → settle effect.
-    func celebrationGlow(trigger: Int, color: Color = Theme.Colors.accent) -> some View {
-        modifier(CelebrationGlowModifier(trigger: trigger, color: color))
+    @MainActor
+    func celebrationGlow(trigger: Int, color: Color? = nil) -> some View {
+        modifier(CelebrationGlowModifier(trigger: trigger, color: color ?? Theme.Colors.accent))
     }
 }

@@ -10,7 +10,7 @@ import SwiftData
 
 extension MedicationManager {
 
-    // MARK: - Migration (Legacy Records)
+    // MARK: - Migration (Legacy SwiftData Records)
 
     /// One-time migration: backfill `recordedAt` for legacy records that don't have it.
     func migrateRecordedAtForLegacyRecords() {
@@ -23,112 +23,250 @@ extension MedicationManager {
         }
     }
 
-    // MARK: - Persistence (Private)
+    // MARK: - Migration (UserDefaults → UserPreferences)
+
+    /// One-time migration from the old encrypted UserDefaults and mm.* keys into the
+    /// UserPreferences SwiftData model. Runs once per device, guarded by a flag.
+    /// After migration, UserPreferences is the single source of truth for all synced settings.
+    func migrateToUserPreferences() {
+        guard let context = modelContext else { return }
+        guard !defaults.bool(forKey: Keys.cloudKitMigrationDone) else { return }
+
+        let descriptor = FetchDescriptor<UserPreferences>()
+        guard let prefs = (try? context.fetch(descriptor))?.first else { return }
+
+        let security = SecurityManager.shared
+        var needsSave = false
+
+        // Medication selection (from encrypted UserDefaults)
+        if prefs.selectedMedication == nil {
+            if let data = defaults.data(forKey: "encryptedMedicationSelection"),
+               let decrypted = try? security.decryptData(data),
+               let str = String(data: decrypted, encoding: .utf8) {
+                let parts = str.components(separatedBy: "|")
+                if parts.count >= 2 {
+                    prefs.selectedMedication = parts[0].isEmpty ? nil : parts[0]
+                    prefs.selectedAdministrationMethod = parts[1].isEmpty ? nil : parts[1]
+                    prefs.selectedEster = parts.count >= 3 ? (parts[2].isEmpty ? nil : parts[2]) : nil
+                    needsSave = true
+                }
+            } else if let sel = defaults.string(forKey: "selectedMedication") {
+                prefs.selectedMedication = sel
+                prefs.selectedAdministrationMethod = defaults.string(forKey: "selectedAdministrationMethod")
+                needsSave = true
+            }
+        }
+
+        // HRT start date (from encrypted dose dates)
+        if prefs.hrtStartDate == nil,
+           let data = defaults.data(forKey: "encryptedDoseDates"),
+           let decrypted = try? security.decryptData(data),
+           let container = try? JSONDecoder().decode(DoseDatesContainer.self, from: decrypted),
+           let startDate = container.hrtStartDate {
+            prefs.hrtStartDate = startDate
+            needsSave = true
+        }
+
+        // mm.* boolean settings
+        if defaults.object(forKey: Keys.antiAndrogenInUse) != nil {
+            prefs.antiAndrogenInUse = defaults.bool(forKey: Keys.antiAndrogenInUse)
+            prefs.spironolactoneInUse = defaults.bool(forKey: Keys.spironolactoneInUse)
+            needsSave = true
+        }
+        if defaults.object(forKey: Keys.missedDoseGracePeriodHours) != nil {
+            prefs.missedDoseGracePeriodHours = defaults.double(forKey: Keys.missedDoseGracePeriodHours)
+            needsSave = true
+        }
+
+        // Therapeutic target
+        if let targetData = defaults.data(forKey: Keys.userTherapeuticTarget),
+           let target = try? JSONDecoder().decode(TherapeuticTarget.self, from: targetData),
+           let json = try? JSONEncoder().encode(target),
+           let jsonStr = String(data: json, encoding: .utf8) {
+            prefs.userTherapeuticTargetJSON = jsonStr
+            needsSave = true
+        }
+
+        // Avoid zones
+        if let avoidData = defaults.data(forKey: "injectionSiteAvoidZones"),
+           let jsonStr = String(data: avoidData, encoding: .utf8) {
+            prefs.avoidZonesJSON = jsonStr
+            needsSave = true
+        }
+
+        // Body type
+        if let bodyTypeStr = defaults.string(forKey: "bodyType"), !bodyTypeStr.isEmpty {
+            prefs.bodyTypeRaw = bodyTypeStr
+            needsSave = true
+        }
+
+        // Rotation windows
+        let injKey = MedicationManager.rotationWindowDefaultsKey(for: .injection)
+        let topKey = MedicationManager.rotationWindowDefaultsKey(for: .topical)
+        let patKey = MedicationManager.rotationWindowDefaultsKey(for: .patch)
+        if defaults.object(forKey: injKey) != nil {
+            let inj = defaults.integer(forKey: injKey)
+            let top = defaults.integer(forKey: topKey)
+            let pat = defaults.integer(forKey: patKey)
+            if inj > 0 { prefs.rotationWindowInjection = inj; needsSave = true }
+            if top > 0 { prefs.rotationWindowTopical = top; needsSave = true }
+            if pat > 0 { prefs.rotationWindowPatch = pat; needsSave = true }
+        }
+
+        if needsSave {
+            try? context.save()
+        }
+        defaults.set(true, forKey: Keys.cloudKitMigrationDone)
+    }
+
+    // MARK: - Persistence
 
     func updateDoseDates(last: Date?, next: Date?) {
         lastDoseDate = last
         nextDoseDate = next
-        persistDoseDates()
-    }
-
-    /// Loads transient preferences from UserDefaults that are persisted via didSet.
-    /// Called during init() and rehydrateManagers() to restore snapshotted state.
-    func loadTransientPreferences() {
-                antiAndrogenInUse = defaults.bool(forKey: Keys.antiAndrogenInUse)
-        spironolactoneInUse = defaults.bool(forKey: Keys.spironolactoneInUse)
-        spironolactoneClearanceEnabled = defaults.bool(forKey: Keys.spironolactoneClearanceEnabled)
-        if let raw = defaults.string(forKey: Keys.suppressionSpeed) {
-            suppressionSpeed = SuppressionSpeed(rawValue: raw) ?? .fast
-        }
-        if defaults.object(forKey: Keys.customFrequencyDays) != nil {
-            customFrequencyDays = defaults.integer(forKey: Keys.customFrequencyDays)
-        }
-        if defaults.object(forKey: Keys.missedDoseGracePeriodHours) != nil {
-            missedDoseGracePeriodHours = defaults.double(forKey: Keys.missedDoseGracePeriodHours)
-        }
-        if let data = defaults.data(forKey: Keys.userTherapeuticTarget),
-           let target = try? JSONDecoder().decode(TherapeuticTarget.self, from: data) {
-            userTherapeuticTarget = target
-        }
-        loadAvoidZones()
-    }
-
-    func loadSelection() {
-                let security = SecurityManager.shared
-        if let data = defaults.data(forKey: "encryptedMedicationSelection"),
-           let decrypted = try? security.decryptData(data),
-           let str = String(data: decrypted, encoding: .utf8) {
-            let parts = str.components(separatedBy: "|")
-            if parts.count >= 2 {
-                selectedMedication = parts[0].isEmpty ? nil : parts[0]
-                selectedAdministrationMethod = parts[1].isEmpty ? nil : parts[1]
-                selectedEster = parts.count >= 3 ? (parts[2].isEmpty ? nil : parts[2]) : nil
-            }
-        } else {
-            selectedMedication = defaults.string(forKey: "selectedMedication")
-            selectedAdministrationMethod = defaults.string(forKey: "selectedAdministrationMethod")
-        }
-        loadUserPreferences()
-    }
-
-    func persistSelection() {
-                let security = SecurityManager.shared
-        let str = "\(selectedMedication ?? "")|\(selectedAdministrationMethod ?? "")|\(selectedEster ?? "")"
-        if let data = str.data(using: .utf8), let encrypted = try? security.encryptData(data) {
-            defaults.set(encrypted, forKey: "encryptedMedicationSelection")
-        }
+        persistUserPreferences()
     }
 
     func loadUserPreferences() {
         guard let context = modelContext else { return }
         let descriptor = FetchDescriptor<UserPreferences>()
-        let prefs = try? context.fetch(descriptor).first
-        customFrequencyDays = prefs?.customFrequencyDays
-        defaultDoseAmount = prefs?.defaultDoseAmount
-        defaultInjectionTime = prefs?.defaultInjectionTime
-        showDoseIntensityInsights = prefs?.showDoseIntensityInsights ?? false
+
+        let prefs: UserPreferences
+        if let existing = (try? context.fetch(descriptor))?.first {
+            prefs = existing
+        } else {
+            // First launch: create the singleton preferences record.
+            let newPrefs = UserPreferences()
+            context.insert(newPrefs)
+            try? context.save()
+            prefs = newPrefs
+        }
+
+        isLoadingPreferences = true
+        defer { isLoadingPreferences = false }
+
+        selectedMedication = prefs.selectedMedication
+        selectedAdministrationMethod = prefs.selectedAdministrationMethod
+        selectedEster = prefs.selectedEster
+        lastDoseDate = prefs.lastDoseDate
+        nextDoseDate = prefs.nextDoseDate
+        hrtStartDate = prefs.hrtStartDate
+
+        customFrequencyDays = prefs.customFrequencyDays
+        defaultDoseAmount = prefs.defaultDoseAmount
+        defaultInjectionTime = prefs.defaultInjectionTime
+        showDoseIntensityInsights = prefs.showDoseIntensityInsights
+
+        if let speed = SuppressionSpeed(rawValue: prefs.suppressionSpeed) {
+            suppressionSpeed = speed
+        }
+        spironolactoneClearanceEnabled = prefs.spironolactoneClearanceEnabled
+        antiAndrogenInUse = prefs.antiAndrogenInUse
+        spironolactoneInUse = prefs.spironolactoneInUse
+        if prefs.missedDoseGracePeriodHours > 0 {
+            missedDoseGracePeriodHours = prefs.missedDoseGracePeriodHours
+        }
+
+        if let json = prefs.userTherapeuticTargetJSON,
+           let data = json.data(using: .utf8),
+           let target = try? JSONDecoder().decode(TherapeuticTarget.self, from: data) {
+            userTherapeuticTarget = target
+        }
+
+        if let json = prefs.avoidZonesJSON,
+           let data = json.data(using: .utf8),
+           let zones = try? JSONDecoder().decode([String: AvoidZoneInfo].self, from: data) {
+            avoidZones = zones
+        }
+
+        rotationWindowInjection = prefs.rotationWindowInjection > 0
+            ? prefs.rotationWindowInjection : RouteClass.injection.defaultRotationWindowDays
+        rotationWindowTopical = prefs.rotationWindowTopical > 0
+            ? prefs.rotationWindowTopical : RouteClass.topical.defaultRotationWindowDays
+        rotationWindowPatch = prefs.rotationWindowPatch > 0
+            ? prefs.rotationWindowPatch : RouteClass.patch.defaultRotationWindowDays
+
+        bodyTypeRaw = prefs.bodyTypeRaw.isEmpty ? BodyType.neutral.rawValue : prefs.bodyTypeRaw
     }
 
     func persistUserPreferences() {
-        guard let context = modelContext else { return }
+        guard let context = modelContext, !isLoadingPreferences else { return }
         let descriptor = FetchDescriptor<UserPreferences>()
-        if let existing = try? context.fetch(descriptor).first {
+        if let existing = (try? context.fetch(descriptor))?.first {
+            existing.selectedMedication = selectedMedication
+            existing.selectedAdministrationMethod = selectedAdministrationMethod
+            existing.selectedEster = selectedEster
+            existing.lastDoseDate = lastDoseDate
+            existing.nextDoseDate = nextDoseDate
+            existing.hrtStartDate = hrtStartDate
             existing.customFrequencyDays = customFrequencyDays
             existing.defaultDoseAmount = defaultDoseAmount
             existing.defaultInjectionTime = defaultInjectionTime
             existing.showDoseIntensityInsights = showDoseIntensityInsights
+            existing.suppressionSpeed = suppressionSpeed.rawValue
+            existing.spironolactoneClearanceEnabled = spironolactoneClearanceEnabled
+            existing.antiAndrogenInUse = antiAndrogenInUse
+            existing.spironolactoneInUse = spironolactoneInUse
+            existing.missedDoseGracePeriodHours = missedDoseGracePeriodHours
+            existing.rotationWindowInjection = rotationWindowInjection
+            existing.rotationWindowTopical = rotationWindowTopical
+            existing.rotationWindowPatch = rotationWindowPatch
+            existing.bodyTypeRaw = bodyTypeRaw
+            if let target = userTherapeuticTarget,
+               let data = try? JSONEncoder().encode(target),
+               let json = String(data: data, encoding: .utf8) {
+                existing.userTherapeuticTargetJSON = json
+            } else {
+                existing.userTherapeuticTargetJSON = nil
+            }
+            if !avoidZones.isEmpty,
+               let data = try? JSONEncoder().encode(avoidZones),
+               let json = String(data: data, encoding: .utf8) {
+                existing.avoidZonesJSON = json
+            } else {
+                existing.avoidZonesJSON = avoidZones.isEmpty ? nil : existing.avoidZonesJSON
+            }
         } else {
+            let targetJSON: String? = {
+                guard let t = userTherapeuticTarget,
+                      let d = try? JSONEncoder().encode(t),
+                      let s = String(data: d, encoding: .utf8) else { return nil }
+                return s
+            }()
+            let zonesJSON: String? = {
+                guard !avoidZones.isEmpty,
+                      let d = try? JSONEncoder().encode(avoidZones),
+                      let s = String(data: d, encoding: .utf8) else { return nil }
+                return s
+            }()
             let prefs = UserPreferences(
+                selectedMedication: selectedMedication,
+                selectedAdministrationMethod: selectedAdministrationMethod,
+                selectedEster: selectedEster,
+                lastDoseDate: lastDoseDate,
+                nextDoseDate: nextDoseDate,
+                hrtStartDate: hrtStartDate,
+                suppressionSpeed: suppressionSpeed,
+                spironolactoneClearanceEnabled: spironolactoneClearanceEnabled,
+                antiAndrogenInUse: antiAndrogenInUse,
+                spironolactoneInUse: spironolactoneInUse,
                 customFrequencyDays: customFrequencyDays,
+                missedDoseGracePeriodHours: missedDoseGracePeriodHours,
                 defaultDoseAmount: defaultDoseAmount,
                 defaultInjectionTime: defaultInjectionTime,
-                showDoseIntensityInsights: showDoseIntensityInsights
+                showDoseIntensityInsights: showDoseIntensityInsights,
+                userTherapeuticTargetJSON: targetJSON,
+                rotationWindowInjection: rotationWindowInjection,
+                rotationWindowTopical: rotationWindowTopical,
+                rotationWindowPatch: rotationWindowPatch,
+                avoidZonesJSON: zonesJSON,
+                bodyTypeRaw: bodyTypeRaw
             )
             context.insert(prefs)
         }
         try? context.save()
     }
 
-    func loadDoseDates() {
-                let security = SecurityManager.shared
-        if let data = defaults.data(forKey: "encryptedDoseDates"),
-           let decrypted = try? security.decryptData(data),
-           let container = try? JSONDecoder().decode(DoseDatesContainer.self, from: decrypted) {
-            lastDoseDate = container.lastDoseDate
-            nextDoseDate = container.nextDoseDate
-            hrtStartDate = container.hrtStartDate
-        }
-    }
-
-    func persistDoseDates() {
-                let security = SecurityManager.shared
-        let container = DoseDatesContainer(lastDoseDate: lastDoseDate, nextDoseDate: nextDoseDate, hrtStartDate: hrtStartDate)
-        if let data = try? JSONEncoder().encode(container), let encrypted = try? security.encryptData(data) {
-            defaults.set(encrypted, forKey: "encryptedDoseDates")
-        }
-    }
-
-    /// Loads dose history from SwiftData.
     func loadDoseHistory() {
         guard let context = modelContext else { return }
         let descriptor = SortDescriptor<DoseRecord>(\DoseRecord.doseDate, order: .forward)
@@ -137,15 +275,9 @@ extension MedicationManager {
         doseHistory = (allRecords ?? []).filter { !$0.isDeleted }
     }
 
-    /// Persists the managed context to SwiftData (all pending insertions/deletions).
     func saveContext() {
         guard let context = modelContext else { return }
         try? context.save()
-    }
-
-    func migrateToEncryptedStorage() {
-                if defaults.object(forKey: "encryptedMedicationSelection") == nil { persistSelection() }
-        if defaults.object(forKey: "encryptedDoseDates") == nil { persistDoseDates() }
     }
 
     private struct DoseDatesContainer: Codable {

@@ -11,6 +11,10 @@ enum BodyHeatMapShader {
     texture2d<float> u_zoneTex;
     texture2d<float> u_zoneMetaTex;
     texture2d<float> u_tapTex;
+    // Time-diagram extras. Both default to 0 so every other host (QuickDoseSheet's
+    // BodyModel3DView) renders exactly as before.
+    float u_constellation;   // 0 = solid skin, 1 = fully dissolved starfield
+    float4 u_regionGlow;     // xyz = selected-region world centre, w = radius (0 = off)
 
     #pragma body
 
@@ -89,6 +93,34 @@ enum BodyHeatMapShader {
     albedo = mix(albedo, float3(1.0, 0.95, 0.88), max(totalWhite, overlapWhite) * 0.92);
     albedo = mix(albedo, float3(0.45, 0.44, 0.50), avoidMask * 0.40);
     albedo = mix(albedo, float3(0.88, 0.86, 0.92), recommendedMask);
+
+    // ---- Focus mode (Time diagram) ----
+    // When a region is selected, `u_constellation` ramps 0→1 as the "focus
+    // amount": the whole body recedes toward a deep purple while the chosen
+    // region stays bright and pulses red. `u_regionGlow` carries the region's
+    // world centre (xyz) and radius (w); front-facing only so the effect doesn't
+    // bleed to the far side of the body. Both uniforms default to 0, so every
+    // other host (QuickDoseSheet) is unaffected.
+    if (u_constellation > 0.001) {
+        float near = 0.0;
+        if (u_regionGlow.w > 0.001) {
+            float  dR    = distance(worldPos, u_regionGlow.xyz);
+            float3 toR   = u_regionGlow.xyz - worldPos;
+            float  rNdot = dot(worldNrm, normalize(toR));
+            float  rFade = smoothstep(-0.15, 0.20, rNdot);
+            near = (1.0 - smoothstep(u_regionGlow.w * 0.45, u_regionGlow.w * 1.35, dR)) * rFade;
+        }
+
+        // Recede everything but the selected region toward deep purple.
+        float3 deep   = float3(0.09, 0.05, 0.17);
+        float  darken = u_constellation * (1.0 - near * 0.90);
+        albedo = mix(albedo, deep, darken);
+
+        // Pulse the selected region a vivid red on top.
+        float  pulse = 0.5 + 0.5 * sin(u_currentTime * 2.4);
+        float3 red   = float3(1.0, 0.10, 0.09);
+        albedo = mix(albedo, red, near * u_constellation * (0.55 + 0.45 * pulse));
+    }
 
     // ---- Unified tap glow (persistent dot + expanding ripple) ----
     float3 tapAccum  = float3(0.0, 0.0, 0.0);

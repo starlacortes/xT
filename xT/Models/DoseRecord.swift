@@ -21,25 +21,25 @@ enum DoseStatus: String, Codable, CaseIterable {
 /// amounts instead of back-calculated ones.
 @Model
 class DoseRecord: Identifiable, Hashable {
-    @Attribute(.unique) var id: String
-    var doseDate: Date
-    var medicationType: String          // "Estrogen" | "Testosterone"
-    var ester: String                   // "Valerate (EV)" | "Cypionate (EC)" | etc.
-    var administrationMethod: String    // "Injectable" | "Cream" | "Oral"
-    var doseAmount: Double              // actual mg administered (always stored, regardless of input method)
+    var id: String = UUID().uuidString
+    var doseDate: Date = Date()
+    var medicationType: String = ""     // "Estrogen" | "Testosterone"
+    var ester: String = ""              // "Valerate (EV)" | "Cypionate (EC)" | etc.
+    var administrationMethod: String = "" // "Injectable" | "Cream" | "Oral"
+    var doseAmount: Double = 0          // actual mg administered (always stored, regardless of input method)
     var concentrationMgPerMl: Double?   // vial concentration used; nil if dose was entered directly in mg
     var notes: String?                  // optional user notes
-    var isDeleted: Bool                 // soft-delete flag (for HIPAA-friendly audits)
+    var isDeleted: Bool = false         // soft-delete flag (for HIPAA-friendly audits)
 
     // --- Missed/Skipped Dose Handling ---
-    var doseStatus: String              // rawValue of DoseStatus enum (SwiftData-friendly)
+    var doseStatus: String = "taken"    // rawValue of DoseStatus enum (SwiftData-friendly)
     var skipReason: String?             // optional reason for intentionally skipping
     var injectionTime: Date?            // precise time-of-day for accurate PK modeling; nil = midnight
 
     // --- Injection Site Tracking (v2.1) ---
     var injectionSitesJSON: String?     // JSON-encoded [InjectionSite]; empty for oral routes
     var recordedAt: Date?               // Real timestamp of record creation/edit
-    var isUserCorrected: Bool           // true if this record replaced a previous one
+    var isUserCorrected: Bool = false   // true if this record replaced a previous one
     var originalDoseId: String?         // UUID of the original dose (nil for new doses)
     var originalSiteJSON: String?       // JSON of original [InjectionSite] before correction (nil for new doses)
 

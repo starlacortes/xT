@@ -14,6 +14,7 @@ import SwiftUI
 
 struct SectionHeader: View {
 
+    @MainActor
     enum Emphasis {
         /// Small accent-colored eyebrow directly above a card group. The Settings default.
         case accent

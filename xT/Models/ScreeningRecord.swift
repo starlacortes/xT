@@ -35,9 +35,9 @@ enum ScreeningType: String, Codable, CaseIterable {
 
 @Model
 class ScreeningRecord: Identifiable {
-    @Attribute(.unique) var id: String
-    var date: Date
-    var typeRawValue: String          // rawValue of ScreeningType (SwiftData-friendly)
+    var id: String = UUID().uuidString
+    var date: Date = Date()
+    var typeRawValue: String = "other" // rawValue of ScreeningType (SwiftData-friendly)
     var notes: String?
 
     var type: ScreeningType {

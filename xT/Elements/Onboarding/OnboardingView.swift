@@ -19,12 +19,17 @@ extension Array {
 struct OnboardingView: View {
     @Environment(\.medicationManager) private var medicationManager
     @Environment(\.profileManager) private var profileManager
+    @Environment(\.themeManager) private var themeManager
 
     var onboardingComplete: (() -> Void)? = nil
 
     // MARK: - Step State
     @State private var currentStep: Int = 0
     @State private var opacity: Double = 0
+
+    // iCloud restore
+    @State private var isRestoringFromiCloud = false
+    @State private var showRestoreNotFoundAlert = false
     
     // Step 2 — medication type
     @State private var selectedType: String = ""
@@ -56,8 +61,7 @@ struct OnboardingView: View {
     // Step 7 — anti-androgens
     @State private var antiAndrogenChoice: String = "None"
     
-    // Step 8 — body type
-    @AppStorage("bodyType") private var bodyTypeRaw: String = BodyType.neutral.rawValue
+    // Step 8 — body type (backed by medicationManager for CloudKit sync)
 
     // Step 9 — profile
     @State private var profileName: String = ""
@@ -80,7 +84,7 @@ struct OnboardingView: View {
     }
 
     private var totalStepCount: Int {
-        isRouteShowsBodyPicker ? 11 : 10
+        isRouteShowsBodyPicker ? 12 : 11
     }
     
     // MARK: - Body
@@ -108,7 +112,8 @@ struct OnboardingView: View {
                         case 7: antiAndrogenStep
                         case 8: bodyTypeStep
                         case 9: profileStep
-                        case 10: reviewStep
+                        case 10: themeStep
+                        case 11: reviewStep
                         default: EmptyView()
                         }
                     }
@@ -137,7 +142,7 @@ struct OnboardingView: View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
                 RoundedRectangle(cornerRadius: 2)
-                    .fill(Color.white.opacity(0.3))
+                    .fill(Theme.Colors.OnAccent.primary.opacity(0.3))
                     .frame(height: 3)
                 RoundedRectangle(cornerRadius: 2)
                     .fill(Theme.Colors.accent.opacity(0.8))
@@ -150,20 +155,68 @@ struct OnboardingView: View {
 
     // MARK: - Step 1: Welcome
     private var welcomeStep: some View {
-        VStack(spacing: 32) {
-            Spacer()
-            Text("xT")
-                .font(.system(size: 64, weight: .light))
-                .foregroundStyle(.white.opacity(0.95))
-            Text("Hormone therapy tracking")
-                .font(.title3)
-                .fontWeight(.regular)
-                .foregroundStyle(.white.opacity(0.85))
-                .multilineTextAlignment(.center)
-            Spacer()
-            primaryButton("Begin") { advanceStep() }
+        ZStack {
+            VStack(spacing: 32) {
+                Spacer()
+                Text("xT")
+                    .font(.system(size: 64, weight: .light))
+                    .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.95))
+                Text("Hormone therapy tracking")
+                    .font(.title3)
+                    .fontWeight(.regular)
+                    .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.85))
+                    .multilineTextAlignment(.center)
+                Spacer()
+                VStack(spacing: 12) {
+                    primaryButton("Begin") { advanceStep() }
+                    if UserDefaults.standard.bool(forKey: "icloudSyncEnabled") {
+                        Button("Restore from iCloud") {
+                            Task { await restoreFromiCloud() }
+                        }
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.55))
+                    }
+                }
                 .padding(.horizontal, 40)
                 .padding(.bottom, 40)
+            }
+
+            if isRestoringFromiCloud {
+                ZStack {
+                    Theme.Gradients.brand
+                        .opacity(0.85)
+                        .ignoresSafeArea()
+                    VStack(spacing: 16) {
+                        ProgressView()
+                            .tint(Theme.Colors.OnAccent.primary)
+                            .scaleEffect(1.3)
+                        Text("Checking iCloud…")
+                            .font(.body)
+                            .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.8))
+                    }
+                }
+                .transition(.opacity)
+            }
+        }
+        .alert("No iCloud Data Found", isPresented: $showRestoreNotFoundAlert) {
+            Button("Set Up Manually") { }
+        } message: {
+            Text("No existing data was found in iCloud. Complete the setup to get started.")
+        }
+    }
+
+    private func restoreFromiCloud() async {
+        withAnimation { isRestoringFromiCloud = true }
+        // Allow CloudKit's initial sync a moment to populate the local store
+        try? await Task.sleep(for: .seconds(3))
+        await MainActor.run { medicationManager.reloadAllFromStore() }
+        withAnimation {
+            isRestoringFromiCloud = false
+            if medicationManager.selectedMedication != nil {
+                onboardingComplete?()
+            } else {
+                showRestoreNotFoundAlert = true
+            }
         }
     }
 
@@ -174,7 +227,7 @@ struct OnboardingView: View {
             Text("What hormone are you taking?")
                 .font(.title2)
                 .fontWeight(.regular)
-                .foregroundStyle(.white.opacity(0.9))
+                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
 
@@ -210,7 +263,7 @@ struct OnboardingView: View {
             Text("How long have you been on HRT?")
                 .font(.title2)
                 .fontWeight(.regular)
-                .foregroundStyle(.white.opacity(0.9))
+                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
 
@@ -253,7 +306,7 @@ struct OnboardingView: View {
                 Text("How do you take it?")
                     .font(.title2)
                     .fontWeight(.regular)
-                    .foregroundStyle(.white.opacity(0.9))
+                    .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 40)
                     .padding(.top, 32)
@@ -271,7 +324,7 @@ struct OnboardingView: View {
                     VStack(spacing: 12) {
                         Text("Which ester?")
                             .font(.subheadline)
-                            .foregroundStyle(.white.opacity(0.7))
+                            .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.7))
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.horizontal, 40)
 
@@ -287,13 +340,13 @@ struct OnboardingView: View {
                     VStack(spacing: 8) {
                         Text("Dosing frequency")
                             .font(.subheadline)
-                            .foregroundStyle(.white.opacity(0.7))
+                            .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.7))
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.horizontal, 40)
                         
                         HStack {
                             Stepper("Every \(selectedFrequency) days", value: $selectedFrequency, in: 1...30)
-                                .foregroundStyle(.white.opacity(0.9))
+                                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                         }
                         .padding(.horizontal, 40)
                     }
@@ -324,13 +377,13 @@ struct OnboardingView: View {
             Text("What's your vial concentration?")
                 .font(.title2)
                 .fontWeight(.regular)
-                .foregroundStyle(.white.opacity(0.9))
+                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
 
             Text("Look for a number followed by 'mg/mL' on your vial or box.\nFor example, a 200 mg/5 mL vial is 40 mg/mL.")
                 .font(.caption)
-                .foregroundStyle(.white.opacity(0.55))
+                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.55))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
 
@@ -371,27 +424,27 @@ struct OnboardingView: View {
             HStack {
                 Text("\(String(format: "%.0f", conc)) mg/mL")
                     .font(.body)
-                    .foregroundStyle(.white.opacity(0.9))
+                    .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                 if isMostCommonConcentration(conc) {
                     Text("· most common")
                         .font(.caption)
-                        .foregroundStyle(.white.opacity(0.4))
+                        .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.4))
                 }
                 Spacer()
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.white.opacity(0.9))
+                        .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                 }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
             .background(
                 RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                    .fill(isSelected ? Theme.Colors.accent.opacity(0.3) : Color.white.opacity(0.15))
+                    .fill(isSelected ? Theme.Colors.accent.opacity(0.3) : Theme.Colors.OnAccent.primary.opacity(0.15))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                    .stroke(isSelected ? Color.white.opacity(0.5) : Color.white.opacity(0.3), lineWidth: 1)
+                    .stroke(isSelected ? Theme.Colors.OnAccent.primary.opacity(0.5) : Theme.Colors.OnAccent.primary.opacity(0.3), lineWidth: 1)
             )
         }
     }
@@ -406,22 +459,22 @@ struct OnboardingView: View {
             HStack {
                 Text("Custom")
                     .font(.body)
-                    .foregroundStyle(.white.opacity(0.9))
+                    .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                 Spacer()
                 if showCustomConcentration {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.white.opacity(0.9))
+                        .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                 }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
             .background(
                 RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                    .fill(showCustomConcentration ? Theme.Colors.accentSecondary.opacity(0.3) : Color.white.opacity(0.15))
+                    .fill(showCustomConcentration ? Theme.Colors.accentSecondary.opacity(0.3) : Theme.Colors.OnAccent.primary.opacity(0.15))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                    .stroke(showCustomConcentration ? Color.white.opacity(0.5) : Color.white.opacity(0.3), lineWidth: 1)
+                    .stroke(showCustomConcentration ? Theme.Colors.OnAccent.primary.opacity(0.5) : Theme.Colors.OnAccent.primary.opacity(0.3), lineWidth: 1)
             )
         }
     }
@@ -431,12 +484,12 @@ struct OnboardingView: View {
             TextField("mg/mL", text: $customConcentrationText)
                 .keyboardType(.decimalPad)
                 .font(.system(size: 22, weight: .medium, design: .rounded))
-                .foregroundStyle(.white.opacity(0.9))
+                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                 .multilineTextAlignment(.center)
                 .padding(.vertical, 12)
                 .background(
                     RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                        .fill(Color.white.opacity(0.15))
+                        .fill(Theme.Colors.OnAccent.primary.opacity(0.15))
                 )
                 .onChange(of: customConcentrationText) { _, new in
                     if let val = Double(new), val > 0 {
@@ -445,7 +498,7 @@ struct OnboardingView: View {
                 }
             Text("mg/mL")
                 .font(.body)
-                .foregroundStyle(.white.opacity(0.6))
+                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.6))
         }
     }
 
@@ -465,7 +518,7 @@ struct OnboardingView: View {
             Text("What's your dose?")
                 .font(.title2)
                 .fontWeight(.regular)
-                .foregroundStyle(.white.opacity(0.9))
+                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                 .padding(.horizontal, 40)
 
             // mg / mL segmented control
@@ -488,13 +541,13 @@ struct OnboardingView: View {
                         TextField("", text: $doseText)
                             .keyboardType(.decimalPad)
                             .font(.system(size: 28, weight: .medium, design: .rounded))
-                            .foregroundStyle(.white.opacity(0.9))
+                            .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                             .multilineTextAlignment(.center)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 12)
                             .background(
                                 RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                                    .fill(Color.white.opacity(0.15))
+                                    .fill(Theme.Colors.OnAccent.primary.opacity(0.15))
                             )
                             .focused($doseFieldFocused)
                             .onChange(of: doseDecimal) { _, new in
@@ -519,7 +572,7 @@ struct OnboardingView: View {
 
                         Text("mg")
                             .font(.title3)
-                            .foregroundStyle(.white.opacity(0.6))
+                            .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.6))
                     }
                     .padding(.horizontal, 40)
 
@@ -527,7 +580,7 @@ struct OnboardingView: View {
                     let volume = MedicationManager.computedVolume(doseMg: doseDecimal, concentrationMgPerMl: selectedConcentration)
                     Text("= \(String(format: "%.3f", volume)) mL (@ \(String(format: "%.0f", selectedConcentration)) mg/mL)")
                         .font(.caption)
-                        .foregroundStyle(.white.opacity(0.5))
+                        .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.5))
                         .padding(.horizontal, 40)
 
                     // Volume warning
@@ -546,13 +599,13 @@ struct OnboardingView: View {
                         TextField("", text: $mlText)
                             .keyboardType(.decimalPad)
                             .font(.system(size: 28, weight: .medium, design: .rounded))
-                            .foregroundStyle(.white.opacity(0.9))
+                            .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                             .multilineTextAlignment(.center)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 12)
                             .background(
                                 RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                                    .fill(Color.white.opacity(0.15))
+                                    .fill(Theme.Colors.OnAccent.primary.opacity(0.15))
                             )
                             .focused($doseFieldFocused)
                             .onChange(of: mlAmount) { _, new in
@@ -582,7 +635,7 @@ struct OnboardingView: View {
 
                         Text("mL")
                             .font(.title3)
-                            .foregroundStyle(.white.opacity(0.6))
+                            .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.6))
                     }
                     .padding(.horizontal, 40)
 
@@ -590,7 +643,7 @@ struct OnboardingView: View {
                     let computedMg = mlAmount * selectedConcentration
                     Text("= \(String(format: "%.1f", computedMg)) mg (@ \(String(format: "%.0f", selectedConcentration)) mg/mL)")
                         .font(.caption)
-                        .foregroundStyle(.white.opacity(0.5))
+                        .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.5))
                         .padding(.horizontal, 40)
 
                     // Volume warning
@@ -610,7 +663,7 @@ struct OnboardingView: View {
             VStack(spacing: 6) {
                 Text("Vial concentration")
                     .font(.caption)
-                    .foregroundStyle(.white.opacity(0.5))
+                    .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.5))
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 40)
 
@@ -622,7 +675,7 @@ struct OnboardingView: View {
             VStack(spacing: 8) {
                 Text("When was your last dose?")
                     .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.7))
+                    .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.7))
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 40)
 
@@ -664,16 +717,16 @@ struct OnboardingView: View {
                         Text("\(String(format: "%.0f", conc))")
                             .font(.caption2)
                             .fontWeight(.medium)
-                            .foregroundStyle(.white.opacity(0.9))
+                            .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                             .padding(.horizontal, 10)
                             .padding(.vertical, 6)
                             .background(
                                 RoundedRectangle(cornerRadius: 6)
-                                    .fill(selectedConcentration == conc && !showCustomConcentration ? Theme.Colors.accentSecondary.opacity(0.5) : Color.white.opacity(0.15))
+                                    .fill(selectedConcentration == conc && !showCustomConcentration ? Theme.Colors.accentSecondary.opacity(0.5) : Theme.Colors.OnAccent.primary.opacity(0.15))
                             )
                             .overlay(
                                 RoundedRectangle(cornerRadius: 6)
-                                    .stroke(selectedConcentration == conc && !showCustomConcentration ? Color.white.opacity(0.5) : Color.white.opacity(0.2), lineWidth: 1)
+                                    .stroke(selectedConcentration == conc && !showCustomConcentration ? Theme.Colors.OnAccent.primary.opacity(0.5) : Theme.Colors.OnAccent.primary.opacity(0.2), lineWidth: 1)
                             )
                     }
                 }
@@ -686,16 +739,16 @@ struct OnboardingView: View {
                     Text("Custom")
                         .font(.caption2)
                         .fontWeight(.medium)
-                        .foregroundStyle(.white.opacity(0.9))
+                        .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
                         .background(
                             RoundedRectangle(cornerRadius: 6)
-                                .fill(showCustomConcentration ? Theme.Colors.accent.opacity(0.5) : Color.white.opacity(0.15))
+                                .fill(showCustomConcentration ? Theme.Colors.accent.opacity(0.5) : Theme.Colors.OnAccent.primary.opacity(0.15))
                         )
                         .overlay(
                             RoundedRectangle(cornerRadius: 6)
-                                .stroke(showCustomConcentration ? Color.white.opacity(0.5) : Color.white.opacity(0.2), lineWidth: 1)
+                                .stroke(showCustomConcentration ? Theme.Colors.OnAccent.primary.opacity(0.5) : Theme.Colors.OnAccent.primary.opacity(0.2), lineWidth: 1)
                         )
                 }
             }
@@ -709,7 +762,7 @@ struct OnboardingView: View {
                 .foregroundStyle(.yellow)
             Text(message)
                 .font(.caption2)
-                .foregroundStyle(.white.opacity(0.8))
+                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.8))
                 .lineLimit(3)
             Spacer()
         }
@@ -763,16 +816,16 @@ struct OnboardingView: View {
             Text(label)
                 .font(.caption)
                 .fontWeight(.medium)
-                .foregroundStyle(.white.opacity(0.9))
+                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
                 .background(
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(isSelected ? Theme.Colors.accent.opacity(0.5) : Color.white.opacity(0.15))
+                        .fill(isSelected ? Theme.Colors.accent.opacity(0.5) : Theme.Colors.OnAccent.primary.opacity(0.15))
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
-                        .stroke(isSelected ? Color.white.opacity(0.5) : Color.white.opacity(0.2), lineWidth: 1)
+                        .stroke(isSelected ? Theme.Colors.OnAccent.primary.opacity(0.5) : Theme.Colors.OnAccent.primary.opacity(0.2), lineWidth: 1)
                 )
         }
     }
@@ -785,13 +838,13 @@ struct OnboardingView: View {
             Text("Where did you take it?")
                 .font(.title2)
                 .fontWeight(.regular)
-                .foregroundStyle(.white.opacity(0.9))
+                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
 
             Text("Tap on the body model to mark your injection site.\nYou can rotate the model with the arrows below.")
                 .font(.caption)
-                .foregroundStyle(.white.opacity(0.55))
+                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.55))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
                 .padding(.top, 8)
@@ -805,7 +858,7 @@ struct OnboardingView: View {
                 recommendedZones: bodyPickerRecommendedZones,
                 selectedSites: $selectedSiteLabels3D,
                 maxSelections: 1,
-                bodyType: BodyType(rawValue: bodyTypeRaw) ?? .neutral,
+                bodyType: BodyType(rawValue: medicationManager.bodyTypeRaw) ?? .neutral,
                 snapAngle: bodySnapAngle,
                 snapNonce: bodySnapNonce,
                 onTapZone: { _, _ in },
@@ -832,14 +885,14 @@ struct OnboardingView: View {
                         .foregroundStyle(Theme.Colors.accentSecondary)
                     Text(zone)
                         .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.9))
+                        .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                     Button {
                         selectedSiteLabels3D.removeAll()
                         tapPositions.removeAll()
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .font(.caption)
-                            .foregroundStyle(.white.opacity(0.4))
+                            .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.4))
                     }
                 }
                 .padding(.horizontal, 16)
@@ -852,7 +905,7 @@ struct OnboardingView: View {
             } else {
                 Text("Tap the model to mark your site")
                     .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.4))
+                    .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.4))
                     .padding(.top, 12)
             }
 
@@ -887,7 +940,7 @@ struct OnboardingView: View {
             } label: {
                 Image(systemName: "arrow.backward.circle.fill")
                     .font(.title2)
-                    .foregroundStyle(.white.opacity(0.5))
+                    .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.5))
             }
 
             Spacer()
@@ -902,7 +955,7 @@ struct OnboardingView: View {
                             .font(.subheadline.weight(bodySnapAngle == angle ? .semibold : .regular))
                             .foregroundStyle(bodySnapAngle == angle
                                              ? Theme.Colors.accent
-                                             : .white.opacity(0.6))
+                                             : Theme.Colors.OnAccent.primary.opacity(0.6))
                             .padding(.horizontal, 20)
                             .padding(.vertical, 8)
                             .background(
@@ -914,7 +967,7 @@ struct OnboardingView: View {
                     }
                 }
             }
-            .background(RoundedRectangle(cornerRadius: 10).fill(Color.white.opacity(0.15)))
+            .background(RoundedRectangle(cornerRadius: 10).fill(Theme.Colors.OnAccent.primary.opacity(0.15)))
 
             Spacer()
 
@@ -926,7 +979,7 @@ struct OnboardingView: View {
             } label: {
                 Image(systemName: "arrow.forward.circle.fill")
                     .font(.title2)
-                    .foregroundStyle(.white.opacity(0.5))
+                    .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.5))
             }
         }
         .padding(.horizontal, 40)
@@ -971,7 +1024,7 @@ struct OnboardingView: View {
             Text("Are you taking any other medications?")
                 .font(.title2)
                 .fontWeight(.regular)
-                .foregroundStyle(.white.opacity(0.9))
+                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
 
@@ -1000,13 +1053,13 @@ struct OnboardingView: View {
             Text("Choose a body silhouette")
                 .font(.title2)
                 .fontWeight(.regular)
-                .foregroundStyle(.white.opacity(0.9))
+                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
 
             Text("This changes the 3D injection-site picker. You can update this anytime in Settings.")
                 .font(.callout)
-                .foregroundStyle(.white.opacity(0.6))
+                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.6))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
 
@@ -1015,10 +1068,10 @@ struct OnboardingView: View {
                     pathCard(
                         title: type.displayName,
                         subtitle: type.subtitle,
-                        isSelected: bodyTypeRaw == type.rawValue
+                        isSelected: medicationManager.bodyTypeRaw == type.rawValue
                     ) {
                         withAnimation(.easeInOut(duration: 0.2)) {
-                            bodyTypeRaw = type.rawValue
+                            medicationManager.bodyTypeRaw = type.rawValue
                         }
                     }
                 }
@@ -1042,7 +1095,7 @@ struct OnboardingView: View {
             Text("Personalize your space")
                 .font(.title2)
                 .fontWeight(.regular)
-                .foregroundStyle(.white.opacity(0.9))
+                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                 .padding(.bottom, 8)
 
             // Photo
@@ -1052,21 +1105,21 @@ struct OnboardingView: View {
                     .scaledToFill()
                     .frame(width: 100, height: 100)
                     .clipShape(Circle())
-                    .overlay(Circle().stroke(Color.white.opacity(0.6), lineWidth: 2))
+                    .overlay(Circle().stroke(Theme.Colors.OnAccent.primary.opacity(0.6), lineWidth: 2))
                     .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
             }
             Text("Tap to add photo")
                 .font(.caption)
-                .foregroundStyle(.white.opacity(0.6))
+                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.6))
 
             // Name
             TextField("Your name", text: $profileName)
                 .font(.body)
-                .foregroundStyle(.white.opacity(0.9))
+                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                 .padding(.vertical, 12)
                 .padding(.horizontal, 16)
-                .background(RoundedRectangle(cornerRadius: Theme.Radius.sm).fill(Color.white.opacity(0.15)))
-                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.sm).stroke(Color.white.opacity(0.3), lineWidth: 1))
+                .background(RoundedRectangle(cornerRadius: Theme.Radius.sm).fill(Theme.Colors.OnAccent.primary.opacity(0.15)))
+                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.sm).stroke(Theme.Colors.OnAccent.primary.opacity(0.3), lineWidth: 1))
                 .padding(.horizontal, 40)
 
             // Photo options
@@ -1097,14 +1150,43 @@ struct OnboardingView: View {
         .onChange(of: profileManager.selectedPhotoItem) { _, _ in profileManager.handlePhotoSelection() }
     }
 
-    // MARK: - Step 10: Review & Start
+    // MARK: - Step 10: Choose your theme
+    private var themeStep: some View {
+        VStack(spacing: 28) {
+            Spacer()
+            Text("Make it yours")
+                .font(.title2)
+                .fontWeight(.regular)
+                .foregroundStyle(Theme.Colors.OnAccent.secondary)
+                .padding(.bottom, 4)
+            Text("Drag to pick a color for the whole app. You can always change this later in Settings.")
+                .font(.caption)
+                .foregroundStyle(Theme.Colors.OnAccent.tertiary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+
+            ThemePickerView()
+                .padding(.horizontal, 40)
+                .padding(.top, 8)
+
+            Spacer()
+            HStack(spacing: 16) {
+                secondaryButton("Back") { previousStep() }
+                primaryButton("Continue") { advanceStep() }
+            }
+            .padding(.horizontal, 40)
+            .padding(.bottom, 40)
+        }
+    }
+
+    // MARK: - Step 11: Review & Start
     private var reviewStep: some View {
         ScrollView {
             VStack(spacing: 24) {
                 Text("Here's your setup")
                     .font(.title2)
                     .fontWeight(.regular)
-                    .foregroundStyle(.white.opacity(0.9))
+                    .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                     .padding(.top, 32)
 
                 VStack(spacing: 0) {
@@ -1121,11 +1203,11 @@ struct OnboardingView: View {
                     if antiAndrogenChoice != "None" {
                         reviewRow(label: "Other meds", value: antiAndrogenChoice)
                     }
-                    reviewRow(label: "Body silhouette", value: (BodyType(rawValue: bodyTypeRaw) ?? .neutral).displayName)
+                    reviewRow(label: "Body silhouette", value: (BodyType(rawValue: medicationManager.bodyTypeRaw) ?? .neutral).displayName)
                 }
                 .background(
                     RoundedRectangle(cornerRadius: Theme.Radius.md)
-                        .fill(Color.white.opacity(0.12))
+                        .fill(Theme.Colors.OnAccent.primary.opacity(0.12))
                 )
                 .padding(.horizontal, 40)
 
@@ -1147,27 +1229,27 @@ struct OnboardingView: View {
                     Text(title)
                         .font(.headline)
                         .fontWeight(.medium)
-                        .foregroundStyle(.white.opacity(0.9))
+                        .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                     Spacer()
                     if isSelected {
                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(.white.opacity(0.9))
+                            .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                     }
                 }
                 Text(subtitle)
                     .font(.caption)
-                    .foregroundStyle(.white.opacity(0.55))
+                    .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.55))
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                    .fill(isSelected ? Theme.Colors.accent.opacity(0.3) : Color.white.opacity(0.15))
+                    .fill(isSelected ? Theme.Colors.accent.opacity(0.3) : Theme.Colors.OnAccent.primary.opacity(0.15))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                    .stroke(isSelected ? Color.white.opacity(0.5) : Color.white.opacity(0.3), lineWidth: 1)
+                    .stroke(isSelected ? Theme.Colors.OnAccent.primary.opacity(0.5) : Theme.Colors.OnAccent.primary.opacity(0.3), lineWidth: 1)
             )
         }
     }
@@ -1177,22 +1259,22 @@ struct OnboardingView: View {
             HStack {
                 Text(title)
                     .font(.body)
-                    .foregroundStyle(.white.opacity(0.9))
+                    .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                 Spacer()
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.white.opacity(0.9))
+                        .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                 }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
             .background(
                 RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                    .fill(isSelected ? Theme.Colors.accent.opacity(0.3) : Color.white.opacity(0.15))
+                    .fill(isSelected ? Theme.Colors.accent.opacity(0.3) : Theme.Colors.OnAccent.primary.opacity(0.15))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                    .stroke(isSelected ? Color.white.opacity(0.5) : Color.white.opacity(0.3), lineWidth: 1)
+                    .stroke(isSelected ? Theme.Colors.OnAccent.primary.opacity(0.5) : Theme.Colors.OnAccent.primary.opacity(0.3), lineWidth: 1)
             )
         }
     }
@@ -1206,27 +1288,27 @@ struct OnboardingView: View {
                     Text(title)
                         .font(.body)
                         .fontWeight(.medium)
-                        .foregroundStyle(.white.opacity(0.9))
+                        .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                     Spacer()
                     if antiAndrogenChoice == choice {
                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(.white.opacity(0.9))
+                            .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                     }
                 }
                 Text(subtitle)
                     .font(.caption)
-                    .foregroundStyle(.white.opacity(0.5))
+                    .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.5))
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                    .fill(antiAndrogenChoice == choice ? Theme.Colors.Time.skin.base.opacity(0.25) : Color.white.opacity(0.15))
+                    .fill(antiAndrogenChoice == choice ? Theme.Colors.Time.skin.base.opacity(0.25) : Theme.Colors.OnAccent.primary.opacity(0.15))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                    .stroke(antiAndrogenChoice == choice ? Color.white.opacity(0.5) : Color.white.opacity(0.3), lineWidth: 1)
+                    .stroke(antiAndrogenChoice == choice ? Theme.Colors.OnAccent.primary.opacity(0.5) : Theme.Colors.OnAccent.primary.opacity(0.3), lineWidth: 1)
             )
         }
     }
@@ -1236,17 +1318,17 @@ struct OnboardingView: View {
             HStack {
                 Text(label)
                     .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.55))
+                    .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.55))
                 Spacer()
                 Text(value)
                     .font(.subheadline)
                     .fontWeight(.medium)
-                    .foregroundStyle(.white.opacity(0.9))
+                    .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
             Divider()
-                .overlay(Color.white.opacity(0.1))
+                .overlay(Theme.Colors.OnAccent.primary.opacity(0.1))
                 .padding(.leading, 16)
         }
     }
@@ -1257,7 +1339,7 @@ struct OnboardingView: View {
             Text(title)
                 .font(.headline)
                 .fontWeight(.medium)
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.Colors.OnAccent.primary)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
                 .background(
@@ -1273,7 +1355,7 @@ struct OnboardingView: View {
         Button(action: action) {
             Text(title)
                 .font(.body)
-                .foregroundStyle(.white.opacity(0.7))
+                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.7))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
         }
@@ -1286,15 +1368,15 @@ struct OnboardingView: View {
         VStack(spacing: 8) {
             Stepper("", value: value, in: range)
                 .labelsHidden()
-                .tint(.white)
+                .tint(Theme.Colors.OnAccent.primary)
             Text(text)
                 .font(.system(size: 20, weight: .medium, design: .rounded))
-                .foregroundStyle(.white.opacity(0.9))
+                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 12)
-        .background(RoundedRectangle(cornerRadius: Theme.Radius.sm).fill(Color.white.opacity(0.15)))
-        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.sm).stroke(Color.white.opacity(0.3), lineWidth: 1))
+        .background(RoundedRectangle(cornerRadius: Theme.Radius.sm).fill(Theme.Colors.OnAccent.primary.opacity(0.15)))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.sm).stroke(Theme.Colors.OnAccent.primary.opacity(0.3), lineWidth: 1))
     }
 
     private func photoBtn(_ icon: String, _ label: String, action: @escaping () -> Void) -> some View {
@@ -1302,13 +1384,13 @@ struct OnboardingView: View {
             VStack(spacing: 8) {
                 Image(systemName: icon)
                     .font(.title2)
-                    .foregroundStyle(.white.opacity(0.8))
+                    .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.8))
                 Text(label)
                     .font(.caption)
-                    .foregroundStyle(.white.opacity(0.7))
+                    .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.7))
             }
             .frame(width: 70, height: 70)
-            .background(RoundedRectangle(cornerRadius: Theme.Radius.sm).fill(Color.white.opacity(0.15)))
+            .background(RoundedRectangle(cornerRadius: Theme.Radius.sm).fill(Theme.Colors.OnAccent.primary.opacity(0.15)))
         }
     }
 
@@ -1332,26 +1414,26 @@ struct OnboardingView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(method.rawValue)
                         .font(.body)
-                        .foregroundStyle(.white.opacity(0.9))
+                        .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                     Text(frequencyHint(for: method))
                         .font(.caption)
-                        .foregroundStyle(.white.opacity(0.5))
+                        .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.5))
                 }
                 Spacer()
                 if selectedMethod == method.rawValue {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.white.opacity(0.9))
+                        .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                 }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
             .background(
                 RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                    .fill(selectedMethod == method.rawValue ? Theme.Colors.accent.opacity(0.3) : Color.white.opacity(0.15))
+                    .fill(selectedMethod == method.rawValue ? Theme.Colors.accent.opacity(0.3) : Theme.Colors.OnAccent.primary.opacity(0.15))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                    .stroke(selectedMethod == method.rawValue ? Color.white.opacity(0.5) : Color.white.opacity(0.3), lineWidth: 1)
+                    .stroke(selectedMethod == method.rawValue ? Theme.Colors.OnAccent.primary.opacity(0.5) : Theme.Colors.OnAccent.primary.opacity(0.3), lineWidth: 1)
             )
         }
     }
@@ -1383,26 +1465,26 @@ struct OnboardingView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(item.name)
                                 .font(.body)
-                                .foregroundStyle(.white.opacity(0.9))
+                                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                             Text(esterSubtitle(tHalf: item.tHalf, tPeak: item.tPeak, calibrated: item.calibrated))
                                 .font(.caption)
-                                .foregroundStyle(.white.opacity(0.5))
+                                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.5))
                         }
                         Spacer()
                         if selectedEster == item.name {
                             Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.white.opacity(0.9))
+                                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                         }
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
                     .background(
                         RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                            .fill(selectedEster == item.name ? Theme.Colors.accentSecondary.opacity(0.3) : Color.white.opacity(0.15))
+                            .fill(selectedEster == item.name ? Theme.Colors.accentSecondary.opacity(0.3) : Theme.Colors.OnAccent.primary.opacity(0.15))
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                            .stroke(selectedEster == item.name ? Color.white.opacity(0.5) : Color.white.opacity(0.3), lineWidth: 1)
+                            .stroke(selectedEster == item.name ? Theme.Colors.OnAccent.primary.opacity(0.5) : Theme.Colors.OnAccent.primary.opacity(0.3), lineWidth: 1)
                     )
                 }
             }
@@ -1556,23 +1638,18 @@ struct OnboardingView: View {
         // Save custom frequency from onboarding stepper
         medicationManager.customFrequencyDays = selectedFrequency
 
-        // Save default concentration to UserPreferences for pre-fill on future doses
-        if let context = medicationManager.modelContext {
-            let prefs = UserPreferences(
-                medicationRow: 0,
-                medicationColumn: 0,
-                lastDoseDate: lastDoseDate,
-                nextDoseDate: medicationManager.nextDoseDate
-            )
-            prefs.customFrequencyDays = selectedFrequency
+        // Save default concentration directly into the existing UserPreferences record
+        // (these are read-once fields, not tracked as in-memory manager state)
+        if let context = medicationManager.modelContext,
+           let prefs = try? context.fetch(FetchDescriptor<UserPreferences>()).first {
             if selectedType == "Estrogen" {
                 prefs.defaultEstrogenConcentration = finalConcentration
             } else {
                 prefs.defaultTestosteroneConcentration = finalConcentration
             }
-            context.insert(prefs)
             try? context.save()
         }
+        medicationManager.persistUserPreferences()
 
         // Configure dose reminders with the selected frequency and default time (9:00 AM)
         let reminderHour = 9
@@ -1595,5 +1672,6 @@ struct OnboardingView: View {
     OnboardingView()
         .environment(\.medicationManager, MedicationManager.shared)
         .environment(\.profileManager, ProfileManager.shared)
+        .environment(\.themeManager, ThemeManager.shared)
 }
 #endif

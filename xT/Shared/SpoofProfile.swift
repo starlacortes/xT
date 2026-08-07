@@ -292,8 +292,7 @@ enum SpoofProfile {
                 mm.lastDoseDate = lastTaken.doseDate
                 mm.nextDoseDate = calendar.date(byAdding: .day, value: 5, to: lastTaken.doseDate)
             }
-            mm.persistDoseDates()
-            mm.persistSelection()
+            mm.persistUserPreferences()
 
             let bloodTests: [(monthsAfter: Int, e2: Double, notes: String)] = [
                 (3,  180, "3-month baseline — good initial response"),
@@ -337,8 +336,7 @@ enum SpoofProfile {
 
             mm.lastDoseDate = startDate
             mm.nextDoseDate = calendar.date(byAdding: .day, value: 7, to: startDate)
-            mm.persistDoseDates()
-            mm.persistSelection()
+            mm.persistUserPreferences()
 
             // Maya hasn't had blood tests yet — she just started
             // She set therapeutic targets based on her doctor's guidance
@@ -396,8 +394,7 @@ enum SpoofProfile {
                 mm.lastDoseDate = lastTaken.doseDate
                 mm.nextDoseDate = calendar.date(byAdding: .day, value: 14, to: lastTaken.doseDate)
             }
-            mm.persistDoseDates()
-            mm.persistSelection()
+            mm.persistUserPreferences()
 
             // Blood tests before and after switch
             if let bt1 = calendar.date(byAdding: .month, value: 3, to: startDate) {
@@ -473,8 +470,7 @@ enum SpoofProfile {
                 mm.lastDoseDate = lastTaken.doseDate
                 mm.nextDoseDate = calendar.date(byAdding: .day, value: 7, to: lastTaken.doseDate)
             }
-            mm.persistDoseDates()
-            mm.persistSelection()
+            mm.persistUserPreferences()
 
             // Blood tests
             if let bt1 = calendar.date(byAdding: .month, value: 3, to: startDate) {
@@ -509,11 +505,17 @@ enum SpoofProfile {
         mm.customFrequencyDays = 1
         mm.missedDoseGracePeriodHours = 12.0
 
+        // Sam's whole point is to demonstrate the missed-dose UI, so the seed
+        // must stop short of today — logging all the way through today (as this
+        // used to) leaves `lastDoseDate` as today and `nextDoseDate` as tomorrow,
+        // so `hasMissedDose` is false and the persona never shows what it's named for.
+        let missedDoseCutoff = calendar.date(byAdding: .day, value: -5, to: today)!
+
         mm.performBatch {
             var doseDate = startDate
             var doseCount = 0
             // Seed for deterministic "random" missed days based on day-of-year
-            while doseDate <= today {
+            while doseDate <= missedDoseCutoff {
                 let dayOfYear = calendar.ordinality(of: .day, in: .year, for: doseDate) ?? 0
                 // Miss ~2 days per week: skip days where dayOfYear % 7 ∈ {2, 5}
                 let shouldMiss = (dayOfYear % 7 == 2 || dayOfYear % 7 == 5) && doseCount > 7
@@ -538,8 +540,7 @@ enum SpoofProfile {
                 mm.lastDoseDate = lastTaken.doseDate
                 mm.nextDoseDate = calendar.date(byAdding: .day, value: 1, to: lastTaken.doseDate)
             }
-            mm.persistDoseDates()
-            mm.persistSelection()
+            mm.persistUserPreferences()
 
             // Sam hasn't set therapeutic targets — tests the "no user-set bounds" path
             mm.userTherapeuticTarget = nil
@@ -578,8 +579,7 @@ enum SpoofProfile {
                 mm.lastDoseDate = lastTaken.doseDate
                 mm.nextDoseDate = calendar.date(byAdding: .day, value: 1, to: lastTaken.doseDate)
             }
-            mm.persistDoseDates()
-            mm.persistSelection()
+            mm.persistUserPreferences()
 
             // No blood tests yet — Rowan's doctor schedules at 6-month mark
             // No therapeutic targets set — tests the "model-derived only" path
@@ -620,8 +620,7 @@ enum SpoofProfile {
                 mm.lastDoseDate = lastTaken.doseDate
                 mm.nextDoseDate = calendar.date(byAdding: .day, value: 7, to: lastTaken.doseDate)
             }
-            mm.persistDoseDates()
-            mm.persistSelection()
+            mm.persistUserPreferences()
 
             // Blood test at month 3 — the calibration anchor
             if let drawDate = calendar.date(byAdding: .month, value: 3, to: startDate) {
@@ -670,8 +669,7 @@ enum SpoofProfile {
                 mm.lastDoseDate = lastTaken.doseDate
                 mm.nextDoseDate = calendar.date(byAdding: .day, value: 10, to: lastTaken.doseDate)
             }
-            mm.persistDoseDates()
-            mm.persistSelection()
+            mm.persistUserPreferences()
 
             // Blood tests at months 3, 6, and 12
             let bloodTests: [(monthsAfter: Int, e2: Double, notes: String)] = [

@@ -28,71 +28,117 @@ enum SuppressionSpeed: String, Codable, CaseIterable {
 @Model
 final class UserPreferences {
     // Persisted indices for selection. Using Int keeps compatibility with enums.
-    var medicationRow: Int
-    var medicationColumn: Int
+    var medicationRow: Int = -1
+    var medicationColumn: Int = -1
+
+    // --- Medication Selection (moved from encrypted UserDefaults) ---
+    var selectedMedication: String?
+    var selectedAdministrationMethod: String?
+    var selectedEster: String?
 
     // Optional persisted dose dates
     var lastDoseDate: Date?
     var nextDoseDate: Date?
+    /// When the user actually began HRT (may predate app install).
+    var hrtStartDate: Date?
 
     // Default vial concentrations (mg/mL) per medication type
-    // These pre-fill the dose entry UI so the user doesn't have to reselect every time.
-    var defaultEstrogenConcentration: Double?   // e.g., 40.0 for EV
-    var defaultTestosteroneConcentration: Double?  // e.g., 200.0 for TC
+    var defaultEstrogenConcentration: Double?
+    var defaultTestosteroneConcentration: Double?
 
-    // --- Physiology Settings (#9, #12) ---
-    /// Endogenous suppression speed (fast/medium/slow), drives taper timescale.
-    var suppressionSpeed: String                // rawValue of SuppressionSpeed
-    /// Whether spironolactone clearance adjustment (ke × 1.15) is enabled.
-    var spironolactoneClearanceEnabled: Bool
+    // --- Physiology Settings ---
+    var suppressionSpeed: String = "fast"       // rawValue of SuppressionSpeed
+    var spironolactoneClearanceEnabled: Bool = false
+    var antiAndrogenInUse: Bool = false
+    var spironolactoneInUse: Bool = false
 
-    // --- Flexible Dosing (#18) ---
-    /// Custom dosing interval in days; when nil, falls back to AdministrationMethod.frequencyDays.
+    // --- Flexible Dosing ---
     var customFrequencyDays: Int?
+    var missedDoseGracePeriodHours: Double = 12.0
 
     // --- Default Dose Settings ---
-    /// Default dose amount in mg (pre-fills dose recording UI).
     var defaultDoseAmount: Double?
-    /// Default injection time of day (pre-fills dose recording UI).
     var defaultInjectionTime: Date?
 
-    // --- Dose-Intensity Toggle (plan §4.4) ---
-    /// When true, the Time tab surfaces relativeDoseIntensity-derived copy.
-    /// T5+ users default this to off. Not exposed in onboarding.
-    var showDoseIntensityInsights: Bool
+    // --- Dose-Intensity Toggle ---
+    var showDoseIntensityInsights: Bool = false
+
+    // --- Therapeutic Target ---
+    var userTherapeuticTargetJSON: String?      // JSON-encoded TherapeuticTarget; nil = use clinical defaults
+
+    // --- Rotation Windows (moved from mm.rotationWindow_* UserDefaults) ---
+    var rotationWindowInjection: Int = 14
+    var rotationWindowTopical: Int = 7
+    var rotationWindowPatch: Int = 30
+
+    // --- Avoid Zones (moved from injectionSiteAvoidZones UserDefaults) ---
+    var avoidZonesJSON: String?                 // JSON-encoded [String: AvoidZoneInfo]
+
+    // --- Body Type (moved from @AppStorage("bodyType")) ---
+    var bodyTypeRaw: String = "neutral"         // rawValue of BodyType
+
+    // --- Profile (moved from encrypted UserDefaults for cross-device sync) ---
+    var profileName: String?
+    var profileImageData: Data?
+    var profileDateOfBirth: Date?
 
     init(
         medicationRow: Int = -1,
         medicationColumn: Int = -1,
+        selectedMedication: String? = nil,
+        selectedAdministrationMethod: String? = nil,
+        selectedEster: String? = nil,
         lastDoseDate: Date? = nil,
         nextDoseDate: Date? = nil,
+        hrtStartDate: Date? = nil,
         defaultEstrogenConcentration: Double? = nil,
         defaultTestosteroneConcentration: Double? = nil,
         suppressionSpeed: SuppressionSpeed = .fast,
         spironolactoneClearanceEnabled: Bool = false,
+        antiAndrogenInUse: Bool = false,
+        spironolactoneInUse: Bool = false,
         customFrequencyDays: Int? = nil,
+        missedDoseGracePeriodHours: Double = 12.0,
         defaultDoseAmount: Double? = nil,
         defaultInjectionTime: Date? = nil,
-        showDoseIntensityInsights: Bool = false
+        showDoseIntensityInsights: Bool = false,
+        userTherapeuticTargetJSON: String? = nil,
+        rotationWindowInjection: Int = RouteClass.injection.defaultRotationWindowDays,
+        rotationWindowTopical: Int = RouteClass.topical.defaultRotationWindowDays,
+        rotationWindowPatch: Int = RouteClass.patch.defaultRotationWindowDays,
+        avoidZonesJSON: String? = nil,
+        bodyTypeRaw: String = BodyType.neutral.rawValue,
+        profileName: String? = nil,
+        profileImageData: Data? = nil,
+        profileDateOfBirth: Date? = nil
     ) {
         self.medicationRow = medicationRow
         self.medicationColumn = medicationColumn
+        self.selectedMedication = selectedMedication
+        self.selectedAdministrationMethod = selectedAdministrationMethod
+        self.selectedEster = selectedEster
         self.lastDoseDate = lastDoseDate
         self.nextDoseDate = nextDoseDate
+        self.hrtStartDate = hrtStartDate
         self.defaultEstrogenConcentration = defaultEstrogenConcentration
         self.defaultTestosteroneConcentration = defaultTestosteroneConcentration
         self.suppressionSpeed = suppressionSpeed.rawValue
         self.spironolactoneClearanceEnabled = spironolactoneClearanceEnabled
+        self.antiAndrogenInUse = antiAndrogenInUse
+        self.spironolactoneInUse = spironolactoneInUse
         self.customFrequencyDays = customFrequencyDays
+        self.missedDoseGracePeriodHours = missedDoseGracePeriodHours
         self.defaultDoseAmount = defaultDoseAmount
         self.defaultInjectionTime = defaultInjectionTime
         self.showDoseIntensityInsights = showDoseIntensityInsights
+        self.userTherapeuticTargetJSON = userTherapeuticTargetJSON
+        self.rotationWindowInjection = rotationWindowInjection
+        self.rotationWindowTopical = rotationWindowTopical
+        self.rotationWindowPatch = rotationWindowPatch
+        self.avoidZonesJSON = avoidZonesJSON
+        self.bodyTypeRaw = bodyTypeRaw
+        self.profileName = profileName
+        self.profileImageData = profileImageData
+        self.profileDateOfBirth = profileDateOfBirth
     }
 }
-
-/*
- Future iCloud notes:
- - SwiftData can be configured to sync with iCloud by enabling CloudKit for the container in the app Target capabilities and using a shared model container with iCloud configuration.
- - At that point, this @Model will participate in syncing automatically.
- - Keep properties stable (avoid frequent schema changes) and prefer enums backed by Ints/Strings for forward compatibility.
-*/

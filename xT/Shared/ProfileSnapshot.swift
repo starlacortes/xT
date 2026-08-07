@@ -219,12 +219,7 @@ enum ProfileSnapshot {
         mm.bloodTestHistory = []
         mm.screeningRecords = []
         mm.predictedTroughDrop = nil
-        // Transient properties: reset then reload from UserDefaults (step 1 of
-        // restore() already wrote the user's snapshotted values back).
-        mm.loadTransientPreferences()
-
-        mm.loadSelection()
-        mm.loadDoseDates()
+        mm.loadUserPreferences()
         mm.loadDoseHistory()
         mm.loadBloodTestHistory()
         mm.loadScreeningHistory()

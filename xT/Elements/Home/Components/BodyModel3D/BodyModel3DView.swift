@@ -394,7 +394,7 @@ struct BodyModel3DView: UIViewRepresentable {
                 cameraAnimLink = nil
             }
             let delta = gesture.translation(in: view)
-            yaw += Float(delta.x) * 0.005
+            yaw -= Float(delta.x) * 0.005
             applyCameraPosition(animated: false)
             gesture.setTranslation(.zero, in: view)
         }

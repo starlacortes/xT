@@ -241,7 +241,7 @@ struct FlatGraphView: View {
                 }
             }
             .onEnded { _ in
-                withAnimation(.easeOut(duration: 0.08)) {
+                withAnimation(.easeOut(duration: 0.04)) {
                     scrubFraction = nil
                     scrubValue = nil
                     scrubDate = nil
@@ -436,11 +436,12 @@ struct FlatGraphView: View {
            !points.isEmpty {
             let visibleStart = points.first!.date
             let visibleEnd = points.last!.date
-            if lastDoseDate >= visibleStart && lastDoseDate <= visibleEnd {
-                let idx = points.enumerated().min(by: { abs($0.element.date.timeIntervalSince(lastDoseDate)) < abs($1.element.date.timeIntervalSince(lastDoseDate)) })!.offset
+            let totalTime = visibleEnd.timeIntervalSince(visibleStart)
+            if totalTime > 0, lastDoseDate >= visibleStart, lastDoseDate <= visibleEnd {
+                let fraction = lastDoseDate.timeIntervalSince(visibleStart) / totalTime
+                let px = fraction * w
                 let (minV, _, range) = bounds
-                let px = CurveLayout.markerX(index: idx, count: points.count, width: w)
-                let py = CurveLayout.yPos(value: points[idx].value, min: minV, range: range,
+                let py = CurveLayout.yPos(value: nearestCurveValue(at: lastDoseDate), min: minV, range: range,
                                           height: h, dataFraction: dataRegionFraction)
 
                 ZStack {

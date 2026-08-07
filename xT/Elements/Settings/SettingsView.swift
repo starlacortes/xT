@@ -9,12 +9,14 @@
 import SwiftUI
 import PhotosUI
 import SwiftData
+import UserNotifications
 
 struct SettingsView: View {
     @Environment(\.profileManager) private var profileManager
     @Environment(\.medicationManager) private var medicationManager
     @Environment(\.notificationManager) private var notificationManager
     @Environment(\.authenticationManager) private var authManager
+    @Environment(\.themeManager) private var themeManager
     @State private var showingResetAlert = false
     @State private var showingAuthRequest = false
     @State private var showingTypeMethodSheet = false
@@ -27,7 +29,10 @@ struct SettingsView: View {
     @State private var journalReminderMinute = 0
     @State private var showingDoseTimePicker = false
     @State private var showingJournalTimePicker = false
-    @AppStorage("bodyType") private var bodyTypeRaw: String = BodyType.neutral.rawValue
+
+    // iCloud sync
+    @State private var icloudSyncEnabled: Bool = UserDefaults.standard.bool(forKey: "icloudSyncEnabled")
+    @State private var showingRestartAlert = false
 
     // Therapeutic target state
     @State private var useCustomTargets: Bool = false
@@ -52,6 +57,7 @@ struct SettingsView: View {
                         settingsLevelsTargetsSection
                         settingsHistorySection
                         settingsNotificationsSection
+                        settingsAppearanceSection
                         settingsPrivacySection
                         settingsAboutSection
                         settingsResetSection
@@ -64,7 +70,7 @@ struct SettingsView: View {
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle(Text(verbatim: ""))
             .navigationBarTitleDisplayMode(.inline)
-            .background(Color(.systemBackground))
+            .background(Theme.Colors.appBackground)
             .sheet(isPresented: $showingDoseTimePicker) {
                 TimePickerSheet(title: "Dose reminder time", hour: $doseReminderHour, minute: $doseReminderMinute, isPresented: $showingDoseTimePicker)
             }
@@ -235,7 +241,10 @@ struct SettingsView: View {
                     Spacer()
                 }
 
-                Picker("", selection: $bodyTypeRaw) {
+                Picker("", selection: Binding(
+                    get: { medicationManager.bodyTypeRaw },
+                    set: { medicationManager.bodyTypeRaw = $0 }
+                )) {
                     ForEach(BodyType.allCases) { type in
                         Text(type.displayName).tag(type.rawValue)
                     }
@@ -593,15 +602,56 @@ struct SettingsView: View {
         return String(localized: "\(biometric) · \(timeout) timeout")
     }
 
+    // MARK: - Appearance Section
+
+    private var settingsAppearanceSection: some View {
+        settingsSection(label: "Appearance") {
+            NavigationLink(destination: ThemeSettingsView()) {
+                settingsRowContent(
+                    icon: "paintbrush.fill",
+                    iconBg: Theme.Colors.accent.opacity(0.13),
+                    iconColor: Theme.Colors.accent,
+                    title: "Theme",
+                    subtitle: "Choose the app's color",
+                    trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(.secondary) }
+                )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
     // MARK: - Privacy Section
 
     private var settingsPrivacySection: some View {
         settingsSection(label: "Privacy & security") {
+            settingsRowContent(
+                icon: "icloud",
+                iconBg: Theme.Colors.Time.cycle.surface,
+                iconColor: Theme.Colors.Time.cycle.base,
+                title: "iCloud Sync",
+                subtitle: icloudSyncEnabled ? "Data syncs across your devices" : "Data stays on this device only",
+                trailing: {
+                    Toggle("", isOn: $icloudSyncEnabled)
+                        .labelsHidden()
+                        .onChange(of: icloudSyncEnabled) { _, newValue in
+                            UserDefaults.standard.set(newValue, forKey: "icloudSyncEnabled")
+                            showingRestartAlert = true
+                        }
+                }
+            )
+            .alert("Restart Required", isPresented: $showingRestartAlert) {
+                Button("OK") { }
+            } message: {
+                Text("This change will take effect the next time you open xT.")
+            }
+
+            settingsDivider()
+
             NavigationLink(destination: AppLockSettingsView()) {
                 settingsRowContent(
                     icon: "lock.fill",
-                    iconBg: Color(.systemGray6),
-                    iconColor: .secondary,
+                    iconBg: Theme.Colors.neutralSurface,
+                    iconColor: Theme.Colors.textSecondary,
                     title: "App lock",
                     subtitle: privacyLockSubtitle,
                     trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(.secondary) }
@@ -631,8 +681,8 @@ struct SettingsView: View {
         settingsSection(label: "About") {
             settingsRowContent(
                 icon: "info.circle.fill",
-                iconBg: Color(.systemGray6),
-                iconColor: .secondary,
+                iconBg: Theme.Colors.neutralSurface,
+                iconColor: Theme.Colors.textSecondary,
                 title: "Version",
                 subtitle: nil,
                 trailing: { Text("0.8.5").font(.system(size: 13)).foregroundStyle(.secondary) }
@@ -642,8 +692,8 @@ struct SettingsView: View {
             NavigationLink(destination: DeveloperSettingsView()) {
                 settingsRowContent(
                     icon: "wrench.and.screwdriver",
-                    iconBg: Color(.systemGray6),
-                    iconColor: .secondary,
+                    iconBg: Theme.Colors.neutralSurface,
+                    iconColor: Theme.Colors.textSecondary,
                     title: "Developer",
                     subtitle: "Tools & test options",
                     trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(.secondary) }
@@ -879,6 +929,7 @@ struct SettingsView: View {
         medicationManager.regimenTransitionHistory = []
         medicationManager.doseRecordedCount = 0
         medicationManager.userTherapeuticTarget = nil
+        medicationManager.invalidateHeatMapCache()
 
         // 3. Delete all SwiftData records from the active model context
         if let ctx = medicationManager.modelContext {
@@ -907,10 +958,13 @@ struct SettingsView: View {
         // If SpoofProfile was applied, clear its flag so a fresh start works
         UserDefaults.standard.removeObject(forKey: "com.xt.spoofProfile_jan_v1")
 
-        // 5. Wipe ALL UserDefaults (must come LAST to clear any keys re-created by the steps above)
+        // 5. Cancel all pending notifications (dose / journal reminders)
+        UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+
+        // 6. Wipe ALL UserDefaults (must come LAST to clear any keys re-created by the steps above)
         defaults.dictionaryRepresentation().keys.forEach { defaults.removeObject(forKey: $0) }
 
-        // 6. Set onboarding flag after the wipe
+        // 7. Set onboarding flag after the wipe
         UserDefaults.standard.set(false, forKey: "hasCompletedOnboarding")
     }
 

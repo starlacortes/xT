@@ -305,7 +305,6 @@ struct TypeMethodSettingsView: View {
 
         medicationManager.selectedEster = selectedEster
         medicationManager.updateSelection(type: type, method: method)
-        medicationManager.persistSelection()
         medicationManager.refreshState()
         dismiss()
     }

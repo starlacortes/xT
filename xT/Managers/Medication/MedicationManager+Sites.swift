@@ -104,8 +104,9 @@ extension MedicationManager {
     /// Replace a dose's site with corrected values, preserving the original sites
     /// in the new record's `originalSiteJSON` field for audit trail.
     func replaceDoseWithCorrectedSite(originalDose: DoseRecord, newSites: [InjectionSite]) {
+        let originalId    = originalDose.id
         let originalSites = originalDose.injectionSites
-        removeDose(withId: originalDose.id)
+        softDeleteDose(id: originalId)
         addDose(
             date: originalDose.doseDate,
             type: originalDose.medicationType,
@@ -116,7 +117,7 @@ extension MedicationManager {
             notes: originalDose.notes,
             injectionSites: newSites,
             isUserCorrected: true,
-            originalDoseId: originalDose.id,
+            originalDoseId: originalId,
             originalSites: originalSites
         )
     }
@@ -136,14 +137,7 @@ extension MedicationManager {
     }
 
     private func persistAvoidZones() {
-        guard let data = try? JSONEncoder().encode(avoidZones) else { return }
-        defaults.set(data, forKey: "injectionSiteAvoidZones")
-    }
-
-    func loadAvoidZones() {
-        guard let data = defaults.data(forKey: "injectionSiteAvoidZones"),
-              let zones = try? JSONDecoder().decode([String: AvoidZoneInfo].self, from: data)
-        else { return }
-        avoidZones = zones
+        persistUserPreferences()
     }
 }
+

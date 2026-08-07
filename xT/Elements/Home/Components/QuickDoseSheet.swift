@@ -37,10 +37,8 @@ struct QuickDoseSheet: View {
 
     // MARK: - Body Picker Configuration
 
-    @AppStorage("bodyType") private var bodyTypeRaw: String = BodyType.neutral.rawValue
-
     private var bodyType: BodyType {
-        BodyType(rawValue: bodyTypeRaw) ?? .neutral
+        BodyType(rawValue: medicationManager.bodyTypeRaw) ?? .neutral
     }
 
     // MARK: - Init
@@ -244,9 +242,6 @@ struct QuickDoseSheet: View {
             .padding(.bottom, 20)
             .padding(.top, 4)
 
-            if !isOral, let lastSites = lastInjectionSites, let first = lastSites.first {
-                previousDosePreview(first: first, count: lastSites.count)
-            }
         }
     }
 
@@ -259,82 +254,6 @@ struct QuickDoseSheet: View {
             Text(value)
                 .font(.subheadline.weight(.medium))
         }
-    }
-
-    // MARK: Previous dose preview
-
-    @ViewBuilder
-    private func previousDosePreview(first: InjectionSite, count: Int) -> some View {
-        let region = ZoneCentroidStore.shared.region(for: first.zoneLabel) ?? first.bodyRegion
-        let zoneHasHeat = injectionHeatMap[first.zoneLabel] ?? 0 > 0
-
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Previous dose location:")
-                .font(Theme.Fonts.caption2)
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-                .tracking(0.05)
-                .padding(.leading, 20)
-
-            HStack(spacing: 12) {
-                ZStack {
-                    Circle()
-                        .fill(Theme.Colors.accentSecondary.opacity(zoneHasHeat ? 0.22 : 0.10))
-                        .frame(width: 56, height: 56)
-
-                    if zoneHasHeat {
-                        Circle()
-                            .stroke(Theme.Colors.accentSecondary.opacity(0.35), lineWidth: 2)
-                            .frame(width: 48, height: 48)
-                    }
-
-                    Image(systemName: bodyRegionIcon(for: region))
-                        .font(.system(size: 22))
-                        .foregroundStyle(Theme.Colors.accentSecondary.opacity(0.6))
-                }
-
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "mappin.circle.fill")
-                            .font(.caption)
-                            .foregroundStyle(Theme.Colors.accentSecondary)
-                        Text(count > 1 ? "\(first.zoneLabel) +\(count - 1)" : first.zoneLabel)
-                            .font(.subheadline.weight(.medium))
-                    }
-
-                    Text(region)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-
-                    if let lastDate = medicationManager.lastInjectionSiteDoseDate(for: routeClass) {
-                        Text(lastDate.formatted(date: .abbreviated, time: .shortened))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                Spacer()
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: Theme.Radius.md)
-                    .fill(Color(.secondarySystemBackground))
-            )
-            .padding(.horizontal, 20)
-        }
-        .padding(.bottom, 8)
-    }
-
-    private func bodyRegionIcon(for region: String) -> String {
-        let lower = region.lowercased()
-        if lower.contains("thigh") || lower.contains("leg") { return "figure.walk" }
-        if lower.contains("glute") || lower.contains("buttock") { return "figure.strengthtraining.traditional" }
-        if lower.contains("abdomen") || lower.contains("belly") { return "figure.core.training" }
-        if lower.contains("deltoid") || lower.contains("shoulder") { return "figure.archery" }
-        if lower.contains("arm") || lower.contains("forearm") { return "figure.arms.open" }
-        if lower.contains("hip") || lower.contains("ventrogluteal") { return "figure.wave" }
-        return "figure.stand"
     }
 
     // MARK: Edit view (customize regimen)
@@ -956,15 +875,7 @@ struct QuickDoseSheet: View {
                         .foregroundStyle(.secondary)
                 }
             }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                .fill(Theme.Colors.accentSecondary.opacity(0.13))
-        )
-        .padding(.horizontal, 20)
-        .overlay(alignment: .trailing) {
+
             Button {
                 quickSelectLastSites()
             } label: {
@@ -992,8 +903,14 @@ struct QuickDoseSheet: View {
                         .offset(y: -28)
                 }
             }
-            .padding(.trailing, 28)
         }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                .fill(Theme.Colors.accentSecondary.opacity(0.13))
+        )
+        .padding(.horizontal, 20)
     }
 
     // MARK: - Correction Lock Panel
