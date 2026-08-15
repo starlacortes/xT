@@ -241,7 +241,9 @@ struct FlatGraphView: View {
                 }
             }
             .onEnded { _ in
-                withAnimation(.easeOut(duration: 0.04)) {
+                // Snap-back ~45% faster than the original 0.04s hold so the
+                // estimated level returns to "now" quickly after lift-off.
+                withAnimation(.easeOut(duration: 0.022)) {
                     scrubFraction = nil
                     scrubValue = nil
                     scrubDate = nil

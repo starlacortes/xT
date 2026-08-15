@@ -6,7 +6,9 @@ import simd
 
 /// The six tappable regions of the Time whole-body diagram: five HRT body
 /// regions (matching the keys in `TimeBodyRegions.bodyRegions`) plus the head,
-/// which surfaces the "Mind" content.
+/// which surfaces the "Mind" content. The pelvic-facing anatomy is split as:
+/// belly/abdomen (its own region) vs. the merged hip + waist band — the
+/// midriff ring, hip bones, and small of the back all belong to `hips`.
 ///
 /// Anchors are in the world frame `BodyTransform` establishes: `+Y` up with the
 /// feet at `y = 0` and the crown near `y = 1.5`, `+Z` facing the camera, and
@@ -14,7 +16,7 @@ import simd
 /// the tapped surface point, so the head (which has no clinical injection zone)
 /// is handled the same way as the body regions.
 enum TimeRegionKey: String, CaseIterable, Identifiable {
-    case head, chest, waist, hips, glutes, thighs
+    case head, chest, abdomen, hips, glutes, thighs
 
     var id: String { rawValue }
 
@@ -25,23 +27,34 @@ enum TimeRegionKey: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .head:   return String(localized: "Mind")
-        case .chest:  return String(localized: "Chest")
-        case .waist:  return String(localized: "Waist")
-        case .hips:   return String(localized: "Hips")
-        case .glutes: return String(localized: "Glutes")
-        case .thighs: return String(localized: "Thighs")
+        case .head:    return String(localized: "Mind")
+        case .chest:   return String(localized: "Chest")
+        case .abdomen: return String(localized: "Abdomen")
+        case .hips:    return String(localized: "Hips / Waist")
+        case .glutes:  return String(localized: "Glutes")
+        case .thighs:  return String(localized: "Thighs")
         }
     }
 
+    /// Anchors define the nearest-anchor touch targets (see
+    /// `Coordinator.nearestRegion`) and double as camera focus points / glow
+    /// centers. Positions verified against the shipped body mesh (crown 1.50,
+    /// mouth 1.30, navel ≈ 0.90, butt crease ≈ 0.93):
+    /// - abdomen (0.94, z 0.09, far front) owns the belly — the navel resolves
+    ///   to Abdomen, and the chest boundary sits at y ≈ 1.04 (under the bust).
+    /// - hips (0.88, z ~0) owns the merged hip/waist band: from the front it
+    ///   takes over below the belly, and on the back it beats Glutes for the
+    ///   whole midriff, so the small of the back resolves to Hips / Waist.
+    /// - glutes (0.80, z −0.12) stays behind the body centerline so its cell
+    ///   only wins below the waistline on the back.
     var worldAnchor: SIMD3<Float> {
         switch self {
-        case .head:   return SIMD3<Float>(0.00, 1.40,  0.02)
-        case .chest:  return SIMD3<Float>(0.00, 1.14,  0.10)
-        case .waist:  return SIMD3<Float>(0.00, 0.98,  0.08)
-        case .hips:   return SIMD3<Float>(0.00, 0.88,  0.07)
-        case .glutes: return SIMD3<Float>(0.00, 0.86, -0.10)
-        case .thighs: return SIMD3<Float>(0.00, 0.55,  0.06)
+        case .head:    return SIMD3<Float>(0.00, 1.40,  0.02)
+        case .chest:   return SIMD3<Float>(0.00, 1.14,  0.10)
+        case .abdomen: return SIMD3<Float>(0.00, 0.94,  0.09)
+        case .hips:    return SIMD3<Float>(0.00, 0.88,  0.02)
+        case .glutes:  return SIMD3<Float>(0.00, 0.80, -0.12)
+        case .thighs:  return SIMD3<Float>(0.00, 0.55,  0.06)
         }
     }
 }
@@ -58,6 +71,7 @@ struct TimeBodyDiagramView: UIViewRepresentable {
     var bodyType: BodyType
     @Binding var selectedRegion: TimeRegionKey?
     var themeColor: Color
+    var activeColor: Color
     var reduceMotion: Bool
 
     func makeCoordinator() -> Coordinator { Coordinator() }
@@ -89,12 +103,20 @@ struct TimeBodyDiagramView: UIViewRepresentable {
         c.cameraNode = cameraNode
         c.reduceMotion = reduceMotion
         c.applyCamera()
+        // Show the resting constellation immediately — before any user tap — so
+        // the starfield is visible from the moment the view appears.
+        c.heatMapRenderer?.setConstellation(1.0, twinkle: !reduceMotion)
+        if let tc = c.appliedThemeColor {
+            c.heatMapRenderer?.setStarTint(
+                color: Coordinator.restingStarTint(from: tc), strength: 0.85)
+        }
         c.startLink()
 
         let tap = UITapGestureRecognizer(target: c, action: #selector(Coordinator.handleTap(_:)))
         scnView.addGestureRecognizer(tap)
 
         let pan = UIPanGestureRecognizer(target: c, action: #selector(Coordinator.handlePan(_:)))
+        pan.delegate = c
         scnView.addGestureRecognizer(pan)
 
         return scnView
@@ -107,9 +129,15 @@ struct TimeBodyDiagramView: UIViewRepresentable {
             withAnimation(.easeInOut(duration: 0.3)) { selectedRegion = region }
         }
 
-        if c.appliedThemeColor != themeColor {
+        if c.appliedThemeColor != themeColor || c.appliedActiveColor != activeColor {
             c.appliedThemeColor = themeColor
+            c.appliedActiveColor = activeColor
             c.skinMaterial?.diffuse.contents = UIColor(themeColor)
+            let isActive = c.appliedRegion != nil
+            let tint = isActive
+                ? Coordinator.activeStarTint(from: activeColor)
+                : Coordinator.restingStarTint(from: themeColor)
+            c.heatMapRenderer?.setStarTint(color: tint, strength: isActive ? 0.35 : 0.85)
         }
 
         if selectedRegion != c.appliedRegion {
@@ -120,6 +148,7 @@ struct TimeBodyDiagramView: UIViewRepresentable {
 
     static func dismantleUIView(_ uiView: SCNView, coordinator: Coordinator) {
         coordinator.stopLink()
+        coordinator.invalidateBurstEffect()
     }
 
     // MARK: - Scene setup
@@ -148,6 +177,55 @@ struct TimeBodyDiagramView: UIViewRepresentable {
         addLight(UIColor(red: 1.0, green: 0.96, blue: 0.90, alpha: 1.0), 820, SCNVector3(1.5, 2.5, 2.0), shadow: true)
         addLight(UIColor(red: 0.82, green: 0.88, blue: 1.00, alpha: 1.0), 380, SCNVector3(-1.5, 1.8, 1.0))
         addLight(UIColor(white: 0.72, alpha: 1.0), 500, SCNVector3(0, 1.5, -2.5))
+    }
+
+    /// A small gray floor card standing between the legs ("front" facing the body's
+    /// anatomical front, +Z; "back" facing −Z). The uniform starfield can hide which
+    /// way the body is facing, so this gives the viewer a grounded cue for the
+    /// rotation. It hangs off the world frame (not the wrapper) and the camera orbits
+    /// about its vertical line, so the label you can read is always the side you're
+    /// looking at. Height ≈ foot-to-ankle; excluded from region hit-tests by name.
+    private func addOrientationCard(to scene: SCNScene) {
+        let card = SCNNode()
+        card.addChildNode(makeCardFace(word: "front", isBack: false))
+        card.addChildNode(makeCardFace(word: "back", isBack: true))
+        card.position = SCNVector3(0, 0.055, 0)
+        scene.rootNode.addChildNode(card)
+    }
+
+    private func makeCardFace(word: String, isBack: Bool) -> SCNNode {
+        // Bake the gray fill + label into one image; rounded corners read via alpha.
+        // The label sits in the upper half of the card so it stays visible above the
+        // resting hint pill that overlaps the bottom of the screen at foot level.
+        let px = CGSize(width: 512, height: 384)
+        let img = UIGraphicsImageRenderer(size: px).image { _ in
+            UIColor(red: 0.62, green: 0.63, blue: 0.65, alpha: 1.0).setFill()
+            UIBezierPath(roundedRect: CGRect(origin: .zero, size: px), cornerRadius: 56).fill()
+            let str = NSAttributedString(string: word, attributes: [
+                .font: UIFont.systemFont(ofSize: 124, weight: .semibold),
+                .foregroundColor: UIColor(red: 0.16, green: 0.17, blue: 0.19, alpha: 1.0),
+                .kern: 2.0
+            ])
+            let s = str.size()
+            str.draw(at: CGPoint(x: (px.width - s.width) / 2, y: px.height * 0.44 - s.height / 2))
+        }
+        let mat = SCNMaterial()
+        mat.diffuse.contents = img
+        mat.lightingModel = .constant   // stays readable through brightness/lighting shifts
+        mat.isDoubleSided = false
+        let face = SCNNode(geometry: SCNPlane(width: 0.15, height: 0.11))
+        face.geometry?.materials = [mat]
+        face.name = Coordinator.orientationCardName
+        face.castsShadow = false
+        if isBack {
+            // A plane rotated π about Y with a normally-drawn texture reads correctly
+            // when viewed from behind (no pre-mirroring needed).
+            face.eulerAngles.y = .pi
+            face.position.z = -0.0025
+        } else {
+            face.position.z = 0.0025
+        }
+        return face
     }
 
     private func loadBody(into scene: SCNScene, scnView: SCNView, context: Context) {
@@ -193,6 +271,7 @@ struct TimeBodyDiagramView: UIViewRepresentable {
             return
         }
         transform.apply(to: wrapper)
+        addOrientationCard(to: scene)
 
         let skin = SCNMaterial()
         skin.lightingModel = .physicallyBased
@@ -200,13 +279,32 @@ struct TimeBodyDiagramView: UIViewRepresentable {
         skin.roughness.contents = Float(0.62)
         skin.metalness.contents = Float(0.0)
         skin.isDoubleSided = false
+        // Alpha blending + no depth writes let the shader fade the skin to
+        // fully transparent (u_constellation = 1) without occluding the star
+        // points. The node stays at opacity 1 so hit-testing still works.
+        skin.blendMode = .alpha
+        skin.writesToDepthBuffer = false
         wrapper.enumerateChildNodes { node, _ in
-            if node.geometry != nil { node.geometry?.materials = [skin] }
+            if node.geometry != nil {
+                // Hide eye meshes if the model has them as separate nodes —
+                // only in the Time diagram, not QuickDose. The shipped
+                // body_neutral/feminine/masculine USDZs are single-mesh
+                // ("base_body_*") with no eye nodes, so this is a safety net
+                // for future models; the shipped models' face glare is handled
+                // by the star-cluster filter below.
+                if let n = node.name?.lowercased(),
+                   ["eye", "cornea", "iris", "pupil", "sclera"].contains(where: n.contains) {
+                    node.isHidden = true
+                    return
+                }
+                node.geometry?.materials = [skin]
+            }
         }
 
         let c = context.coordinator
         c.skinMaterial = skin
         c.appliedThemeColor = themeColor
+        c.appliedActiveColor = activeColor
 
         guard let device = scnView.device else {
             print("[TimeBodyDiagramView] ⚠️ No Metal device")
@@ -234,7 +332,36 @@ struct TimeBodyDiagramView: UIViewRepresentable {
             if count > mostVertices { mostVertices = count; meshNode = node }
         }
         if let meshNode, let vertexSource = meshNode.geometry?.sources(for: .vertex).first {
-            let positions = StarFieldGeometry.readPositions(vertexSource)
+            var positions = StarFieldGeometry.readPositions(vertexSource)
+            // Density-normalize the head to an even star field. The USDZ mesh
+            // packs far more vertices into facial features (eyes, mouth, ears,
+            // nose) than into the scalp, so raw additive stars saturate into
+            // glaring facial blobs — a bright nose/glabella triangle — while
+            // simply deleting those clusters punched unsettling dark voids in
+            // the face. Keeping at most one vertex per ~14 mm world-grid cell
+            // gives the head a uniform constellation texture: no features
+            // emerge, and no holes appear either. Everything below the chin
+            // keeps the mesh's natural vertex distribution, which is already
+            // even there. World frame: crown ≈ 1.50, chin ≈ 1.26.
+            let M = simd_float4x4(meshNode.worldTransform)
+            let headCutY: Float = 1.26
+            let cell: Float = 0.014
+            var used = Set<SIMD3<Int>>()
+            used.reserveCapacity(positions.count / 8)
+            var kept: [SIMD3<Float>] = []
+            kept.reserveCapacity(positions.count)
+            for p in positions {
+                let w4 = M * SIMD4<Float>(p, 1)
+                let w = SIMD3<Float>(w4.x, w4.y, w4.z) / w4.w
+                if w.y >= headCutY {
+                    let key = SIMD3<Int>(Int(floor(w.x / cell)),
+                                         Int(floor(w.y / cell)),
+                                         Int(floor(w.z / cell)))
+                    if !used.insert(key).inserted { continue }
+                }
+                kept.append(p)
+            }
+            positions = kept
             let starNode = SCNNode(geometry: StarFieldGeometry.make(positions: positions))
             starNode.transform = meshNode.worldTransform
             starNode.opacity = 0
@@ -243,6 +370,10 @@ struct TimeBodyDiagramView: UIViewRepresentable {
             starNode.renderingOrder = 10   // draw after the fading skin
             scene.rootNode.addChildNode(starNode)
             renderer.attachStarField(starNode: starNode, bodyNode: wrapper)
+            // Keep the body mesh at opacity 1 so SceneKit hit-tests still find
+            // it when constellation = 1; the shader darkness + star overlay
+            // provides the visual hiding.
+            renderer.keepBodyOpacityAtOne = true
             c.starNode = starNode
         } else {
             print("[TimeBodyDiagramView] ⚠️ No mesh geometry found for starfield")
@@ -252,7 +383,7 @@ struct TimeBodyDiagramView: UIViewRepresentable {
     // MARK: - Coordinator
 
     @MainActor
-    final class Coordinator: NSObject {
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
 
         struct FocusConfig {
             var yaw: Float
@@ -262,6 +393,13 @@ struct TimeBodyDiagramView: UIViewRepresentable {
             var biasX: Float
             var biasY: Float
             var constellation: Float
+
+            /// Shortest signed angular offset from `a` to `b`, in (-π, π] —
+            /// the "short way round" between two angles regardless of how many
+            /// full turns `a` has accumulated.
+            static func wrappedDelta(from a: Float, to b: Float) -> Float {
+                atan2(sin(b - a), cos(b - a))
+            }
 
             static func lerp(_ a: FocusConfig, _ b: FocusConfig, _ t: Float) -> FocusConfig {
                 func l(_ x: Float, _ y: Float) -> Float { x + (y - x) * t }
@@ -282,10 +420,14 @@ struct TimeBodyDiagramView: UIViewRepresentable {
         weak var skinMaterial: SCNMaterial?
         weak var starNode: SCNNode?
         var heatMapRenderer: HeatMap3DRenderer?
+        /// Playful tap-constellation bursts; owns its own display link (this
+        /// Coordinator's link pauses while a region is selected).
+        private let burstEffect = ConstellationBurstEffect()
 
         var reduceMotion = false
         var appliedRegion: TimeRegionKey?
         var appliedThemeColor: Color?
+        var appliedActiveColor: Color?
         var onSelectRegion: ((TimeRegionKey?) -> Void)?
 
         private let idleSpeed: Float = 0.085
@@ -303,14 +445,37 @@ struct TimeBodyDiagramView: UIViewRepresentable {
 
         static func restingConfig(startYaw: Float) -> FocusConfig {
             // A level orbit (pitch 0) about the body's vertical midline keeps the
-            // idle rotation even rather than looking lop-sided. lookAt.y = 0.67
-            // sits the body in the visible area (below the hero header, with the
-            // feet clear of the tab bar) rather than the raw screen centre.
+            // idle rotation even rather than looking lop-sided. lookAt.y = 0.635
+            // is between the original 0.67 framing (feet tucked behind the hint
+            // pill — now moot since the pill auto-hides after 3 s) and the 0.60
+            // lift used when the pill was permanent.
+            // constellation: 1 — the body shows as a starfield even at rest,
+            // tinted to a muted shade of the theme; the active state uses a
+            // brighter tint variant (see restingStarTint / activeStarTint).
             FocusConfig(yaw: startYaw, pitch: 0.0, distance: 2.6,
-                        lookAt: SIMD3<Float>(0, 0.67, 0), biasX: 0, biasY: 0, constellation: 0)
+                        lookAt: SIMD3<Float>(0, 0.635, 0), biasX: 0, biasY: 0, constellation: 1)
         }
 
-        private func focusConfig(for key: TimeRegionKey, startYaw: Float) -> FocusConfig {
+        // MARK: Star tint helpers
+
+        /// Dim, slightly cool-shifted version of the theme color for the resting starfield.
+        static func restingStarTint(from color: Color) -> SIMD3<Float> {
+            var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+            UIColor(color).getRed(&r, green: &g, blue: &b, alpha: &a)
+            // Scaled up from the original *0.38/*0.48: the muted secondary accent
+            // read as plain gray against the black backdrop once the skin is fully
+            // transparent — this keeps enough luminance to register as lavender.
+            return SIMD3<Float>(Float(r * 0.55), Float(g * 0.55), Float(b * 0.62))
+        }
+
+        /// Brightened version of the theme color for the active / region-selected starfield.
+        static func activeStarTint(from color: Color) -> SIMD3<Float> {
+            var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+            UIColor(color).getRed(&r, green: &g, blue: &b, alpha: &a)
+            return SIMD3<Float>(Float(min(1, r * 1.2)), Float(min(1, g * 1.1)), Float(min(1, b * 1.3)))
+        }
+
+        private func focusConfig(for key: TimeRegionKey) -> FocusConfig {
             if key.isMind {
                 // Zoom into the head from the anatomical-left with a slight downward
                 // tilt. biasY = 0.12 nudges the head below viewport centre so the
@@ -334,15 +499,30 @@ struct TimeBodyDiagramView: UIViewRepresentable {
             link?.isPaused = false
             from = current
             if let region {
-                to = focusConfig(for: region, startYaw: current.yaw)
+                var t = focusConfig(for: region)
+                // Idle spin accumulates unbounded yaw (`current.yaw` can be
+                // tens of radians) while the focus preset's yaw is a small
+                // wrapped value — interpolating straight between them would
+                // unwind every accumulated turn in a single animation, which
+                // reads as a violent spin. Wrap the target onto the nearest
+                // equivalent angle so the camera travels at most half a turn,
+                // the short way round.
+                t.yaw = current.yaw + FocusConfig.wrappedDelta(from: current.yaw, to: t.yaw)
+                to = t
                 hasSelection = true
                 let a = region.worldAnchor
                 heatMapRenderer?.setRegionGlow(center: SCNVector3(a.x, a.y, a.z),
                                                radius: region.isMind ? 0.30 : 0.30)
+                if let ac = appliedActiveColor {
+                    heatMapRenderer?.setStarTint(color: Self.activeStarTint(from: ac), strength: 0.30)
+                }
             } else {
                 to = Coordinator.restingConfig(startYaw: current.yaw)
                 hasSelection = false
                 heatMapRenderer?.setRegionGlow(center: nil, radius: 0)
+                if let tc = appliedThemeColor {
+                    heatMapRenderer?.setStarTint(color: Self.restingStarTint(from: tc), strength: 0.85)
+                }
             }
 
             if reduceMotion {
@@ -359,22 +539,51 @@ struct TimeBodyDiagramView: UIViewRepresentable {
 
         // MARK: Tap
 
+        /// Node name for the front/back floor card — excluded from region hit-tests so a
+        /// tap through it behaves like a tap on empty space (i.e. dismisses the card).
+        static let orientationCardName = "timeOrientationCard"
+
+        /// Node name for the playful tap-constellation bursts — excluded from
+        /// region hit-tests so tapping through an active burst still resolves
+        /// against the body surface behind it.
+        static let burstNodeName = ConstellationBurstEffect.nodeName
+
         @objc func handleTap(_ gesture: UITapGestureRecognizer) {
             guard let view = scnView else { return }
             let pt = gesture.location(in: view)
             let results = view.hitTest(pt, options: [
-                .searchMode: SCNHitTestSearchMode.closest.rawValue,
+                .searchMode: SCNHitTestSearchMode.all.rawValue,
                 .boundingBoxOnly: false
             ])
-            // Skip the star point cloud so taps always resolve against the body
-            // surface, even mid-dissolve.
-            guard let hit = results.first(where: { $0.node.geometry != nil && $0.node !== starNode }) else { return }
+            // Skip the star point cloud and the orientation card so taps always resolve
+            // against the body surface — the star node is always rendered now, so .all
+            // mode is needed to reach the body mesh behind the points.
+            guard let hit = results.first(where: {
+                        $0.node.geometry != nil
+                        && $0.node !== starNode
+                        && $0.node.name != Self.orientationCardName
+                        && $0.node.name != Self.burstNodeName
+                    }) else {
+                // Tap landed on open space: dismiss the open detail card. (Tapping a
+                // different body region still switches regions, so a landing that hits
+                // the body never reaches this branch.)
+                if appliedRegion != nil { onSelectRegion?(nil) }
+                return
+            }
 
             let world = hit.worldCoordinates
             let region = Self.nearestRegion(to: SIMD3<Float>(Float(world.x), Float(world.y), Float(world.z)))
 
             if let mat = skinMaterial {
                 heatMapRenderer?.triggerRipple(at: world, material: mat, currentTime: CACurrentMediaTime())
+            }
+            // Poke first so still-alive bursts flare; the fresh spawn below
+            // starts un-flared and draws in on its own schedule.
+            burstEffect.poke()
+            if let scene = view.scene {
+                burstEffect.spawn(at: world, normal: hit.worldNormal, in: scene,
+                                  reduceMotion: reduceMotion,
+                                  lightMode: false)
             }
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
 
@@ -391,7 +600,7 @@ struct TimeBodyDiagramView: UIViewRepresentable {
                 link?.isPaused = false
             }
             let delta = gesture.translation(in: view)
-            current.yaw -= Float(delta.x) * 0.005
+            current.yaw -= Float(delta.x) * 0.006
             applyCamera()
             gesture.setTranslation(.zero, in: view)
             if (gesture.state == .ended || gesture.state == .cancelled) && hasSelection {
@@ -399,12 +608,24 @@ struct TimeBodyDiagramView: UIViewRepresentable {
             }
         }
 
+        /// Let the pan coexist with any other recognizer that might otherwise
+        /// silently win the drag (e.g. the tap recognizer or a future SwiftUI
+        /// gesture layered over the SceneKit view).
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
+                               shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
+            true
+        }
+
         static func nearestRegion(to p: SIMD3<Float>) -> TimeRegionKey {
             // The head is a small target and idle rotation orbits the camera (not the
-            // body), so a hit's world-Y is a stable, orientation-independent cue: any
-            // tap above the shoulders resolves to the head/Mind, making it reliable to
-            // hit without stealing the chest (anchored at y ≈ 1.14).
-            if p.y >= 1.30 { return .head }
+            // body), so a hit's world-Y is a stable, orientation-independent cue.
+            // Verified against the mesh: crown 1.50, chin ≈ 1.26, shoulder/trap
+            // tops reach y = 1.266 — so the cut must sit at 1.28 (above the
+            // shoulders, below the jaw). A narrow throat column extends Mind
+            // down to the collar line (y 1.22) without stealing the lateral
+            // trapezius for it (|x| > 0.065 keeps shoulders on Chest).
+            if p.y >= 1.28 { return .head }
+            if p.y >= 1.22, abs(p.x) < 0.065, p.z > -0.06 { return .head }
             return TimeRegionKey.allCases
                 .filter { $0 != .head }
                 .min { simd_distance($0.worldAnchor, p) < simd_distance($1.worldAnchor, p) }!
@@ -422,6 +643,12 @@ struct TimeBodyDiagramView: UIViewRepresentable {
         func stopLink() {
             link?.invalidate()
             link = nil
+        }
+
+        /// Tears down any in-flight tap-constellation bursts (their display
+        /// link, and their scene nodes).
+        func invalidateBurstEffect() {
+            burstEffect.invalidate()
         }
 
         @objc private func tick() {

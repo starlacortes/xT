@@ -27,12 +27,16 @@ class JournalManager {
 
     // CRUD operations
     func addEntry(_ entry: JournalEntry) {
-        entries.insert(entry, at: 0)
-        guard let context = modelContext else { return }
+        guard let context = modelContext else {
+            print("[JournalManager] Cannot save entry: no model context")
+            return
+        }
         context.insert(entry)
         do {
             try context.save()
+            entries.insert(entry, at: 0)
         } catch {
+            context.delete(entry)
             print("[JournalManager] Failed to save entry: \(error)")
         }
     }
@@ -51,12 +55,13 @@ class JournalManager {
             let allEntries = try context.fetch(FetchDescriptor<JournalEntry>())
             entries = allEntries.sorted { $0.date > $1.date } // newest first
         } catch {
-            print("[JournalManager] Failed to load entries: \(error)")
-            entries = []
+            print("[JournalManager] Failed to load entries: \(error) — keeping existing in-memory state")
+            return
         }
 
         if entries.isEmpty {
             currentMood = .neutral
+            currentSymptoms = []
         } else if let lastEntry = entries.first {
             currentMood = lastEntry.mood
             currentSymptoms = lastEntry.symptoms

@@ -18,6 +18,7 @@ import SwiftUI
 
 struct TimeView: View {
     @Environment(\.medicationManager) private var medicationManager
+    @Environment(\.themeManager) private var themeManager
 
     // Tier milestone celebration.
     @AppStorage("lastSeenTierRawValue") private var lastSeenTierRawValue: String = ""
@@ -57,7 +58,14 @@ struct TimeView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color(.systemBackground).ignoresSafeArea()
+                // Near-black "space" backdrop, faintly hued toward the user's
+                // theme accent — constant in both appearances so the
+                // constellation starfield always sits on a night sky.
+                ZStack {
+                    Color.black
+                    themeManager.palette.accent.opacity(0.07)
+                }
+                .ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     TimeHeroHeader(engine: engine)
@@ -71,7 +79,6 @@ struct TimeView: View {
                 }
             }
             .toolbar(.hidden, for: .navigationBar)
-            .background(Color(.systemBackground).ignoresSafeArea())
             .onAppear {
                 medicationManager.refreshState()
                 checkForTierTransition()
@@ -133,11 +140,13 @@ struct TimeHeroHeader: View {
             Text(verbatim: AppNumberFormatters.percent.string(engine.months))
                 .font(.system(size: 42, weight: .bold))
                 .tracking(-1.5)
-                .foregroundStyle(Color.primary)
+                // The Time screen's backdrop is near-black in both appearances,
+                // so the header uses explicit light text rather than adaptive.
+                .foregroundStyle(Color.white)
 
             Text("Months")
                 .font(.system(size: 20, weight: .semibold))
-                .foregroundStyle(Color.secondary)
+                .foregroundStyle(Color.white.opacity(0.65))
 
             Spacer(minLength: 12)
 
@@ -145,7 +154,7 @@ struct TimeHeroHeader: View {
             HStack(spacing: 6) {
                 Text("\(esterLabel) · \(engine.medication)")
                     .font(.system(size: 13))
-                    .foregroundStyle(Color.secondary)
+                    .foregroundStyle(Color.white.opacity(0.65))
                     .lineLimit(1)
 
                 if let rate = engine.adherenceRate {
@@ -154,7 +163,7 @@ struct TimeHeroHeader: View {
                         .frame(width: 7, height: 7)
                     Text(verbatim: "\(AppNumberFormatters.percent.string(rate * 100))%")
                         .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(Color.secondary)
+                        .foregroundStyle(Color.white.opacity(0.65))
                 }
             }
         }

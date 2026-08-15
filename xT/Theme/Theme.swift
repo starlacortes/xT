@@ -322,7 +322,7 @@ struct GlassCardModifier: ViewModifier {
     func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {
             content
-                .glassEffect(.regular.tint(tint.opacity(tintOpacity)).interactive(), in: .rect(cornerRadius: cornerRadius))
+                .glassEffect(.regular.tint(tint.opacity(tintOpacity)), in: .rect(cornerRadius: cornerRadius))
         } else {
             content
                 .background(.ultraThinMaterial)

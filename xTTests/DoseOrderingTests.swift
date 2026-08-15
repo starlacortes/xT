@@ -99,7 +99,7 @@ final class DoseOrderingTests: XCTestCase {
         manager.doseHistory.last?.isDeleted = true
 
         XCTAssertEqual(manager.latestActiveDose()?.doseAmount, 3.0,
-                       "a soft-deleted newest dose must fall through to the one before it")
+                       "an inactive newest dose must fall through to the one before it")
     }
 
     @MainActor func testLatestDoseIsNilForEmptyHistory() {

@@ -98,11 +98,16 @@ struct BodyModel3DView: UIViewRepresentable {
         context.coordinator.centroidStore  = ZoneCentroidStore.shared
         context.coordinator.renderHeatMap()
 
+        let coordinator = context.coordinator
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-            context.coordinator.renderHeatMap()
+            coordinator.renderHeatMap()
         }
 
         return scnView
+    }
+
+    static func dismantleUIView(_ uiView: SCNView, coordinator: Coordinator) {
+        coordinator.tearDown()
     }
 
     func updateUIView(_ uiView: SCNView, context: Context) {
@@ -435,6 +440,13 @@ struct BodyModel3DView: UIViewRepresentable {
                 cameraAnimLink?.invalidate()
                 cameraAnimLink = nil
             }
+        }
+
+        func tearDown() {
+            cameraAnimLink?.invalidate()
+            cameraAnimLink = nil
+            heatMapRenderer?.stopDisplayLink()
+            heatMapRenderer = nil
         }
 
         private func applyCameraPosition(animated: Bool) {

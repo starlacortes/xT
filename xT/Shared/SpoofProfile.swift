@@ -287,7 +287,7 @@ enum SpoofProfile {
                 doseCount += 1
             }
 
-            let lastTaken = mm.doseHistory.last { $0.doseStatus == DoseStatus.taken.rawValue && !$0.isDeleted }
+            let lastTaken = mm.doseHistory.last { $0.doseStatus == DoseStatus.taken.rawValue }
             if let lastTaken {
                 mm.lastDoseDate = lastTaken.doseDate
                 mm.nextDoseDate = calendar.date(byAdding: .day, value: 5, to: lastTaken.doseDate)
@@ -389,7 +389,7 @@ enum SpoofProfile {
                 phase2First = false
             }
 
-            let lastTaken = mm.doseHistory.last { $0.doseStatus == DoseStatus.taken.rawValue && !$0.isDeleted }
+            let lastTaken = mm.doseHistory.last { $0.doseStatus == DoseStatus.taken.rawValue }
             if let lastTaken {
                 mm.lastDoseDate = lastTaken.doseDate
                 mm.nextDoseDate = calendar.date(byAdding: .day, value: 14, to: lastTaken.doseDate)
@@ -465,7 +465,7 @@ enum SpoofProfile {
                 phase2First = false
             }
 
-            let lastTaken = mm.doseHistory.last { $0.doseStatus == DoseStatus.taken.rawValue && !$0.isDeleted }
+            let lastTaken = mm.doseHistory.last { $0.doseStatus == DoseStatus.taken.rawValue }
             if let lastTaken {
                 mm.lastDoseDate = lastTaken.doseDate
                 mm.nextDoseDate = calendar.date(byAdding: .day, value: 7, to: lastTaken.doseDate)
@@ -535,7 +535,7 @@ enum SpoofProfile {
                 doseCount += 1
             }
 
-            let lastTaken = mm.doseHistory.last { $0.doseStatus == DoseStatus.taken.rawValue && !$0.isDeleted }
+            let lastTaken = mm.doseHistory.last { $0.doseStatus == DoseStatus.taken.rawValue }
             if let lastTaken {
                 mm.lastDoseDate = lastTaken.doseDate
                 mm.nextDoseDate = calendar.date(byAdding: .day, value: 1, to: lastTaken.doseDate)
@@ -574,7 +574,7 @@ enum SpoofProfile {
                 doseCount += 1
             }
 
-            let lastTaken = mm.doseHistory.last { $0.doseStatus == DoseStatus.taken.rawValue && !$0.isDeleted }
+            let lastTaken = mm.doseHistory.last { $0.doseStatus == DoseStatus.taken.rawValue }
             if let lastTaken {
                 mm.lastDoseDate = lastTaken.doseDate
                 mm.nextDoseDate = calendar.date(byAdding: .day, value: 1, to: lastTaken.doseDate)
@@ -615,7 +615,7 @@ enum SpoofProfile {
                 doseCount += 1
             }
 
-            let lastTaken = mm.doseHistory.last { $0.doseStatus == DoseStatus.taken.rawValue && !$0.isDeleted }
+            let lastTaken = mm.doseHistory.last { $0.doseStatus == DoseStatus.taken.rawValue }
             if let lastTaken {
                 mm.lastDoseDate = lastTaken.doseDate
                 mm.nextDoseDate = calendar.date(byAdding: .day, value: 7, to: lastTaken.doseDate)
@@ -664,7 +664,7 @@ enum SpoofProfile {
                 doseCount += 1
             }
 
-            let lastTaken = mm.doseHistory.last { $0.doseStatus == DoseStatus.taken.rawValue && !$0.isDeleted }
+            let lastTaken = mm.doseHistory.last { $0.doseStatus == DoseStatus.taken.rawValue }
             if let lastTaken {
                 mm.lastDoseDate = lastTaken.doseDate
                 mm.nextDoseDate = calendar.date(byAdding: .day, value: 10, to: lastTaken.doseDate)

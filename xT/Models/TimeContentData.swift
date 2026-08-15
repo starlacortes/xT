@@ -337,7 +337,8 @@ struct TimeContentEngine {
                 icon: "brain",
                 palette: .purple,
                 progressLabel: estrogenMoodLabel(tier: tier, months: months),
-                systemKey: .moodAndMind
+                systemKey: .moodAndMind,
+                focusText: bodySystemFocus(for: .moodAndMind)
             ),
             TimeBodySystem(
                 title: "Skin & glow",
@@ -345,7 +346,8 @@ struct TimeContentEngine {
                 icon: "sparkles",
                 palette: .teal,
                 progressLabel: estrogenSkinLabel(tier: tier, months: months),
-                systemKey: .skinAndGlow
+                systemKey: .skinAndGlow,
+                focusText: bodySystemFocus(for: .skinAndGlow)
             ),
             TimeBodySystem(
                 title: "Body shape",
@@ -353,7 +355,8 @@ struct TimeContentEngine {
                 icon: "body-scan",
                 palette: .amber,
                 progressLabel: estrogenBodyLabel(tier: tier, months: months),
-                systemKey: .bodyShape
+                systemKey: .bodyShape,
+                focusText: bodySystemFocus(for: .bodyShape)
             ),
             TimeBodySystem(
                 title: "Your cycle",
@@ -361,7 +364,8 @@ struct TimeContentEngine {
                 icon: "heart-rate-monitor",
                 palette: .pink,
                 progressLabel: "Day \(dayOfCycle) of \(cycleLengthDays)",
-                systemKey: .yourCycle
+                systemKey: .yourCycle,
+                focusText: bodySystemFocus(for: .yourCycle)
             ),
         ]
     }
@@ -376,7 +380,8 @@ struct TimeContentEngine {
                 icon: "microphone",
                 palette: .purple,
                 progressLabel: testosteroneVoiceLabel(tier: tier, months: months),
-                systemKey: .voice
+                systemKey: .voice,
+                focusText: bodySystemFocus(for: .voice)
             ),
             TimeBodySystem(
                 title: "Skin & hair",
@@ -384,7 +389,8 @@ struct TimeContentEngine {
                 icon: "sparkles",
                 palette: .amber,
                 progressLabel: testosteroneSkinLabel(tier: tier, months: months),
-                systemKey: .skinAndHair
+                systemKey: .skinAndHair,
+                focusText: bodySystemFocus(for: .skinAndHair)
             ),
             TimeBodySystem(
                 title: "Muscle & strength",
@@ -392,7 +398,8 @@ struct TimeContentEngine {
                 icon: "body-scan",
                 palette: .teal,
                 progressLabel: testosteroneMuscleLabel(tier: tier, months: months),
-                systemKey: .muscleStrength
+                systemKey: .muscleStrength,
+                focusText: bodySystemFocus(for: .muscleStrength)
             ),
             TimeBodySystem(
                 title: "Your cycle",
@@ -400,7 +407,8 @@ struct TimeContentEngine {
                 icon: "heart-rate-monitor",
                 palette: .pink,
                 progressLabel: "Day \(dayOfCycle) of \(cycleLengthDays)",
-                systemKey: .yourCycle
+                systemKey: .yourCycle,
+                focusText: bodySystemFocus(for: .yourCycle)
             ),
         ]
     }
@@ -908,6 +916,78 @@ struct TimeContentEngine {
             return estrogenDetail(for: systemKey)
         } else {
             return testosteroneDetail(for: systemKey)
+        }
+    }
+
+    // MARK: - Body System Month Focus
+
+    /// Returns a month-specific factual focus sentence for the given body
+    /// system. This is the per-month content that updates continuously as
+    /// months progress, even when the tier-level copy is unchanged.
+    ///
+    /// Maps each `BodySystemKey` to the most relevant `BodyRegion` and returns
+    /// its `focusText(at:)`. If no region-specific focus is available, falls
+    /// back to the timeline text for the current tier.
+    func bodySystemFocus(for systemKey: BodySystemKey) -> String {
+        let regions: [BodyRegion]
+        let regionKey: String?
+
+        switch systemKey {
+        case .moodAndMind:
+            regions = isEstrogen ? TimeBodyRegions.mindRegions : TimeBodyRegions.mindRegionsT
+            regionKey = "hippocampus"
+        case .skinAndGlow:
+            regions = TimeBodyRegions.bodyRegions
+            regionKey = "abdomen"
+        case .bodyShape:
+            regions = TimeBodyRegions.bodyRegions
+            regionKey = "hips"
+        case .yourCycle:
+            return cycleFocusText
+        case .voice:
+            regions = TimeBodyRegions.bodyRegionsT
+            regionKey = "chest"
+        case .skinAndHair:
+            regions = TimeBodyRegions.bodyRegionsT
+            regionKey = "chest"
+        case .muscleStrength:
+            regions = TimeBodyRegions.bodyRegionsT
+            regionKey = "thighs"
+        }
+
+        if let regionKey,
+           let region = regions.first(where: { $0.key == regionKey }),
+           let focus = region.focusText(at: activeMonthsOnHRT) {
+            return focus
+        }
+
+        return tierFallbackFocus(for: systemKey)
+    }
+
+    private var isEstrogen: Bool { medication == "Estrogen" }
+
+    /// Fallback: if no month-band focus is authored, use the timeline text
+    /// for the current tier so the card still has fresh, relevant content.
+    private func tierFallbackFocus(for systemKey: BodySystemKey) -> String {
+        let detail = bodySystemDetail(for: systemKey)
+        return detail.timelineText
+    }
+
+    /// Cycle focus is tenure-aware but not region-mapped. It describes what's
+    /// happening pharmacokinetically at the current tenure.
+    private var cycleFocusText: String {
+        let tier = tenureTier
+        switch tier {
+        case .t1Beginning, .t2Emerging, .t3InMotion:
+            return String(localized: "Your dose cycle is still stabilizing. Peak-to-trough variation is at its widest during the first months — tracking how you feel across the cycle helps establish your personal pattern.")
+        case .t4Deepening:
+            return String(localized: "Your cycle pattern is well established by now. The peak-to-trough swing is predictable from your dosing date, and any trough-related symptoms are identifiable.")
+        case .t5Settled:
+            return String(localized: "Cycle rhythm is stable and unremarkable at this stage. If you still notice trough effects, a shorter interval or longer-acting ester can flatten the curve.")
+        case .t6Rooted:
+            return String(localized: "Cycle rhythm is fully established after several years. No changes are needed unless something shifts; periodic labs confirm levels remain appropriate.")
+        case .t7Veteran:
+            return String(localized: "Dosing is maintenance after a decade. Your rhythm is long established — labs every 6–12 months confirm stability.")
         }
     }
 

@@ -51,18 +51,17 @@ struct SettingsView: View {
                     Divider()
                         .opacity(0.5)
 
-                    VStack(spacing: 32) {
-                        settingsMedicationSection
-                        settingsBodyZonesSection
-                        settingsLevelsTargetsSection
-                        settingsHistorySection
-                        settingsNotificationsSection
-                        settingsAppearanceSection
-                        settingsPrivacySection
+                    quickAccessCards
+                        .padding(.top, 24)
+
+                     VStack(spacing: 32) {
+                        settingsMedicationBodySection
+                        settingsHealthHistorySection
+                        settingsAppSection
                         settingsAboutSection
                         settingsResetSection
                     }
-                    .padding(.top, 24)
+                    .padding(.top, 28)
                     .padding(.bottom, 48)
                 }
             }
@@ -107,40 +106,23 @@ struct SettingsView: View {
     // MARK: - Profile Header Block
 
     private var profileHeaderBlock: some View {
-        VStack(spacing: 14) {
+        HStack(spacing: 16) {
             if let img = profileManager.profileImage {
-                // Large borderless circle photo
                 Image(uiImage: img)
                     .resizable()
                     .scaledToFill()
-                    .frame(width: 120, height: 120)
+                    .frame(width: 56, height: 56)
                     .clipShape(Circle())
-
-                Text(profileManager.profileDisplayName)
-                    .font(Theme.Fonts.headline)
-                    .foregroundStyle(.primary)
-
-            } else if !profileManager.profileName.isEmpty {
-                // Name in large gradient text (no photo)
-                Text(profileManager.profileName)
-                    .font(.system(size: 48, weight: .bold))
-                    .tracking(-1.0)
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: Theme.Gradients.brandColors,
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 22)
-
             } else {
-                // No photo, no name — gradient circle placeholder
                 Circle()
                     .fill(Theme.Gradients.brand)
-                    .frame(width: 120, height: 120)
+                    .frame(width: 56, height: 56)
             }
+
+            Text(profileManager.profileDisplayName.isEmpty ? profileManager.profileName : profileManager.profileDisplayName)
+                .font(Theme.Fonts.headline)
+                .foregroundStyle(.primary)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
             NavigationLink(destination: ProfileEditorView()) {
                 Text("Edit Profile")
@@ -148,44 +130,123 @@ struct SettingsView: View {
                     .foregroundStyle(Theme.Colors.accent)
             }
             .buttonStyle(.plain)
-
-            // Stats strip
-            if medicationManager.isFullyConfigured {
-                HStack(spacing: 0) {
-                    statItem(value: levelString, label: "level")
-                    Divider().frame(height: 28)
-                    statItem(value: nextDoseString, label: "next dose")
-                    Divider().frame(height: 28)
-                    statItem(value: "\(medicationManager.monthsOnHRT) mo", label: "on HRT")
-                }
-                .padding(.top, 4)
-            }
         }
         .frame(maxWidth: .infinity)
+        .padding(.horizontal, 22)
         .padding(.top, 40)
         .padding(.bottom, 28)
     }
 
-    private func statItem(value: String, label: String) -> some View {
-        VStack(spacing: 2) {
-            Text(value)
-                .font(Theme.Fonts.callout)
-                .fontWeight(.medium)
-                .foregroundStyle(.primary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-            Text(label)
-                .font(Theme.Fonts.micro)
-                .foregroundStyle(.secondary)
+    // MARK: - Quick Access Cards
+
+    private var quickAccessCards: some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 12) {
+                quickCard(icon: "pills.fill",
+                          iconBg: Theme.Colors.Time.cycle.surface,
+                          iconColor: Theme.Colors.Time.cycle.base,
+                          title: "Medication",
+                          subtitle: medicationManager.medicationDisplayInfo) {
+                    showingTypeMethodSheet = true
+                }
+                .buttonStyle(.pressable)
+
+                quickCard(icon: "flask",
+                          iconBg: Theme.Colors.Time.mind.surface,
+                          iconColor: Theme.Colors.Time.mind.base,
+                          title: "Schedule",
+                          subtitle: nextDoseSubtitle) {
+                    showingDoseScheduleSheet = true
+                }
+                .buttonStyle(.pressable)
+            }
+
+            HStack(spacing: 12) {
+                NavigationLink {
+                    ThemeSettingsView()
+                } label: {
+                    quickCard(icon: "paintbrush.fill",
+                              iconBg: Theme.Colors.accent.opacity(0.13),
+                              iconColor: Theme.Colors.accent,
+                              title: "Theme",
+                              subtitle: "Choose the app's color")
+                }
+                .buttonStyle(.pressable)
+
+                NavigationLink {
+                    AppLockSettingsView()
+                } label: {
+                    quickCard(icon: "lock.fill",
+                              iconBg: Theme.Colors.neutralSurface,
+                              iconColor: Theme.Colors.textSecondary,
+                              title: "App lock",
+                              subtitle: privacyLockSubtitle)
+                }
+                .buttonStyle(.pressable)
+            }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 6)
+        .padding(.horizontal, 22)
+        .entrance(delay: 0.08)
     }
 
-    // MARK: - Medication Section
+    private func quickCardContent(icon: String, iconBg: Color, iconColor: Color,
+                                  title: String, subtitle: String) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(iconBg)
+                    .frame(width: 36, height: 36)
+                Image(systemName: icon)
+                    .font(.system(size: 17, weight: .medium))
+                    .foregroundStyle(iconColor)
+            }
 
-    private var settingsMedicationSection: some View {
-        settingsSection(label: "Medication") {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(Theme.Fonts.callout)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                Text(subtitle)
+                    .font(Theme.Fonts.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: Theme.Radius.md)
+                .fill(Color(.secondarySystemBackground))
+        )
+    }
+
+    private func quickCard(icon: String, iconBg: Color, iconColor: Color,
+                           title: String, subtitle: String,
+                           action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            quickCardContent(icon: icon, iconBg: iconBg, iconColor: iconColor,
+                             title: title, subtitle: subtitle)
+        }
+    }
+
+    private func quickCard(icon: String, iconBg: Color, iconColor: Color,
+                           title: String, subtitle: String) -> some View {
+        quickCardContent(icon: icon, iconBg: iconBg, iconColor: iconColor,
+                         title: title, subtitle: subtitle)
+    }
+
+    // MARK: - Medication & Body
+
+    private var currentRouteClass: RouteClass {
+        RouteClass.from(method: medicationManager.selectedAdministrationMethod ?? "")
+    }
+
+    private var settingsMedicationBodySection: some View {
+        settingsSection(label: "Medication & Body") {
             Button {
                 showingTypeMethodSheet = true
             } label: {
@@ -215,17 +276,40 @@ struct SettingsView: View {
                 )
             }
             .buttonStyle(.plain)
-        }
-    }
 
-    // MARK: - Body & Zones Section
+            settingsDivider()
 
-    private var currentRouteClass: RouteClass {
-        RouteClass.from(method: medicationManager.selectedAdministrationMethod ?? "")
-    }
+            HStack(spacing: 14) {
+                settingsIconView(icon: "calendar.badge.clock",
+                                 bg: Theme.Colors.Time.body.surface,
+                                 color: Theme.Colors.Time.body.base)
 
-    private var settingsBodyZonesSection: some View {
-        settingsSection(label: "Body & zones") {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("HRT start date")
+                        .font(Theme.Fonts.callout)
+                        .foregroundStyle(.primary)
+                    Text(hrtStartSubtitle)
+                        .font(Theme.Fonts.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                DatePicker("", selection: Binding(
+                    get: { medicationManager.hrtStartDate ?? Date() },
+                    set: { newValue in
+                        medicationManager.hrtStartDate = newValue
+                        medicationManager.refreshState()
+                    }
+                ), in: ...Date(), displayedComponents: .date)
+                .labelsHidden()
+                .environment(\.locale, Locale.current)
+            }
+            .padding(.horizontal, 22)
+            .padding(.vertical, 12)
+
+            settingsDivider()
+
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 14) {
                     settingsIconView(icon: "figure.stand", bg: Theme.Colors.Time.body.surface, color: Theme.Colors.Time.body.base)
@@ -303,70 +387,10 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - History Section
+    // MARK: - Health & History Section
 
-    private var settingsHistorySection: some View {
-        settingsSection(label: "History") {
-            NavigationLink(destination: AdherenceView()) {
-                settingsRowContent(
-                    icon: "chart.line.uptrend.xyaxis",
-                    iconBg: Theme.Colors.Time.body.surface,
-                    iconColor: Theme.Colors.Time.body.base,
-                    title: "Adherence & history",
-                    subtitle: adherenceSubtitle,
-                    trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(.secondary) }
-                )
-            }
-            .buttonStyle(.plain)
-
-            settingsDivider()
-
-            NavigationLink(destination: DoseHistoryView()) {
-                settingsRowContent(
-                    icon: "clock.arrow.circlepath",
-                    iconBg: Theme.Colors.Time.cycle.surface,
-                    iconColor: Theme.Colors.Time.cycle.base,
-                    title: "Dose history",
-                    subtitle: doseHistorySubtitle,
-                    trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(.secondary) }
-                )
-            }
-            .buttonStyle(.plain)
-
-            settingsDivider()
-
-            NavigationLink(destination: BloodTestHistoryView()) {
-                settingsRowContent(
-                    icon: "drop.fill",
-                    iconBg: Theme.Colors.Time.skin.surface,
-                    iconColor: Theme.Colors.Time.skin.base,
-                    title: "Blood test history",
-                    subtitle: bloodTestHistorySubtitle,
-                    trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(.secondary) }
-                )
-            }
-            .buttonStyle(.plain)
-
-            settingsDivider()
-
-            NavigationLink(destination: ScreeningHistoryView()) {
-                settingsRowContent(
-                    icon: "heart.text.square",
-                    iconBg: Theme.Colors.Time.mind.surface,
-                    iconColor: Theme.Colors.Time.mind.base,
-                    title: "Screenings",
-                    subtitle: screeningHistorySubtitle,
-                    trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(.secondary) }
-                )
-            }
-            .buttonStyle(.plain)
-        }
-    }
-
-    // MARK: - Levels & Targets Section
-
-    private var settingsLevelsTargetsSection: some View {
-        settingsSection(label: "Levels & targets") {
+    private var settingsHealthHistorySection: some View {
+        settingsSection(label: "Health & history") {
             // Dose-intensity insights toggle
             HStack(spacing: 14) {
                 settingsIconView(icon: "gauge.with.dots.needle.33percent",
@@ -459,9 +483,6 @@ struct SettingsView: View {
 
                 // Info footer
                 VStack(alignment: .leading, spacing: 4) {
-                    // This is the switch that turns on comparative copy across the
-                    // app, so the footer says exactly that. Without a range set,
-                    // xT reports the estimate and makes no comparison.
                     Text("Setting a range lets xT report where an estimate falls relative to it. Without one, xT shows the estimate on its own.")
                         .font(Theme.Fonts.micro)
                         .foregroundStyle(.secondary)
@@ -470,6 +491,76 @@ struct SettingsView: View {
                 .padding(.horizontal, 22)
                 .padding(.vertical, 12)
             }
+
+            settingsDivider()
+
+            NavigationLink(destination: AdherenceView()) {
+                settingsRowContent(
+                    icon: "chart.line.uptrend.xyaxis",
+                    iconBg: Theme.Colors.Time.body.surface,
+                    iconColor: Theme.Colors.Time.body.base,
+                    title: "Adherence & history",
+                    subtitle: adherenceSubtitle,
+                    trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(.secondary) }
+                )
+            }
+            .buttonStyle(.plain)
+
+            settingsDivider()
+
+            NavigationLink(destination: DoseHistoryView()) {
+                settingsRowContent(
+                    icon: "clock.arrow.circlepath",
+                    iconBg: Theme.Colors.Time.cycle.surface,
+                    iconColor: Theme.Colors.Time.cycle.base,
+                    title: "Dose history",
+                    subtitle: doseHistorySubtitle,
+                    trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(.secondary) }
+                )
+            }
+            .buttonStyle(.plain)
+
+            settingsDivider()
+
+            NavigationLink(destination: BloodTestHistoryView()) {
+                settingsRowContent(
+                    icon: "drop.fill",
+                    iconBg: Theme.Colors.Time.skin.surface,
+                    iconColor: Theme.Colors.Time.skin.base,
+                    title: "Blood test history",
+                    subtitle: bloodTestHistorySubtitle,
+                    trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(.secondary) }
+                )
+            }
+            .buttonStyle(.plain)
+
+            settingsDivider()
+
+            NavigationLink(destination: ScreeningHistoryView()) {
+                settingsRowContent(
+                    icon: "heart.text.square",
+                    iconBg: Theme.Colors.Time.mind.surface,
+                    iconColor: Theme.Colors.Time.mind.base,
+                    title: "Screenings",
+                    subtitle: screeningHistorySubtitle,
+                    trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(.secondary) }
+                )
+            }
+            .buttonStyle(.plain)
+
+            settingsDivider()
+
+            NavigationLink(destination: DataExportView()) {
+                settingsRowContent(
+                    icon: "square.and.arrow.up",
+                    iconBg: Theme.Colors.Time.cycle.surface,
+                    iconColor: Theme.Colors.Time.cycle.base,
+                    title: "Export data",
+                    subtitle: "CSV or JSON — dose history, journal, blood tests",
+                    trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(.secondary) }
+                )
+            }
+            .buttonStyle(.plain)
         }
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
@@ -542,10 +633,10 @@ struct SettingsView: View {
         medicationManager.refreshState()
     }
 
-    // MARK: - Notifications Section
+    // MARK: - App Settings Section
 
-    private var settingsNotificationsSection: some View {
-        settingsSection(label: "Notifications") {
+    private var settingsAppSection: some View {
+        settingsSection(label: "App settings") {
             HStack(spacing: 14) {
                 settingsIconView(icon: "bell.fill", bg: Theme.Colors.Time.body.surface, color: Theme.Colors.Time.body.base)
 
@@ -593,19 +684,9 @@ struct SettingsView: View {
             .padding(.vertical, 16)
             .contentShape(Rectangle())
             .onTapGesture { if journalRemindersEnabled { showingJournalTimePicker = true } }
-        }
-    }
 
-    private var privacyLockSubtitle: String {
-        let biometric = authManager.biometricType().description
-        let timeout = authManager.timeoutLabel
-        return String(localized: "\(biometric) · \(timeout) timeout")
-    }
+            settingsDivider()
 
-    // MARK: - Appearance Section
-
-    private var settingsAppearanceSection: some View {
-        settingsSection(label: "Appearance") {
             NavigationLink(destination: ThemeSettingsView()) {
                 settingsRowContent(
                     icon: "paintbrush.fill",
@@ -617,13 +698,9 @@ struct SettingsView: View {
                 )
             }
             .buttonStyle(.plain)
-        }
-    }
 
-    // MARK: - Privacy Section
+            settingsDivider()
 
-    private var settingsPrivacySection: some View {
-        settingsSection(label: "Privacy & security") {
             settingsRowContent(
                 icon: "icloud",
                 iconBg: Theme.Colors.Time.cycle.surface,
@@ -658,21 +735,13 @@ struct SettingsView: View {
                 )
             }
             .buttonStyle(.plain)
-
-            settingsDivider()
-
-            NavigationLink(destination: DataExportView()) {
-                settingsRowContent(
-                    icon: "square.and.arrow.up",
-                    iconBg: Theme.Colors.Time.cycle.surface,
-                    iconColor: Theme.Colors.Time.cycle.base,
-                    title: "Export data",
-                    subtitle: "CSV or JSON — dose history, journal, blood tests",
-                    trailing: { Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(.secondary) }
-                )
-            }
-            .buttonStyle(.plain)
         }
+    }
+
+    private var privacyLockSubtitle: String {
+        let biometric = authManager.biometricType().description
+        let timeout = authManager.timeoutLabel
+        return String(localized: "\(biometric) · \(timeout) timeout")
     }
 
     // MARK: - About Section
@@ -792,23 +861,22 @@ struct SettingsView: View {
 
     // MARK: - Computed strings
 
-    private var levelString: String {
-        medicationManager.currentHormoneLevel?.valueDescription ?? "—"
-    }
-
-    private var nextDoseString: String {
-        guard let next = medicationManager.nextDoseDate else { return "—" }
-        let days = Calendar.current.dateComponents([.day], from: Date(), to: next).day ?? 0
-        if days == 0 { return "Today" }
-        if days == 1 { return "Tomorrow" }
-        return String(localized: "In \(days)d")
-    }
-
     private var nextDoseSubtitle: String {
         if let next = medicationManager.nextDoseDate {
             return String(localized: "Next: \(formatDate(next))")
         }
         return String(localized: "No schedule set")
+    }
+
+    private var hrtStartSubtitle: String {
+        guard let start = medicationManager.hrtStartDate else {
+            return String(localized: "When you started HRT")
+        }
+        let months = medicationManager.monthsOnHRT
+        if months == 0 {
+            return String(localized: "Started \(formatDate(start))")
+        }
+        return String(localized: "^[\(months) month](inflect: true) on HRT · \(formatDate(start))")
     }
 
     private var adherenceSubtitle: String {

@@ -24,13 +24,13 @@ struct BodyArchitectureDetailView: View {
 
     /// Screen-fractional anchor points for each region's floating label. Shared
     /// across medications — both region sets reuse the same keys (`chest`,
-    /// `waist`, `hips`, `glutes`, `thighs`), only the authored text differs.
+    /// `abdomen`, `hips`, `glutes`, `thighs`), only the authored text differs.
     private let regionAnchors: [String: CGPoint] = [
-        "chest":  CGPoint(x: 0.62, y: 0.34),
-        "waist":  CGPoint(x: 0.66, y: 0.46),
-        "hips":   CGPoint(x: 0.68, y: 0.56),
-        "glutes": CGPoint(x: 0.32, y: 0.58),
-        "thighs": CGPoint(x: 0.60, y: 0.72),
+        "chest":   CGPoint(x: 0.62, y: 0.34),
+        "abdomen": CGPoint(x: 0.66, y: 0.46),
+        "hips":    CGPoint(x: 0.68, y: 0.56),
+        "glutes":  CGPoint(x: 0.32, y: 0.58),
+        "thighs":  CGPoint(x: 0.60, y: 0.72),
     ]
 
     private var physicalSystems: [TimeBodySystem] {
@@ -518,6 +518,11 @@ struct BodyArchitectureDetailView: View {
                     Text(system.subtitle)
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
+                    Text(system.focusText)
+                        .font(.system(size: 11))
+                        .foregroundStyle(system.palette.accent.opacity(0.85))
+                        .lineLimit(2)
+                        .padding(.top, 1)
                 }
 
                 Spacer()

@@ -38,7 +38,7 @@ struct DoseScheduleSettingsView: View {
         _rotationWindowTopical = State(initialValue: mgr.rotationWindowTopical)
         _rotationWindowPatch = State(initialValue: mgr.rotationWindowPatch)
 
-        doseUnit = mgr.selectedMedication == "Testosterone" ? "mg" : "mg"
+        doseUnit = "mg"
         medicationName = mgr.selectedMedication ?? "Medication"
     }
 
@@ -232,9 +232,7 @@ struct DoseScheduleSettingsView: View {
     // MARK: - Helpers
 
     private var timeLabel: String {
-        let f = DateFormatter()
-        f.timeStyle = .short
-        return f.string(from: defaultInjectionTime)
+        AppDateFormatters.time.string(from: defaultInjectionTime)
     }
 
     private func sectionLabel(_ text: String) -> some View {

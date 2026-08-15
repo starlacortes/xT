@@ -152,8 +152,14 @@ extension MedicationManager {
         selectedMedication = type.rawValue
         selectedAdministrationMethod = method.rawValue
 
-        let next = calculateNextDoseDate(from: Date())
-        updateDoseDates(last: Date(), next: next)
+        // Do NOT stamp a fake lastDoseDate — the user hasn't taken a dose.
+        // Only recompute nextDoseDate if a real lastDoseDate exists.
+        if let last = lastDoseDate {
+            let next = calculateNextDoseDate(from: last)
+            updateDoseDates(last: last, next: next)
+        } else {
+            persistUserPreferences()
+        }
         refreshState()
     }
 
@@ -230,6 +236,7 @@ extension MedicationManager {
     /// `recordDose`, both of which only capture a date from the user.
     private func defaultDoseDetails(for medType: String) -> (ester: String, amount: Double, concentration: Double?) {
         let ester = lastLoggedDose?.ester
+            ?? selectedEster
             ?? (medType == "Estrogen" ? "Valerate (EV)" : "Cypionate (TC)")
         let amount = lastLoggedDose?.doseAmount
             ?? (medType == "Estrogen" ? 2.0 : 40.0)

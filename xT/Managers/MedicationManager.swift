@@ -189,6 +189,11 @@ class MedicationManager {
     @ObservationIgnored
     var heatMapCache: [String: [String: Int]] = [:]
 
+    /// Incremented every time `invalidateHeatMapCache()` is called, so async
+    /// heat-map computations can detect that their cached result is stale.
+    @ObservationIgnored
+    var heatMapCacheGeneration: Int = 0
+
     // MARK: - Batch mutation
 
     /// When `true`, `refreshState()` returns immediately without recomputing.
@@ -436,7 +441,7 @@ class MedicationManager {
     var activeMonthsOnHRT: Int {
         let referenceDate = hrtStartDate ?? lastDoseDate
         guard let first = referenceDate else { return 0 }
-        let activeDoses = doseHistory.filter { $0.doseStatus == DoseStatus.taken.rawValue && !$0.isDeleted }
+        let activeDoses = doseHistory.filter { $0.doseStatus == DoseStatus.taken.rawValue }
         guard !activeDoses.isEmpty else { return monthsOnHRT }
         guard let earliestDose = activeDoses.map(\.doseDate).min() else { return monthsOnHRT }
         let start = min(first, earliestDose)
@@ -552,16 +557,15 @@ class MedicationManager {
     // MARK: - Dose Deletion
 
     func softDeleteDose(id: String) {
+        guard let context = modelContext else { return }
         guard let index = doseHistory.firstIndex(where: { $0.id == id }) else { return }
 
-        doseHistory[index].isDeleted = true
-        try? modelContext?.save()
+        let record = doseHistory[index]
+        context.delete(record)
+        try? context.save()
 
-        // Reload from SwiftData to ensure the in-memory array is consistent
-        // with the persisted state – the deleted record is filtered out by loadDoseHistory.
         loadDoseHistory()
 
-        // loadDoseHistory filters out isDeleted records, so every remaining entry is active.
         let active = doseHistory.filter { $0.doseStatus == DoseStatus.taken.rawValue }
         lastDoseDate = active.max(by: { $0.doseDate < $1.doseDate })?.doseDate
         nextDoseDate = lastDoseDate.map { calculateNextDoseDate(from: $0) }

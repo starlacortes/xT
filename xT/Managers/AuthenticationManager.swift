@@ -84,7 +84,7 @@ class AuthenticationManager {
         }
     }
 
-    var autoLockTimeout: TimeInterval = UserDefaults.standard.double(forKey: Keys.autoLockTimeout)
+    var autoLockTimeout: TimeInterval = UserDefaults.standard.object(forKey: Keys.autoLockTimeout) as? Double ?? AutoLockTimeout.fallback.rawValue
 
     /// Type-safe view of ``autoLockTimeout`` for pickers and labels.
     var autoLockTimeoutOption: AutoLockTimeout {
@@ -118,9 +118,14 @@ class AuthenticationManager {
         if context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) {
             let success = try await context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: reason)
             guard success else { throw XAuthenticationError.cancelled }
-        } else {
+        } else if allowPasscodeFallback {
+            guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else {
+                throw XAuthenticationError.passcodeNotSet
+            }
             let success = try await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason)
             guard success else { throw XAuthenticationError.cancelled }
+        } else {
+            throw XAuthenticationError.biometricNotAvailable
         }
 
         isAuthenticated = true

@@ -19,6 +19,11 @@
       "type": "local",
       "command": ["npx", "-y", "xcodebuildmcp@latest", "mcp"],
       "enabled": true
+    },
+    "xcode": {
+      "type": "local",
+      "command": ["xcrun", "mcpbridge"],
+      "enabled": true
     }
   }
 }

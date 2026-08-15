@@ -158,11 +158,38 @@ internal extension ProfileManager {
         // SwiftData-backed path: reads from UserPreferences, which CloudKit keeps in sync.
         if let context = modelContext,
            let prefs = try? context.fetch(FetchDescriptor<UserPreferences>()).first {
-            profileName = prefs.profileName ?? ""
+            let securityManager = SecurityManager.shared
+
+            // Profile name: try encrypted (base64) first, fall back to plaintext for
+            // backward compatibility with data from a prior version or a CloudKit
+            // sync from a device that hasn't updated yet.
+            if let storedName = prefs.profileName {
+                if let encryptedData = Data(base64Encoded: storedName),
+                   let decryptedData = try? securityManager.decryptData(encryptedData),
+                   let name = String(data: decryptedData, encoding: .utf8) {
+                    profileName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+                } else {
+                    profileName = storedName.trimmingCharacters(in: .whitespacesAndNewlines)
+                }
+            } else {
+                profileName = ""
+            }
+
             dateOfBirth = prefs.profileDateOfBirth
-            if let data = prefs.profileImageData, let image = UIImage(data: data) {
-                profileImageData = data
-                profileImage = image
+
+            // Profile image: try encrypted first, fall back to plaintext.
+            if let storedImageData = prefs.profileImageData {
+                if let decryptedData = try? securityManager.decryptData(storedImageData),
+                   let image = UIImage(data: decryptedData) {
+                    profileImageData = decryptedData
+                    profileImage = image
+                } else if let image = UIImage(data: storedImageData) {
+                    profileImageData = storedImageData
+                    profileImage = image
+                } else {
+                    profileImageData = nil
+                    profileImage = nil
+                }
             } else {
                 profileImageData = nil
                 profileImage = nil
@@ -178,7 +205,6 @@ internal extension ProfileManager {
     func migrateProfileToUserPreferences() {
         let defaults = UserDefaults.standard
         guard !defaults.bool(forKey: "profileCloudKitMigrationDone") else { return }
-        defaults.set(true, forKey: "profileCloudKitMigrationDone")
 
         guard let context = modelContext,
               let prefs = try? context.fetch(FetchDescriptor<UserPreferences>()).first
@@ -192,26 +218,63 @@ internal extension ProfileManager {
         if let encryptedNameData = defaults.data(forKey: "encryptedProfileName"),
            let decryptedNameData = try? securityManager.decryptData(encryptedNameData),
            let savedName = String(data: decryptedNameData, encoding: .utf8) {
-            prefs.profileName = savedName.trimmingCharacters(in: .whitespacesAndNewlines)
+            let trimmed = savedName.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let nameData = trimmed.data(using: .utf8),
+               let encrypted = try? securityManager.encryptData(nameData) {
+                prefs.profileName = encrypted.base64EncodedString()
+            } else {
+                prefs.profileName = trimmed
+            }
         }
 
         if let encryptedImageData = defaults.data(forKey: "encryptedProfileImageData"),
            let decryptedImageData = try? securityManager.decryptData(encryptedImageData),
            UIImage(data: decryptedImageData) != nil {
-            prefs.profileImageData = decryptedImageData
+            if let encrypted = try? securityManager.encryptData(decryptedImageData) {
+                prefs.profileImageData = encrypted
+            } else {
+                prefs.profileImageData = decryptedImageData
+            }
         }
 
-        prefs.profileDateOfBirth = defaults.object(forKey: "profileDateOfBirth") as? Date
+        // Don't overwrite DOB that arrived from CloudKit.
+        if prefs.profileDateOfBirth == nil {
+            prefs.profileDateOfBirth = defaults.object(forKey: "profileDateOfBirth") as? Date
+        }
 
-        try? context.save()
+        do {
+            try context.save()
+            defaults.set(true, forKey: "profileCloudKitMigrationDone")
+        } catch {
+            print("[ProfileManager] Migration save failed: \(error) — will retry next launch")
+        }
     }
 
     func persistProfile() {
-        // SwiftData-backed path (synced via CloudKit).
+        // SwiftData-backed path (synced via CloudKit).  Profile name and image
+        // are encrypted before storage so they are not readable at rest or in
+        // an iCloud backup.  The encryption key is device-local (keychain), so
+        // encrypted blobs synced via CloudKit are not decryptable on another
+        // device — but they remain protected if a device or backup is compromised.
         if let context = modelContext,
            let prefs = try? context.fetch(FetchDescriptor<UserPreferences>()).first {
-            prefs.profileName = profileName.isEmpty ? nil : profileName
-            prefs.profileImageData = profileImageData
+            let securityManager = SecurityManager.shared
+            let trimmedName = profileName.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            if trimmedName.isEmpty {
+                prefs.profileName = nil
+            } else if let nameData = trimmedName.data(using: .utf8),
+                      let encrypted = try? securityManager.encryptData(nameData) {
+                prefs.profileName = encrypted.base64EncodedString()
+            }
+
+            if let imageData = profileImageData,
+               let encrypted = try? securityManager.encryptData(imageData) {
+                prefs.profileImageData = encrypted
+            } else {
+                prefs.profileImageData = nil
+            }
+
             prefs.profileDateOfBirth = dateOfBirth
             try? context.save()
             return
@@ -275,7 +338,6 @@ internal extension ProfileManager {
             defaults.set(encryptedImage, forKey: "encryptedProfileImageData")
         } else {
             defaults.removeObject(forKey: "encryptedProfileImageData")
-            if profileImageData != nil { profileImageData = nil; profileImage = nil }
         }
     }
 

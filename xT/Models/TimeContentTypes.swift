@@ -92,6 +92,11 @@ struct TimeBodySystem: Identifiable {
     let progressLabel: String
     let systemKey: BodySystemKey   // identifies the system for detail lookup
 
+    /// Month-specific factual focus sentence — updates continuously as months
+    /// progress, even when the tier-level subtitle is unchanged. Provides the
+    /// "what's happening right now" signal that the old percent bar couldn't.
+    let focusText: String
+
     /// Tenure-aware status label. Set by the engine based on actual months on HRT.
     var statusLabel: String { progressLabel }
 }

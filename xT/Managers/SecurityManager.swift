@@ -24,13 +24,15 @@ final class SecurityManager: Sendable {
     private let encryptionKeyTag = "xTEncryptionKey"
 
     func getEncryptionKey() throws -> SymmetricKey {
-        if let keyData = try? getKeyFromKeychain() {
+        do {
+            let keyData = try getKeyFromKeychain()
             return SymmetricKey(data: keyData)
+        } catch SecurityError.keychainReadFailed(let status) where status == errSecItemNotFound {
+            let newKey = SymmetricKey(size: .bits256)
+            let keyData = newKey.withUnsafeBytes { Data($0) }
+            try saveKeyToKeychain(keyData)
+            return newKey
         }
-        let newKey = SymmetricKey(size: .bits256)
-        let keyData = newKey.withUnsafeBytes { Data($0) }
-        try saveKeyToKeychain(keyData)
-        return newKey
     }
 
     func encryptData(_ data: Data) throws -> Data {
@@ -64,17 +66,29 @@ final class SecurityManager: Sendable {
     // MARK: - Keychain
 
     private func saveKeyToKeychain(_ keyData: Data) throws {
-        let query: [String: Any] = [
+        let baseQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: serviceName,
-            kSecAttrAccount as String: encryptionKeyTag,
+            kSecAttrAccount as String: encryptionKeyTag
+        ]
+        let addQuery = baseQuery.merging([
             kSecValueData as String: keyData,
             kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
-        ]
-        SecItemDelete(query as CFDictionary)
-        let status = SecItemAdd(query as CFDictionary, nil)
-        guard status == errSecSuccess else {
-            throw SecurityError.keychainSaveFailed(status)
+        ]) { _, new in new }
+
+        let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
+        if addStatus == errSecSuccess { return }
+
+        if addStatus == errSecDuplicateItem {
+            let updateQuery = baseQuery.merging([
+                kSecValueData as String: keyData
+            ]) { _, new in new }
+            let updateStatus = SecItemUpdate(baseQuery as CFDictionary, updateQuery as CFDictionary)
+            guard updateStatus == errSecSuccess else {
+                throw SecurityError.keychainSaveFailed(updateStatus)
+            }
+        } else {
+            throw SecurityError.keychainSaveFailed(addStatus)
         }
     }
 

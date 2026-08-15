@@ -69,7 +69,10 @@ struct RegionDetailCard: View {
     @State private var isExpanded = false
 
     var body: some View {
-        Button(action: onTap) {
+        Button {
+            withAnimation(.easeInOut(duration: 0.25)) { isExpanded.toggle() }
+            onTap()
+        } label: {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 10) {
                     ZStack {
@@ -87,7 +90,7 @@ struct RegionDetailCard: View {
 
                     Spacer()
 
-                    Text(region.progressStatus(at: months))
+                    Text(region.phaseLabel(at: months))
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(palette.accent)
                         .padding(.horizontal, 8)
@@ -96,7 +99,7 @@ struct RegionDetailCard: View {
                         .clipShape(RoundedRectangle(cornerRadius: 6))
                 }
 
-                Text(region.phaseText(at: months))
+                Text(region.focusText(at: months) ?? region.phaseText(at: months))
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .lineSpacing(3)
@@ -118,10 +121,6 @@ struct RegionDetailCard: View {
             )
         }
         .buttonStyle(.plain)
-        .onTapGesture {
-            withAnimation(.easeInOut(duration: 0.25)) { isExpanded.toggle() }
-            onTap()
-        }
     }
 }
 

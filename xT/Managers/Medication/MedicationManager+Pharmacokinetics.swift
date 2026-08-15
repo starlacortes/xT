@@ -136,7 +136,9 @@ extension MedicationManager {
 
         let now = Date()
         let daysSinceDose = now.timeIntervalSince(lastDose.doseDate) / 86400.0
-        let cycleLength = Double(method.frequencyDays)
+        let cycleLength = Double(effectivePKIntervalDays(ester: lastDose.ester,
+                                                          route: lastDose.administrationMethod,
+                                                          medication: medication))
 
         // Use the actual PK curve if we have enough data points
         let levels = recentLevels
@@ -158,15 +160,12 @@ extension MedicationManager {
 
         // Find the true peak: highest value in the curve since last dose
         let sinceLastDose = levels.filter { $0.date >= lastDose.doseDate }
-        guard let peakPoint = sinceLastDose.max(by: { $0.value < $1.value }),
-              let troughPoint = sinceLastDose.filter({ $0.date >= lastDose.doseDate })
-                  .min(by: { $0.value < $1.value })
+        guard let peakPoint = sinceLastDose.max(by: { $0.value < $1.value })
         else {
             return .unknown
         }
 
         let peakHoursAfterDose = peakPoint.date.timeIntervalSince(lastDose.doseDate) / 3600.0
-        let troughHoursAfterDose = troughPoint.date.timeIntervalSince(lastDose.doseDate) / 3600.0
 
         // "Near Peak" — within 24 hours after the actual peak
         let hoursSinceDose = daysSinceDose * 24.0
@@ -175,10 +174,23 @@ extension MedicationManager {
             return .nearPeak
         }
 
-        // "Trough" — within the last 24 hours of the cycle OR within 24h of the actual trough
-        if daysSinceDose >= (cycleLength - 1.0) ||
-            (troughHoursAfterDose > 0 && abs(hoursSinceDose - troughHoursAfterDose) <= 24.0) {
+        // "Trough" — within the last 24 hours of the cycle OR at the actual
+        // post-peak minimum.  The Bateman curve is monotonically descending
+        // after the peak, so the true trough is the last point before the next
+        // dose.  Searching for the min across all points picks t≈0 (where
+        // the spike is zero), not the real trough.  Restrict to points after
+        // the peak to find the actual descending-tail minimum.
+        if daysSinceDose >= (cycleLength - 1.0) {
             return .trough
+        }
+
+        let afterPeak = sinceLastDose.filter { $0.date >= peakPoint.date }
+        if let troughPoint = afterPeak.min(by: { $0.value < $1.value }) {
+            let troughHoursAfterDose = troughPoint.date.timeIntervalSince(lastDose.doseDate) / 3600.0
+            if troughHoursAfterDose > peakHoursAfterDose &&
+               abs(hoursSinceDose - troughHoursAfterDose) <= 24.0 {
+                return .trough
+            }
         }
 
         return .midCycle
@@ -747,21 +759,15 @@ extension MedicationManager {
                 }
             }
         } else {
-            // Fallback: estimate doses from lastDoseDate using frequency
-            if let last = lastDoseDate {
-                let lookbackStart = calendar.date(byAdding: .day, value: -60, to: start) ?? start
-                var d = last
-                let accumulatedDose = baseLevel * 0.5
-                while d >= lookbackStart {
-                    doseEvents.append(contentsOf: makeDoseEvents(date: d,
-                                                                 ester: defaultEsterName,
-                                                                 route: methodStr,
-                                                                 amount: accumulatedDose))
-                    let prev = calendar.date(byAdding: .day, value: -7, to: d) ?? d
-                    if prev >= last { break }
-                    d = prev
-                }
-            }
+            // No real dose records: return baseline-only points.  Do NOT fabricate
+            // phantom backfilled doses from `lastDoseDate` — that path mixed a
+            // concentration (baseLevel) into a dose-amount slot, producing
+            // predictions off by ~1000×, and invented up to 9 full-strength
+            // phantom doses the user never took.  If `lastDoseDate` is set
+            // without any `DoseRecord`, that state is itself a bug (see
+            // `updateSelection` stamping a fake `lastDoseDate`); papering over
+            // it here would mask the root cause and produce clinically misleading
+            // levels.
         }
         doseEvents.sort { $0.date < $1.date }
 
@@ -803,8 +809,7 @@ extension MedicationManager {
                     cumulativeSpike += event.amount * event.scaling * exp(-event.ka * dt)
                 }
             }
-            let rawValue = baseLevel + cumulativeSpike
-            let calibratedValue = rawValue * alpha
+            let calibratedValue = baseLevel + cumulativeSpike * alpha
             points.append(EstimatedPoint(date: cursor, value: calibratedValue,
                                          medication: medication, method: methodStr))
             cursor = cursor.addingTimeInterval(stepDays * 86400.0)
@@ -914,13 +919,15 @@ extension MedicationManager {
     
     /// Estimated estradiol level derived from aromatization of exogenous testosterone.
     /// A small fraction of circulating T is converted to E2 via aromatase.
-    /// Clinical data suggest ~0.2% conversion (0.002 × T_ng/dL ≈ E2_pg/mL).
+    /// Clinical data suggest ~0.2% mass-fraction conversion.  Because T is in ng/dL
+    /// and E2 is reported in pg/mL (1 ng/dL = 10 pg/mL), the effective factor is
+    /// `aromatizationFraction × 10 = 0.02`.
     /// This helps trans men monitor whether their E2 is in the male reference range (10‑40 pg/mL).
     ///
     /// - Parameter testosteroneLevel: Current T level in ng/dL.
     /// - Returns: Estimated E2 level in pg/mL from aromatization.
     func estimatedE2FromTestosterone(_ testosteroneLevel: Double) -> Double {
-        return testosteroneLevel * 0.002
+        return testosteroneLevel * PKConstants.aromatizationFraction * 10.0
     }
     
     /// Checks whether aromatization‑derived E2 is within the male reference range.

@@ -192,5 +192,41 @@ enum BodyHeatMapShader {
     albedo = mix(albedo, tapAccum, alphaAccum);
 
     _surface.diffuse.rgb = albedo;
+    // Fade the body skin to transparent as the constellation dissolves in.
+    // The geometry stays in the scene (opacity = 1 on the node) so hit-testing
+    // still finds it, but visually only the star points remain when amount = 1.
+    _surface.diffuse.a = 1.0 - u_constellation;
+    """
+
+    // MARK: - Fragment modifier (skin discard + alpha fade)
+
+    /// Hides the solid skin once the constellation is fully in. SceneKit's
+    /// `.physicallyBased` lighting model honors neither `_surface.diffuse.a`
+    /// NOR shader-written fragment alpha for blending (verified on the iOS 26
+    /// simulator: even a hard-coded `a = 0` renders opaque), and driving
+    /// `SCNMaterial.transparent` renders the skin as dim glass rather than
+    /// invisible. The only reliable vanish under this pipeline is
+    /// `discard_fragment()`. The hard cut at 0.5 costs nothing because the
+    /// Time diagram never uses intermediate constellation values, and the
+    /// `*.a *=` line remains as belt-and-braces for any pipeline that does
+    /// blend on output alpha. `u_constellation` defaults to 0 (opaque) for
+    /// other hosts (QuickDose), so they are unaffected.
+    static let fragmentModifier: String = """
+    #pragma body
+    // u_constellation is declared once by the surface modifier — both snippets
+    // are merged into the same fragment-stage source, so re-declaring it here
+    // would be a redefinition that fails compilation of the whole program.
+    //
+    // SceneKit's PBR pipeline ignores BOTH _surface.diffuse.a AND
+    // shader-written fragment alpha for blending (verified on the iOS 26
+    // simulator — even a hard-coded `a = 0` renders opaque), and driving
+    // SCNMaterial.transparent produces a glass look rather than invisibility.
+    // The only reliable way to vanish the skin under this pipeline is to
+    // DISCARD the fragments. The Time diagram never uses intermediate
+    // constellation values (every FocusConfig is 1), so a hard cut at 0.5
+    // costs nothing; hosts that leave u_constellation at 0 (QuickDose) render
+    // untouched.
+    if (u_constellation > 0.5) { discard_fragment(); }
+    _output.color.a *= (1.0 - u_constellation);
     """
 }

@@ -23,9 +23,9 @@ enum StarFieldGeometry {
     }
 
     private static let tiers: [Tier] = [
-        Tier(pointSize: 2.0, minRadius: 0.6, maxRadius: 2.0, threshold: 0.70), // faint
-        Tier(pointSize: 3.0, minRadius: 1.2, maxRadius: 3.5, threshold: 0.95), // medium
-        Tier(pointSize: 4.5, minRadius: 2.0, maxRadius: 6.0, threshold: 1.01), // bright
+        Tier(pointSize: 1.8, minRadius: 0.54, maxRadius: 1.8, threshold: 0.70), // faint
+        Tier(pointSize: 2.7, minRadius: 1.08, maxRadius: 3.15, threshold: 0.95), // medium
+        Tier(pointSize: 4.05, minRadius: 1.8, maxRadius: 5.4, threshold: 1.01), // bright
     ]
 
     /// Twinkle + selected-region highlight, evaluated per star in the vertex
@@ -38,12 +38,18 @@ enum StarFieldGeometry {
     #pragma arguments
     float u_currentTime;
     float4 u_regionGlow;
+    float3 u_tintColor;
+    float  u_tintStrength;
 
     #pragma body
     float phase = _geometry.color.a;
     float speed = 0.8 + 2.6 * fract(phase * 7.31);
     float tw    = 0.58 + 0.42 * sin(u_currentTime * speed + phase * 25.1327);
     float3 col  = _geometry.color.rgb * tw;
+
+    // Theme palette tint — muted at rest, brighter when a region is active.
+    // u_tintStrength defaults to 0 so hosts that never call setStarTint are unchanged.
+    col = mix(col, u_tintColor, u_tintStrength);
 
     float4 world = scn_node.modelTransform * float4(_geometry.position.xyz, 1.0);
     if (u_regionGlow.w > 0.001) {
@@ -58,8 +64,10 @@ enum StarFieldGeometry {
     """
 
     /// Builds the point-cloud geometry from mesh source-space vertex positions,
-    /// subsampled to roughly `targetCount` stars.
-    static func make(positions: [SIMD3<Float>], targetCount: Int = 8000) -> SCNGeometry {
+    /// subsampled to roughly `targetCount` stars. The Time screen's backdrop is
+    /// near-black in both appearances, and 18k points keep the silhouette
+    /// legible at these small point sizes.
+    static func make(positions: [SIMD3<Float>], targetCount: Int = 18000) -> SCNGeometry {
         guard !positions.isEmpty else { return SCNGeometry() }
 
         // Even fractional-stride subsample: deterministic, order-preserving,

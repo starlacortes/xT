@@ -29,11 +29,9 @@ struct TimeBodyDetailView: View {
                     .padding(.top, 20)
                     .padding(.bottom, 20)
 
-                if system.systemKey == .voice {
-                    VoiceProgressView(months: engine.activeMonthsOnHRT, tier: engine.tenureTier)
-                        .padding(.horizontal, 22)
-                        .padding(.bottom, 20)
-                }
+                focusBanner
+                    .padding(.horizontal, 22)
+                    .padding(.vertical, 16)
 
                 detailDivider()
 
@@ -156,6 +154,45 @@ struct TimeBodyDetailView: View {
         }
     }
 
+    // MARK: - Focus Banner
+
+    /// A month-specific factual focus line for the current body system.
+    /// Replaces the old VoiceProgressView (which was a synthetic percent bar
+    /// only shown for voice). Every body system now gets a real,
+    /// tissue-level sentence that updates as months progress.
+    private var focusBanner: some View {
+        let focus = engine.bodySystemFocus(for: system.systemKey)
+        return HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "waveform.path.ecg")
+                .font(.system(size: 12))
+                .foregroundStyle(detail.palette.accent)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("This month's focus")
+                    .font(Theme.Fonts.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.secondary)
+                    .tracking(0.3)
+                Text(focus)
+                    .font(Theme.Fonts.footnote)
+                    .foregroundStyle(.primary)
+                    .lineSpacing(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer()
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: Theme.Radius.md)
+                .fill(detail.palette.surface.opacity(0.5))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.Radius.md)
+                .stroke(detail.palette.border.opacity(0.4), lineWidth: 0.5)
+        )
+    }
+
     // MARK: - Tenure Banner
 
     private var tenureBanner: some View {
@@ -257,99 +294,9 @@ struct TimeBodyDetailView: View {
 }
 
 // MARK: - Voice Progress View
-
-private struct VoiceProgressView: View {
-    let months: Int
-    let tier: TenureTier
-
-    private var progress: Double {
-        switch tier {
-        case .t1Beginning: return 0.05
-        case .t2Emerging:  return 0.25
-        case .t3InMotion:  return 0.55
-        case .t4Deepening: return 0.78
-        case .t5Settled, .t6Rooted, .t7Veteran: return 0.95
-        }
-    }
-
-    private var stageLabel: String {
-        switch tier {
-        case .t1Beginning: return "Pre-change"
-        case .t2Emerging:  return "Shifting"
-        case .t3InMotion:  return "Deepening"
-        case .t4Deepening: return "Settling"
-        case .t5Settled, .t6Rooted, .t7Veteran: return "Settled"
-        }
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("VOICE RANGE")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .tracking(0.5)
-                Spacer()
-                Text(stageLabel)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(Theme.Colors.Time.mind.base)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(Theme.Colors.Time.mind.surface)
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-            }
-
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    LinearGradient(
-                        colors: [
-                            Theme.Colors.Time.cycle.base.opacity(0.25),
-                            Theme.Colors.Time.body.base.opacity(0.25)
-                        ],
-                        startPoint: .leading, endPoint: .trailing
-                    )
-                    .frame(height: 8)
-                    .clipShape(RoundedRectangle(cornerRadius: 4))
-
-                    LinearGradient(
-                        colors: [
-                            Theme.Colors.Time.cycle.base,
-                            Theme.Colors.Time.body.base
-                        ],
-                        startPoint: .leading, endPoint: .trailing
-                    )
-                    .frame(width: geo.size.width * progress, height: 8)
-                    .clipShape(RoundedRectangle(cornerRadius: 4))
-                    .animation(.easeInOut(duration: 0.6), value: progress)
-
-                    Circle()
-                        .fill(Color(.systemBackground))
-                        .frame(width: 14, height: 14)
-                        .overlay(Circle().stroke(Theme.Colors.Time.body.base, lineWidth: 2))
-                        .offset(x: geo.size.width * progress - 7)
-                        .animation(.easeInOut(duration: 0.6), value: progress)
-                }
-            }
-            .frame(height: 14)
-
-            HStack {
-                Text("Higher range")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Text("Lower range")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(14)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: Theme.Radius.md)
-                .stroke(Theme.Colors.Time.mind.base.opacity(0.15), lineWidth: 0.5)
-        )
-    }
-}
+// Removed: the synthetic percent-bar was only shown for voice and didn't
+// carry real information. All body systems now get a factual focus banner
+// (see `focusBanner` above) driven by `TimeContentEngine.bodySystemFocus`.
 
 #if DEBUG
 #Preview {
@@ -361,7 +308,8 @@ private struct VoiceProgressView: View {
                 icon: "brain",
                 palette: .purple,
                 progressLabel: "Stabilising",
-                systemKey: .moodAndMind
+                systemKey: .moodAndMind,
+                focusText: "Hippocampal BDNF expression is upregulated and CA1 spine density is still increasing — verbal-memory benchmarks typically improve across this window even though mood itself has stabilised."
             ),
             engine: TimeContentEngine(
                 medication: "Estrogen",

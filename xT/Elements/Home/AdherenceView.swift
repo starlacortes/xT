@@ -213,9 +213,7 @@ struct AdherenceView: View {
                 }
                 .padding(.vertical, 16)
             } else {
-                ForEach(Array(zip(medicationManager.regimenTransitionHistory.indices,
-                                  medicationManager.regimenTransitionHistory.reversed())),
-                        id: \.0) { _, segment in
+                ForEach(medicationManager.regimenTransitionHistory.reversed()) { segment in
                     regimenSegmentCard(segment)
                 }
             }

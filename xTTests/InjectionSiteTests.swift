@@ -300,13 +300,6 @@ struct InjectionSiteTests {
         )
         #expect(dose.injectionSites.isEmpty)
 
-        let site = InjectionSite(
-            sketchId: "thighsFront",
-            normalizedX: 0.5, normalizedY: 0.2,
-            zoneLabel: "Mid Right Thigh",
-            viewContext: "front", bodyRegion: "thighs",
-            routeClass: "injection"
-        )
         #expect(dose.injectionSites.isEmpty)
     }
 

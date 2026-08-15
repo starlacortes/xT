@@ -921,11 +921,11 @@ struct SafetyOverrideTests {
 struct AromatizationTests {
 
     @MainActor
-    @Test("0.2% conversion: 1000 ng/dL T → 2.0 pg/mL E2")
+    @Test("0.2% conversion: 1000 ng/dL T → 20.0 pg/mL E2")
     func conversionRate() {
         let mgr = TestDefaults.manager()
         let e2 = mgr.estimatedE2FromTestosterone(1000.0)
-        #expect(abs(e2 - 2.0) < 0.01, "1000 ng/dL T → E2 should be ~2.0 pg/mL, got \(e2)")
+        #expect(abs(e2 - 20.0) < 0.01, "1000 ng/dL T → E2 should be ~20.0 pg/mL, got \(e2)")
     }
 
     @MainActor
@@ -940,17 +940,17 @@ struct AromatizationTests {
     @Test("Assessment: elevated when E2 > 40")
     func elevatedAssessment() {
         let mgr = TestDefaults.manager()
-        // 25000 ng/dL T * 0.002 = 50 pg/mL E2 > 40 → elevated
-        let (e2, isElevated, _) = mgr.aromatizationAssessment(for: 25000.0)
-        #expect(isElevated, "E2 of \(e2) pg/mL from 25000 ng/dL T should be elevated (>40)")
+        // 2500 ng/dL T * 0.02 = 50 pg/mL E2 > 40 → elevated
+        let (e2, isElevated, _) = mgr.aromatizationAssessment(for: 2500.0)
+        #expect(isElevated, "E2 of \(e2) pg/mL from 2500 ng/dL T should be elevated (>40)")
     }
 
     @MainActor
     @Test("Assessment: normal when E2 10–40")
     func normalAssessment() {
         let mgr = TestDefaults.manager()
-        // 8000 ng/dL T * 0.002 = 16 pg/mL → normal
-        let (e2, isElevated, _) = mgr.aromatizationAssessment(for: 8000.0)
+        // 800 ng/dL T * 0.02 = 16 pg/mL → normal
+        let (e2, isElevated, _) = mgr.aromatizationAssessment(for: 800.0)
         #expect(!isElevated, "E2 of \(e2) pg/mL should NOT be elevated")
     }
 
@@ -958,8 +958,8 @@ struct AromatizationTests {
     @Test("Assessment: below range when E2 < 10")
     func belowRangeAssessment() {
         let mgr = TestDefaults.manager()
-        // 2000 ng/dL T * 0.002 = 4 pg/mL → below range
-        let (e2, isElevated, _) = mgr.aromatizationAssessment(for: 2000.0)
+        // 200 ng/dL T * 0.02 = 4 pg/mL → below range
+        let (e2, isElevated, _) = mgr.aromatizationAssessment(for: 200.0)
         #expect(!isElevated, "E2 of \(e2) pg/mL should NOT trigger elevated")
     }
 
@@ -969,7 +969,7 @@ struct AromatizationTests {
         let mgr = TestDefaults.manager()
         for t in [100.0, 500.0, 1000.0, 3000.0, 10000.0] {
             let e2 = mgr.estimatedE2FromTestosterone(t)
-            let expected = t * 0.002
+            let expected = t * 0.02
             #expect(abs(e2 - expected) < 0.001,
                     "E2 should be \(expected) for T=\(t), got \(e2)")
         }

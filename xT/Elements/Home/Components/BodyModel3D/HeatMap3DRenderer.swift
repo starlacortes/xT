@@ -30,6 +30,11 @@ final class HeatMap3DRenderer {
     private weak var bodyNode: SCNNode?
     private weak var starNode: SCNNode?
     private weak var starMaterial: SCNMaterial?
+    /// When true, body node opacity is kept at 1 so SceneKit hit-testing still
+    /// works against the mesh even when constellation = 1. The shader's own
+    /// `u_constellation` already makes the skin visually dark; the star node
+    /// (renderingOrder 10, additive blend) renders on top.
+    var keepBodyOpacityAtOne = false
 
     init(material: SCNMaterial,
          bodyType: BodyType = .neutral,
@@ -69,7 +74,13 @@ final class HeatMap3DRenderer {
 
         // Assign shaderModifiers LAST so SceneKit sees all bound arguments
         // when it compiles the combined fragment shader (commonprofile_frag).
-        mat.shaderModifiers = [SCNShaderModifierEntryPoint.surface: BodyHeatMapShader.surfaceModifier]
+        // The .fragment modifier forces final output alpha to fade with
+        // u_constellation — PBR-safe, unlike _surface.diffuse.a which physically
+        // based lighting ignores as full transparency.
+        mat.shaderModifiers = [
+            SCNShaderModifierEntryPoint.surface: BodyHeatMapShader.surfaceModifier,
+            SCNShaderModifierEntryPoint.fragment: BodyHeatMapShader.fragmentModifier,
+        ]
 
         startDisplayLinkIfNeeded()
     }
@@ -116,6 +127,15 @@ final class HeatMap3DRenderer {
         starMaterial = starNode.geometry?.firstMaterial
         starMaterial?.setValue(Float(CACurrentMediaTime()), forKey: "u_currentTime")
         starMaterial?.setValue(NSValue(scnVector4: SCNVector4(0, 0, 0, 0)), forKey: "u_regionGlow")
+        starMaterial?.setValue(NSValue(scnVector3: SCNVector3(0, 0, 0)), forKey: "u_tintColor")
+        starMaterial?.setValue(Float(0), forKey: "u_tintStrength")
+    }
+
+    /// Tints the star palette toward a theme-derived color.
+    /// strength 0 = no tint (natural star colors), 1 = fully replaced by tintColor.
+    func setStarTint(color: SIMD3<Float>, strength: Float) {
+        starMaterial?.setValue(NSValue(scnVector3: SCNVector3(color.x, color.y, color.z)), forKey: "u_tintColor")
+        starMaterial?.setValue(strength, forKey: "u_tintStrength")
     }
 
     /// Sets the constellation dissolve amount (0 = solid skin, 1 = full starfield).
@@ -128,7 +148,7 @@ final class HeatMap3DRenderer {
         material?.setValue(amount, forKey: "u_constellation")
 
         let a = CGFloat(min(max(amount, 0), 1))
-        bodyNode?.opacity = 1 - a
+        if !keepBodyOpacityAtOne { bodyNode?.opacity = 1 - a }
         if let starNode {
             starNode.opacity = a
             // Skip drawing ~8k invisible points when the skin is fully solid.
@@ -159,6 +179,12 @@ final class HeatMap3DRenderer {
     }
 
     // MARK: - Display link
+
+    func stopDisplayLink() {
+        displayLink?.invalidate()
+        displayLink = nil
+        isDisplayLinkRunning = false
+    }
 
     private func startDisplayLinkIfNeeded() {
         guard !isDisplayLinkRunning else { return }

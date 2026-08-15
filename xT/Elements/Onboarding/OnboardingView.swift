@@ -1140,9 +1140,6 @@ struct OnboardingView: View {
             .padding(.horizontal, 40)
             .padding(.bottom, 40)
         }
-        .sheet(isPresented: $showImagePicker) {
-            PhotosPicker(selection: Binding(get: { profileManager.selectedPhotoItem }, set: { profileManager.selectedPhotoItem = $0 }), matching: .images) { EmptyView() }
-        }
         .photosPicker(isPresented: $showImagePicker, selection: Binding(get: { profileManager.selectedPhotoItem }, set: { profileManager.selectedPhotoItem = $0 }), matching: .images)
         .sheet(isPresented: $showCamera) {
             CameraPicker(imageData: Binding(get: { profileManager.profileImageData }, set: { profileManager.profileImageData = $0 }))

@@ -150,7 +150,7 @@ enum ConstellationCloud {
             case 40..<58:
                 depthEnvelope = 0.30; bandRegion = { _ in "chest" }
             case 58..<72:
-                depthEnvelope = 0.30; bandRegion = { _ in "waist" }
+                depthEnvelope = 0.30; bandRegion = { _ in "abdomen" }
             case 72..<92:
                 depthEnvelope = 0.32; bandRegion = { back in back ? "glutes" : "hips" }
             case 92...120:

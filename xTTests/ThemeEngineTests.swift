@@ -76,6 +76,7 @@ final class ThemeEngineTests: XCTestCase {
 
     // MARK: - Default seed hue
 
+    @MainActor
     func testDefaultSeedHueIsComputedFromAccentHex() {
         let expected = ThemeEngine.oklch(fromSRGB: Color(hex: "#D4537E")).H
         XCTAssertEqual(ThemeManager.defaultSeedHue, expected, accuracy: 1e-9,
@@ -85,6 +86,7 @@ final class ThemeEngineTests: XCTestCase {
 
     // MARK: - Zero regression at default seed
 
+    @MainActor
     func testDefaultSeedReproducesTodaysBrandColors() {
         let p = ThemePalette.resolve(seedHue: ThemeManager.defaultSeedHue, increasedContrast: false)
 
@@ -104,6 +106,7 @@ final class ThemeEngineTests: XCTestCase {
         assertMatches(p.brandColors[1], hex: "8875D4", style: .light, "brandColors[1]")
     }
 
+    @MainActor
     func testDefaultSeedReproducesTodaysGraphColors() {
         let g = ThemePalette.resolve(seedHue: ThemeManager.defaultSeedHue, increasedContrast: false).graph
 
@@ -121,6 +124,7 @@ final class ThemeEngineTests: XCTestCase {
         // (tolerance now trails the message, matching the helper's declared order)
     }
 
+    @MainActor
     func testDefaultSeedReproducesTodaysTimePalettes() {
         let time = ThemePalette.resolve(seedHue: ThemeManager.defaultSeedHue, increasedContrast: false).time
 

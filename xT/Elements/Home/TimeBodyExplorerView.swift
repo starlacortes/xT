@@ -17,6 +17,8 @@ struct TimeBodyExplorerView: View {
 
     @State private var selectedRegion: TimeRegionKey?
     @State private var selectedBrainRegion: String?
+    /// Becomes true 3 s after the explorer first appears; hides the resting hint.
+    @State private var hintDismissed = false
 
     private var bodyType: BodyType {
         BodyType(rawValue: medicationManager.bodyTypeRaw) ?? .neutral
@@ -39,18 +41,22 @@ struct TimeBodyExplorerView: View {
     var body: some View {
         GeometryReader { geo in
             ZStack {
-                // Dark "space" backdrop that fades in while a region is focused, so
-                // the constellation skin reads as stars against a night sky. The
-                // SceneKit view is clear, so this shows through the gaps between stars.
-                Color.black
-                    .opacity(selectedRegion == nil ? 0 : 0.88)
-                    .allowsHitTesting(false)
-                    .animation(.easeInOut(duration: 0.4), value: selectedRegion)
+                // Near-black "space" backdrop, faintly hued toward the user's
+                // theme accent — constant in both appearances so the
+                // constellation skin always reads as stars against a night sky.
+                // TimeView lays the same backdrop under the whole screen; this
+                // keeps the explorer self-contained (e.g. in previews).
+                ZStack {
+                    Color.black
+                    themeManager.palette.accent.opacity(0.07)
+                }
+                .allowsHitTesting(false)
 
                 TimeBodyDiagramView(
                     bodyType: bodyType,
                     selectedRegion: $selectedRegion,
                     themeColor: themeManager.palette.accentSecondary,
+                    activeColor: themeManager.palette.accent,
                     reduceMotion: reduceMotion
                 )
                 .ignoresSafeArea()
@@ -61,6 +67,13 @@ struct TimeBodyExplorerView: View {
         .onChange(of: selectedRegion) { _, new in
             if new != .head { selectedBrainRegion = nil }
         }
+        .onAppear {
+            // Fade the "Tap a region…" hint away after a short grace period —
+            // it's an onboarding nudge, not chrome.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                withAnimation(.easeOut(duration: 0.4)) { hintDismissed = true }
+            }
+        }
     }
 
     // MARK: - Overlay
@@ -69,8 +82,10 @@ struct TimeBodyExplorerView: View {
     private func overlay(width: CGFloat) -> some View {
         switch selectedRegion {
         case .none:
-            restingHint
-                .transition(.opacity)
+            if !hintDismissed {
+                restingHint
+                    .transition(.opacity)
+            }
         case .head:
             MindInfoPanel(
                 regions: mindRegionData,
@@ -148,19 +163,22 @@ private struct RegionInfoPanel: View {
                 .buttonStyle(.plain)
             }
 
-            Text(region.progressStatus(at: months))
+            Text(region.phaseLabel(at: months))
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
                 .tracking(0.5)
 
-            Text(region.phaseText(at: months))
+            Text(region.focusText(at: months) ?? region.phaseText(at: months))
                 .font(.system(size: 14))
                 .foregroundStyle(.primary)
                 .lineSpacing(3)
                 .fixedSize(horizontal: false, vertical: true)
 
-            if let stat = stats.first(where: { $0.label.localizedCaseInsensitiveContains(title) }) {
+            // Match stats by region-key prefix (not the display title), so
+            // renaming a title can't drop the stat, while key-derived labels
+            // like "Abdomen Shift" still match the "abdomen" region.
+            if let stat = stats.first(where: { $0.label.range(of: region.key, options: [.caseInsensitive, .anchored]) != nil }) {
                 statRow(stat)
             }
         }
@@ -249,12 +267,12 @@ private struct MindInfoPanel: View {
             }
 
             if let selected {
-                Text(selected.progressStatus(at: months))
+                Text(selected.phaseLabel(at: months))
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(.secondary)
                     .textCase(.uppercase)
                     .tracking(0.5)
-                Text(selected.phaseText(at: months))
+                Text(selected.focusText(at: months) ?? selected.phaseText(at: months))
                     .font(.system(size: 15))
                     .foregroundStyle(.primary)
                     .lineSpacing(4)

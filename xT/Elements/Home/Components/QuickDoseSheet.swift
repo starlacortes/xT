@@ -263,6 +263,7 @@ struct QuickDoseSheet: View {
             HStack {
                 if isCustomizing {
                     Button {
+                        commitActiveField()
                         withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                             isCustomizing = false
                         }
@@ -448,6 +449,7 @@ struct QuickDoseSheet: View {
 
             if isCustomizing {
                 Button {
+                    commitActiveField()
                     withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                         isCustomizing = false
                     }
@@ -480,6 +482,22 @@ struct QuickDoseSheet: View {
                 }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 20)
+            }
+        }
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button {
+                    commitActiveField()
+                    mgFieldFocused = false
+                    mlFieldFocused = false
+                } label: {
+                    Text("Done")
+                        .font(.subheadline.weight(.semibold))
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .asGlassCard(tintOpacity: 0.5, cornerRadius: Theme.Radius.md)
+                }
             }
         }
     }
@@ -962,6 +980,19 @@ struct QuickDoseSheet: View {
         }
     }
 
+    /// Parses the text field backing the currently selected dose unit.
+    /// The decimal-pad TextFields only commit on submit (never fires — the pad
+    /// has no return key) or focus loss (unreliable when the field is torn down
+    /// by in-sheet navigation, e.g. the customize "Done" button), so any action
+    /// that reads the dose must commit explicitly first.
+    private func commitActiveField() {
+        if doseUnit == "mg" {
+            commitMgText()
+        } else {
+            commitMlText()
+        }
+    }
+
     private func prefillFromRecentDose() {
         if isCorrectionMode, let original = originalDose {
             mgAmount = original.doseAmount
@@ -999,6 +1030,7 @@ struct QuickDoseSheet: View {
 
     /// For oral routes: record immediately without site selection.
     private func recordDoseImmediately() {
+        commitActiveField()
         let finalMg = doseUnit == "mg" ? mgAmount : mlAmount * concentration
         let finalConcentration = concentration > 0 ? concentration : nil
 
@@ -1025,6 +1057,7 @@ struct QuickDoseSheet: View {
     }
 
     private func finalizeRecording() {
+        commitActiveField()
         let finalMg = doseUnit == "mg" ? mgAmount : mlAmount * concentration
         let finalConcentration = concentration > 0 ? concentration : nil
 
