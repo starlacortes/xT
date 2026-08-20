@@ -332,42 +332,61 @@ about what is ahead of it.
 ## 8. The 60+ build-out
 
 Months 60-240 currently hold 5 bands per region. Replace with 8, and
-change what they are *about*: past `completeMonth` the honest subject is
-no longer development but **maintenance biology** — what the hormone is
-actively holding, what reverses without it, and what the follow-up
-literature actually covers.
+change what they are *about*: past `completeMonth` the subject is
+**maintenance biology** — what the hormone is doing in this tissue right
+now, what depends on it, and what the follow-up literature covers.
+
+### Maintenance is work, not the absence of work
+
+The long-tail card's failure mode is not inaccuracy. It is writing
+"development is complete" and leaving the reader with the sense that the
+interesting part is behind them. That framing is also imprecise:
+maintained tissue is not tissue that stopped. Adipose distribution, bone
+mineral density, breast tissue and neural adaptation are each held in
+place by a signal the body is reading continuously, and each would move
+without it. The copy's job at year six is to say what that ongoing work
+*is*, not to certify that an earlier phase ended.
+
+So the long tail is written in the **present active**: what the hormone
+is doing, what depends on it, what is being measured. See the two rules
+this adds in §9 — no terminus framing, and shared-physiology facts.
 
 | Band | Frame |
 |------|-------|
-| 60-71 | Development complete — what "complete" means structurally |
-| 72-83 | What the hormone is actively maintaining |
-| 84-95 | What reverses without it, and over what timescale |
-| 96-119 | Screening that becomes age-appropriate at this tenure |
-| 120-143 | Decade markers; what the longitudinal cohorts show |
+| 60-71 | What holds this tissue now — maintenance as continuous signalling |
+| 72-83 | The daily work: what the hormone is doing in this tissue every day |
+| 84-95 | What the signal is load-bearing for, and over what timescale |
+| 96-119 | The measures and screening that become the relevant ones at this tenure |
+| 120-143 | A decade in: what the longitudinal cohorts show |
 | 144-179 | Bone, metabolic and cardiovascular picture at 12-15 years |
 | 180-239 | 15-20 years — the edge of published follow-up |
-| 240+ | Beyond the literature: what is known, what is not |
+| 240+ | Past the literature: what is known, what is not, what is being studied |
 
 Because rate is `.steady` throughout this range, the INSIGHT slot draws
 from the fact bank nearly every month. **The long-tail user is the
-heaviest consumer of the fact bank** — which sets its sizing (§10).
+heaviest consumer of the fact bank** — which sets its sizing (§10) and
+makes the fact bank, not the NOW band, the main reason a six-year user
+opens the card at all.
 
 Content owed, by region:
 
 - **E Chest** — Tanner stage 5 as a named endpoint; that a documented
   minority plateau at stage 3-4 and that this is a recognised outcome
-  rather than a failure; mammographic density; that the tissue is
-  estrogen-dependent rather than permanent.
+  rather than a failure; mammographic density and how it reads across
+  the decades; that the tissue is estrogen-dependent, which is a
+  statement about what estradiol is doing rather than about what it
+  stopped doing.
 - **E body regions** — bone mineral density as the clinically primary
-  measure past 5 years; estrogen as its principal regulator; DEXA
-  cadence; that BMD here is *maintained*, not built.
+  measure past 5 years; estrogen as its principal regulator; how the
+  remodelling cycle works and where estradiol sets its balance point;
+  DEXA cadence.
 - **E mind regions** — the longitudinal cognitive cohorts and what they
-  do and do not establish.
-- **T chest / body** — terminal hair density, the one change still
-  progressing past 60 months; the muscle-mass ceiling and its
-  training-dependence; hematocrit at long tenure.
-- **T mind regions** — the settled amygdala/PFC state and what the
-  short follow-up window permits saying.
+  do and do not establish; ongoing BDNF signalling as an active process.
+- **T chest / body** — terminal hair density, still progressing past 60
+  months; the muscle-mass ceiling and its training-dependence;
+  hematocrit at long tenure and why it is watched.
+- **T mind regions** — the adapted amygdala/PFC state and what the
+  shorter follow-up window permits saying.
 
 ---
 
@@ -384,6 +403,50 @@ Enforceable, and enforced — see the lint test in §10.
   and only where the experience genuinely varies between people.
 - Present tense in NOW, MECHANISM and FACT. Future tense only in NEXT.
 - No exclamation marks, no "fun fact", no parenthetical asides.
+
+### No terminus framing
+
+Banned as a framing of the long tail: *complete*, *finished*, *no
+further*, *nothing more*, *stopped*, *no longer changes*. Where a
+developmental phase genuinely has an endpoint, say **what is being held**
+rather than what has stopped.
+
+> Development here finished years ago. Estradiol is maintaining the
+> distribution rather than driving it.
+
+> Estradiol is holding this distribution in place. Adipose tissue reads
+> the signal continuously — the pattern is maintained, not memorised.
+
+Both sentences describe the same biology. The second does not leave the
+reader with nothing.
+
+This is not an instruction to obscure. "Breast development typically
+plateaus around year five" is a true and useful thing to tell someone,
+and it stays. What goes is the *editorial* verdict layered on top of it —
+`no further development is expected`, `requires no further adjustment`,
+`no further biological change is expected`.
+
+Current corpus, as a worklist: **5** explicit "no further / not
+expected" statements, **23** terminus uses of "complete", **8**
+"plateaued / stopped", **3** "finished / done".
+
+### Shared-physiology facts
+
+The fact bank draws on the much larger literature about estrogen- and
+androgen-maintained bodies. Write those facts in terms of the **tissue
+state**, never the population.
+
+> In any estrogen-maintained skeleton, osteoclasts resorb bone and
+> osteoblasts rebuild it. Estradiol sets where that balance lands.
+
+> Breast density falls with age in estrogen-maintained tissue, which is
+> why mammogram readings change across the decades.
+
+Never name a comparison group — not to soften anything, but because
+naming one makes the reader the exception to it. "The same as in
+cisgender women" and "unlike cisgender women" are both out; so is any
+construction that positions the reader relative to another group. The
+physiology is stated once, and it applies to the body reading it.
 
 Net effect on the month-10 Abdomen card:
 
@@ -415,12 +478,24 @@ so.
 | NOW bands, re-cut 0-59 | 18 regions × ~9 | Re-cut and trimmed from existing `monthFocus` |
 | NOW bands, 60-240 | 18 × 8 = 144 | 90 net new (replaces 5 per region) |
 | Mechanism entries | 18 × 4 = 72 | Largely re-cut from `earlyText`/`midText`/`lateText` + 1,005 words of unrendered `scienceText` |
-| Fact entries | 18 × 8 = 144 | Net new. The real writing job. |
+| Fact entries | 18 × 10 = 180 | Net new. The real writing job. |
 | Markers | ~4 per region = 72 | Tanner stages, receptor saturation, ductal-lobular completion, BMD plateau |
+| Terminus rewrites | 39 strings | The `no further` / `complete` / `plateaued` / `finished` worklist from §9 |
 
-Fact-bank sizing is set by the long-tail user: at `.steady` the fact
-slot fires every month, so 8 entries per region gives an 8-month
-non-repeat cycle for someone who opens the card monthly at year 6+.
+Fact-bank sizing is set by the long-tail user, not the new one. Past
+`completeMonth` the rate is `.steady`, so the fact slot fires nearly
+every month — a six-year user sees the fact bank more often than any
+other content on the card.
+
+Ten entries per region, of which **at least eight must be eligible past
+month 60** (`months` ranges are per-entry, so an entry can be scoped to
+the early phase, the long tail, or both). That gives an eight-month
+non-repeat cycle to someone opening the card monthly at year six, and a
+test asserts the 60+ pool size directly rather than the global count:
+
+```swift
+@Test func longTailFactPoolIsDeep()  // every region, months 60...240, pool ≥ 8
+```
 
 ---
 
