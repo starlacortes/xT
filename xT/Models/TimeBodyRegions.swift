@@ -11,36 +11,29 @@ struct BodyRegion: Identifiable {
     let startMonth: Int
     let peakMonth: Int
     let completeMonth: Int
-    let earlyText: String
-    let midText: String
-    let lateText: String
     /// General 2-sentence context shown in the region detail screen above the
     /// phase copy. Authored for clinical sign-off per TIME_TIERS_DESIGN.md §7.
     let overview: String
 
     /// Per-month factual focus sentences. Keyed by small month-bands so every
     /// month surfaces a fresh, research-backed tissue-level fact even when the
-    /// phase label and tier copy are unchanged. `nil` falls back to `phaseText`.
+    /// phase label and tier copy are unchanged. `nil` falls back to `pendingText`.
     let monthFocus: [(ClosedRange<Int>, String)]
 
     /// Which register this region's phase labels are named in. Tissue remodels;
     /// neural circuits adapt. Set once per array — see `PhaseVocabulary`.
     var vocabulary: PhaseVocabulary = .tissue
 
-    func phaseText(at months: Int) -> String {
-        if months < startMonth {
-            return String(localized: "Changes to the \(label.lowercased()) are about to begin as hormone levels rise and receptors activate.")
-        } else if months < peakMonth {
-            return earlyText
-        } else if months < completeMonth {
-            return midText
-        } else {
-            return lateText
-        }
+    /// What the card says before this region's clock has started. `monthFocus`
+    /// covers every month from `startMonth` onward, so this is the only case
+    /// `focusText` returns nil for and the only place this text is reached.
+    var pendingText: String {
+        String(localized: "Changes to the \(label.lowercased()) are about to begin as hormone levels rise and receptors activate.")
     }
 
     /// A short factual sentence for the current month, or `nil` if no specific
-    /// focus is authored for this month (caller falls back to `phaseText`).
+    /// focus is authored for this month — only below `startMonth`, where the
+    /// caller falls back to `pendingText`.
     func focusText(at months: Int) -> String? {
         for (range, text) in monthFocus where range.contains(months) {
             return text
@@ -61,9 +54,6 @@ enum TimeBodyRegions {
             label: "Prefrontal Cortex",
             icon: "brain.head.profile",
             startMonth: 1, peakMonth: 18, completeMonth: 36,
-            earlyText: "Estrogen receptors (ER-α, ER-β) in the PFC begin responding to rising estradiol. Cerebral blood flow increases measurably, supporting early shifts in executive function and working memory.",
-            midText: "Dopaminergic signaling in the PFC is modulated by estrogen. Many report improved cognitive flexibility, enriched emotional regulation, and a qualitative shift in how decisions feel — less analytical, more integrative.",
-            lateText: "PFC function has stabilized. The neural circuits governing executive function and emotional top-down control are fully adapted to the estrogen-dominant neurochemical environment.",
             overview: "The prefrontal cortex is densely expressed with estrogen receptors that govern executive function, decision-making style, and emotional top-down control. Estrogen-driven shifts in dopaminergic signaling here produce some of the earliest and most noticeable cognitive effects of feminizing HRT.",
             monthFocus: [
                 (1...1,     "ER-α and ER-β in the prefrontal cortex are switching on. Cerebral blood flow here rises within the first weeks — the earliest measurable neural effect."),
@@ -84,7 +74,7 @@ enum TimeBodyRegions {
                 (120...143, "A decade in, cohort studies of sustained hormone therapy report no adverse cognitive signal. They are observational, so they show association rather than cause."),
                 (144...179, "Cardiovascular health is the largest modifiable input to prefrontal function at this stage. Blood pressure and lipids matter to this tissue directly."),
                 (180...239, "Fifteen to twenty years sits at the edge of published follow-up. What the cohorts show is stability, across a sample still smaller than anyone would like."),
-                (240...600, "Past twenty years the literature thins. Prefrontal maintenance is understood mechanistically; the long-horizon outcome data is still being gathered."),
+                (240...1200, "Past twenty years the literature thins. Prefrontal maintenance is understood mechanistically; the long-horizon outcome data is still being gathered."),
             ],
             vocabulary: .neural
         ),
@@ -93,10 +83,7 @@ enum TimeBodyRegions {
             label: "Hippocampus",
             icon: "waveform.path.ecg",
             startMonth: 1, peakMonth: 24, completeMonth: 48,
-            earlyText: "Estradiol rapidly upregulates BDNF in the hippocampus. Synaptogenesis begins — new dendritic spines are sprouting on CA1 pyramidal neurons within the first month.",
-            midText: "Hippocampal volume is measurably increasing due to estrogen-driven neurogenesis in the dentate gyrus. Spine density in CA1 has increased ~30%. Verbal memory and spatial navigation show measurable improvements.",
-            lateText: "The hippocampus has fully adapted. Estrogen-mediated neuroprotection is ongoing — sustained BDNF signaling, enhanced synaptic plasticity, and reduced oxidative stress.",
-            overview: "The hippocampus is estrogen's primary site of structural neuroprotection — BDNF upregulation drives measurable volume growth through new synapse formation and neurogenesis over the first several years. Verbal memory, emotional recall, and spatial orientation all strengthen as the region adapts to the new hormonal environment.",
+            overview: "The hippocampus is estrogen's main site of structural change in the brain. BDNF upregulation drives volume growth through new synapses, and verbal memory, emotional recall and spatial orientation strengthen with it.",
             monthFocus: [
                 (1...1,     "Estradiol is upregulating BDNF in the hippocampus. New dendritic spines are forming on CA1 neurons within the first weeks — structural change, already."),
                 (2...3,     "Synaptogenesis is active. CA1 spine density is climbing, and verbal-memory benchmarks can show early gains this soon."),
@@ -115,7 +102,7 @@ enum TimeBodyRegions {
                 (120...143, "A decade in, longitudinal cohorts associate sustained estrogen exposure with preserved hippocampal volume. The association is consistent; the causal question stays open."),
                 (144...179, "Vascular health drives hippocampal outcomes at twelve to fifteen years. The region is perfusion-sensitive, so blood pressure control is load-bearing here."),
                 (180...239, "Fifteen to twenty years is where follow-up data runs out. Volume preservation holds across that window in the cohorts that exist."),
-                (240...600, "Past twenty years the mechanism is well described and the outcome data is not. BDNF-maintained architecture is understood; its multi-decade trajectory is being studied."),
+                (240...1200, "Past twenty years the mechanism is well described and the outcome data is not. BDNF-maintained architecture is understood; its multi-decade trajectory is being studied."),
             ],
             vocabulary: .neural
         ),
@@ -124,10 +111,7 @@ enum TimeBodyRegions {
             label: "Amygdala",
             icon: "heart.fill",
             startMonth: 1, peakMonth: 12, completeMonth: 24,
-            earlyText: "Estrogen begins modulating amygdala reactivity. Emotional intensity may feel heightened as the amygdala adjusts to reduced testosterone and increasing estradiol signaling.",
-            midText: "Amygdala response patterns are shifting. Many report a richer emotional range — increased empathy, deeper emotional recall, and a qualitative change in how emotions are experienced.",
-            lateText: "Amygdala function has stabilized. Emotional responses are well-calibrated to the new hormonal environment. The initial recalibration period is largely complete.",
-            overview: "The amygdala governs emotional salience — how intensely and broadly you register feelings — and estrogen shifts its responsiveness toward a richer, wider emotional range. Many describe this as gaining access to emotional depth that previously felt muted or blocked.",
+            overview: "The amygdala sets emotional salience: how intensely and broadly feelings register. Estrogen shifts its responsiveness toward a wider range, which many describe as access to depth that previously felt muted.",
             monthFocus: [
                 (1...1,     "Estrogen is starting to modulate amygdala reactivity. Emotional intensity can feel heightened while the region recalibrates."),
                 (2...3,     "Amygdala response patterns are shifting quickly. A wider emotional range and deeper emotional recall are commonly reported this early."),
@@ -147,7 +131,7 @@ enum TimeBodyRegions {
                 (120...143, "A decade in, emotional baseline is one of the most stable things about long-term therapy. Studies of mood at this tenure find variation tracks life, not tenure."),
                 (144...179, "Limbic function at twelve to fifteen years is unremarkable in follow-up, which is itself the finding. The tissue asks for consistency, not adjustment."),
                 (180...239, "Fifteen to twenty years is the edge of published follow-up. Emotional outcomes across it are stable and, in the cohorts, uneventful."),
-                (240...600, "Past twenty years there is little published. The neurosteroid mechanism is well characterised; how it reads across four decades of exposure is not yet."),
+                (240...1200, "Past twenty years there is little published. The neurosteroid mechanism is well characterised; how it reads across four decades of exposure is not yet."),
             ],
             vocabulary: .neural
         ),
@@ -156,10 +140,7 @@ enum TimeBodyRegions {
             label: "Synaptic Plasticity",
             icon: "sparkles",
             startMonth: 1, peakMonth: 18, completeMonth: 60,
-            earlyText: "Estrogen rapidly enhances long-term potentiation (LTP) in hippocampal and cortical synapses. NMDA receptor expression increases within the first weeks, priming circuits for remodelling.",
-            midText: "Synaptic density is actively increasing across limbic and cortical regions. Estrogen promotes dendritic spine formation via CREB-mediated gene transcription — structural brain change is underway.",
-            lateText: "Synaptic architecture has fully remodelled. The enhanced plasticity state is maintained through ongoing estrogen — a continuous, active process supported by consistent hormone levels.",
-            overview: "Synaptic plasticity is the brain's capacity to form and strengthen connections, and estrogen is among its most powerful promoters — upregulating NMDA receptors, BDNF, and dendritic spine density across limbic and cortical circuits. This is the neurological substrate for the cognitive and emotional changes experienced across the first few years of HRT.",
+            overview: "Synaptic plasticity is the brain's capacity to form and strengthen connections, and estrogen is among its strongest promoters. Upregulated NMDA receptors, BDNF and dendritic spine density are the substrate the cognitive and emotional changes sit on.",
             monthFocus: [
                 (1...1,     "NMDA receptor expression is rising in hippocampal and cortical synapses. Long-term potentiation is enhanced — circuits are primed to remodel."),
                 (2...3,     "Dendritic spine formation is active through CREB-mediated transcription. Structural change is measurably underway across limbic regions."),
@@ -179,7 +160,7 @@ enum TimeBodyRegions {
                 (120...143, "A decade in, the cohorts describe stable cognitive performance under sustained therapy. The sample sizes are modest and the follow-up windows are still opening."),
                 (144...179, "At twelve to fifteen years, vascular and metabolic health carry more weight than hormonal variables. Synapses are expensive tissue and perfusion-dependent."),
                 (180...239, "Fifteen to twenty years marks the edge of the published record. Plasticity measures across it hold steady in the available follow-up."),
-                (240...600, "Past twenty years the mechanism is characterised and the outcomes are not. Sustained plasticity is understood cell by cell; the decades-long picture is open."),
+                (240...1200, "Past twenty years the mechanism is characterised and the outcomes are not. Sustained plasticity is understood cell by cell; the decades-long picture is open."),
             ],
             vocabulary: .neural
         ),
@@ -193,10 +174,7 @@ enum TimeBodyRegions {
             label: "Hips & Waist",
             icon: "figure.stand",
             startMonth: 3, peakMonth: 18, completeMonth: 36,
-            earlyText: "Estrogen begins redirecting subcutaneous fat to the hip and pelvic girdle while androgenic abdominal-waist fat recedes. The iliac crest and greater trochanter become primary deposition sites.",
-            midText: "Hip circumference is measurably increasing as gynoid-pattern fat distribution establishes, while the waist narrows — the hip-to-waist ratio is significantly shifting.",
-            lateText: "Fat redistribution to the hips and waist band is largely complete. The wider iliac span and narrower waistline are maintained through continued estrogen therapy.",
-            overview: "Estrogen redirects subcutaneous fat toward a gynoid pattern — depositing primarily at the hips, iliac crest, and greater trochanter — while androgenic visceral fat at the waist gradually recedes. The resulting shift in hip-to-waist ratio takes the full 2–3 year adipocyte turnover cycle to complete.",
+            overview: "Estrogen redirects subcutaneous fat toward a gynoid pattern, depositing at the hips, iliac crest and greater trochanter while androgenic waist fat recedes. The hip-to-waist shift runs on the two-to-three year adipocyte turnover cycle.",
             monthFocus: [
                 (3...3,     "ER-α receptors in gluteofemoral fat are activating. Lipoprotein lipase activity is rising in the hip depots, directing new storage there."),
                 (4...5,     "Subcutaneous fat is beginning to deposit at the iliac crest and greater trochanter. Nothing is visible yet; the enzyme work is."),
@@ -216,7 +194,7 @@ enum TimeBodyRegions {
                 (120...143, "A decade in, cohort data links sustained estradiol with maintained bone density. Levels in range are the variable that predicts the result."),
                 (144...179, "At twelve to fifteen years the picture is bone, lipids and blood pressure. In any estrogen-maintained skeleton, osteoclasts resorb and osteoblasts rebuild; estradiol sets the balance."),
                 (180...239, "Fifteen to twenty years is where follow-up ends. Bone density and fat distribution both hold across it where levels stayed in range."),
-                (240...600, "Past twenty years the data thins. The remodelling mechanism is well established; what it looks like at forty years of exposure is being gathered now."),
+                (240...1200, "Past twenty years the data thins. The remodelling mechanism is well established; what it looks like at forty years of exposure is being gathered now."),
             ]
         ),
         BodyRegion(
@@ -224,10 +202,7 @@ enum TimeBodyRegions {
             label: "Thighs",
             icon: "figure.walk",
             startMonth: 4, peakMonth: 20, completeMonth: 36,
-            earlyText: "Subcutaneous fat begins accumulating on the outer and inner thighs. Pants may fit differently around the upper leg as gynoid-pattern deposition begins.",
-            midText: "Thigh circumference increases measurably. Inner-thigh fat pads develop — a hallmark of estrogen-dominant body composition.",
-            lateText: "Thigh fat distribution has stabilized at its estrogen-dominant pattern. The curve from hip to knee is well-defined and maintained with consistent hormone levels.",
-            overview: "Thigh fat accumulation is a hallmark of estrogen-dominant body composition, driven by rising lipoprotein lipase activity in gluteofemoral depots under estradiol's direction. Inner-thigh fat pads and the curve from hip to knee develop over 2–3 years as fat cells turn over into the gynoid pattern.",
+            overview: "Thigh fat accumulation is a hallmark of estrogen-dominant body composition, driven by rising lipoprotein lipase activity in gluteofemoral depots. Inner-thigh pads and the curve from hip to knee develop over two to three years.",
             monthFocus: [
                 (4...4,     "Lipoprotein lipase activity is rising in thigh depots. Subcutaneous fat is starting to accumulate on the outer and inner thigh."),
                 (5...6,     "Deposition is underway but below the threshold of visible change. Pants fit is usually the first signal."),
@@ -247,7 +222,7 @@ enum TimeBodyRegions {
                 (120...143, "A decade in, thigh composition is stable in follow-up. Age-related lean mass decline begins around this point and is largely training-responsive."),
                 (144...179, "At twelve to fifteen years, muscle and bone in the leg move together. Loaded lower-body exercise is the input that acts on both."),
                 (180...239, "Fifteen to twenty years is the edge of the published record. Fat distribution holds across it wherever hormone levels were sustained."),
-                (240...600, "Past twenty years there is little longitudinal data on limb composition specifically. The depot biology is well described; the multi-decade trajectory is not."),
+                (240...1200, "Past twenty years there is little longitudinal data on limb composition specifically. The depot biology is well described; the multi-decade trajectory is not."),
             ]
         ),
         BodyRegion(
@@ -255,10 +230,7 @@ enum TimeBodyRegions {
             label: "Abdomen",
             icon: "arrow.up.and.down",
             startMonth: 3, peakMonth: 12, completeMonth: 24,
-            earlyText: "Androgenic visceral fat — the kind stored around the abdominal organs — begins to decrease as testosterone is suppressed. The belly may soften or slim slightly before hip changes become externally visible.",
-            midText: "Abdominal fat keeps shifting away from the visceral android pattern. Combined with gynoid gain at the hips, the belly and waistline read noticeably softer.",
-            lateText: "Abdominal fat distribution has stabilized in its estrogen-dominant pattern, maintained by ongoing hormone levels.",
-            overview: "While estrogen builds fat at the hips and thighs, it simultaneously draws down androgenic visceral fat around the abdominal organs — reversing the android fat pattern. This belly softening is often one of the earliest externally visible changes because visceral fat responds more quickly than the slower gynoid deposition at the hips.",
+            overview: "While estrogen builds fat at the hips and thighs, it draws down androgenic visceral fat around the abdominal organs, reversing the android pattern. Visceral fat responds faster than gynoid deposition, so the belly often softens first.",
             monthFocus: [
                 (3...3,     "Androgenic visceral fat is beginning to recede as testosterone falls. The belly often softens before any hip change shows."),
                 (4...5,     "Visceral reduction is underway. This depot responds faster than the hips because it is the one androgens were driving."),
@@ -278,7 +250,7 @@ enum TimeBodyRegions {
                 (120...143, "A decade in, sustained estradiol is associated with a gynoid visceral profile in follow-up. Diet and activity move the number more than dose does."),
                 (144...179, "At twelve to fifteen years, modest visceral accumulation appears in any adult body. Estradiol slows the trend without removing it."),
                 (180...239, "Fifteen to twenty years is the edge of published follow-up. Metabolic markers across it track lifestyle far more closely than tenure."),
-                (240...600, "Past twenty years the metabolic literature is thin for this population specifically. The mechanism generalises; the long-horizon cohort data is still accruing."),
+                (240...1200, "Past twenty years the metabolic literature is thin for this population specifically. The mechanism generalises; the long-horizon cohort data is still accruing."),
             ]
         ),
         BodyRegion(
@@ -286,9 +258,6 @@ enum TimeBodyRegions {
             label: "Glutes",
             icon: "oval.fill",
             startMonth: 3, peakMonth: 24, completeMonth: 48,
-            earlyText: "Fat deposition begins in the gluteal region — often subtle at first. You might notice your pants fitting differently in the seat before any visible change.",
-            midText: "Gluteal fat pads are actively expanding. Combined with pelvic rotation from ligament changes, your posterior profile and posture are changing noticeably.",
-            lateText: "Gluteal distribution is mature. Subtle refinements may continue through year 4–5 as the 2–3 year adipocyte cell-turnover cycle completes.",
             overview: "Gluteal fat pads expand as estrogen redirects storage toward the gynoid pattern, combining with ligament laxity changes to reshape the posterior profile and posture. Development here unfolds on the 2–3 year adipocyte turnover cycle, reaching maturity around year 4–5.",
             monthFocus: [
                 (3...3,     "Gluteal deposition is beginning, usually below the threshold of notice. LPL activity in gluteal depots is rising."),
@@ -308,7 +277,7 @@ enum TimeBodyRegions {
                 (120...143, "A decade in, gluteal distribution is stable in follow-up. Weight changes still deposit along the estrogen-established pathway."),
                 (144...179, "At twelve to fifteen years the hip is watched for bone rather than shape. Femoral neck density and fall risk are the clinically relevant pair."),
                 (180...239, "Fifteen to twenty years marks the edge of the record. Distribution holds across it in the cohorts with sustained levels."),
-                (240...600, "Past twenty years the outcome data thins while the mechanism does not. Depot biology is well described; forty-year trajectories are not yet published."),
+                (240...1200, "Past twenty years the outcome data thins while the mechanism does not. Depot biology is well described; forty-year trajectories are not yet published."),
             ]
         ),
         BodyRegion(
@@ -316,15 +285,12 @@ enum TimeBodyRegions {
             label: "Chest",
             icon: "heart.fill",
             startMonth: 1, peakMonth: 18, completeMonth: 60,
-            earlyText: "Breast bud formation begins within the first weeks. Areolar tissue becomes more sensitive and the chest wall starts depositing glandular and fatty tissue beneath the nipple.",
-            midText: "Breast growth is progressing through Tanner stages 2–4. Montgomery glands develop; the breast mound expands. Growth is not linear — expect plateaus and spurts.",
-            lateText: "Breast maturation continues through year 3–5 as the ductal-lobular system completes development. Full maturity may take up to 60 months.",
-            overview: "Breast development on estrogen follows the same Tanner staging process as endogenous puberty, beginning with glandular bud formation under the areola and progressing through ductal-lobular expansion over several years. The visible growth phase typically spans years 1–3; internal ductal maturation continues through year 5.",
+            overview: "Breast development on estrogen follows the same Tanner staging as endogenous puberty, starting with a glandular bud under the areola. Visible growth typically spans years one to three; ductal maturation continues through year five.",
             monthFocus: [
                 (1...1,     "Breast bud formation is beginning. Ductal tissue is forming beneath the areola — the first stage of Tanner 2."),
-                (2...3,     "Tanner stage 2 is establishing. Areolar tissue is more sensitive and the bud is palpable. Glandular tissue is forming actively."),
+                (2...3,     "Tanner stage 2 is establishing. Areolar tissue is more sensitive, the bud is palpable, and glandular tissue is forming actively."),
                 (4...6,     "The breast mound is expanding beyond the areola. Montgomery glands may begin developing."),
-                (7...9,     "Tanner stage 3 is typically reached here. The mound is distinctly elevated. Growth is non-linear — plateaus and spurts are both normal."),
+                (7...9,     "Tanner stage 3 is typically reached here and the mound is distinctly elevated. Growth is non-linear, so plateaus and spurts are both normal."),
                 (10...13,   "Tanner stage 3 to 4. The areola and papilla form a secondary mound in many people; the ductal-lobular system is developing."),
                 (14...17,   "Growth is at its fastest. Tanner stage 4 is typically reached across this window."),
                 (18...20,   "The breast mound is mature in shape. Internal ductal-lobular development continues well past the visible phase."),
@@ -339,7 +305,7 @@ enum TimeBodyRegions {
                 (120...143, "A decade in, breast tissue is maintained by continued estradiol. Cohort follow-up at this tenure focuses on screening cadence rather than on development."),
                 (144...179, "At twelve to fifteen years, density on imaging has typically eased, which changes how a mammogram reads rather than what it looks for."),
                 (180...239, "Fifteen to twenty years sits at the edge of published follow-up. Tissue volume holds across it where estradiol levels were sustained."),
-                (240...600, "Past twenty years the screening literature for this tissue is still being built. What is established is that the tissue stays estradiol-dependent throughout."),
+                (240...1200, "Past twenty years the screening literature for this tissue is still being built. What is established is that the tissue stays estradiol-dependent throughout."),
             ]
         ),
     ]
@@ -372,10 +338,7 @@ enum TimeBodyRegions {
             label: "Prefrontal Cortex",
             icon: "brain.head.profile",
             startMonth: 1, peakMonth: 12, completeMonth: 24,
-            earlyText: "Androgen receptors in the prefrontal cortex begin responding to rising testosterone. Some report an early shift toward more direct, decisive thinking — though these first weeks are also when levels are least stable dose to dose, so day-to-day variation is normal.",
-            midText: "Testosterone and its metabolite DHT continue modulating PFC circuits involved in risk assessment and executive control. Verbal fluency patterns can shift, and many describe a more linear thought process alongside growing decisiveness.",
-            lateText: "PFC function has adapted to the androgen-dominant environment. The shift toward more direct executive processing is typically stable by this point, reflecting a settled circuit rather than an ongoing change.",
-            overview: "The prefrontal cortex contains androgen receptors that respond to rising testosterone, influencing executive processing, risk assessment, and verbal thought patterns. Many describe a shift toward more direct, linear cognitive processing as PFC circuits adapt to the androgen-dominant environment over the first year or two.",
+            overview: "The prefrontal cortex carries androgen receptors that respond to rising testosterone, influencing executive processing, risk assessment and verbal thought. Many describe a shift toward more direct, linear thinking over the first year or two.",
             monthFocus: [
                 (1...1,     "Androgen receptors in the prefrontal cortex are activating. Early shifts in decision-making style vary a lot dose to dose this early."),
                 (2...3,     "Prefrontal circuits are adapting. A shift toward more direct, linear processing is commonly reported this early."),
@@ -395,7 +358,7 @@ enum TimeBodyRegions {
                 (120...143, "A decade in, follow-up of long-term testosterone therapy reports no adverse cognitive signal. The cohorts are smaller and younger than the estrogen ones."),
                 (144...179, "At twelve to fifteen years, cardiovascular health becomes the dominant input. Hematocrit, blood pressure and lipids all act on prefrontal perfusion."),
                 (180...239, "Fifteen to twenty years is close to the edge of published follow-up for this population. What exists across that window shows stability."),
-                (240...600, "Past twenty years the record is sparse. The receptor mechanism is well described; the multi-decade cognitive picture is actively being studied."),
+                (240...1200, "Past twenty years the record is sparse. The receptor mechanism is well described; the multi-decade cognitive picture is actively being studied."),
             ],
             vocabulary: .neural
         ),
@@ -404,10 +367,7 @@ enum TimeBodyRegions {
             label: "Hippocampus",
             icon: "waveform.path.ecg",
             startMonth: 1, peakMonth: 12, completeMonth: 24,
-            earlyText: "Testosterone acts on androgen receptors densely expressed in the hippocampus. Androgen-administration research links this to measurable gains in spatial navigation and mental rotation tasks, though individual variation is wide.",
-            midText: "Spatial memory and navigation performance are commonly reported to improve over this window, consistent with androgen-receptor-mediated support for hippocampal circuitry. Verbal memory shows less consistent change than the spatial gains.",
-            lateText: "Hippocampal adaptation to sustained testosterone has settled. Spatial-cognition benefits associated with androgen exposure are maintained for as long as levels stay in range.",
-            overview: "The hippocampus is richly expressed with androgen receptors, and exogenous testosterone research consistently links sustained exposure to measurable gains in spatial navigation and mental rotation tasks. These spatial-cognition benefits are maintained for as long as levels remain in range.",
+            overview: "The hippocampus is densely expressed with androgen receptors, and sustained testosterone exposure is linked to gains in spatial navigation and mental rotation. Those gains hold for as long as levels stay in range.",
             monthFocus: [
                 (1...1,     "Androgen receptors in the hippocampus are activating. Spatial navigation and mental rotation may show early gains."),
                 (2...3,     "Spatial memory performance is commonly reported to improve this early. Androgen-receptor support for hippocampal circuitry is active."),
@@ -427,7 +387,7 @@ enum TimeBodyRegions {
                 (120...143, "A decade in, hippocampal outcomes under sustained testosterone are stable in follow-up. The evidence base is thinner here than for spatial performance in the short term."),
                 (144...179, "At twelve to fifteen years, perfusion drives hippocampal outcomes. Hematocrit management matters to this tissue for exactly that reason."),
                 (180...239, "Fifteen to twenty years approaches the limit of published data. Cognitive measures across it are unremarkable in the cohorts that exist."),
-                (240...600, "Past twenty years there is little published on this specific tissue. The androgen and aromatase mechanisms are established; the long-horizon data is not."),
+                (240...1200, "Past twenty years there is little published on this specific tissue. The androgen and aromatase mechanisms are established; the long-horizon data is not."),
             ],
             vocabulary: .neural
         ),
@@ -436,10 +396,7 @@ enum TimeBodyRegions {
             label: "Amygdala",
             icon: "heart.fill",
             startMonth: 1, peakMonth: 9, completeMonth: 18,
-            earlyText: "Testosterone begins modulating amygdala reactivity to emotionally charged and threat-related stimuli. This is an active area of neuroendocrine research, and effects on emotional reactivity vary between individuals rather than following one fixed pattern.",
-            midText: "Functional imaging studies of exogenous testosterone report blunted amygdala response to distressing stimuli. Many trans masculine people describe feeling less easily moved to tears and more emotionally contained during this window — a commonly reported experience, not a guaranteed one.",
-            lateText: "Amygdala reactivity has recalibrated to the androgen-dominant hormonal environment. Where a shift toward a more contained emotional response occurred, it's typically stable from here.",
-            overview: "Testosterone modulates amygdala reactivity to emotionally charged stimuli — an active area of neuroendocrine research where individual variation is wide. Many trans masculine people describe feeling more emotionally contained and less easily moved to tears, though this is a commonly reported experience rather than a guaranteed outcome.",
+            overview: "Testosterone modulates amygdala reactivity to emotionally charged stimuli, and individual variation here is wide. Many people report feeling more emotionally contained and less easily moved to tears, though it is not a guaranteed outcome.",
             monthFocus: [
                 (1...1,     "Testosterone is beginning to modulate amygdala reactivity to emotional stimuli. Effects vary between individuals rather than following one pattern."),
                 (2...3,     "Reactivity to distressing stimuli is shifting. Many describe feeling less easily moved to tears and more emotionally contained."),
@@ -458,7 +415,7 @@ enum TimeBodyRegions {
                 (120...143, "A decade in, emotional baseline under sustained testosterone is stable in follow-up. Reported variation tracks circumstance rather than tenure."),
                 (144...179, "At twelve to fifteen years, limbic findings remain unremarkable in the literature, which is the finding. The tissue asks for consistency."),
                 (180...239, "Fifteen to twenty years is near the edge of published follow-up for this population. Emotional outcomes across it are stable."),
-                (240...600, "Past twenty years the record is thin. Amygdala neuroendocrinology is an active research area and the long-horizon picture is still forming."),
+                (240...1200, "Past twenty years the record is thin. Amygdala neuroendocrinology is an active research area and the long-horizon picture is still forming."),
             ],
             vocabulary: .neural
         ),
@@ -467,10 +424,7 @@ enum TimeBodyRegions {
             label: "Synaptic Plasticity",
             icon: "sparkles",
             startMonth: 1, peakMonth: 12, completeMonth: 36,
-            earlyText: "Androgen receptor activation begins promoting dendritic spine formation in the hippocampus and cortex — a process distinct from, but analogous to, estrogen's effect on synaptic density. Testosterone can also be locally converted to estradiol via aromatase in some brain regions, adding a second signaling pathway.",
-            midText: "Spine density continues increasing in androgen-receptor-rich regions. The dual pathway — direct androgen receptor signaling plus local aromatization to estradiol — means testosterone's neural effects aren't purely androgenic; both signaling routes are active in the brain at once.",
-            lateText: "Synaptic architecture has stabilized under sustained testosterone exposure. The combined androgen and local-estrogen signaling that developed over the past several years is now the steady state your brain operates on.",
-            overview: "Testosterone promotes synaptic plasticity through two simultaneous pathways: direct androgen receptor activation in hippocampal and cortical circuits, and local conversion to estradiol via aromatase within the brain itself. This dual mechanism means testosterone's neural effects aren't purely androgenic — both signaling routes are active at once.",
+            overview: "Testosterone promotes synaptic plasticity through two pathways at once: direct androgen receptor activation, and local conversion to estradiol by aromatase inside the brain. Its neural effects are therefore not purely androgenic.",
             monthFocus: [
                 (1...1,     "Androgen receptor activation is promoting dendritic spine formation. Aromatase is converting some testosterone to estradiol locally — both pathways are live."),
                 (2...3,     "Spine density is measurably increasing in androgen-receptor-rich regions. The dual pathway is fully active."),
@@ -489,7 +443,7 @@ enum TimeBodyRegions {
                 (120...143, "A decade in, cognitive performance under sustained testosterone is stable in the available follow-up. The cohorts are modest and still maturing."),
                 (144...179, "At twelve to fifteen years, metabolic and vascular health outweigh hormonal variables. Synapses are expensive tissue and depend on perfusion."),
                 (180...239, "Fifteen to twenty years is around the limit of the published record. Plasticity measures across it hold steady."),
-                (240...600, "Past twenty years the dual-pathway mechanism is well characterised and the outcome data is not. That gap is where current research sits."),
+                (240...1200, "Past twenty years the dual-pathway mechanism is well characterised and the outcome data is not. That gap is where current research sits."),
             ],
             vocabulary: .neural
         ),
@@ -509,12 +463,9 @@ enum TimeBodyRegions {
             label: "Chest",
             icon: "figure.strengthtraining.traditional",
             startMonth: 3, peakMonth: 14, completeMonth: 30,
-            earlyText: "Androgen receptors in pectoral muscle begin responding to testosterone's anabolic signal, and 5\u{03B1}-reductase converts a share of testosterone to DHT in chest-wall hair follicles, priming them for terminal hair growth. Chest hair follows the same body-hair timeline as elsewhere — later than the legs and abdomen.",
-            midText: "Pectoral muscle mass is measurably increasing with resistance training, broadening the chest wall. DHT-driven chest hair is typically visible by now, in the same pattern developing on the abdomen and back.",
-            lateText: "Chest muscle development has largely matched its training stimulus by this point — further growth depends more on continued training than on additional time on T. Chest hair, where it develops, is fully in and permanent.",
-            overview: "Testosterone drives pectoral muscle hypertrophy through androgen receptor activation, while DHT from 5α-reductase conversion primes chest-wall hair follicles for terminal hair growth. With consistent resistance training, chest broadening is measurable within the first months; chest hair follows the body-hair timeline and typically appears after the legs and abdomen.",
+            overview: "Testosterone drives pectoral hypertrophy through androgen receptor activation, while DHT primes chest-wall follicles for terminal hair. Chest broadening is measurable within months with training; chest hair typically arrives after the legs and abdomen.",
             monthFocus: [
-                (3...3,     "Pectoral androgen receptors are activating. With resistance training, early hypertrophy is measurable. DHT is priming chest-wall follicles but no terminal hair yet."),
+                (3...3,     "Pectoral androgen receptors are activating, and early hypertrophy is measurable with resistance training. DHT is priming chest-wall follicles ahead of any terminal hair."),
                 (4...5,     "Pectoral protein synthesis is elevated. Strength usually moves before size does."),
                 (6...7,     "Chest-wall broadening is measurable with training. Chest hair is beginning to appear, following the legs and abdomen."),
                 (8...10,    "Pectoral mass is increasing with training. DHT-driven chest hair is filling in on the same pattern as the abdomen."),
@@ -532,7 +483,7 @@ enum TimeBodyRegions {
                 (120...143, "A decade in, hair pattern is settled and muscle tracks training. Cohort follow-up focuses on hematocrit, lipids and blood pressure."),
                 (144...179, "At twelve to fifteen years, cardiovascular monitoring is routine. Resistance training remains the strongest single input to how this tissue looks and works."),
                 (180...239, "Fifteen to twenty years is near the edge of published follow-up. Body composition holds across it where training and levels were both sustained."),
-                (240...600, "Past twenty years the data thins. Androgen physiology is well described; multi-decade cardiovascular follow-up in this population is still accruing."),
+                (240...1200, "Past twenty years the data thins. Androgen physiology is well described; multi-decade cardiovascular follow-up in this population is still accruing."),
             ]
         ),
         BodyRegion(
@@ -540,10 +491,7 @@ enum TimeBodyRegions {
             label: "Abdomen",
             icon: "arrow.up.and.down",
             startMonth: 3, peakMonth: 18, completeMonth: 36,
-            earlyText: "Testosterone shifts fat storage toward a more androgenic, abdomen-leaning pattern as visceral and subcutaneous fat distribution responds to androgen receptor signaling — the reverse of estrogen's hip-and-thigh-directed pattern. Core muscle definition can also begin increasing with resistance training.",
-            midText: "Abdominal fat continues accumulating and belly composition shifts toward the androgenic pattern. Combined with broadening shoulders, this changes the overall silhouette even where absolute waist circumference doesn't move much.",
-            lateText: "Fat distribution has settled into its androgen-dominant pattern. From here, abdominal size tracks diet, training and age the way it does for anyone; testosterone's redistribution effect has run its course.",
-            overview: "Testosterone shifts fat storage toward an androgenic pattern, directing deposition toward the abdomen and visceral compartments — the reverse of estrogen's gynoid effect. Combined with broadening shoulders and chest, this produces a masculinized silhouette even where absolute waist circumference changes minimally.",
+            overview: "Testosterone shifts fat storage toward an androgenic pattern, directing deposition to the abdomen and visceral compartments. Combined with broadening shoulders and chest, this produces a masculinized silhouette even where waist circumference barely moves.",
             monthFocus: [
                 (3...3,     "Fat storage is shifting toward an androgenic, abdomen-leaning pattern. Androgen receptor signalling is redirecting deposition."),
                 (4...5,     "Redistribution is underway below the visible threshold. Core definition may improve with training before any pattern change shows."),
@@ -563,7 +511,7 @@ enum TimeBodyRegions {
                 (120...143, "A decade in, abdominal composition is stable in follow-up. Age-related visceral accumulation appears in any adult body and tracks lifestyle."),
                 (144...179, "At twelve to fifteen years, metabolic and cardiovascular markers are the clinical focus. Core training and diet act on both directly."),
                 (180...239, "Fifteen to twenty years sits at the edge of the published record. Metabolic markers across it track lifestyle far more closely than tenure."),
-                (240...600, "Past twenty years the cohort data is limited. The redistribution mechanism generalises well; long-horizon metabolic outcomes are still being gathered."),
+                (240...1200, "Past twenty years the cohort data is limited. The redistribution mechanism generalises well; long-horizon metabolic outcomes are still being gathered."),
             ]
         ),
         BodyRegion(
@@ -571,12 +519,9 @@ enum TimeBodyRegions {
             label: "Hips / Waist",
             icon: "figure.stand",
             startMonth: 1, peakMonth: 14, completeMonth: 30,
-            earlyText: "Hip circumference doesn't meaningfully change on testosterone — bone structure is set by puberty, and androgens don't cause fat to redistribute away from the hips the way some expect. What does shift the visual proportion is around it: fat redistributing toward the abdomen and broadening shoulders.",
-            midText: "The waistline thickens as abdominal gain continues, and as shoulders and chest broaden the hip-to-shoulder ratio that defines silhouette keeps shifting — even though the hips themselves are largely unchanged in circumference.",
-            lateText: "Hip proportions are stable and were never expected to change structurally. The masculinized silhouette at this point comes almost entirely from the shoulders, chest and abdominal gain around the waist band.",
-            overview: "Hip bone structure is fixed by puberty and doesn't meaningfully change on testosterone — no hormone repositions completed bone. The masculinized proportion comes from the surrounding anatomy: abdominal fat accumulating and shoulders and chest broadening to create a narrower relative hip appearance.",
+            overview: "Hip bone structure is set by puberty and does not meaningfully change on testosterone. The masculinized proportion comes from around it: abdominal fat accumulating, and shoulders and chest broadening.",
             monthFocus: [
-                (1...1,     "Hip bone structure is fixed and will not change. What shifts the proportion is everything around it — abdominal fat and shoulder width."),
+                (1...1,     "Hip bone structure is fixed, and androgens do not reposition it. What shifts the proportion is everything around it: abdominal fat and shoulder width."),
                 (2...3,     "The waistline is beginning to thicken as abdominal fat accumulates. Hip circumference itself is unchanged."),
                 (4...6,     "The hip-to-shoulder ratio is shifting as shoulders and chest broaden. The hips read narrower by proportion, not by loss."),
                 (7...8,     "Upper-body mass is the term that is moving. Hip fat carries fewer androgen receptors and responds late and modestly."),
@@ -595,7 +540,7 @@ enum TimeBodyRegions {
                 (120...143, "A decade in, proportion is stable in follow-up. Where it shifts, it follows training history rather than hormone tenure."),
                 (144...179, "At twelve to fifteen years, bone density enters the picture. Androgens support the skeleton partly through aromatisation to estradiol."),
                 (180...239, "Fifteen to twenty years is near the edge of published follow-up. Composition holds across it where training and levels were sustained."),
-                (240...600, "Past twenty years there is little on limb and girdle composition specifically. The mechanism is clear; the long-horizon data is not yet."),
+                (240...1200, "Past twenty years there is little on limb and girdle composition specifically. The mechanism is clear; the long-horizon data is not yet."),
             ]
         ),
         BodyRegion(
@@ -603,10 +548,7 @@ enum TimeBodyRegions {
             label: "Glutes",
             icon: "oval.fill",
             startMonth: 3, peakMonth: 18, completeMonth: 36,
-            earlyText: "Gluteal muscle responds to testosterone's anabolic signal the same way any skeletal muscle does — androgen receptor activation supports protein synthesis and hypertrophy with resistance training. Unlike hip fat, this is a muscle response, so training stimulus matters more here than time on T alone.",
-            midText: "With consistent resistance training, gluteal muscle mass is measurably increasing. Without training, testosterone alone produces comparatively little change in this region.",
-            lateText: "Gluteal muscle has typically matched its training stimulus by this stage. As with any muscle group, further change from here depends on continued training rather than additional time on hormone therapy.",
-            overview: "Gluteal muscle responds to testosterone's anabolic signal the same way all skeletal muscle does — androgen receptor activation supports protein synthesis and hypertrophy with resistance training. This is a muscle response, not a fat redistribution effect: training stimulus matters considerably more than time on T alone.",
+            overview: "Gluteal muscle answers testosterone's anabolic signal the way all skeletal muscle does, through androgen receptor activation and protein synthesis. This is a muscle response rather than fat redistribution, so training stimulus matters more than time on T.",
             monthFocus: [
                 (3...3,     "Gluteal androgen receptors are activating. With resistance training, early hypertrophy is measurable; without it, testosterone alone does little here."),
                 (4...5,     "Protein synthesis in gluteal muscle is elevated. This is a muscle response, not a fat redistribution one."),
@@ -626,7 +568,7 @@ enum TimeBodyRegions {
                 (120...143, "A decade in, gluteal mass tracks training history in follow-up. Testosterone sets the ceiling; training decides where under it you sit."),
                 (144...179, "At twelve to fifteen years, the hip is watched for bone as much as muscle. Femoral neck density is a standard DEXA site."),
                 (180...239, "Fifteen to twenty years is around the edge of published data. Composition holds across it where training continued."),
-                (240...600, "Past twenty years the record thins. Androgen and muscle physiology is well established; multi-decade composition data is still being collected."),
+                (240...1200, "Past twenty years the record thins. Androgen and muscle physiology is well established; multi-decade composition data is still being collected."),
             ]
         ),
         BodyRegion(
@@ -634,10 +576,7 @@ enum TimeBodyRegions {
             label: "Thighs",
             icon: "figure.walk",
             startMonth: 2, peakMonth: 14, completeMonth: 28,
-            earlyText: "Thigh muscle — quadriceps and hamstrings — responds to testosterone's anabolic effect on skeletal muscle, amplified by resistance or lower-body training. This is measurable within the first few months for many people.",
-            midText: "Thigh size from muscle growth is often the most visible lower-body change on T, particularly with squat- or leg-press-style training. Strength gains here frequently outpace upper-body gains early on.",
-            lateText: "Thigh muscle typically sits at its training-determined level by now. Continued growth from here tracks progressive overload in training rather than time on testosterone.",
-            overview: "Quadriceps and hamstrings are among the most androgen-responsive muscle groups, producing rapid strength and size gains with resistance or lower-body training — often the most visible lower-body change on T within the first year. Satellite-cell activation from androgen signaling plateaus within 12–18 months; continued hypertrophy from here depends on progressive overload.",
+            overview: "Quadriceps and hamstrings are among the most androgen-responsive muscle groups, producing rapid strength and size gains with lower-body training. Satellite-cell activation plateaus within twelve to eighteen months; hypertrophy past that depends on progressive overload.",
             monthFocus: [
                 (2...2,     "Quadriceps and hamstrings are responding to testosterone's anabolic signal. With training, measurable hypertrophy comes early here."),
                 (3...4,     "Nitrogen retention in thigh muscle is elevated. Net protein balance has shifted toward building before size is visible."),
@@ -658,7 +597,7 @@ enum TimeBodyRegions {
                 (120...143, "A decade in, thigh composition tracks training in follow-up. Age-related lean mass decline begins gradually around this stage."),
                 (144...179, "At twelve to fifteen years, loaded lower-body work offsets most of the age-related decline. Testosterone supports the process without replacing it."),
                 (180...239, "Fifteen to twenty years is near the edge of the published record. Leg composition holds across it where training was sustained."),
-                (240...600, "Past twenty years the longitudinal data on limb composition is sparse. The physiology is well described; the decades-long picture is being studied."),
+                (240...1200, "Past twenty years the longitudinal data on limb composition is sparse. The physiology is well described; the decades-long picture is being studied."),
             ]
         ),
     ]

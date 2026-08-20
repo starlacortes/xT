@@ -227,7 +227,7 @@ struct RegionCardSlots {
         let month = context.month
         let phase = region.phase(at: month)
 
-        now = region.focusText(at: month) ?? region.phaseText(at: month)
+        now = region.focusText(at: month) ?? region.pendingText
         insight = TimeRegionInsights.insight(
             track: context.track,
             key: region.key,

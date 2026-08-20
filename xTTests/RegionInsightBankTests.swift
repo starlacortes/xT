@@ -156,6 +156,74 @@ func maturedRegionsDrawFromTheFactBank() {
     }
 }
 
+/// Words carrying no subject matter. Two sentences sharing only these are not
+/// saying the same thing.
+private let stopWords: Set<String> = [
+    "the", "a", "an", "is", "are", "of", "to", "in", "and", "it", "that",
+    "this", "as", "with", "for", "on", "by", "not", "but", "its", "their",
+    "they", "them", "from", "than", "then", "at", "be", "been", "was",
+    "were", "or", "so", "which", "what", "how",
+]
+
+private func contentWords(_ text: String) -> Set<String> {
+    Set(tokens(of: text).filter { !stopWords.contains($0) && $0.count > 2 })
+}
+
+/// Overlap of subject matter, 0 to 1. Two entries about entirely different
+/// things score near 0; a paraphrase scores near 1.
+private func overlap(_ a: String, _ b: String) -> Double {
+    let (x, y) = (contentWords(a), contentWords(b))
+    let union = x.union(y).count
+    return union == 0 ? 0 : Double(x.intersection(y).count) / Double(union)
+}
+
+/// Every run of `length` consecutive words. A shared long run is verbatim
+/// reuse even when the surrounding sentences differ.
+private func runs(_ text: String, length: Int) -> Set<[String]> {
+    let words = tokens(of: text)
+    guard words.count >= length else { return [] }
+    return Set((0...(words.count - length)).map { Array(words[$0..<($0 + length)]) })
+}
+
+@Test("No insight entry restates another entry from the same region")
+func entriesDoNotRestateEachOther() {
+    // Exact-match was the original test here, and it was too weak: the fact
+    // bank had drifted into paraphrasing the mechanism bank, which defeats the
+    // point of having two banks. A long-tenure reader draws from the fact bank
+    // nearly every month, and was once a new reader drawing from the mechanism
+    // bank — a reworded mechanism gives them nothing.
+    //
+    // Thresholds sit well clear of the shipped corpus: highest overlap is 0.42,
+    // and the longest shared run between any two entries is six words.
+    for t in tracked {
+        guard let bank = TimeRegionInsights.bank(track: t.track, key: t.region.key) else { continue }
+        let entries = bank.mechanism + bank.fact
+        for i in entries.indices {
+            for j in entries.indices where j > i {
+                let (a, b) = (entries[i].text, entries[j].text)
+                #expect(overlap(a, b) < 0.50,
+                        "\(t.region.key): entries overlap \(overlap(a, b)) — \"\(a)\" / \"\(b)\"")
+                #expect(runs(a, length: 7).isDisjoint(with: runs(b, length: 7)),
+                        "\(t.region.key): entries share a seven-word run — \"\(a)\" / \"\(b)\"")
+            }
+        }
+    }
+}
+
+@Test("No insight entry is repeated across regions")
+func entriesAreUniqueAcrossRegions() {
+    var seen: [String: String] = [:]
+    for t in tracked {
+        guard let bank = TimeRegionInsights.bank(track: t.track, key: t.region.key) else { continue }
+        for entry in bank.mechanism + bank.fact {
+            if let owner = seen[entry.text], owner != t.region.key {
+                Issue.record("\(t.region.key) repeats \(owner)'s entry: \"\(entry.text)\"")
+            }
+            seen[entry.text] = t.region.key
+        }
+    }
+}
+
 @Test("No entry appears in both banks for the same region")
 func banksDoNotOverlap() {
     for t in tracked {
@@ -209,20 +277,9 @@ func bandsAreDenseWhileTheRegionMoves() {
     }
 }
 
-@Test("Every band and every insight entry stays inside its word cap")
-func copyStaysWithinCaps() {
-    for t in tracked {
-        for (range, text) in t.region.monthFocus {
-            let words = text.split(separator: " " as Character).count
-            #expect(words <= 34, "\(t.region.key) band \(range): NOW is \(words) words")
-        }
-        guard let bank = TimeRegionInsights.bank(track: t.track, key: t.region.key) else { continue }
-        for entry in bank.mechanism + bank.fact {
-            let words = entry.text.split(separator: " " as Character).count
-            #expect(words <= 30, "\(t.region.key): INSIGHT entry is \(words) words")
-        }
-    }
-}
+// The word caps that used to live here now belong to `RegionStyleTests`,
+// which enforces them per slot alongside the rest of §9. Two files asserting
+// the same cap is how the two drift apart.
 
 // MARK: - Slot wiring
 

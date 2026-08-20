@@ -243,9 +243,10 @@ enum InsightBank { case mechanism, fact }
 - **MECHANISM** — the pathway producing the visible change. Receptors,
   enzymes, signal cascades. This is the register the user described:
   *"what the cells are doing, how the muscle is responding to the
-  different chemical messengers."* Largely a re-cut of the existing
-  `earlyText`/`midText`/`lateText` and the 1,005 unrendered `scienceText`
-  words, which are already written in exactly this voice.
+  different chemical messengers."* Drafted against the phase texts
+  and the 1,005 unrendered `scienceText` words, which were already written
+  in this voice. (The phase texts are gone as of Phase F; `scienceText`
+  remains, still unrendered.)
 
 - **FACT** — a concrete, surprising, true thing about this region under
   this hormone. Comparative, historical, measured. Set in the same type
@@ -399,10 +400,13 @@ Content owed, by region:
 
 ## 9. Voice rules
 
-Enforceable, and enforced — see the lint test in §10.
+Enforceable, and enforced: the mechanical rules below ship as
+`RegionStyleTests`, and the two in the subsections as `RegionCopyRulesTests`.
+Both run over every string the card can render.
 
 - ≤2 sentences per slot. ≤34 words per slot. ≤24 words per sentence.
-- ≤1 em-dash per slot. (Current corpus: 120 across 360 strings.)
+- ≤1 em-dash per slot. One approximator per sentence, on the same logic:
+  "roughly ten years, and about 8% annually" hedges the arithmetic twice.
 - Lead with the tissue, not the reader. "Ductal tissue is branching,"
   not "You may notice your breasts changing."
 - One hedge per sentence. `typically` **or** `may`, never both.
@@ -433,9 +437,9 @@ and it stays. What goes is the *editorial* verdict layered on top of it —
 `no further development is expected`, `requires no further adjustment`,
 `no further biological change is expected`.
 
-Current corpus, as a worklist: **5** explicit "no further / not
-expected" statements, **23** terminus uses of "complete", **8**
-"plateaued / stopped", **3** "finished / done".
+Cleared in the region corpus by Phase E — 15 strings rewritten — and held
+there by test. The nine that remain are in `TimeContentData`'s `scienceText`
+and `timelineText`, which the card does not render.
 
 ### Shared-physiology facts
 
@@ -488,6 +492,9 @@ so.
 | Fact entries | 180 | **written** — 10 per region, 8 of them eligible past month 60 |
 | Markers | 72 | **written** — 4 per region: Tanner stages, adipocyte cycles, training ceilings |
 | Terminus rewrites | 15 strings | **cleared** in the region corpus, and held there by test |
+| Style rewrites | 20 strings | **cleared** — 16 overviews, 3 bands, 4 insight entries, 1 tense fix |
+| De-duplication rewrites | 40 strings | **cleared** — fact entries that restated a mechanism entry |
+| Renderable corpus | 700 strings | 18 ABOUT, 340 NOW, 270 INSIGHT, 72 NEXT — pinned by test |
 
 Fact-bank sizing is set by the long-tail user, not the new one. Past
 `completeMonth` the rate is `.steady`, so the fact slot fires nearly
@@ -519,7 +526,7 @@ for; a reader in their first five years sees ten.
 | C | Re-cut NOW bands onto per-region grids | 196 bands | **landed** |
 | D | Fact bank | 180 strings | **landed** |
 | E | 60+ bands and markers | 216 strings | **landed** |
-| F | Style lint test; extend `TIME_REGION_COPY.md` for clinical sign-off | none | partly — see below |
+| F | Style lint test; retire the unreachable phase texts; de-duplicate the insight banks; regenerate `TIME_REGION_COPY.md` | 60 rewrites | **landed** |
 
 Phases B and C make consecutive months differ. D and E are the writing.
 
@@ -607,10 +614,11 @@ Phase E replaces them with eight and changes what they are about. They are
 inside the caps and inside the coverage guarantee, so they are correct as they
 stand; they are just not yet the maintenance-biology copy §8 asks for.
 
-`earlyText`/`midText`/`lateText` are now reachable only as the NOW fallback for
-pending months, since every non-pending month has a band. They are still the
-`phaseText(at:)` source and still worth keeping as the safety net, but the card
-no longer renders them in the normal case.
+`earlyText`/`midText`/`lateText` survive this phase, described here as "the NOW
+fallback for pending months". That was wrong, and Phase F found it: `phaseText`
+returned the pending sentence for every month below `startMonth`, and every
+month at or above it resolved to a band, so the three fields were unreachable
+from the moment the grid became contiguous. Phase F deletes them.
 
 ### What Phases D and E landed
 
@@ -633,7 +641,7 @@ than trailing off.
 
 The terminus worklist is cleared. Fifteen strings carried `complete`,
 `plateaued`, `finished` or `no further` as an editorial verdict; all fifteen are
-rewritten, and `RegionCopyRulesTests` now holds the whole 718-string region
+rewritten, and `RegionCopyRulesTests` now holds the whole region
 corpus to both that rule and the comparison-group rule. What survives is the
 factual use §9 explicitly protects: "breast growth typically plateaus" stays,
 because it is information rather than a verdict.
@@ -652,24 +660,74 @@ asserts no marker name or note contains the word "peak".
 
 ### What Phases D and E did not do
 
-Phase F is only partly done. The two §9 rules that are not stylistic — terminus
-framing and comparison groups — ship as tests, because Phase E exists to clear
-them and a cleared worklist with nothing holding it reopens. The rest of the
-style lint (em-dash count, hedge doubling, sentence-length caps, `many people
-report` placement) is not built, and the corpus would not pass it today: five
-legacy `earlyText`/`midText`/`overview` strings carry more than one em-dash and
-two carry parenthetical asides. All seven are in the phase-text fields, which
-the card now reads only as the pending-month fallback.
-
 `TimeContentData` still carries nine terminus strings of its own, in
 `scienceText` and `timelineText`. None are reachable from the region card, and
-`RegionCopyRulesTests` deliberately does not read them — the §9 count of 39 was
-taken across both corpora. They come out with the `TimeBodySystem` family, which
-is still test-referenced and still holds the `scienceText` prose.
+the lint deliberately does not read them — the §9 count of 39 was taken across
+both corpora. They come out with the `TimeBodySystem` family, which is still
+test-referenced and still holds the `scienceText` prose.
 
 `RegionMarker` does one of the three jobs §7 gives it. It populates NEXT; it
 does not yet anchor the NOW copy in the band that contains it, and the long-tail
 bands do not yet reference markers by name.
+
+### What Phase F landed
+
+The style lint ships as `RegionStyleTests`, holding all 700 renderable strings
+to the mechanical half of §9: per-slot sentence and word caps, one em-dash, one
+hedge and one approximator per sentence, no parentheses, no exclamation marks,
+no `fun fact`, future tense only in NEXT, and no slot opening on the reader
+rather than the tissue. The corpus is built once, in `CardCopy.all`, and both
+lint files read it, so they cannot drift apart on what "every string the card
+can render" means.
+
+Twenty strings had to be rewritten to pass — sixteen `overview` strings over the
+40-word cap, three bands running to three sentences, one band in the future
+tense, and four insight entries that hedged twice in one sentence. Two of those
+four were mine from Phase D: "roughly ten years, and the population turns over
+about 8% annually" approximates the arithmetic twice in one breath.
+
+**The phase texts are gone.** `earlyText`, `midText` and `lateText` accounted for
+21 of the 23 length violations, and none of them could render: `monthFocus`
+covers every month from `startMonth` onward, so `focusText` only returns nil
+below `startMonth`, where `phaseText` returned the pending sentence and never
+reached the three authored fields. The lint would have been guarding 54 strings
+no reader can see. They are deleted, `phaseText(at:)` is now the `pendingText`
+property that was its only reachable branch, and each region's final band runs
+to month 1200 so the nil case stays exactly "before this region starts".
+
+A lint is only as honest as the corpus it reads, so two of its assertions are
+about itself: the pinned count of 700 with a per-slot breakdown, so a silent
+drop in coverage fails rather than passes; and a check that the corpus contains
+no abbreviations or decimals, which is the assumption that lets the sentence
+splitter break on every period and be exact rather than approximate.
+
+**A defect Phase F found on the way.** `banksDoNotOverlap` had been asserting
+that no entry appears in both banks — by exact string match, which is the
+weakest possible reading of that intent. Measuring properly found **39 of the
+180 fact entries were paraphrases of a mechanism entry in the same region**, one
+of them word-for-word identical, and two entries repeated verbatim across
+regions.
+
+That defeats what the two banks are for. A reader draws from the mechanism bank
+while a region is moving and from the fact bank once it has settled, so the
+long-tenure reader — who sees the fact slot nearly every month — was the one
+being served reworded copy they had already read years earlier. All 40 are
+rewritten, and the test now measures subject-matter overlap and shared word runs
+instead of string equality. The shipped corpus's worst pair now overlaps 0.42
+against a 0.50 threshold, and no two entries share a seven-word run.
+
+`TIME_REGION_COPY.md` is regenerated from the three source files. The previous
+revision signed off a corpus that no longer ships — Phases C and E replaced
+every band in it — so it is marked **pending re-review** rather than carried
+forward, and it now covers all four slots instead of overviews and long-tail
+bands alone.
+
+### What Phase F did not do
+
+The judgement half of §9 stays prose: whether a hedge is the right hedge,
+whether a mechanism is stated correctly, whether a fact is worth the slot. The
+lint checks that copy is shaped like the house style, not that it is true —
+`TIME_REGION_COPY.md` and clinical review are what check that.
 
 ### Slot inventory, as shipped
 
