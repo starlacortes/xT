@@ -1,14 +1,6 @@
-//
-//  TimeBodyExplorerView.swift
-//  xT
-//
-//  The Time screen's single interactive whole-body diagram. Hosts the SceneKit
-//  `TimeBodyDiagramView` full-bleed and overlays the selected region's title and
-//  timeline/phase content — on the right for body regions, and upper-centre for
-//  the head/Mind (whose 3-D model drops to the bottom of the screen).
-//
-
 import SwiftUI
+
+// MARK: - Time Body Explorer
 
 struct TimeBodyExplorerView: View {
     @Environment(\.medicationManager) private var medicationManager
@@ -41,16 +33,10 @@ struct TimeBodyExplorerView: View {
     var body: some View {
         GeometryReader { geo in
             ZStack {
-                // Near-black "space" backdrop, faintly hued toward the user's
-                // theme accent — constant in both appearances so the
-                // constellation skin always reads as stars against a night sky.
                 // TimeView lays the same backdrop under the whole screen; this
                 // keeps the explorer self-contained (e.g. in previews).
-                ZStack {
-                    Color.black
-                    themeManager.palette.accent.opacity(0.07)
-                }
-                .allowsHitTesting(false)
+                NightSkyBackdrop()
+                    .allowsHitTesting(false)
 
                 TimeBodyDiagramView(
                     bodyType: bodyType,
@@ -86,34 +72,24 @@ struct TimeBodyExplorerView: View {
                 restingHint
                     .transition(.opacity)
             }
-        case .head:
-            MindInfoPanel(
-                regions: mindRegionData,
-                months: months,
-                selectedBrainRegion: $selectedBrainRegion,
-                isTestosterone: isTestosterone,
-                onClose: { withAnimation(.easeInOut(duration: 0.3)) { selectedRegion = nil } }
-            )
-            .frame(maxHeight: .infinity, alignment: .top)
-            .padding(.horizontal, 24)
-            .padding(.top, 12)
-            .transition(.move(edge: .top).combined(with: .opacity))
-        case .some(let region):
-            if let data = bodyRegionData.first(where: { $0.key == region.bodyRegionKey }) {
-                HStack(spacing: 0) {
-                    Spacer(minLength: 0)
-                    RegionInfoPanel(
-                        title: region.title,
-                        region: data,
-                        months: months,
-                        isTestosterone: isTestosterone,
-                        onClose: { withAnimation(.easeInOut(duration: 0.3)) { selectedRegion = nil } }
-                    )
-                    .frame(width: width * 0.63)
-                    .frame(maxHeight: .infinity, alignment: .center)
-                }
-                .transition(.move(edge: .trailing).combined(with: .opacity))
+        case .some(let regionKey):
+            HStack(spacing: 0) {
+                Spacer(minLength: 0)
+                TimeRegionDetailView(
+                    regionKey: regionKey,
+                    region: regionKey.isMind ? nil : bodyRegionData.first { $0.key == regionKey.bodyRegionKey },
+                    mindRegions: mindRegionData,
+                    months: months,
+                    isTestosterone: isTestosterone,
+                    tenureTier: TenureTier(months: months),
+                    bodySystemDetail: resolvedBodySystemDetail(for: regionKey),
+                    selectedBrainRegion: $selectedBrainRegion,
+                    onClose: { withAnimation(.easeInOut(duration: 0.3)) { selectedRegion = nil } }
+                )
+                .frame(width: width * 0.82)
+                .frame(maxHeight: .infinity, alignment: .center)
             }
+            .transition(.move(edge: .trailing).combined(with: .opacity))
         }
     }
 
@@ -130,170 +106,59 @@ struct TimeBodyExplorerView: View {
         }
         .frame(maxWidth: .infinity)
     }
-}
 
-// MARK: - Body region panel (right side)
+    // MARK: - Body system detail resolution
 
-private struct RegionInfoPanel: View {
-    let title: String
-    let region: BodyRegion
-    let months: Int
-    let isTestosterone: Bool
-    let onClose: () -> Void
-
-    private var stats: [(value: String, label: String, sub: String)] {
-        isTestosterone ? TimeBodyRegions.bodyStatsT(months: months) : TimeBodyRegions.bodyStats(months: months)
+    /// Maps a tapped region to the BodySystemKey whose detail supplements it,
+    /// then materialises the detail from a minimal engine. Returns nil for regions
+    /// whose content is fully self-contained (E chest, T abdomen).
+    ///
+    /// Mapping per spec Phase 2:
+    ///   E head → moodAndMind,  E hips/thighs/glutes/abdomen → bodyShape,  E chest → nil
+    ///   T chest/thighs/hips/glutes → muscleStrength,  T abdomen/head → nil
+    private func resolvedBodySystemDetail(for regionKey: TimeRegionKey) -> TimeBodySystemDetail? {
+        guard let systemKey = bodySystemKey(for: regionKey) else { return nil }
+        return minimalEngine.bodySystemDetail(for: systemKey)
     }
 
-    var body: some View {
-        // Hug the content (no ScrollView) so the card is only as tall as its text.
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(title)
-                    .font(.system(size: 30, weight: .bold))
-                    .tracking(-0.5)
-                    .foregroundStyle(.primary)
-                Spacer()
-                Button(action: onClose) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 24))
-                        .foregroundStyle(.secondary)
-                        .symbolRenderingMode(.hierarchical)
-                }
-                .buttonStyle(.plain)
+    private func bodySystemKey(for regionKey: TimeRegionKey) -> BodySystemKey? {
+        if isTestosterone {
+            switch regionKey {
+            case .chest, .thighs, .hips, .glutes: return .muscleStrength
+            case .abdomen, .head:                  return nil
             }
-
-            Text(region.phaseLabel(at: months))
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-                .tracking(0.5)
-
-            Text(region.focusText(at: months) ?? region.phaseText(at: months))
-                .font(.system(size: 14))
-                .foregroundStyle(.primary)
-                .lineSpacing(3)
-                .fixedSize(horizontal: false, vertical: true)
-
-            // Match stats by region-key prefix (not the display title), so
-            // renaming a title can't drop the stat, while key-derived labels
-            // like "Abdomen Shift" still match the "abdomen" region.
-            if let stat = stats.first(where: { $0.label.range(of: region.key, options: [.caseInsensitive, .anchored]) != nil }) {
-                statRow(stat)
+        } else {
+            switch regionKey {
+            case .head:                            return .moodAndMind
+            case .hips, .thighs, .glutes, .abdomen: return .bodyShape
+            case .chest:                           return nil
             }
         }
-        .padding(18)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(Color.primary.opacity(0.06), lineWidth: 0.5)
-        )
-        .padding(.trailing, 12)
     }
 
-    private func statRow(_ stat: (value: String, label: String, sub: String)) -> some View {
-        HStack(spacing: 12) {
-            Text(stat.value)
-                .font(.system(size: 26, weight: .bold, design: .rounded))
-                .foregroundStyle(.primary)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(stat.label)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.primary)
-                Text(stat.sub)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(.top, 4)
-    }
-}
-
-// MARK: - Mind panel (upper centre)
-
-private struct MindInfoPanel: View {
-    let regions: [BodyRegion]
-    let months: Int
-    @Binding var selectedBrainRegion: String?
-    let isTestosterone: Bool
-    let onClose: () -> Void
-
-    private var selected: BodyRegion? {
-        regions.first { $0.key == selectedBrainRegion }
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("Mind")
-                    .font(.system(size: 30, weight: .bold))
-                    .tracking(-0.5)
-                    .foregroundStyle(.primary)
-                Spacer()
-                Button(action: onClose) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 24))
-                        .foregroundStyle(.secondary)
-                        .symbolRenderingMode(.hierarchical)
-                }
-                .buttonStyle(.plain)
-            }
-
-            // Brain sub-region chips.
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(regions) { r in
-                        Button {
-                            // No withAnimation here: cross-fading the detail text
-                            // below ghosts the old and new copy over each other.
-                            selectedBrainRegion = (selectedBrainRegion == r.key) ? nil : r.key
-                        } label: {
-                            Text(r.label)
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundStyle(selectedBrainRegion == r.key ? Color.white : .primary)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 7)
-                                .background(
-                                    Capsule().fill(selectedBrainRegion == r.key
-                                                   ? Color.accentColor
-                                                   : Color.primary.opacity(0.08))
-                                )
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-
-            if let selected {
-                Text(selected.phaseLabel(at: months))
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .textCase(.uppercase)
-                    .tracking(0.5)
-                Text(selected.focusText(at: months) ?? selected.phaseText(at: months))
-                    .font(.system(size: 15))
-                    .foregroundStyle(.primary)
-                    .lineSpacing(4)
-                    .fixedSize(horizontal: false, vertical: true)
-            } else {
-                Text(isTestosterone
-                     ? TimeBodyRegions.mindInsightT(months: months)
-                     : TimeBodyRegions.mindInsight(months: months))
-                    .font(.system(size: 15))
-                    .foregroundStyle(.primary)
-                    .lineSpacing(4)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .padding(20)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .stroke(Color.primary.opacity(0.06), lineWidth: 0.5)
+    /// Minimal engine for body-system detail lookup only.
+    /// Uses activeMonthsOnHRT for correct tenureTier; other fields aren't
+    /// accessed by bodySystemDetail and are set to safe defaults.
+    private var minimalEngine: TimeContentEngine {
+        TimeContentEngine(
+            medication: isTestosterone ? "Testosterone" : "Estrogen",
+            method: medicationManager.selectedAdministrationMethod ?? "Injectable",
+            months: months,
+            currentLevel: nil,
+            dayOfCycle: 1,
+            activeMonthsOnHRT: months,
+            ageAtStart: nil,
+            screeningLog: nil,
+            showDoseIntensity: false,
+            adherenceRate: nil,
+            cyclePosition: .midCycle,
+            regimenSegments: [],
+            onTimeStreak: 0,
+            relativeDoseIntensity: 1.0,
+            doseIntensityNote: nil,
+            bloodTestSchedulingText: "",
+            suggestedBloodTestMonth: nil,
+            cycleLengthDays: 7
         )
     }
 }
