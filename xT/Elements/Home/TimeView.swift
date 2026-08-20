@@ -138,7 +138,11 @@ struct TimeHeroHeader: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(verbatim: AppNumberFormatters.months.string(engine.months))
+            // `activeMonthsOnHRT`, not `months`. The region card computes every
+            // phase, band and insight from the gap-aware count, and this header
+            // sits directly above it — two different numbers for "how long have
+            // I been doing this" on one screen is a bug, not a nuance.
+            Text(verbatim: AppNumberFormatters.months.string(engine.activeMonthsOnHRT))
                 .font(.system(size: 42, weight: .bold))
                 .tracking(-1.5)
                 // The Time screen's backdrop is near-black in both appearances,

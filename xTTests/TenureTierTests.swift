@@ -290,36 +290,6 @@ func t7AnniversaryBadge() {
     #expect(anniversary?.badge == "10 years")
 }
 
-// --- Body system detail — does not crash ---
-
-@Test("Body system detail does not crash at any tier (Estrogen)")
-func bodyDetailNoCrashEstrogen() {
-    for months in [0, 5, 9, 18, 42, 70, 130] {
-        let e = engine(medication: "Estrogen", months: months)
-        for key: BodySystemKey in [.moodAndMind, .skinAndGlow, .bodyShape, .yourCycle] {
-            let detail = e.bodySystemDetail(for: key)
-            #expect(!detail.title.isEmpty)
-            #expect(!detail.scienceText.isEmpty)
-            #expect(!detail.timelineText.isEmpty)
-            #expect(!detail.whatToExpect.isEmpty)
-        }
-    }
-}
-
-@Test("Body system detail does not crash at any tier (Testosterone)")
-func bodyDetailNoCrashTestosterone() {
-    for months in [0, 5, 9, 18, 42, 70, 130] {
-        let e = engine(medication: "Testosterone", months: months)
-        for key: BodySystemKey in [.voice, .skinAndHair, .muscleStrength, .yourCycle] {
-            let detail = e.bodySystemDetail(for: key)
-            #expect(!detail.title.isEmpty)
-            #expect(!detail.scienceText.isEmpty)
-            #expect(!detail.timelineText.isEmpty)
-            #expect(!detail.whatToExpect.isEmpty)
-        }
-    }
-}
-
 // --- Screening log integration ---
 
 @Test("lastScreening returns nil when screeningLog is nil")
@@ -362,14 +332,6 @@ func gapAwareHormoneInsight() {
     // T3 → newer-user copy mentions "therapeutic range" context, not "established therapy".
     #expect(insight?.bodyDescription.contains("established estrogen therapy") == false)
     #expect(insight?.bodyDescription.contains("hormone therapy aims for") == true)
-}
-
-@Test("Gap-aware: muscle progressLabel uses active months, not calendar months")
-func gapAwareMuscleLabel() {
-    // Calendar 7 months (>= 6 → "Growing") but only 3 active months (< 6 → "Building").
-    let e = engine(medication: "Testosterone", months: 7, activeMonthsOnHRT: 3)
-    let muscle = e.bodySystems.first(where: { $0.systemKey == .muscleStrength })
-    #expect(muscle?.progressLabel == "Building")
 }
 
 @Test("Gap-aware: T7 retrospective names active months, not calendar months")
@@ -468,33 +430,6 @@ func distinctFocusBandsEHips() {
     }
 }
 
-// MARK: - Phase 3 & 4: Detail reachability
-
-@Test("E mind (head) resolves bodySystemKey → moodAndMind")
-func detailReachabilityEMind() {
-    let e = engine(medication: "Estrogen", months: 18)
-    let detail = e.bodySystemDetail(for: .moodAndMind)
-    #expect(!detail.title.isEmpty)
-    #expect(!detail.timelineText.isEmpty)
-    #expect(!detail.whatToExpect.isEmpty)
-}
-
-@Test("E hips resolves bodySystemKey → bodyShape")
-func detailReachabilityEHips() {
-    let e = engine(medication: "Estrogen", months: 18)
-    let detail = e.bodySystemDetail(for: .bodyShape)
-    #expect(!detail.title.isEmpty)
-    #expect(!detail.timelineText.isEmpty)
-}
-
-@Test("T chest resolves bodySystemKey → muscleStrength")
-func detailReachabilityTChest() {
-    let e = engine(medication: "Testosterone", months: 18)
-    let detail = e.bodySystemDetail(for: .muscleStrength)
-    #expect(!detail.title.isEmpty)
-    #expect(!detail.timelineText.isEmpty)
-}
-
 @Test("Region overview and focusText text are both non-empty for head region at month 18")
 func headRegionHeroAndOverview() {
     let mindRegions = TimeBodyRegions.mindRegions
@@ -504,17 +439,13 @@ func headRegionHeroAndOverview() {
     #expect(!pfc.overview.isEmpty)
 }
 
-@Test("Gap-aware: insight tier and progressLabel agree with tenureTier (regression)")
+@Test("Gap-aware: tenureTier follows active months, not calendar months (regression)")
 func gapAwareConsistencyRegression() {
     // A user with calendar 50 months but only 10 active months should be T3, not T5.
     let e = engine(medication: "Estrogen", months: 50, activeMonthsOnHRT: 10)
-    let tier = e.tenureTier
-    #expect(tier == .t3InMotion)
-    // Body systems' progressLabels are gap-aware — they should read early-stage copy.
-    let mood = e.bodySystems.first { $0.systemKey == .moodAndMind }
-    // T3 progress label should not contain mature/settled copy.
-    #expect(mood?.progressLabel.contains("Settled") == false)
-    #expect(mood?.progressLabel.contains("Maintained") == false)
+    // The tier is what every downstream lookup keys off, so this is the whole
+    // regression: 50 calendar months with 10 active must not read as T5.
+    #expect(e.tenureTier == .t3InMotion)
 }
 
 // MARK: - activeMonthsOnHRT Gap Awareness

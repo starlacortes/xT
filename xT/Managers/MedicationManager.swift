@@ -473,6 +473,29 @@ class MedicationManager {
         return max(0, preLogMonths + loggedMonths.count)
     }
 
+    /// One-line tenure, in the largest unit that reads cleanly: whole years once
+    /// a year has passed, months before that. `nil` below one month — there is
+    /// no tenure to state yet, and "0 months" is not a milestone.
+    ///
+    /// Counted in `activeMonthsOnHRT`, the same number the Time screen and the
+    /// region card use. There is one tenure figure in the app and this is it;
+    /// the exact start date and calendar span stay on the HRT start row, which
+    /// is where a calendar count is the right answer.
+    var tenureLabel: LocalizedStringResource? {
+        let months = activeMonthsOnHRT
+        guard months >= 1 else { return nil }
+        if months < 12 {
+            return LocalizedStringResource(
+                "^[\(months) month](inflect: true)",
+                comment: "Tenure badge beside the profile name, under one year"
+            )
+        }
+        return LocalizedStringResource(
+            "^[\(months / 12) year](inflect: true)",
+            comment: "Tenure badge beside the profile name, one year or more"
+        )
+    }
+
     /// Age at HRT start, derived from ProfileManager.dateOfBirth and hrtStartDate.
     /// Returns nil when either date is unavailable (plan §4.3).
     var ageAtHRTStart: Int? {

@@ -23,6 +23,74 @@ struct RegionMarker {
     let name: String
     /// One sentence. Never repeats `name` — the eyebrow already said it.
     let note: String
+    /// Set when this landmark is a step on a named clinical scale rather than a
+    /// one-off label. A staged marker is bound to the NOW copy: see `StageScale`.
+    var stage: StageRef?
+
+    init(month: Int, name: String, note: String, stage: StageRef? = nil) {
+        self.month = month
+        self.name = name
+        self.note = note
+        self.stage = stage
+    }
+}
+
+// MARK: - Stages
+
+/// A named clinical scale whose steps a region passes through in order.
+///
+/// A marker is a landmark; a stage is a landmark that belongs to a sequence,
+/// which is a stronger claim and earns a stronger guarantee. Stage 4 means
+/// something relative to stage 3, the sequence has to be complete, and the
+/// month band that contains a stage's arrival has to say so in words.
+///
+/// Tanner staging is the only scale modelled today. It is the one the breast
+/// literature actually uses, it is already named in the chest region's prose,
+/// and before this it was named there with nothing behind it — the copy placed
+/// stage 4 at months 14–17 while the marker placed it at month 18, and named
+/// stage 5 at months 84–95 while the marker placed it at month 48. Neither
+/// could see the other. `RegionStageTests` is what stops that recurring.
+enum StageScale: String {
+    case tanner
+
+    /// How a step on this scale is written, everywhere it is written. The
+    /// marker's name, the band copy the test looks for, and the phrase a
+    /// reader sees are all this one string.
+    func phrase(ordinal: Int) -> String {
+        switch self {
+        case .tanner:
+            return String(localized: "Tanner stage \(ordinal)",
+                          comment: "A step on the Tanner scale of breast development")
+        }
+    }
+
+    /// The steps this scale defines, in order. Stage 1 is the untreated
+    /// baseline, so a region's sequence starts at 2.
+    var ordinals: ClosedRange<Int> {
+        switch self {
+        case .tanner: return 2...5
+        }
+    }
+}
+
+/// Where a marker sits on a named scale.
+struct StageRef: Equatable {
+    let scale: StageScale
+    let ordinal: Int
+}
+
+extension RegionMarker {
+    /// A landmark that is a step on a named scale. The name comes from the
+    /// scale rather than the call site, so the eyebrow, the band copy and the
+    /// test all read the same spelling of the same stage.
+    static func stage(_ scale: StageScale, _ ordinal: Int, month: Int, note: String) -> RegionMarker {
+        RegionMarker(
+            month: month,
+            name: scale.phrase(ordinal: ordinal),
+            note: note,
+            stage: StageRef(scale: scale, ordinal: ordinal)
+        )
+    }
 }
 
 enum TimeRegionMarkers {
@@ -53,6 +121,26 @@ enum TimeRegionMarkers {
         }
         guard marker.month - month <= horizon else { return nil }
         return marker
+    }
+
+    /// This region's staged landmarks, in order. Empty for a region with no
+    /// named scale, which is every region but the estrogen chest today.
+    static func stages(track: JourneyContext.HormoneTrack, key: String) -> [RegionMarker] {
+        markers(track: track, key: key).filter { $0.stage != nil }
+    }
+
+    /// The most recent stage the median reader has reached, or nil before the
+    /// first one arrives.
+    ///
+    /// Present tense by construction: it names a step that has typically
+    /// happened, never one that is coming. `next(...)` is the forward-looking
+    /// half and stays the only forward-looking half.
+    static func currentStage(
+        track: JourneyContext.HormoneTrack,
+        key: String,
+        month: Int
+    ) -> RegionMarker? {
+        stages(track: track, key: key).last { $0.month <= month }
     }
 
     // MARK: Marker data
@@ -106,11 +194,13 @@ enum TimeRegionMarkers {
             RegionMarker(month: 24, name: "Fastest expansion", note: "Gluteal deposition typically runs fastest around month 24."),
             RegionMarker(month: 48, name: "Mature distribution", note: "Gluteal distribution typically reaches maturity around month 48."),
         ],
+        // The only staged region. Months are the medians the chest bands are
+        // written against, and `RegionStageTests` holds the two together.
         "chest": [
-            RegionMarker(month: 3, name: "Tanner stage 2", note: "Typically establishes around month 3."),
-            RegionMarker(month: 9, name: "Tanner stage 3", note: "Typically arrives around month 9."),
-            RegionMarker(month: 18, name: "Tanner stage 4", note: "Typically arrives around month 18."),
-            RegionMarker(month: 48, name: "Tanner stage 5", note: "Where it is reached, typically arrives around month 48."),
+            .stage(.tanner, 2, month: 3,  note: "Typically establishes around month 3."),
+            .stage(.tanner, 3, month: 9,  note: "Typically arrives around month 9."),
+            .stage(.tanner, 4, month: 14, note: "Typically arrives around month 14."),
+            .stage(.tanner, 5, month: 48, note: "Where it is reached, typically arrives around month 48."),
         ],
     ]
 

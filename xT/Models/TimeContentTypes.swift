@@ -75,65 +75,6 @@ enum TenureTier: String, Comparable, CaseIterable {
     }
 }
 
-// MARK: - Body System Card
-
-struct TimeBodySystem: Identifiable {
-    /// Stable identity derived from the system key — keeps ForEach/NavigationLink
-    /// identity stable across engine rebuilds (UUID() per construction would
-    /// defeat SwiftUI diffing).
-    var id: String { systemKey.rawValue }
-
-    let title: String
-    let subtitle: String
-    let icon: String
-    let palette: TimeContentPalette
-    /// Status label shown on the row (e.g. "Stabilising", "Maintained", "Day 3 of 7").
-    /// Per spec §3.4 the progress bar is removed entirely; this label remains
-    /// as the row's tenure-aware status indicator (paired with a status dot).
-    let progressLabel: String
-    let systemKey: BodySystemKey   // identifies the system for detail lookup
-
-    /// Month-specific factual focus sentence — updates continuously as months
-    /// progress, even when the tier-level subtitle is unchanged. Provides the
-    /// "what's happening right now" signal that the old percent bar couldn't.
-    let focusText: String
-}
-
-enum BodySystemKey: String {
-    case moodAndMind    = "mood_mind"
-    case skinAndGlow    = "skin_glow"
-    case bodyShape      = "body_shape"
-    case yourCycle      = "your_cycle"
-    case voice          = "voice"
-    case skinAndHair    = "skin_hair"
-    case muscleStrength = "muscle_strength"
-}
-
-// MARK: - Body System Detail (for tappable deep-dive pages)
-
-struct TimeBodySystemDetail {
-    let systemKey: BodySystemKey
-    let title: String
-    let heroIcon: String
-    let palette: TimeContentPalette
-
-    /// Science breakdown — what's physiologically happening.
-    let scienceText: String
-
-    /// Personalized timeline based on months on HRT.
-    let timelineText: String
-
-    /// Forward-looking: what to expect in the coming months/years.
-    let whatToExpect: String
-
-    /// For mature users: what's permanent vs. what requires ongoing dosing.
-    /// Shown for T5+ (settled and beyond).
-    let maintenanceNote: String?
-
-    /// Additional context for the deepening tier (T4, formerly "established").
-    let deepeningNote: String?
-}
-
 // MARK: - Milestone
 
 struct TimeMilestone: Identifiable {
