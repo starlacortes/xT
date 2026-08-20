@@ -12,12 +12,6 @@ import SwiftUI
 struct ScreeningHistoryView: View {
     @Environment(\.medicationManager) private var medicationManager
 
-    @State private var composerMode: ScreeningComposerView.Mode?
-
-    // Delete confirmation state
-    @State private var screeningToDelete: ScreeningRecord? = nil
-    @State private var showDeleteConfirmation = false
-
     // MARK: - Grouped Screenings
 
     /// Screenings grouped by type, sorted newest first within each group.
@@ -29,66 +23,24 @@ struct ScreeningHistoryView: View {
     }
 
     var body: some View {
-        List {
-            if groupedScreenings.isEmpty {
-                ContentUnavailableView(
-                    "No Screenings",
-                    systemImage: "heart.text.square",
-                    description: Text("Log a DEXA scan, cardio check or other screening to track it on the Time tab.")
-                )
-            }
-
-            ForEach(groupedScreenings, id: \.type) { group in
-                Section(group.type.label) {
-                    ForEach(group.records) { record in
-                        ScreeningRow(record: record)
-                            .swipeActions(edge: .trailing) {
-                                Button(role: .destructive) {
-                                    screeningToDelete = record
-                                    showDeleteConfirmation = true
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
-                                .tint(.red)
-
-                                Button("Edit") {
-                                    composerMode = .edit(record)
-                                }
-                                .tint(Theme.Colors.accentSecondary)
-                            }
-                    }
+        HistoryListView(
+            title: "Screenings",
+            emptyTitle: "No Screenings",
+            emptyIcon: "heart.text.square",
+            emptyDescription: "Log a DEXA scan, cardio check or other screening to track it on the Time tab.",
+            groups: groupedScreenings.map { (title: $0.type.label, items: $0.records) },
+            deleteAlertTitle: "Delete Screening?",
+            deleteMessage: deleteAlertMessage(for:),
+            onDelete: { medicationManager.removeScreening(withId: $0.id) },
+            addLabel: "Add Screening",
+            row: { ScreeningRow(record: $0) },
+            composer: { mode in
+                switch mode {
+                case .add:         ScreeningComposerView(mode: .add)
+                case .edit(let r): ScreeningComposerView(mode: .edit(r))
                 }
             }
-        }
-        .navigationTitle("Screenings")
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    composerMode = .add
-                } label: {
-                    Label("Add Screening", systemImage: "plus")
-                }
-            }
-        }
-        .alert("Delete Screening?", isPresented: $showDeleteConfirmation, presenting: screeningToDelete) { record in
-            Button("Delete", role: .destructive) {
-                medicationManager.removeScreening(withId: record.id)
-                screeningToDelete = nil
-            }
-            Button("Cancel", role: .cancel) {
-                screeningToDelete = nil
-            }
-        } message: { record in
-            Text(deleteAlertMessage(for: record))
-        }
-        .sheet(isPresented: Binding(
-            get: { composerMode != nil },
-            set: { isPresented in if !isPresented { composerMode = nil } }
-        )) {
-            if let composerMode {
-                ScreeningComposerView(mode: composerMode)
-            }
-        }
+        )
     }
 
     // MARK: - Delete alert message

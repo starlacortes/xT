@@ -90,7 +90,7 @@ struct DeveloperSettingsView: View {
         .scrollIndicators(.hidden)
         .navigationTitle("Developer")
         .navigationBarTitleDisplayMode(.inline)
-        .background(Color(.systemBackground))
+        .background(Theme.Colors.appBackground)
         .alert("Enable developer mode?", isPresented: $showingDeveloperModeAlert) {
             Button("Cancel", role: .cancel) {}
             Button("Enable") { DeveloperSettings.shared.developerModeEnabled = true }

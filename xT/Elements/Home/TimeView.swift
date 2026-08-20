@@ -27,12 +27,14 @@ struct TimeView: View {
 
     /// The content model for this screen, derived fresh from the manager's state.
     private var engine: TimeContentEngine {
+        // Effective interval (custom frequency when set, else method default) —
+        // was `adm.frequencyDays`, which ignored custom schedules and could
+        // render "Day 9 of 7".
+        let frequency = medicationManager.effectiveFrequencyDays
         let cycleDay: Int = {
-            guard let last = medicationManager.lastDoseDate,
-                  let methodStr = medicationManager.selectedAdministrationMethod,
-                  let adm = MedicationManager.AdministrationMethod(rawValue: methodStr) else { return 1 }
+            guard let last = medicationManager.lastDoseDate else { return 1 }
             let elapsed = Calendar.current.dateComponents([.day], from: last, to: Date()).day ?? 0
-            return (elapsed % adm.frequencyDays) + 1
+            return (elapsed % frequency) + 1
         }()
         return TimeContentEngine(
             medication: medicationManager.selectedMedication ?? "Estrogen",
@@ -51,21 +53,20 @@ struct TimeView: View {
             relativeDoseIntensity: medicationManager.relativeDoseIntensity,
             doseIntensityNote: medicationManager.doseIntensityNote,
             bloodTestSchedulingText: medicationManager.bloodTestSchedulingText,
-            suggestedBloodTestMonth: medicationManager.suggestedBloodTestMonth
+            suggestedBloodTestMonth: medicationManager.suggestedBloodTestMonth,
+            cycleLengthDays: frequency
         )
     }
 
     var body: some View {
+        // One engine construction per body evaluation (header, tier onChange,
+        // celebration check all read from it).
+        let engine = self.engine
+
         NavigationStack {
             ZStack {
-                // Near-black "space" backdrop, faintly hued toward the user's
-                // theme accent — constant in both appearances so the
-                // constellation starfield always sits on a night sky.
-                ZStack {
-                    Color.black
-                    themeManager.palette.accent.opacity(0.07)
-                }
-                .ignoresSafeArea()
+                NightSkyBackdrop()
+                    .ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     TimeHeroHeader(engine: engine)
@@ -137,7 +138,7 @@ struct TimeHeroHeader: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(verbatim: AppNumberFormatters.percent.string(engine.months))
+            Text(verbatim: AppNumberFormatters.months.string(engine.months))
                 .font(.system(size: 42, weight: .bold))
                 .tracking(-1.5)
                 // The Time screen's backdrop is near-black in both appearances,

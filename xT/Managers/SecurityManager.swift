@@ -1,9 +1,6 @@
 import Foundation
 import Security
 import CryptoKit
-import OSLog
-
-private let log = Logger(subsystem: "com.starlacortes.xT", category: "security")
 
 enum SecurityError: Error {
     case keychainSaveFailed(OSStatus)
@@ -23,7 +20,32 @@ final class SecurityManager: Sendable {
     private let serviceName = "com.starlacortes.xT.security"
     private let encryptionKeyTag = "xTEncryptionKey"
 
+    /// In-process cache of the data-at-rest key. Every encrypt/decrypt used to
+    /// pay a `SecItemCopyMatching` IPC round-trip to securityd — and profile
+    /// persistence encrypts twice per save, migrations decrypt several blobs.
+    /// The key is created exactly once (there is no rotation path), so caching
+    /// it after the first read cannot serve a stale value.
+    private let cachedKey = LockedKeyBox()
+
+    private final class LockedKeyBox: @unchecked Sendable {
+        private let lock = NSLock()
+        private var key: SymmetricKey?
+
+        func get(_ load: () throws -> SymmetricKey) rethrows -> SymmetricKey {
+            lock.lock()
+            defer { lock.unlock() }
+            if let key { return key }
+            let loaded = try load()
+            key = loaded
+            return loaded
+        }
+    }
+
     func getEncryptionKey() throws -> SymmetricKey {
+        try cachedKey.get { try loadEncryptionKey() }
+    }
+
+    private func loadEncryptionKey() throws -> SymmetricKey {
         do {
             let keyData = try getKeyFromKeychain()
             return SymmetricKey(data: keyData)

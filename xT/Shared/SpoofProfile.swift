@@ -32,19 +32,6 @@ enum SpoofPersona: Int, CaseIterable {
     case jules  = 6
     case nadia  = 7
 
-    /// Short display label shown in the persona picker.
-    var label: String {
-        switch self {
-        case .jan:   return "Jan (Sample)"
-        case .maya:  return "Maya — 4mg EV q7d, first-time"
-        case .devon: return "Devon — 100→200mg TC, regimen change"
-        case .priya: return "Priya — oral E2→EV IM, route switch"
-        case .sam:   return "Sam — 50mg/day T gel, missed doses"
-        case .rowan: return "Rowan — 4mg/day E2 cream, custom conc."
-        case .jules: return "Jules — 100mg TE q7d, blood test calib."
-        case .nadia: return "Nadia — 5mg EC q10d, unconventional"
-        }
-    }
 }
 
 // MARK: - Entry Point
@@ -80,7 +67,9 @@ enum SpoofProfile {
 
     // MARK: - Private Constants
 
-    private static let spfKey = "com.xt.spoofProfile_jan_v1"
+    /// Internal (not private) so `ProfileSnapshot` and the Settings reset can
+    /// reference the marker instead of re-hardcoding the string.
+    static let spfKey = "com.xt.spoofProfile_jan_v1"
 
     /// Reference "now" for deterministic dose generation.
     private static var today: Date { Calendar.current.startOfDay(for: Date()) }
@@ -93,36 +82,7 @@ enum SpoofProfile {
 
     @MainActor
     private static func resetAllManagers() {
-        let mm = MedicationManager.shared
-
-        // --- Profile ---
-        let pm = ProfileManager.shared
-        pm.profileName = ""
-        pm.profileImage = nil
-        pm.profileImageData = nil
-        pm.dateOfBirth = nil
-
-        // --- Medication: manually clear all state ---
-        mm.selectedMedication = nil
-        mm.selectedAdministrationMethod = nil
-        mm.selectedEster = nil
-        mm.lastDoseDate = nil
-        mm.nextDoseDate = nil
-        mm.hrtStartDate = nil
-        mm.currentHormoneLevel = nil
-        mm.recentLevels = []
-        mm.doseHistory = []
-        mm.bloodTestHistory = []
-        mm.screeningRecords = []
-        mm.antiAndrogenInUse = false
-        mm.spironolactoneInUse = false
-        mm.spironolactoneClearanceEnabled = false
-        mm.suppressionSpeed = .fast
-        mm.customFrequencyDays = nil
-        mm.showDoseIntensityInsights = false
-        mm.missedDoseGracePeriodHours = 12.0
-        mm.predictedTroughDrop = nil
-        mm.userTherapeuticTarget = nil
+        DatasetReset.resetManagerState()
 
         // Clear persisted dose dates
         UserDefaults.standard.removeObject(forKey: "lastDoseDate")
@@ -132,37 +92,22 @@ enum SpoofProfile {
         UserDefaults.standard.removeObject(forKey: "hasSeenRecommendedZonesInfo")
 
         // Remove all SwiftData records
-        if let ctx = mm.modelContext {
+        if let ctx = MedicationManager.shared.modelContext {
             do {
-                for d in try ctx.fetch(FetchDescriptor<DoseRecord>()) { ctx.delete(d) }
-                for t in try ctx.fetch(FetchDescriptor<BloodTestRecord>()) { ctx.delete(t) }
-                for s in try ctx.fetch(FetchDescriptor<ScreeningRecord>()) { ctx.delete(s) }
-                for p in try ctx.fetch(FetchDescriptor<UserPreferences>()) { ctx.delete(p) }
-                try ctx.save()
+                try DatasetReset.wipeSwiftData(in: ctx)
             } catch {
                 print("[SpoofProfile] reset SwiftData error: \(error)")
             }
         }
 
-        // --- Journal ---
-        if let ctx = JournalManager.shared.modelContext {
-            do {
-                for e in try ctx.fetch(FetchDescriptor<JournalEntry>()) { ctx.delete(e) }
-                try ctx.save()
-            } catch {
-                print("[SpoofProfile] reset journal error: \(error)")
-            }
-        }
-        JournalManager.shared.entries = []
-
         // --- Notifications: clear UserDefaults keys ---
         let defaults = UserDefaults.standard
-        defaults.removeObject(forKey: "doseReminderEnabled")
-        defaults.removeObject(forKey: "journalReminderEnabled")
-        defaults.removeObject(forKey: "doseReminderHour")
-        defaults.removeObject(forKey: "doseReminderMinute")
-        defaults.removeObject(forKey: "journalReminderHour")
-        defaults.removeObject(forKey: "journalReminderMinute")
+        defaults.removeObject(forKey: NotificationManager.Keys.doseReminderEnabled)
+        defaults.removeObject(forKey: NotificationManager.Keys.journalReminderEnabled)
+        defaults.removeObject(forKey: NotificationManager.Keys.doseReminderHour)
+        defaults.removeObject(forKey: NotificationManager.Keys.doseReminderMinute)
+        defaults.removeObject(forKey: NotificationManager.Keys.journalReminderHour)
+        defaults.removeObject(forKey: NotificationManager.Keys.journalReminderMinute)
     }
 
     // MARK: - Profile Population (per persona)
@@ -265,7 +210,7 @@ enum SpoofProfile {
         mm.spironolactoneClearanceEnabled = true
         mm.suppressionSpeed = .fast
         mm.customFrequencyDays = 5
-        mm.missedDoseGracePeriodHours = 12.0
+        mm.missedDoseGracePeriodHours = PKConstants.missedDoseGraceHours
 
         mm.performBatch {
             var doseDate = startDate
@@ -306,8 +251,7 @@ enum SpoofProfile {
                 mm.addBloodTest(drawDate: drawDate, measuredLevel: Double(test.e2),
                                hormoneType: "Estrogen", notes: test.notes)
             }
-            mm.userTherapeuticTarget = MedicationManager.TherapeuticTarget(
-                troughMin: 100, troughMax: 200, peakCeiling: 600)
+            mm.userTherapeuticTarget = .default
         }
     }
 
@@ -326,7 +270,7 @@ enum SpoofProfile {
         mm.hrtStartDate = startDate
         mm.customFrequencyDays = 7
         mm.suppressionSpeed = .fast
-        mm.missedDoseGracePeriodHours = 12.0
+        mm.missedDoseGracePeriodHours = PKConstants.missedDoseGraceHours
 
         mm.performBatch {
             mm.addDose(date: startDate, type: "Estrogen", ester: "Valerate (EV)",
@@ -340,8 +284,7 @@ enum SpoofProfile {
 
             // Maya hasn't had blood tests yet — she just started
             // She set therapeutic targets based on her doctor's guidance
-            mm.userTherapeuticTarget = MedicationManager.TherapeuticTarget(
-                troughMin: 100, troughMax: 200, peakCeiling: 600)
+            mm.userTherapeuticTarget = .default
         }
     }
 
@@ -360,7 +303,7 @@ enum SpoofProfile {
         mm.selectedEster = "Cypionate (TC)"
         mm.hrtStartDate = startDate
         mm.suppressionSpeed = .medium
-        mm.missedDoseGracePeriodHours = 12.0
+        mm.missedDoseGracePeriodHours = PKConstants.missedDoseGraceHours
 
         mm.performBatch {
             // Phase 1: 100mg TC q7d (months 0–6)
@@ -408,8 +351,7 @@ enum SpoofProfile {
                                notes: "1mo after switching to 200mg q14d — trough 520 ng/dL")
             }
 
-            mm.userTherapeuticTarget = MedicationManager.TherapeuticTarget(
-                troughMin: 300, troughMax: 1000, peakCeiling: 1500)
+            mm.userTherapeuticTarget = MedicationManager.TherapeuticTarget(troughMin: 300, troughMax: 1000, peakCeiling: 1500)
         }
     }
 
@@ -484,8 +426,7 @@ enum SpoofProfile {
                                notes: "2mo after switching to EV IM — levels much more stable")
             }
 
-            mm.userTherapeuticTarget = MedicationManager.TherapeuticTarget(
-                troughMin: 100, troughMax: 200, peakCeiling: 600)
+            mm.userTherapeuticTarget = .default
         }
     }
 
@@ -503,7 +444,7 @@ enum SpoofProfile {
         mm.hrtStartDate = startDate
         mm.suppressionSpeed = .medium
         mm.customFrequencyDays = 1
-        mm.missedDoseGracePeriodHours = 12.0
+        mm.missedDoseGracePeriodHours = PKConstants.missedDoseGraceHours
 
         // Sam's whole point is to demonstrate the missed-dose UI, so the seed
         // must stop short of today — logging all the way through today (as this
@@ -601,7 +542,7 @@ enum SpoofProfile {
         mm.hrtStartDate = startDate
         mm.suppressionSpeed = .medium
         mm.customFrequencyDays = 7
-        mm.missedDoseGracePeriodHours = 12.0
+        mm.missedDoseGracePeriodHours = PKConstants.missedDoseGraceHours
 
         mm.performBatch {
             var doseDate = startDate
@@ -631,8 +572,7 @@ enum SpoofProfile {
                                notes: "3-month trough draw — 680 ng/dL. Above population prediction.")
             }
 
-            mm.userTherapeuticTarget = MedicationManager.TherapeuticTarget(
-                troughMin: 300, troughMax: 1000, peakCeiling: 1500)
+            mm.userTherapeuticTarget = MedicationManager.TherapeuticTarget(troughMin: 300, troughMax: 1000, peakCeiling: 1500)
         }
     }
 
@@ -650,7 +590,7 @@ enum SpoofProfile {
         mm.hrtStartDate = startDate
         mm.suppressionSpeed = .medium
         mm.customFrequencyDays = 10  // unconventional — EC is typically q7d
-        mm.missedDoseGracePeriodHours = 12.0
+        mm.missedDoseGracePeriodHours = PKConstants.missedDoseGraceHours
 
         mm.performBatch {
             var doseDate = startDate
@@ -684,8 +624,7 @@ enum SpoofProfile {
                                hormoneType: "Estrogen", notes: test.notes)
             }
 
-            mm.userTherapeuticTarget = MedicationManager.TherapeuticTarget(
-                troughMin: 100, troughMax: 200, peakCeiling: 600)
+            mm.userTherapeuticTarget = .default
         }
     }
 
@@ -960,6 +899,35 @@ enum SpoofProfile {
 
         // Suppress one-time overlays for a clean preview appearance
         defaults.set(true, forKey: "hasSeenRecommendedZonesInfo")
+    }
+}
+
+
+// MARK: - Preview wrapper
+// (Moved from SpoofPreview.swift — a 38-line file whose only content was this
+// DEBUG-only wrapper around the same spoof system.)
+
+/// Wraps preview content and seeds all managers with SpoofProfile (Jan) data.
+///
+/// Usage:
+/// ```swift
+/// #Preview {
+///     SpoofPreview {
+///         HomeView()
+///     }
+/// }
+/// ```
+struct SpoofPreview<Content: View>: View {
+    @State private var seeded = false
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        content()
+            .task {
+                guard !seeded else { return }
+                seeded = true
+                SpoofProfile.forceApply()
+            }
     }
 }
 

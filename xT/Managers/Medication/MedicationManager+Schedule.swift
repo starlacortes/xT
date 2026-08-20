@@ -118,10 +118,8 @@ extension MedicationManager {
         let windowStart = Calendar.current.date(byAdding: .day, value: -windowDays, to: now) ?? now
 
         // Count taken doses inside the adherence window
-        let takenDoses = doseHistory
-            .filter { $0.isActive && $0.medicationType == (selectedMedication ?? "") }
+        let takenDoses = activeTakenDoses(medication: selectedMedication ?? "")
             .filter { $0.doseDate >= windowStart && $0.doseDate <= now }
-            .filter { DoseStatus(rawValue: $0.doseStatus) == .taken }
             .count
 
         // Calculate how many doses SHOULD have been scheduled in that window
@@ -137,10 +135,7 @@ extension MedicationManager {
             return
         }
         
-        let activeDoses = doseHistory
-            .filter { $0.isActive && $0.medicationType == (selectedMedication ?? "") }
-            .filter { DoseStatus(rawValue: $0.doseStatus) == .taken }
-            .sorted { $0.doseDate > $1.doseDate }  // most recent first
+        let activeDoses = activeTakenDoses(medication: selectedMedication ?? "", ascending: false)  // most recent first
         
         guard !activeDoses.isEmpty else {
             onTimeStreak = 0
@@ -156,7 +151,7 @@ extension MedicationManager {
         var streak = 1  // most recent dose counts
         for i in 1..<activeDoses.count {
             let expectedInterval = activeDoses[i-1].doseDate.timeIntervalSince(activeDoses[i].doseDate)
-            let expectedDays = intervalDays * 86400.0
+            let expectedDays = intervalDays * AppConstants.secondsPerDay
             let deviation = abs(expectedInterval - expectedDays) / 3600.0  // in hours
             
             if deviation <= graceHours {

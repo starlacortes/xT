@@ -23,7 +23,10 @@ struct SelectableOptionRow: View {
     }
 
     let title: String
-    var subtitle: String? = nil
+    /// `LocalizedStringResource?` (not `String?`) so Markdown grammar such as
+    /// `^[…](inflect: true)` is parsed. A `String` variable would render
+    /// verbatim and leave the inflection marker visible on screen.
+    var subtitle: LocalizedStringResource? = nil
     let isSelected: Bool
     var style: Style = .surface
     let action: () -> Void
@@ -94,7 +97,7 @@ struct SelectableOptionRow: View {
     private var fill: Color {
         switch style {
         case .surface:
-            return isSelected ? Theme.Colors.accent.opacity(0.1) : Color(.systemBackground)
+            return isSelected ? Theme.Colors.accent.opacity(0.1) : Theme.Colors.appBackground
         case .onAccent:
             return Theme.Colors.OnAccent.fill.opacity(isSelected ? 1.6 : 1)
         }

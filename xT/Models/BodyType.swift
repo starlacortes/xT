@@ -27,6 +27,4 @@ enum BodyType: String, CaseIterable, Identifiable {
     }
 
     var usdzName: String { "body_\(rawValue)" }
-
-    var centroidsName: String { "zone_centroids_\(rawValue)" }
 }

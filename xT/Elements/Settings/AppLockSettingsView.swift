@@ -16,6 +16,9 @@ struct AppLockSettingsView: View {
     @State private var selectedTimeout: TimeInterval = 300
     @State private var allowPasscodeFallback: Bool = true
     @State private var showTestBiometric = false
+    /// Cached biometry kind — `LAContext.canEvaluatePolicy` used to run on every
+    /// render through the old computed property; it is read once on appear instead.
+    @State private var cachedBiometricType: BiometricType = .none
     
     func authResult(_ error: Error) -> TestResult {
         if let authErr = error as? XAuthenticationError {
@@ -38,9 +41,7 @@ struct AppLockSettingsView: View {
         ("1 hour", 3600)
     ]
     
-    private var biometricType: BiometricType {
-        authManager.biometricType()
-    }
+    private var biometricType: BiometricType { cachedBiometricType }
     
     private var hasFaceID: Bool {
         biometricType == .faceID
@@ -101,6 +102,7 @@ struct AppLockSettingsView: View {
                 requireAuth = authManager.requireAuthentication
                 selectedTimeout = authManager.autoLockTimeout
                 allowPasscodeFallback = UserDefaults.standard.bool(forKey: "allowPasscodeFallback")
+                cachedBiometricType = authManager.biometricType()
             }
             .fullScreenCover(isPresented: $showTestBiometric) {
                 TestBiometricSheet()

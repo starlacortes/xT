@@ -26,7 +26,7 @@ struct LevelOverlayView: View {
         if interval < 3 * 60      { return "~now" }
         if interval < 90 * 60     { return "~\(Int(interval / 60))min" }
         if interval < 48 * 3600   { return "~\(Int((interval / 3600).rounded()))hrs" }
-        return "~\(Int((interval / 86400).rounded())) days"
+        return "~\(Int((interval / AppConstants.secondsPerDay).rounded())) days"
     }
 
     private var scrubTimeColor: Color {

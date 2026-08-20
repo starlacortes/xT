@@ -13,6 +13,10 @@ struct AdherenceView: View {
     @Environment(\.profileManager) private var profileManager
 
     var body: some View {
+        // One pass over the dose history per body evaluation, shared by the
+        // ring's detail line and the stats grid's "Doses recorded" card.
+        let doseCounts = takenDoseCounts
+
         ScrollView {
             VStack(spacing: 0) {
                 // Header
@@ -21,17 +25,17 @@ struct AdherenceView: View {
                     .padding(.bottom, 24)
                     .padding(.horizontal, 22)
 
-                Divider().opacity(0.5)
+                HairlineDivider(opacity: 0.5)
 
                 VStack(spacing: 32) {
                     // Adherence ring + stats
                     if medicationManager.isFullyConfigured {
-                        adherenceRingSection
+                        adherenceRingSection(takenCount: doseCounts.last30Days)
                             .padding(.top, 24)
 
                         sectionDivider()
 
-                        statsGridSection
+                        statsGridSection(totalDosesTaken: doseCounts.allTime)
 
                         sectionDivider()
 
@@ -96,7 +100,7 @@ struct AdherenceView: View {
 
     // MARK: - Adherence Ring
 
-    private var adherenceRingSection: some View {
+    private func adherenceRingSection(takenCount: Int) -> some View {
         VStack(spacing: 16) {
             Text("30-DAY ADHERENCE")
                 .font(Theme.Fonts.caption2)
@@ -131,12 +135,6 @@ struct AdherenceView: View {
             }
 
             // Detail text
-            let takenCount = medicationManager.doseHistory
-                .filter { $0.isActive && $0.medicationType == (medicationManager.selectedMedication ?? "") }
-                .filter { $0.doseDate >= Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date() }
-                .filter { DoseStatus(rawValue: $0.doseStatus) == .taken }
-                .count
-
             let intervalDays = dosingIntervalDays
             let scheduledCount = max(1, Int(ceil(30.0 / Double(intervalDays))))
 
@@ -148,7 +146,7 @@ struct AdherenceView: View {
 
     // MARK: - Stats Grid
 
-    private var statsGridSection: some View {
+    private func statsGridSection(totalDosesTaken: Int) -> some View {
         VStack(spacing: 12) {
             Text("AT A GLANCE")
                 .font(Theme.Fonts.caption2)
@@ -186,7 +184,7 @@ struct AdherenceView: View {
                 statCard(
                     icon: "syringe.fill",
                     iconColor: Theme.Colors.Time.body.base,
-                    value: "\(medicationManager.doseHistory.filter { $0.isActive && DoseStatus(rawValue: $0.doseStatus) == .taken }.count)",
+                    value: "\(totalDosesTaken)",
                     label: "Doses recorded"
                 )
             }
@@ -375,6 +373,22 @@ struct AdherenceView: View {
 
     // MARK: - Helpers
 
+    /// One pass over the dose history, shared by the ring's detail line and the
+    /// "Doses recorded" stat: taken under the current regimen in the last 30
+    /// days, and taken all-time (active records only).
+    private var takenDoseCounts: (last30Days: Int, allTime: Int) {
+        let selected = medicationManager.selectedMedication ?? ""
+        let cutoff = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
+        var last30Days = 0
+        var allTime = 0
+        for dose in medicationManager.doseHistory where dose.isActive {
+            guard DoseStatus(rawValue: dose.doseStatus) == .taken else { continue }
+            allTime += 1
+            if dose.medicationType == selected, dose.doseDate >= cutoff { last30Days += 1 }
+        }
+        return (last30Days, allTime)
+    }
+
     /// `subtitle` is optional: several stats had one that only restated the label
     /// ("Total doses" / "Lifetime recorded"), which is noise at a glance.
     private func statCard(icon: String, iconColor: Color, value: String,
@@ -432,7 +446,7 @@ struct AdherenceView: View {
     }
 
     private func sectionDivider() -> some View {
-        Divider().opacity(0.3)
+        HairlineDivider(opacity: 0.3)
     }
 }
 

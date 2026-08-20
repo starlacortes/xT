@@ -14,10 +14,6 @@ struct DoseHistoryView: View {
     @State private var showCorrectionAlert: Bool = false
     @State private var showCorrectionSheet: Bool = false
 
-    // Delete confirmation state
-    @State private var doseToDelete: DoseRecord? = nil
-    @State private var showDeleteConfirmation = false
-
     // MARK: - Grouped Doses
 
     /// Doses grouped by medication type, sorted newest first within each group.
@@ -30,52 +26,24 @@ struct DoseHistoryView: View {
     }
 
     var body: some View {
-        List {
-            if groupedDoses.isEmpty {
-                ContentUnavailableView(
-                    "No Dose History",
-                    systemImage: "clock.badge.exclamationmark",
-                    description: Text("Record your first dose to see history here.")
-                )
-            }
-
-            ForEach(groupedDoses, id: \.medication) { group in
-                Section(group.medication) {
-                    ForEach(group.doses) { dose in
-                        DoseHistoryRow(dose: dose)
-                            .swipeActions(edge: .trailing) {
-                                Button(role: .destructive) {
-                                    doseToDelete = dose
-                                    showDeleteConfirmation = true
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
-                                .tint(.red)
-
-                                if RouteClass.from(method: dose.administrationMethod) != .oral {
-                                    Button("Edit Site") {
-                                        correctionTarget = dose
-                                        showCorrectionAlert = true
-                                    }
-                                    .tint(Theme.Colors.accentSecondary)
-                                }
-                            }
-                    }
-                }
-            }
-        }
-        .navigationTitle("Dose History")
-        .alert("Delete Dose?", isPresented: $showDeleteConfirmation, presenting: doseToDelete) { dose in
-            Button("Delete", role: .destructive) {
-                medicationManager.softDeleteDose(id: dose.id)
-                doseToDelete = nil
-            }
-            Button("Cancel", role: .cancel) {
-                doseToDelete = nil
-            }
-        } message: { dose in
-            Text(deleteAlertMessage(for: dose))
-        }
+        HistoryListView(
+            title: "Dose History",
+            emptyTitle: "No Dose History",
+            emptyIcon: "clock.badge.exclamationmark",
+            emptyDescription: "Record your first dose to see history here.",
+            groups: groupedDoses.map { (title: $0.medication, items: $0.doses) },
+            deleteAlertTitle: "Delete Dose?",
+            deleteMessage: deleteAlertMessage(for:),
+            onDelete: { medicationManager.softDeleteDose(id: $0.id) },
+            editLabel: "Edit Site",
+            editVisible: { RouteClass.from(method: $0.administrationMethod) != .oral },
+            onEdit: { dose in
+                correctionTarget = dose
+                showCorrectionAlert = true
+            },
+            row: { DoseHistoryRow(dose: $0) },
+            composer: { _ in EmptyView() }
+        )
         .alert("Edit Administration Site", isPresented: $showCorrectionAlert) {
             Button("Continue") { showCorrectionSheet = true }
             Button("Cancel", role: .cancel) { }
@@ -111,16 +79,23 @@ struct DoseHistoryRow: View {
         RouteClass.from(method: dose.administrationMethod)
     }
 
-    private var siteDisplay: String {
+    /// Returns a `Text` so each branch picks the right initializer:
+    /// `Text(verbatim:)` for plain assembled strings, `Text(LocalizedStringResource(...))`
+    /// for the inflected plural case. Returning `String` would route every branch
+    /// through `Text(_:StringProtocol)` (verbatim) and the `^[N site](inflect: true)`
+    /// marker would render as literal text.
+    private var siteDisplay: Text {
         let sites = dose.injectionSites
         if sites.isEmpty {
-            return routeClass == .oral ? "N/A" : "No site recorded"
+            return Text(verbatim: routeClass == .oral ? "N/A" : "No site recorded")
         }
         if sites.count == 1 {
-            return "\(sites[0].zoneLabel) (\(sites[0].viewContext))"
+            return Text(verbatim: "\(sites[0].zoneLabel) (\(sites[0].viewContext))")
         }
-        return String(localized: "^[\(sites.count) site](inflect: true)",
-                      comment: "Count of distinct administration sites used")
+        return Text(LocalizedStringResource(
+            "^[\(sites.count) site](inflect: true)",
+            comment: "Count of distinct administration sites used"
+        ))
     }
 
     var body: some View {
@@ -143,7 +118,7 @@ struct DoseHistoryRow: View {
                 Text("·")
                     .foregroundStyle(.tertiary)
 
-                Text(siteDisplay)
+                siteDisplay
                     .font(.caption)
                     .foregroundStyle(dose.injectionSites.isEmpty ? .tertiary : .primary)
 

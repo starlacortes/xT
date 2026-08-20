@@ -832,17 +832,6 @@ struct DeviationClassificationTests {
         #expect(mgr.deviationClassification(actual: 260.0, predicted: 200.0) == .above,   "ratio=1.3 exact")
         #expect(mgr.deviationClassification(actual: 400.0, predicted: 200.0) == .above,   "ratio=2.0 exact")
     }
-
-    @MainActor
-    @Test("An on-track or incomparable deviation produces no user-facing note")
-    func noNoteWhenOnTrack() {
-        // The deviation note exists to report a divergence. When there is none,
-        // the app says nothing rather than reassuring the user.
-        let level = HormoneLevel(value: 200, unit: .picogramsPerMilliliter, status: .inRange,
-                                 phase: .trough, deviation: .onTrack, safety: nil,
-                                 bounds: LevelBounds(min: 100, max: 200), boundsSource: .userSet)
-        #expect(level.deviationNote == nil)
-    }
 }
 
 
@@ -1227,8 +1216,14 @@ struct PKEngineNominalTests {
             return
         }
 
-        #expect(abs(cVal - uVal * 1.5) < 1.0,
-                "Calibrated level (\(cVal)) should be ~1.5x uncalibrated (\(uVal))")
+        // α scales the exogenous spike only; the endogenous baseline is not part
+        // of the calibrated quantity. The old `cVal ≈ uVal × 1.5` assertion only
+        // passed while the baseline was ~0 — at this test's 3-year suppression the
+        // 5.0 pg/mL floor makes that off by 0.5 × baseline.
+        let base = mgr.dynamicBaseline(for: .estrogen)
+        let expected = (uVal - base) * 1.5 + base
+        #expect(abs(cVal - expected) < 1.0,
+                "Calibrated level (\(cVal)) should be ~1.5x the exogenous part of uncalibrated (\(uVal)) plus baseline (\(base))")
     }
 }
 

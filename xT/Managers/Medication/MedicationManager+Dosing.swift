@@ -47,8 +47,9 @@ extension MedicationManager {
     /// Returns the default vial concentration (mg/mL) for the currently selected medication type.
     ///
     /// Resolution order: the most recently logged dose that recorded a concentration, then
-    /// the default the user chose during onboarding, then the most commonly stocked vial
-    /// strength for the medication.
+    /// the default the user chose during onboarding (cached by `loadUserPreferences()` —
+    /// the prefs record used to be re-fetched here on every view render), then the most
+    /// commonly stocked vial strength for the medication.
     var defaultConcentrationMgPerMl: Double? {
         if let recent = latestDose(matching: {
             $0.isActive && $0.medicationType == selectedMedication && $0.concentrationMgPerMl != nil
@@ -57,26 +58,73 @@ extension MedicationManager {
         }
         switch selectedMedication {
         case "Estrogen":
-            return storedDefaultConcentration(\.defaultEstrogenConcentration) ?? 40.0   // EV 40 mg/mL is most common
+            return cachedDefaultEstrogenConcentration ?? PKConstants.referenceEstrogenConcentrationMgPerMl
         case "Testosterone":
-            return storedDefaultConcentration(\.defaultTestosteroneConcentration) ?? 200.0  // TC 200 mg/mL is most common
+            return cachedDefaultTestosteroneConcentration ?? PKConstants.referenceTestosteroneConcentrationMgPerMl
         default:
             return nil
         }
     }
 
-    /// Reads one of the per-medication default concentrations captured during onboarding.
-    ///
-    /// These preferences were written by the onboarding flow but never read back, so the
-    /// user's choice silently had no effect. Only reached when no logged dose carries a
-    /// concentration, so the fetch is off the hot path.
-    private func storedDefaultConcentration(
-        _ keyPath: KeyPath<UserPreferences, Double?>
-    ) -> Double? {
+    /// Writes the onboarding-chosen default vial strength into the prefs record
+    /// and the memory cache in one step, so the fallback chain above never
+    /// serves a stale value to a user who just finished setup.
+    func updateOnboardingDefaultConcentration(_ value: Double, for medication: String) {
         guard let context = modelContext,
               let prefs = try? context.fetch(FetchDescriptor<UserPreferences>()).first
-        else { return nil }
-        return prefs[keyPath: keyPath]
+        else { return }
+        if medication == "Estrogen" {
+            prefs.defaultEstrogenConcentration = value
+            cachedDefaultEstrogenConcentration = value
+        } else {
+            prefs.defaultTestosteroneConcentration = value
+            cachedDefaultTestosteroneConcentration = value
+        }
+        try? context.save()
+    }
+
+    // MARK: - Dose Defaulting
+
+    /// The ester assumed for `medication` when no prior dose carries one, and its
+    /// absorption half-life — the single source for the paired
+    /// "Valerate (EV)"/"Cypionate (TC)" fallbacks that used to be hand-paired in
+    /// four different files.
+    static func defaultEsterInfo(for medication: String) -> (name: String, halfLifeDays: Double) {
+        if medication == MedicationType.estrogen.rawValue {
+            let ester = MedicationEster.valerate
+            return (ester.rawValue, ester.halfLifeDays)
+        }
+        let ester = TestosteroneEster.cypionate
+        return (ester.rawValue, ester.halfLifeDays)
+    }
+
+    /// The single canonical ester/amount/concentration fallback chain for recording
+    /// a dose the caller only partially specified — previously hand-rolled in
+    /// `QuickDoseSheet`, `UnifiedScheduleView`, onboarding, and `defaultDoseDetails`,
+    /// and the three were already drifting apart.
+    ///
+    /// Resolution order per field: the most recent active dose for the medication,
+    /// then the user's selections/onboarding defaults, then the medication-typical
+    /// constants (see `PKConstants`).
+    func resolvedDoseDefaults(
+        medication: String?,
+        method: String?
+    ) -> (esterName: String, amountMg: Double, concentrationMgPerMl: Double) {
+        let med = medication ?? selectedMedication ?? ""
+        let isEstrogen = (med == MedicationType.estrogen.rawValue)
+        let recent = latestDose { $0.isActive && $0.medicationType == med }
+
+        let ester = recent?.ester
+            ?? (med == selectedMedication ? selectedEster : nil)
+            ?? Self.defaultEsterInfo(for: med).name
+        let amount = recent?.doseAmount
+            ?? (isEstrogen ? PKConstants.referenceEstrogenDoseMg
+                           : PKConstants.defaultTestosteroneDoseMg)
+        let concentration = recent?.concentrationMgPerMl
+            ?? (isEstrogen
+                ? cachedDefaultEstrogenConcentration ?? PKConstants.referenceEstrogenConcentrationMgPerMl
+                : cachedDefaultTestosteroneConcentration ?? PKConstants.referenceTestosteroneConcentrationMgPerMl)
+        return (ester, amount, concentration)
     }
 
     /// Common vial concentrations (mg/mL) for a given ester string.
@@ -237,7 +285,7 @@ extension MedicationManager {
     private func defaultDoseDetails(for medType: String) -> (ester: String, amount: Double, concentration: Double?) {
         let ester = lastLoggedDose?.ester
             ?? selectedEster
-            ?? (medType == "Estrogen" ? "Valerate (EV)" : "Cypionate (TC)")
+            ?? Self.defaultEsterInfo(for: medType).name
         let amount = lastLoggedDose?.doseAmount
             ?? (medType == "Estrogen" ? 2.0 : 40.0)
         let concentration = lastLoggedDose?.concentrationMgPerMl

@@ -45,14 +45,14 @@ extension MedicationManager {
         let weeksOnHRT = Double(daysOnHRT) / 7.0
         
         // Early return: if HRT started >2 years ago, fully suppressed (#9)
-        if weeksOnHRT >= 104 {  // 2 years = 104 weeks
+        if weeksOnHRT >= PKConstants.fullSuppressionWeeks {
             return suppressedBaseline
         }
-        
+
         // Saturating exponential taper using user-configurable timescale (#9)
         let timescaleWeeks = suppressionSpeed.weeks  // 4, 8, or 12 weeks
         let progress = min(weeksOnHRT / timescaleWeeks, 1.0)
-        let suppressionFactor = 1.0 - exp(-2.5 * progress)  // reaches ~92% at progress=1.0
+        let suppressionFactor = 1.0 - exp(-PKConstants.suppressionTaperRate * progress)  // reaches ~92% at progress=1.0
         
         return fullBaseline + (suppressedBaseline - fullBaseline) * suppressionFactor
     }
@@ -126,16 +126,15 @@ extension MedicationManager {
               let methodStr = selectedAdministrationMethod,
               let method = AdministrationMethod(rawValue: methodStr),
               method == .injectable,
-              let lastDose = doseHistory
-                  .filter({ $0.isActive && $0.medicationType == medication && DoseStatus(rawValue: $0.doseStatus) == .taken })
-                  .sorted(by: { $0.doseDate > $1.doseDate })
-                  .first
+              let lastDose = latestDose(matching: {
+                  $0.isActive && $0.medicationType == medication && DoseStatus(rawValue: $0.doseStatus) == .taken
+              })
         else {
             return .unknown
         }
 
         let now = Date()
-        let daysSinceDose = now.timeIntervalSince(lastDose.doseDate) / 86400.0
+        let daysSinceDose = now.timeIntervalSince(lastDose.doseDate) / AppConstants.secondsPerDay
         let cycleLength = Double(effectivePKIntervalDays(ester: lastDose.ester,
                                                           route: lastDose.administrationMethod,
                                                           medication: medication))
@@ -203,11 +202,9 @@ extension MedicationManager {
     func addBloodTest(drawDate: Date, measuredLevel: Double, hormoneType: String, notes: String? = nil) {
         // Auto‑compute hours since last matching dose
         let hoursSince: Double? = {
-            guard let lastDose = doseHistory
-                .filter({ $0.isActive && $0.medicationType == hormoneType && DoseStatus(rawValue: $0.doseStatus) == .taken })
-                .sorted(by: { $0.doseDate > $1.doseDate })
-                .first
-            else { return nil }
+            guard let lastDose = latestDose(matching: {
+                $0.isActive && $0.medicationType == hormoneType && DoseStatus(rawValue: $0.doseStatus) == .taken
+            }) else { return nil }
             let interval = drawDate.timeIntervalSince(lastDose.doseDate) / 3600.0  // seconds → hours
             return max(0, interval)
         }()
@@ -421,19 +418,19 @@ extension MedicationManager {
     /// These fire AFTER the main classification and take precedence over it.
     func safetyOverride(level: Double, medication: MedicationType, phase: CyclePosition) -> SafetyFlag? {
         // Estrogen safety ceiling
-        if medication == .estrogen && level > 1000 {
+        if medication == .estrogen && level > PKConstants.estradiolHighThreshold {
             return .estrogenCeiling
         }
         // Testosterone supra-physiological
-        if medication == .testosterone && level > 1500 {
+        if medication == .testosterone && level > PKConstants.testosteroneSupraphysiologicThreshold {
             return .testosteroneSupraphysiologic
         }
         // E2 < 50 pg/mL at trough is sub-therapeutic (on therapy)
-        if medication == .estrogen && level < 50 && phase == .trough {
+        if medication == .estrogen && level < PKConstants.estradiolVeryLowThreshold && phase == .trough {
             return .subTherapeuticTrough
         }
         // Spironolactone interaction: E2 < 80 pg/mL may indicate accelerated clearance
-        if medication == .estrogen && spironolactoneInUse && level < 80 && phase == .trough {
+        if medication == .estrogen && spironolactoneInUse && level < PKConstants.estradiolLowThreshold && phase == .trough {
             return .spironolactoneClearance
         }
         return nil
@@ -550,24 +547,10 @@ extension MedicationManager {
         // route-mismatch defects; `methodStr` is now only used to label output points
         // and to pick a route for the no-history fallback, where no dose exists to ask.
 
-        // Get the most recent active dose for logging context
-        _ = doseHistory
-            .filter { $0.isActive && $0.medicationType == medication }
-            .sorted { $0.doseDate > $1.doseDate }
-            .first
-        
         // Resolve default ester info for fallback
-        let defaultEsterName: String
-        let defaultHalfLife: Double
-        if medication == "Estrogen" {
-            let def = MedicationEster.valerate
-            defaultEsterName = def.rawValue
-            defaultHalfLife = def.halfLifeDays
-        } else {
-            let def = TestosteroneEster.cypionate
-            defaultEsterName = def.rawValue
-            defaultHalfLife = def.halfLifeDays
-        }
+        let fallback = Self.defaultEsterInfo(for: medication)
+        let defaultEsterName = fallback.name
+        let defaultHalfLife = fallback.halfLifeDays
 
         // ------ Build dose events with per‑dose PK parameters ------
         // Each event carries: date, effective amount, absorption ka, elimination ke, scaling constant.
@@ -593,7 +576,7 @@ extension MedicationManager {
                 var ke = log(2) / (e.eliminationHalfLifeHours / 24.0)
                 // Spironolactone CYP3A4 induction → ~15% faster E2 clearance (#12)
                 // Only applied when the user has opted in via settings.
-                if spironolactoneInUse && spironolactoneClearanceEnabled { ke *= spiroClearanceFactor }
+                if spironolactoneInUse && spironolactoneClearanceEnabled { ke *= PKConstants.spiroClearanceFactor }
                 return (ka, ke, e.scalingConstant)
             } else if medication == "Testosterone", let e = TestosteroneEster(rawValue: ester) {
                 let ka = log(2) / e.halfLifeDays
@@ -656,9 +639,7 @@ extension MedicationManager {
             // was modeled exactly as if it had been injected/swallowed — inflating
             // predicted levels right after a skip. See xTTests/PharmacokineticTests.swift
             // "Skipped doses do not contribute to predicted levels".
-            let activeDoses = doseHistory
-                .filter { $0.isActive && $0.medicationType == medication && DoseStatus(rawValue: $0.doseStatus) == .taken }
-                .sorted { $0.doseDate < $1.doseDate }
+            let activeDoses = activeTakenDoses(medication: medication)
 
             // QA fix (2026‑07‑28): branch on THIS dose's own administration method,
             // not the manager's currently-selected global route. Previously a user
@@ -735,7 +716,7 @@ extension MedicationManager {
                                                        route: refRoute,
                                                        medication: medication)
 
-                let lookaheadLimit = calendar.date(byAdding: .day, value: 90, to: end) ?? end
+                let lookaheadLimit = calendar.date(byAdding: .day, value: PKConstants.scheduleLookaheadDays, to: end) ?? end
                 let now = Date()
                 var cursor = calendar.date(byAdding: .day, value: freqDays, to: latestReal) ?? latestReal
                 while cursor <= lookaheadLimit {
@@ -775,7 +756,7 @@ extension MedicationManager {
         while cursor <= end {
             var cumulativeSpike = 0.0
             for event in doseEvents {
-                let dt = cursor.timeIntervalSince(event.date) / 86400.0  // days since dose
+                let dt = cursor.timeIntervalSince(event.date) / AppConstants.secondsPerDay  // days since dose
                 if dt < 0 { continue }  // future doses not yet administered
                 
                 // QA fix (2026‑07‑28): this used to read `if isInjectable && event.ke > 0`,
@@ -812,7 +793,7 @@ extension MedicationManager {
             let calibratedValue = baseLevel + cumulativeSpike * alpha
             points.append(EstimatedPoint(date: cursor, value: calibratedValue,
                                          medication: medication, method: methodStr))
-            cursor = cursor.addingTimeInterval(stepDays * 86400.0)
+            cursor = cursor.addingTimeInterval(stepDays * AppConstants.secondsPerDay)
         }
         return points
     }
@@ -857,11 +838,6 @@ extension MedicationManager {
         return 1.0
     }
 
-    func estimatedRecentLevels(days: Int = 90) -> [EstimatedPoint] {
-        let end = Date()
-        let start = Calendar.current.date(byAdding: .day, value: -days, to: end) ?? end
-        return estimatedLevels(from: start, to: end)
-    }
     // MARK: - Dose Intensity Scaling (#13)
     
     /// Average dose over the last 3 months, divided by a standard starting dose.
@@ -870,30 +846,20 @@ extension MedicationManager {
         let now = Date()
         let threeMonthsAgo = Calendar.current.date(byAdding: .month, value: -3, to: now) ?? now
         
-        let recentDoses = doseHistory
-            .filter { $0.isActive && $0.medicationType == (selectedMedication ?? "") }
+        let recentDoses = activeTakenDoses(medication: selectedMedication ?? "")
             .filter { $0.doseDate >= threeMonthsAgo && $0.doseDate <= now }
-            .filter { DoseStatus(rawValue: $0.doseStatus) == .taken }
         
         guard !recentDoses.isEmpty else { return 1.0 }
         
         let avgDose = recentDoses.map(\.doseAmount).reduce(0, +) / Double(recentDoses.count)
         
-        // Standard starting doses
-        let standardDose: Double = selectedMedication == "Estrogen" ? 2.0 : 50.0
+        // Standard starting doses (population references — see PKConstants)
+        let standardDose: Double = selectedMedication == "Estrogen"
+            ? PKConstants.referenceEstrogenDoseMg
+            : PKConstants.referenceTestosteroneDoseMg
         guard standardDose > 0 else { return 1.0 }
         
         return avgDose / standardDose
-    }
-    
-    /// The progress scaling factor applied to change unlock timelines (#13).
-    /// < 0.5 intensity → 0.8× speed (20% slower)
-    /// > 1.5 intensity → 1.1× speed (10% faster)
-    var doseIntensityProgressScale: Double {
-        let intensity = relativeDoseIntensity
-        if intensity < 0.5 { return 0.8 }
-        if intensity > 1.5 { return 1.1 }
-        return 1.0
     }
     
     /// Note shown below the "Changes Unlocked" section, explaining how dose

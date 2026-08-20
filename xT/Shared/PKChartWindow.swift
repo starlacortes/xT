@@ -53,7 +53,7 @@ enum PKChartWindow {
         /// the way the old inline formulas did.
         let denseStepDays: Double
 
-        var totalDays: Double { end.timeIntervalSince(start) / 86400.0 }
+        var totalDays: Double { end.timeIntervalSince(start) / AppConstants.secondsPerDay }
     }
 
     /// - Parameters:
@@ -112,8 +112,8 @@ enum PKChartWindow {
                             PKConstants.chartWindowMinDenseStepDays)
 
         return Window(
-            start: now.addingTimeInterval(-past * 86400.0),
-            end: now.addingTimeInterval(forward * 86400.0),
+            start: now.addingTimeInterval(-past * AppConstants.secondsPerDay),
+            end: now.addingTimeInterval(forward * AppConstants.secondsPerDay),
             stepDays: step,
             denseStepDays: denseStep
         )

@@ -145,6 +145,22 @@ extension MedicationManager {
         }
     }
 
+    // MARK: - Dose lists
+
+    /// All active (non-deleted), *taken* doses for a medication.
+    ///
+    /// Replaces the seven hand-written `filter(isActive, medicationType, .taken)`
+    /// chains scattered through the PK and schedule extensions. `doseHistory` is
+    /// maintained in ascending date order, so the ascending result needs no re-sort;
+    /// the descending variant sorts explicitly.
+    func activeTakenDoses(medication: String? = nil, ascending: Bool = true) -> [DoseRecord] {
+        let med = medication ?? selectedMedication ?? ""
+        let matches = doseHistory.filter {
+            $0.isActive && $0.medicationType == med && DoseStatus(rawValue: $0.doseStatus) == .taken
+        }
+        return ascending ? matches : matches.sorted { $0.doseDate > $1.doseDate }
+    }
+
     // MARK: - Rotation window
 
     /// User-defaults key holding the rotation window override for a route class.

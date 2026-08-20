@@ -31,7 +31,6 @@ struct ThemePalette {
 
     // Surfaces
     let cardSurface: Color
-    let glassSurface: Color
     let border: Color
     /// Opaque screen canvas — replaces raw `Color(.systemBackground)` call sites.
     let appBackground: Color
@@ -146,7 +145,6 @@ struct ThemePalette {
         let appBackgroundPair = colorPair(appBackgroundRecipe, seedHue: seedHue)
         let appBackground = Color(light: appBackgroundPair.light, dark: appBackgroundPair.dark)
         let cardSurface = Color(light: appBackgroundPair.light.opacity(0.8), dark: appBackgroundPair.dark.opacity(0.8))
-        let glassSurface = Color(light: appBackgroundPair.light.opacity(0.6), dark: appBackgroundPair.dark.opacity(0.6))
 
         let neutralSurface = adaptiveColor(
             recipe(lightL: 0.9626, lightC: 0.012, darkL: 0.2273, darkC: 0.014), seedHue: seedHue
@@ -317,7 +315,7 @@ struct ThemePalette {
         return ThemePalette(
             accent: accent, accentSecondary: accentSecondary, glassTint: glassTint,
             textPrimary: textPrimary, textSecondary: textSecondary, textTertiary: textTertiary,
-            cardSurface: cardSurface, glassSurface: glassSurface, border: border,
+            cardSurface: cardSurface, border: border,
             appBackground: appBackground, neutralSurface: neutralSurface,
             levelLow: levelLow, levelHigh: levelHigh,
             graph: graph, time: time, onAccent: onAccent, brandColors: brandColors
@@ -344,7 +342,9 @@ class ThemeManager {
 
     var seedHue: Double {
         didSet {
+            #if DEBUG
             print("[ThemeDebug] seedHue \(oldValue) -> \(seedHue)")
+            #endif
             palette = ThemePalette.resolve(seedHue: seedHue, increasedContrast: increasedContrast)
         }
     }
@@ -378,7 +378,9 @@ class ThemeManager {
     /// `seedHue` mutates dozens of times/sec while dragging; only the final
     /// value should hit disk.
     func commitSeedHue() {
+        #if DEBUG
         print("[ThemeDebug] commitSeedHue -> \(seedHue) (persisted)")
+        #endif
         defaults.set(seedHue, forKey: Keys.seedHue)
     }
 

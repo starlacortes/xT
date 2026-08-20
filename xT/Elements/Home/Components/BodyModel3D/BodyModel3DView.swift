@@ -306,7 +306,9 @@ struct BodyModel3DView: UIViewRepresentable {
     private func skinMaterial() -> SCNMaterial {
         let m = SCNMaterial()
         m.lightingModel     = .physicallyBased
-        m.diffuse.contents  = UIColor.accentSecondaryAdaptive
+        // Adaptive + hue-dial-aware (the old `accentSecondaryAdaptive` literal
+        // was frozen at the default seed hue).
+        m.diffuse.contents  = UIColor(Theme.Colors.accentSecondary)
         m.roughness.contents = Float(0.62)
         m.metalness.contents = Float(0.0)
         // BodyTransform is a proper rotation, so triangle winding is preserved and
@@ -388,6 +390,8 @@ struct BodyModel3DView: UIViewRepresentable {
             self.onTapZone        = onTapZone
             self.tapPositions     = tapPositions
             self.onPreTap         = onPreTap
+            self.onNoZoneTap      = onNoZoneTap
+            self.onYawChange      = onYawChange
         }
 
         // MARK: Gestures
@@ -433,7 +437,7 @@ struct BodyModel3DView: UIViewRepresentable {
         @objc private func tickCameraAnim() {
             let elapsed = CACurrentMediaTime() - cameraAnimStartTime
             let t = Float(min(elapsed / cameraAnimDuration, 1.0))
-            let et = t < 0.5 ? 2 * t * t : 1 - pow(-2 * t + 2, 2) / 2
+            let et = Float(Ease.inOutQuad(Double(t)))
             yaw = cameraAnimStartYaw + (cameraAnimEndYaw - cameraAnimStartYaw) * et
             applyCameraPosition(animated: false)
             if elapsed >= cameraAnimDuration {

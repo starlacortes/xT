@@ -33,7 +33,7 @@ enum LabsChartSeries {
     ///   (default 1.0) so a single point or a flat series still renders a visible
     ///   band rather than a zero-height chart. When `points` is empty, returns
     ///   `(0, minimumSpan)`.
-    static func range(for points: [LabsSeriesPoint], now: Date = Date(),
+    static func range(for points: [LabsSeriesPoint],
                       minimumSpan: Double = 1.0) -> (min: Double, max: Double) {
         var values: [Double] = points.map(\.measured)
         values.append(contentsOf: points.compactMap(\.predicted))

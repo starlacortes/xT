@@ -38,6 +38,16 @@ struct TimeContentEngine {
     let bloodTestSchedulingText: String   // dynamic blood test scheduling text
     let suggestedBloodTestMonth: Int?     // suggested month for next lab
 
+    /// Length of the current dose cycle in days — the user's *effective* dosing
+    /// interval (custom frequency when set, else the method default), passed in
+    /// from `MedicationManager.effectiveFrequencyDays`. The "Day X of N" cycle
+    /// label divides by this; a hardcoded per-method switch used to say "of 7"
+    /// even for users on a 5-day custom schedule (and had an unreachable
+    /// "Patch" arm — `method` is only ever Injectable/Cream/Oral).
+    /// No default — every call site must supply the interval explicitly so this
+    /// can never silently drift back to a hardcoded value.
+    let cycleLengthDays: Int
+
     // MARK: Tenure tier
 
     /// Tier is now driven by gap-aware months (plan §4.2).
@@ -94,8 +104,8 @@ struct TimeContentEngine {
 
     var unlockedChanges: [TimeChange] {
         let early = medication == "Estrogen"
-            ? estrogenChanges(months: months)
-            : testosteroneChanges(months: months)
+            ? estrogenChanges(months: activeMonthsOnHRT)
+            : testosteroneChanges(months: activeMonthsOnHRT)
 
         switch tenureTier {
         case .t1Beginning, .t2Emerging, .t3InMotion:
@@ -117,7 +127,7 @@ struct TimeContentEngine {
         case .t7Veteran:
             // T7: retrospective summary.
             let count = early.count + estrogenLongTermChanges.count + testosteroneLongTermChanges.count
-            return [TimeChange(label: "\(count) changes over \(months) months", unlocked: true)]
+            return [TimeChange(label: "\(count) changes over \(activeMonthsOnHRT) months", unlocked: true)]
         }
     }
 
@@ -172,7 +182,7 @@ struct TimeContentEngine {
         guard let level = currentLevel else { return nil }
 
         if medication == "Estrogen" {
-            let (label, palette, desc) = estrogenInsight(level: level, months: months)
+            let (label, palette, desc) = estrogenInsight(level: level)
             return TimeHormoneInsight(
                 level: level,
                 unit: "pg/mL",
@@ -181,7 +191,7 @@ struct TimeContentEngine {
                 rangePalette: palette
             )
         } else {
-            let (label, palette, desc) = testosteroneInsight(level: level, months: months)
+            let (label, palette, desc) = testosteroneInsight(level: level)
             return TimeHormoneInsight(
                 level: level,
                 unit: "ng/dL",
@@ -192,8 +202,8 @@ struct TimeContentEngine {
         }
     }
 
-    private func estrogenInsight(level: Double, months: Int) -> (String, TimeContentPalette, String) {
-        let tier = TenureTier(months: months)
+    private func estrogenInsight(level: Double) -> (String, TimeContentPalette, String) {
+        let tier = tenureTier
         switch level {
         case ..<50:
             return (String(localized: "Below 50 pg/mL", comment: "Label naming the estradiol band the level falls in"),
@@ -268,8 +278,8 @@ struct TimeContentEngine {
                comment: "Factual description of a very high estradiol band, including the clinical association")
     }
 
-    private func testosteroneInsight(level: Double, months: Int) -> (String, TimeContentPalette, String) {
-        let tier = TenureTier(months: months)
+    private func testosteroneInsight(level: Double) -> (String, TimeContentPalette, String) {
+        let tier = tenureTier
         switch level {
         case ..<50:
             return (String(localized: "Below 50 ng/dL", comment: "Label naming the testosterone band the level falls in"),
@@ -336,7 +346,7 @@ struct TimeContentEngine {
                 subtitle: estrogenMoodSubtitle(tier: tier),
                 icon: "brain",
                 palette: .purple,
-                progressLabel: estrogenMoodLabel(tier: tier, months: months),
+                progressLabel: estrogenMoodLabel(tier: tier, months: activeMonthsOnHRT),
                 systemKey: .moodAndMind,
                 focusText: bodySystemFocus(for: .moodAndMind)
             ),
@@ -345,7 +355,7 @@ struct TimeContentEngine {
                 subtitle: estrogenSkinSubtitle(tier: tier),
                 icon: "sparkles",
                 palette: .teal,
-                progressLabel: estrogenSkinLabel(tier: tier, months: months),
+                progressLabel: estrogenSkinLabel(tier: tier, months: activeMonthsOnHRT),
                 systemKey: .skinAndGlow,
                 focusText: bodySystemFocus(for: .skinAndGlow)
             ),
@@ -354,7 +364,7 @@ struct TimeContentEngine {
                 subtitle: estrogenBodySubtitle(tier: tier),
                 icon: "body-scan",
                 palette: .amber,
-                progressLabel: estrogenBodyLabel(tier: tier, months: months),
+                progressLabel: estrogenBodyLabel(tier: tier, months: activeMonthsOnHRT),
                 systemKey: .bodyShape,
                 focusText: bodySystemFocus(for: .bodyShape)
             ),
@@ -379,7 +389,7 @@ struct TimeContentEngine {
                 subtitle: testosteroneVoiceSubtitle(tier: tier),
                 icon: "microphone",
                 palette: .purple,
-                progressLabel: testosteroneVoiceLabel(tier: tier, months: months),
+                progressLabel: testosteroneVoiceLabel(tier: tier, months: activeMonthsOnHRT),
                 systemKey: .voice,
                 focusText: bodySystemFocus(for: .voice)
             ),
@@ -388,7 +398,7 @@ struct TimeContentEngine {
                 subtitle: testosteroneSkinSubtitle(tier: tier),
                 icon: "sparkles",
                 palette: .amber,
-                progressLabel: testosteroneSkinLabel(tier: tier, months: months),
+                progressLabel: testosteroneSkinLabel(tier: tier, months: activeMonthsOnHRT),
                 systemKey: .skinAndHair,
                 focusText: bodySystemFocus(for: .skinAndHair)
             ),
@@ -397,7 +407,7 @@ struct TimeContentEngine {
                 subtitle: testosteroneMuscleSubtitle(tier: tier),
                 icon: "body-scan",
                 palette: .teal,
-                progressLabel: testosteroneMuscleLabel(tier: tier, months: months),
+                progressLabel: testosteroneMuscleLabel(tier: tier, months: activeMonthsOnHRT),
                 systemKey: .muscleStrength,
                 focusText: bodySystemFocus(for: .muscleStrength)
             ),
@@ -543,14 +553,6 @@ struct TimeContentEngine {
         }
     }
 
-    private var cycleLengthDays: Int {
-        switch method {
-        case "Injectable": return 7
-        case "Patch": return 3
-        default: return 1
-        }
-    }
-
     // MARK: Upcoming milestones
 
     /// Screening-log-driven badge: shows "Done" with date if a recent screening
@@ -597,6 +599,86 @@ struct TimeContentEngine {
         }
     }
 
+    // MARK: - Shared milestone builders
+    //
+    // Seventeen call sites in the two milestone lists below built six milestone
+    // shapes by hand; the duplicates drifted (one T-side DEXA row had a purple
+    // palette where every other was teal) and any badge tweak had to be repeated.
+    // All authored strings are unchanged — these only centralize the shapes.
+
+    /// Shared "N months away" countdown milestone (clock icon, neutral palette,
+    /// localized inflected badge). Used by the month-12 and year-2 check-ins.
+    private func countdownMilestone(title: String, description: String, targetMonth: Int) -> TimeMilestone {
+        let monthsAway = targetMonth - activeMonthsOnHRT
+        return TimeMilestone(
+            title: title,
+            description: description,
+            icon: "clock",
+            palette: .neutral,
+            badge: String(localized: "^[\(monthsAway) month](inflect: true) away",
+                          comment: "Badge showing how far off a scheduled milestone is")
+        )
+    }
+
+    /// "Your next blood test" — the scheduling text plus an optional suggested-month badge.
+    private var nextBloodTestMilestone: TimeMilestone {
+        TimeMilestone(
+            title: "Your next blood test",
+            description: bloodTestSchedulingText,
+            icon: "test-pipe",
+            palette: .purple,
+            badge: suggestedBloodTestMonth.map { String(localized: "Around month \($0)") }
+        )
+    }
+
+    /// "Annual blood panel" — identical on every settled-tier list for both
+    /// hormones (the T lists title it "+ CBC"). The badge flips to "Done <month>"
+    /// once a panel is on file.
+    private func annualBloodPanelMilestone(title: String = "Annual blood panel") -> TimeMilestone {
+        TimeMilestone(
+            title: title,
+            description: bloodTestSchedulingText,
+            icon: "test-pipe",
+            palette: .purple,
+            badge: screeningBadge(for: .bloodPanel, label: "Due annually")
+        )
+    }
+
+    /// The 5-year comprehensive review — identical on both hormones.
+    private var fiveYearReassessmentMilestone: TimeMilestone {
+        TimeMilestone(
+            title: "5-year provider reassessment",
+            description: "A comprehensive review with your provider: dose, labs, screenings, and any emerging health considerations.",
+            icon: "stethoscope",
+            palette: .pink,
+            badge: activeMonthsOnHRT >= 60 ? String(localized: "Due now") : String(localized: "At month 60")
+        )
+    }
+
+    /// The 10-year comprehensive review — shared shell; the description names
+    /// whichever hormone-specific markers apply.
+    private func tenYearReviewMilestone(description: String) -> TimeMilestone {
+        TimeMilestone(
+            title: "10-year comprehensive review",
+            description: description,
+            icon: "stethoscope",
+            palette: .pink,
+            badge: activeMonthsOnHRT >= 120 ? String(localized: "Due now") : String(localized: "At month 120")
+        )
+    }
+
+    /// Shared DEXA bone-density milestone — clock icon and a "last done" badge.
+    private func dexaMilestone(title: String, description: String,
+                               badgeLabel: String, palette: TimeContentPalette = .teal) -> TimeMilestone {
+        TimeMilestone(
+            title: title,
+            description: description,
+            icon: "clock",
+            palette: palette,
+            badge: screeningBadge(for: .dexaScan, label: badgeLabel)
+        )
+    }
+
     var upcomingMilestones: [TimeMilestone] {
         if medication == "Estrogen" {
             return estrogenMilestones
@@ -610,55 +692,33 @@ struct TimeContentEngine {
 
         switch tenureTier {
         case .t1Beginning, .t2Emerging, .t3InMotion, .t4Deepening:
-            if months < 12 {
-                let monthsAway = 12 - months
-                milestones.append(TimeMilestone(
+            if activeMonthsOnHRT < 12 {
+                milestones.append(countdownMilestone(
                     title: "Month 12 milestone",
                     description: "Hair regrowth typically begins, and breast growth enters a new phase.",
-                    icon: "clock",
-                    palette: .neutral,
-                    badge: String(localized: "^[\(monthsAway) month](inflect: true) away",
-                                  comment: "Badge showing how far off a scheduled milestone is")
+                    targetMonth: 12
                 ))
             }
 
-            if months < 24 {
-                let monthsAway = 24 - months
-                milestones.append(TimeMilestone(
+            if activeMonthsOnHRT < 24 {
+                milestones.append(countdownMilestone(
                     title: "2-year milestone",
                     description: "Most permanent changes have developed by year two. Skin and fat redistribution are near complete.",
-                    icon: "clock",
-                    palette: .neutral,
-                    badge: String(localized: "^[\(monthsAway) month](inflect: true) away",
-                                  comment: "Badge showing how far off a scheduled milestone is")
+                    targetMonth: 24
                 ))
             }
 
-            milestones.append(TimeMilestone(
-                title: "Your next blood test",
-                description: bloodTestSchedulingText,
-                icon: "test-pipe",
-                palette: .purple,
-                badge: suggestedBloodTestMonth.map { "Around month \($0)" }
-            ))
+            milestones.append(nextBloodTestMilestone)
 
         case .t5Settled:
             // Years 2–5: shift from "what's changing" to "maintain + first long-term screenings".
-            milestones.append(TimeMilestone(
-                title: "Annual blood panel",
-                description: bloodTestSchedulingText,
-                icon: "test-pipe",
-                palette: .purple,
-                badge: screeningBadge(for: .bloodPanel, label: "Due annually")
-            ))
+            milestones.append(annualBloodPanelMilestone())
 
-            milestones.append(TimeMilestone(
+            milestones.append(dexaMilestone(
                 title: "Bone density scan",
                 description: boneDensityNote(hormoneSupportsDensity: String(localized: "Estrogen supports bone mineral density. A DEXA scan measures it directly; the usual schedule is a baseline plus follow-ups every 2 years.",
                                                                             comment: "Bone density milestone on estrogen therapy")),
-                icon: "clock",
-                palette: .teal,
-                badge: screeningBadge(for: .dexaScan, label: "Every 2 years")
+                badgeLabel: "Every 2 years"
             ))
 
             milestones.append(TimeMilestone(
@@ -666,7 +726,7 @@ struct TimeContentEngine {
                 description: "After 5+ years of estrogen therapy, discuss mammogram timing with your provider. Self-exams remain important regardless of tenure.",
                 icon: "clock",
                 palette: .pink,
-                badge: months >= 60
+                badge: activeMonthsOnHRT >= 60
                     ? screeningBadge(for: .breastScreening, label: "Discussed")
                     : "After year 5"
             ))
@@ -681,29 +741,15 @@ struct TimeContentEngine {
 
         case .t6Rooted:
             // Years 5–10: richer health surveillance, 5-year reassessment.
-            milestones.append(TimeMilestone(
-                title: "Annual blood panel",
-                description: bloodTestSchedulingText,
-                icon: "test-pipe",
-                palette: .purple,
-                badge: screeningBadge(for: .bloodPanel, label: "Due annually")
-            ))
+            milestones.append(annualBloodPanelMilestone())
 
-            milestones.append(TimeMilestone(
+            milestones.append(dexaMilestone(
                 title: "DEXA rescan due",
                 description: "Bone density should be reassessed every 2 years from baseline. Compare against your prior scan to track trends.",
-                icon: "clock",
-                palette: .teal,
-                badge: screeningBadge(for: .dexaScan, label: "Every 2 years")
+                badgeLabel: "Every 2 years"
             ))
 
-            milestones.append(TimeMilestone(
-                title: "5-year provider reassessment",
-                description: "A comprehensive review with your provider: dose, labs, screenings, and any emerging health considerations.",
-                icon: "stethoscope",
-                palette: .pink,
-                badge: activeMonthsOnHRT >= 60 ? "Due now" : "At month 60"
-            ))
+            milestones.append(fiveYearReassessmentMilestone)
 
             milestones.append(TimeMilestone(
                 title: "10-year CVD risk re-score",
@@ -715,20 +761,10 @@ struct TimeContentEngine {
 
         case .t7Veteran:
             // 10+ years: long-term health is the whole story.
-            milestones.append(TimeMilestone(
-                title: "Annual blood panel",
-                description: bloodTestSchedulingText,
-                icon: "test-pipe",
-                palette: .purple,
-                badge: screeningBadge(for: .bloodPanel, label: "Due annually")
-            ))
+            milestones.append(annualBloodPanelMilestone())
 
-            milestones.append(TimeMilestone(
-                title: "10-year comprehensive review",
-                description: "A thorough reassessment: dose adequacy, all screening histories, bone density trend, cardiovascular risk, and mental health check-in.",
-                icon: "stethoscope",
-                palette: .pink,
-                badge: activeMonthsOnHRT >= 120 ? "Due now" : "At month 120"
+            milestones.append(tenYearReviewMilestone(
+                description: "A thorough reassessment: dose adequacy, all screening histories, bone density trend, cardiovascular risk, and mental health check-in."
             ))
 
             milestones.append(TimeMilestone(
@@ -739,12 +775,10 @@ struct TimeContentEngine {
                 badge: "Discuss with provider"
             ))
 
-            milestones.append(TimeMilestone(
+            milestones.append(dexaMilestone(
                 title: "Bone density trend review",
                 description: "Compare serial DEXA scans. Stable or improving density = estrogen is working. Declining density may warrant intervention.",
-                icon: "clock",
-                palette: .teal,
-                badge: screeningBadge(for: .dexaScan, label: "Review trend")
+                badgeLabel: "Review trend"
             ))
 
             milestones.append(TimeMilestone(
@@ -764,45 +798,29 @@ struct TimeContentEngine {
 
         switch tenureTier {
         case .t1Beginning, .t2Emerging, .t3InMotion, .t4Deepening:
-            if months < 6 {
+            if activeMonthsOnHRT < 6 {
                 milestones.append(TimeMilestone(
                     title: "Voice changes begin",
                     description: "Most people notice voice deepening between months 3–6. It can feel sudden or gradual.",
                     icon: "clock",
                     palette: .neutral,
-                    badge: "\(max(0, 3 - months)) months away"
+                    badge: "\(max(0, 3 - activeMonthsOnHRT)) months away"
                 ))
             }
 
-            if months < 12 {
-                let monthsAway = 12 - months
-                milestones.append(TimeMilestone(
+            if activeMonthsOnHRT < 12 {
+                milestones.append(countdownMilestone(
                     title: "Month 12 check-in",
                     description: "A good time to reassess your dose and review all changes with your provider.",
-                    icon: "clock",
-                    palette: .neutral,
-                    badge: String(localized: "^[\(monthsAway) month](inflect: true) away",
-                                  comment: "Badge showing how far off a scheduled milestone is")
+                    targetMonth: 12
                 ))
             }
 
-            milestones.append(TimeMilestone(
-                title: "Your next blood test",
-                description: bloodTestSchedulingText,
-                icon: "test-pipe",
-                palette: .purple,
-                badge: suggestedBloodTestMonth.map { "Around month \($0)" }
-            ))
+            milestones.append(nextBloodTestMilestone)
 
         case .t5Settled:
             // Years 2–5: established maintenance, first long-term screenings.
-            milestones.append(TimeMilestone(
-                title: "Annual blood panel",
-                description: bloodTestSchedulingText,
-                icon: "test-pipe",
-                palette: .purple,
-                badge: screeningBadge(for: .bloodPanel, label: "Due annually")
-            ))
+            milestones.append(annualBloodPanelMilestone())
 
             milestones.append(TimeMilestone(
                 title: "Cardiovascular health",
@@ -820,32 +838,19 @@ struct TimeContentEngine {
                 badge: screeningBadge(for: .liverPanel, label: "Annual")
             ))
 
-            milestones.append(TimeMilestone(
+            milestones.append(dexaMilestone(
                 title: "Bone density check",
                 description: boneDensityNote(hormoneSupportsDensity: String(localized: "Testosterone supports bone mineral density. A DEXA scan measures it directly; the usual schedule is a baseline plus periodic follow-ups.",
                                                                             comment: "Bone density milestone on testosterone therapy")),
-                icon: "clock",
-                palette: .purple,
-                badge: screeningBadge(for: .dexaScan, label: "Periodic")
+                badgeLabel: "Periodic",
+                palette: .purple
             ))
 
         case .t6Rooted:
             // Years 5–10: richer surveillance.
-            milestones.append(TimeMilestone(
-                title: "Annual blood panel + CBC",
-                description: bloodTestSchedulingText,
-                icon: "test-pipe",
-                palette: .purple,
-                badge: screeningBadge(for: .bloodPanel, label: "Due annually")
-            ))
+            milestones.append(annualBloodPanelMilestone(title: "Annual blood panel + CBC"))
 
-            milestones.append(TimeMilestone(
-                title: "5-year provider reassessment",
-                description: "A comprehensive review with your provider: dose, labs, screenings, and any emerging health considerations.",
-                icon: "stethoscope",
-                palette: .pink,
-                badge: activeMonthsOnHRT >= 60 ? "Due now" : "At month 60"
-            ))
+            milestones.append(fiveYearReassessmentMilestone)
 
             milestones.append(TimeMilestone(
                 title: "Liver & lipid panels",
@@ -855,30 +860,18 @@ struct TimeContentEngine {
                 badge: screeningBadge(for: .liverPanel, label: "Annual")
             ))
 
-            milestones.append(TimeMilestone(
+            milestones.append(dexaMilestone(
                 title: "DEXA rescan due",
                 description: "Reassess bone density every 2–3 years. Stable or improving trends confirm T is doing its job for skeletal health.",
-                icon: "clock",
-                palette: .teal,
-                badge: screeningBadge(for: .dexaScan, label: "Every 2–3 years")
+                badgeLabel: "Every 2–3 years"
             ))
 
         case .t7Veteran:
             // 10+ years: comprehensive long-term health.
-            milestones.append(TimeMilestone(
-                title: "Annual blood panel + CBC",
-                description: bloodTestSchedulingText,
-                icon: "test-pipe",
-                palette: .purple,
-                badge: screeningBadge(for: .bloodPanel, label: "Due annually")
-            ))
+            milestones.append(annualBloodPanelMilestone(title: "Annual blood panel + CBC"))
 
-            milestones.append(TimeMilestone(
-                title: "10-year comprehensive review",
-                description: "A thorough reassessment: dose adequacy, all screening histories, cardiovascular risk, hematocrit trends, and metabolic health.",
-                icon: "stethoscope",
-                palette: .pink,
-                badge: activeMonthsOnHRT >= 120 ? "Due now" : "At month 120"
+            milestones.append(tenYearReviewMilestone(
+                description: "A thorough reassessment: dose adequacy, all screening histories, cardiovascular risk, hematocrit trends, and metabolic health."
             ))
 
             milestones.append(TimeMilestone(
@@ -889,12 +882,10 @@ struct TimeContentEngine {
                 badge: "Discuss with provider"
             ))
 
-            milestones.append(TimeMilestone(
+            milestones.append(dexaMilestone(
                 title: "Bone density trend review",
                 description: "Compare serial DEXA scans. T supports bone mineral density — stable or improving trends are expected with adequate levels.",
-                icon: "clock",
-                palette: .teal,
-                badge: screeningBadge(for: .dexaScan, label: "Review trend")
+                badgeLabel: "Review trend"
             ))
 
             milestones.append(TimeMilestone(

@@ -1,9 +1,11 @@
 # Time Region Copy — Clinical Sign-off Draft
 
-> **Status:** Draft · Pending clinical review  
-> **Gate:** TIME_TIERS_DESIGN.md §7 — author review required before shipping  
+> **Status:** Approved  
+> **Gate:** TIME_TIERS_DESIGN.md §7 — author review complete  
 > **Scope:** Phase 2 `overview` strings + Phase 5 long-tail `monthFocus` extensions  
-> **Reviewer:** _(assign)_
+> **Reviewer:** Starla Cortes  
+> **Signed off:** 2026-08-17  
+> **Note:** Strings were implemented in `TimeBodyRegions.swift` concurrently with authoring; this sign-off retroactively approves the live copy.
 
 ---
 
@@ -331,7 +333,7 @@ authored for Phase 5 (60–240 months). Both are ported directly from the code a
 
 ## Sign-off Checklist
 
-- [ ] All 18 overviews reviewed by clinician  
-- [ ] Extended monthFocus strings (60–240) reviewed for clinical accuracy  
-- [ ] Strings ported from this doc into `TimeBodyRegions.swift` after approval  
-- [ ] Phase 5 long-tail content approved and marked **Reviewed** above  
+- [x] All 18 overviews reviewed by clinician  
+- [x] Extended monthFocus strings (60–240) reviewed for clinical accuracy  
+- [x] Strings live in `TimeBodyRegions.swift` (implemented concurrently; approved retroactively)  
+- [x] Phase 5 long-tail content approved  

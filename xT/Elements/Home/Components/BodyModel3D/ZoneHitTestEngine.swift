@@ -55,14 +55,4 @@ final class ZoneHitTestEngine {
             return .noZone(worldPosition: worldPt, worldNormal: worldN)
         }
     }
-
-    /// Convenience for callers that only care about a successful zone hit.
-    func hitResult(at location: CGPoint, in scnView: SCNView) -> ZoneHitResult? {
-        if case .zone(let result) = outcome(at: location, in: scnView) { return result }
-        return nil
-    }
-
-    func zoneAtTap(_ location: CGPoint, in scnView: SCNView) -> String? {
-        hitResult(at: location, in: scnView)?.label
-    }
 }

@@ -15,10 +15,6 @@ struct ActionBarView: View {
     @State private var showingQuickDoseSheet = false
     @State private var showingJournalComposer = false
 
-    private var doseMissed: Bool {
-        medicationManager.isFullyConfigured && medicationManager.hasMissedDose
-    }
-
     var body: some View {
         HStack(spacing: 0) {
             Button {

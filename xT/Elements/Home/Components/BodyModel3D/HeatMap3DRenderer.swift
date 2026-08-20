@@ -173,11 +173,6 @@ final class HeatMap3DRenderer {
         starMaterial?.setValue(NSValue(scnVector4: v), forKey: "u_regionGlow")
     }
 
-    /// Returns the world-space centroid position for a zone label.
-    func centroid(for label: String) -> SCNVector3? {
-        centroidStore.centroid(for: label)
-    }
-
     // MARK: - Display link
 
     func stopDisplayLink() {

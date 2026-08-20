@@ -8,7 +8,6 @@
 
 import SwiftUI
 import SwiftData
-import CryptoKit
 import Observation
 
 /// Unit of measure for a hormone level. A value rather than a display string so
@@ -176,7 +175,7 @@ class MedicationManager {
     // MARK: - Injection Site Tracking
 
     /// Zones marked as "avoid" by the user. Key = zone label.
-    /// Persisted to UserDefaults for cross-launch durability.
+    /// Persisted via `UserPreferences.avoidZonesJSON` (SwiftData/CloudKit).
     var avoidZones: [String: AvoidZoneInfo] = [:]
 
     /// Convenience accessor: returns the set of zone labels currently marked as avoid.
@@ -193,6 +192,16 @@ class MedicationManager {
     /// heat-map computations can detect that their cached result is stale.
     @ObservationIgnored
     var heatMapCacheGeneration: Int = 0
+
+    /// Cached copies of the two onboarding-chosen vial strengths, filled by
+    /// `loadUserPreferences()` (which already fetches the prefs record) so the
+    /// concentration fallback chain in `+Dosing` doesn't re-fetch from SwiftData
+    /// on every view render. Direct record writes outside the manager must route
+    /// through `updateOnboardingDefaultConcentration` to keep these fresh.
+    @ObservationIgnored
+    var cachedDefaultEstrogenConcentration: Double?
+    @ObservationIgnored
+    var cachedDefaultTestosteroneConcentration: Double?
 
     // MARK: - Batch mutation
 
@@ -225,13 +234,9 @@ class MedicationManager {
 
     /// Spironolactone is a known enzyme inducer (CYP3A4) that can modestly increase
     /// estradiol clearance. When the user is on spiro, we apply a small multiplier to ke
-    /// to reflect this interaction. Typical estimates: 10‑20% faster clearance.
+    /// to reflect this interaction (see `PKConstants.spiroClearanceFactor`).
     /// Set to false if the user is on other AAs (cyproterone, GnRH agonists).
     var spironolactoneInUse: Bool = false { didSet { persistUserPreferences() } }
-
-    /// Multiplier applied to elimination rate (ke) when spironolactone is in use.
-    /// Accounts for CYP3A4 induction → faster E2 clearance.
-    let spiroClearanceFactor: Double = 1.15
 
     // --- User Preference-Driven Settings (#9, #12, #18) ---
     /// User-configurable suppression timescale (4/8/12 weeks).
@@ -243,16 +248,12 @@ class MedicationManager {
 
     /// When true, the Time tab surfaces relativeDoseIntensity-derived copy.
     /// T5+ users default to off. Persisted via UserPreferences.
-    var showDoseIntensityInsights: Bool = false
+    var showDoseIntensityInsights: Bool = false { didSet { persistUserPreferences() } }
 
     // --- Missed Dose Settings (#1) ---
     /// Grace period in hours after the scheduled dose during which it's still "Due Soon".
     /// Default 12 hours. After this window, the dose is marked "Missed".
-    var missedDoseGracePeriodHours: Double = 12.0 { didSet { persistUserPreferences() } }
-
-    /// Predicted trough drop when a dose is missed (pg/mL or ng/dL).
-    /// Computed from the PK model: difference between expected trough with vs. without the missed dose.
-    var predictedTroughDrop: Double? = nil
+    var missedDoseGracePeriodHours: Double = PKConstants.missedDoseGraceHours { didSet { persistUserPreferences() } }
 
     // MARK: - Blood Test Calibration
     /// History of user‑entered lab results used to calibrate the PK model.
@@ -316,10 +317,16 @@ class MedicationManager {
             }
         }
 
-        var defaultEster: MedicationEster {
+        /// The ester assumed for this medication when no prior dose carries one.
+        ///
+        /// Returns the *raw ester name* rather than an enum case: the two ester
+        /// enums are separate types, and a `MedicationEster` return value meant
+        /// the testosterone arm used to produce "Cypionate (EC)" — the estradiol
+        /// ester's raw value — instead of "Cypionate (TC)".
+        var defaultEsterName: String {
             switch self {
-            case .estrogen: return .valerate
-            case .testosterone: return .cypionate
+            case .estrogen: return MedicationEster.valerate.rawValue
+            case .testosterone: return TestosteroneEster.cypionate.rawValue
             }
         }
     }
@@ -360,9 +367,9 @@ class MedicationManager {
     /// Personalized therapeutic target ranges set by the user (or their provider).
     /// When nil, the model falls back to clinical defaults.
     struct TherapeuticTarget: Codable, Equatable {
-        var troughMin: Double   // e.g., 150 pg/mL
-        var troughMax: Double   // e.g., 250 pg/mL
-        var peakCeiling: Double // e.g., 600 pg/mL (upper safety limit)
+        var troughMin: Double   // E2 default 100 pg/mL; T default 400 ng/dL
+        var troughMax: Double   // E2 default 200 pg/mL; T default 700 ng/dL
+        var peakCeiling: Double // E2 default 600 pg/mL; T default 1200 ng/dL
         
         static let `default` = TherapeuticTarget(troughMin: 100, troughMax: 200, peakCeiling: 600)
         
@@ -374,13 +381,17 @@ class MedicationManager {
 
     // MARK: - Configuration & UI Helpers
 
-    var medicationDisplayInfo: String {
+    /// `LocalizedStringResource` (not `String`) so any Markdown grammar in the
+    /// localized value is parsed by `Text(_:LocalizedStringResource)` at the
+    /// render site. Returning `String` would route through the verbatim
+    /// `Text(_:StringProtocol)` overload and leave markup visible.
+    var medicationDisplayInfo: LocalizedStringResource {
         if let medication = selectedMedication, let method = selectedAdministrationMethod {
-            return String(localized: "\(medication) via \(method)")
+            return "\(medication) via \(method)"
         } else if let medication = selectedMedication {
-            return String(localized: "\(medication) (method not selected)")
+            return "\(medication) (method not selected)"
         } else {
-            return String(localized: "No medication selected")
+            return "No medication selected"
         }
     }
 
@@ -435,23 +446,31 @@ class MedicationManager {
     }
 
     /// Gap-aware months on HRT for tiering and content (plan §4.2).
-    /// Counts calendar months that contain at least one active (taken, non-deleted)
-    /// dose record. This means a user who paused for 6 months is correctly tiered
-    /// based on active therapy time, not calendar span.
+    ///
+    /// The span from the declared start date up to the first logged dose is
+    /// trusted as active therapy — an empty dose log there means "started logging
+    /// later," not "paused." From the first logged dose forward, only calendar
+    /// months that contain at least one taken dose count; months with no dose are
+    /// genuine gaps and drop out.
     var activeMonthsOnHRT: Int {
         let referenceDate = hrtStartDate ?? lastDoseDate
         guard let first = referenceDate else { return 0 }
         let activeDoses = doseHistory.filter { $0.doseStatus == DoseStatus.taken.rawValue }
-        guard !activeDoses.isEmpty else { return monthsOnHRT }
         guard let earliestDose = activeDoses.map(\.doseDate).min() else { return monthsOnHRT }
-        let start = min(first, earliestDose)
+
         let calendar = Calendar.current
-        var monthSet = Set<String>()
-        for dose in activeDoses where dose.doseDate >= start {
+        // Months from the declared start to the first logged dose: counted as
+        // active, since a missing record there isn't evidence of a pause.
+        let preLogMonths = max(0, calendar.dateComponents([.month], from: first, to: earliestDose).month ?? 0)
+
+        // From the first logged dose on, count distinct months that contain a
+        // taken dose — months with no dose are real gaps and subtract.
+        var loggedMonths = Set<String>()
+        for dose in activeDoses where dose.doseDate >= earliestDose {
             let comps = calendar.dateComponents([.year, .month], from: dose.doseDate)
-            monthSet.insert("\(comps.year ?? 0)-\(comps.month ?? 0)")
+            loggedMonths.insert("\(comps.year ?? 0)-\(comps.month ?? 0)")
         }
-        return max(0, monthSet.count)
+        return max(0, preLogMonths + loggedMonths.count)
     }
 
     /// Age at HRT start, derived from ProfileManager.dateOfBirth and hrtStartDate.

@@ -19,9 +19,6 @@ struct JournalPalette {
 
 @MainActor
 enum JournalTheme {
-    static var rose: Color     { Theme.Colors.accent }
-    static var lavender: Color { Theme.Colors.accentSecondary }
-
     static func palette(for mood: Mood) -> JournalPalette {
         switch mood {
         case .happy, .energetic:

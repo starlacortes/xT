@@ -106,53 +106,101 @@ class ProfileManager {
         persistProfile()
     }
 
-    /// Get default profile image
-    func getDefaultProfileImage() -> UIImage {
-        // Create a simple default profile icon
+    /// The user's chosen photo, if one is set; `nil` while on the default avatar.
+    /// Single accessor so callers never have to reconcile `profileImage` with a
+    /// possibly-stale `profileImageData`.
+    var profilePhoto: UIImage? {
+        if let image = profileImage { return image }
+        if let data = profileImageData { return UIImage(data: data) }
+        return nil
+    }
+
+    /// Renders the placeholder avatar with the current theme accent (and the
+    /// on-accent glyph color) so the default avatar follows the user's chosen
+    /// theme hue instead of a hard-coded `systemBlue`.
+    private static func renderPlaceholder(accent: UIColor, glyph: UIColor) -> UIImage {
         let size = CGSize(width: 200, height: 200)
         let renderer = UIGraphicsImageRenderer(size: size)
-
         return renderer.image { ctx in
-            // Draw a circle with initials or simple icon
             let rect = CGRect(origin: .zero, size: size)
-            UIColor.systemBlue.setFill()
+            accent.setFill()
             ctx.cgContext.fillEllipse(in: rect)
 
-            // Add a simple person icon
             if let personImage = UIImage(systemName: "person.fill") {
                 let imageRect = CGRect(x: size.width/2 - 40, y: size.height/2 - 40, width: 80, height: 80)
-                personImage.draw(in: imageRect)
+                personImage.withTintColor(glyph).draw(in: imageRect)
             }
         }
     }
 
-    /// Get current profile image (default if none set)
+    /// Get default profile image (theme-tinted placeholder).
+    func getDefaultProfileImage() -> UIImage {
+        Self.renderPlaceholder(accent: UIColor(Theme.Colors.accent),
+                               glyph: UIColor(Theme.Colors.OnAccent.primary))
+    }
+
+    /// Get current profile image (default if none set).
     func getCurrentProfileImage() -> UIImage {
-        if let image = profileImage {
-            return image
-        } else if let imageData = profileImageData, let image = UIImage(data: imageData) {
-            return image
-        } else {
-            return getDefaultProfileImage()
-        }
+        profilePhoto ?? getDefaultProfileImage()
     }
 
-    /// Handle photo picker selection
-    func handlePhotoSelection() {
-        Task {
-            if let selectedPhotoItem,
-               let data = try? await selectedPhotoItem.loadTransferable(type: Data.self) {
-                if let image = UIImage(data: data) {
-                    updateProfileImage(image)
-                }
-            }
-            selectedPhotoItem = nil
+    /// Loads the picked photo off the main actor, then updates the stored image.
+    /// Async so callers can run their "image changed" side effects *after* the
+    /// transfer finishes rather than at selection time.
+    func handlePhotoSelection() async {
+        if let selectedPhotoItem,
+           let data = try? await selectedPhotoItem.loadTransferable(type: Data.self),
+           let image = UIImage(data: data) {
+            updateProfileImage(image)
         }
+        selectedPhotoItem = nil
     }
 }
 
 // MARK: - Private Methods
 internal extension ProfileManager {
+
+    // MARK: Crypto helpers
+
+    /// utf8 → AES-GCM → base64, or nil when the crypto box is unavailable.
+    /// Replaces the four hand-rolled copies of the same chain.
+    private func encryptNameToBase64(_ name: String) -> String? {
+        guard let data = name.data(using: .utf8),
+              let encrypted = try? SecurityManager.shared.encryptData(data) else { return nil }
+        return encrypted.base64EncodedString()
+    }
+
+    /// Reads a possibly-encrypted profile name: base64 AES-GCM first, plaintext
+    /// fallback for records written before encryption or by the write-side
+    /// failure fallback.
+    private func decryptName(_ stored: String) -> String {
+        if let encryptedData = Data(base64Encoded: stored),
+           let decryptedData = try? SecurityManager.shared.decryptData(encryptedData),
+           let name = String(data: decryptedData, encoding: .utf8) {
+            return name.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return stored.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// utf8 → AES-GCM, or nil when the crypto box is unavailable. The
+    /// UserDefaults fallback path stores the raw sealed box (not base64).
+    private func encryptNameToData(_ name: String) -> Data? {
+        guard let data = name.data(using: .utf8) else { return nil }
+        return try? SecurityManager.shared.encryptData(data)
+    }
+
+    /// Decrypts image data, accepting unencrypted data written by older versions.
+    /// Returns nil when neither path yields a decodable image.
+    private func decryptImage(_ stored: Data) -> (data: Data, image: UIImage)? {
+        if let decrypted = try? SecurityManager.shared.decryptData(stored),
+           let image = UIImage(data: decrypted) {
+            return (decrypted, image)
+        }
+        if let image = UIImage(data: stored) {
+            return (stored, image)
+        }
+        return nil
+    }
 
     func loadProfile() {
         // SwiftData-backed path: reads from UserPreferences, which CloudKit keeps in sync.
@@ -163,33 +211,15 @@ internal extension ProfileManager {
             // Profile name: try encrypted (base64) first, fall back to plaintext for
             // backward compatibility with data from a prior version or a CloudKit
             // sync from a device that hasn't updated yet.
-            if let storedName = prefs.profileName {
-                if let encryptedData = Data(base64Encoded: storedName),
-                   let decryptedData = try? securityManager.decryptData(encryptedData),
-                   let name = String(data: decryptedData, encoding: .utf8) {
-                    profileName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-                } else {
-                    profileName = storedName.trimmingCharacters(in: .whitespacesAndNewlines)
-                }
-            } else {
-                profileName = ""
-            }
+            profileName = prefs.profileName.map { decryptName($0) } ?? ""
 
             dateOfBirth = prefs.profileDateOfBirth
 
             // Profile image: try encrypted first, fall back to plaintext.
-            if let storedImageData = prefs.profileImageData {
-                if let decryptedData = try? securityManager.decryptData(storedImageData),
-                   let image = UIImage(data: decryptedData) {
-                    profileImageData = decryptedData
-                    profileImage = image
-                } else if let image = UIImage(data: storedImageData) {
-                    profileImageData = storedImageData
-                    profileImage = image
-                } else {
-                    profileImageData = nil
-                    profileImage = nil
-                }
+            if let storedImageData = prefs.profileImageData,
+               let (data, image) = decryptImage(storedImageData) {
+                profileImageData = data
+                profileImage = image
             } else {
                 profileImageData = nil
                 profileImage = nil
@@ -219,12 +249,7 @@ internal extension ProfileManager {
            let decryptedNameData = try? securityManager.decryptData(encryptedNameData),
            let savedName = String(data: decryptedNameData, encoding: .utf8) {
             let trimmed = savedName.trimmingCharacters(in: .whitespacesAndNewlines)
-            if let nameData = trimmed.data(using: .utf8),
-               let encrypted = try? securityManager.encryptData(nameData) {
-                prefs.profileName = encrypted.base64EncodedString()
-            } else {
-                prefs.profileName = trimmed
-            }
+            prefs.profileName = encryptNameToBase64(trimmed) ?? trimmed
         }
 
         if let encryptedImageData = defaults.data(forKey: "encryptedProfileImageData"),
@@ -263,9 +288,10 @@ internal extension ProfileManager {
 
             if trimmedName.isEmpty {
                 prefs.profileName = nil
-            } else if let nameData = trimmedName.data(using: .utf8),
-                      let encrypted = try? securityManager.encryptData(nameData) {
-                prefs.profileName = encrypted.base64EncodedString()
+            } else if let encryptedName = encryptNameToBase64(trimmedName) {
+                // No else: a failed encrypt keeps the previously stored name
+                // rather than replacing it with plaintext.
+                prefs.profileName = encryptedName
             }
 
             if let imageData = profileImageData,
@@ -326,8 +352,7 @@ internal extension ProfileManager {
         }
 
         let trimmedName = profileName.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let nameData = trimmedName.data(using: .utf8),
-           let encryptedName = try? securityManager.encryptData(nameData) {
+        if let encryptedName = encryptNameToData(trimmedName) {
             defaults.set(encryptedName, forKey: "encryptedProfileName")
         } else {
             defaults.removeObject(forKey: "encryptedProfileName")
@@ -363,13 +388,13 @@ internal extension ProfileManager {
     /// Validate profile name
     func validateProfileName(_ name: String) -> Bool {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        return !trimmedName.isEmpty && trimmedName.count <= 50
+        return !trimmedName.isEmpty && trimmedName.count <= Self.maxProfileNameLength
     }
 
     /// Validate profile image data
     func validateProfileImageData(_ data: Data?) -> Bool {
         guard let data = data else { return false }
-        return UIImage(data: data) != nil && data.count <= 5 * 1024 * 1024 // 5MB max
+        return UIImage(data: data) != nil && data.count <= Self.maxProfileImageBytes
     }
 }
 

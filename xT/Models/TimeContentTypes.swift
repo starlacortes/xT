@@ -31,7 +31,8 @@ enum TenureTier: String, Comparable, CaseIterable {
     case t7Veteran      = "Veteran"      // 120+ months
 
     init(months: Int) {
-        switch months {
+        let m = max(0, months)
+        switch m {
         case 0..<3:    self = .t1Beginning
         case 3..<6:    self = .t2Emerging
         case 6..<12:   self = .t3InMotion
@@ -96,9 +97,6 @@ struct TimeBodySystem: Identifiable {
     /// progress, even when the tier-level subtitle is unchanged. Provides the
     /// "what's happening right now" signal that the old percent bar couldn't.
     let focusText: String
-
-    /// Tenure-aware status label. Set by the engine based on actual months on HRT.
-    var statusLabel: String { progressLabel }
 }
 
 enum BodySystemKey: String {

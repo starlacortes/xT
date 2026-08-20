@@ -22,8 +22,6 @@ class JournalManager {
     }
 
     var entries: [JournalEntry] = []
-    var currentMood: Mood = .neutral
-    var currentSymptoms: [Symptom] = []
 
     // CRUD operations
     func addEntry(_ entry: JournalEntry) {
@@ -48,23 +46,17 @@ class JournalManager {
 
     // MARK: - Persistence
 
-    // Loads journal entries from SwiftData.
+    // Loads journal entries from SwiftData, newest first. Sorted at the store
+    // like its sibling loads, rather than fetched unsorted and sorted in memory.
     func loadEntries() {
         guard let context = modelContext else { return }
+        let sort = SortDescriptor<JournalEntry>(\JournalEntry.date, order: .reverse)
+        let descriptor = FetchDescriptor<JournalEntry>(sortBy: [sort])
         do {
-            let allEntries = try context.fetch(FetchDescriptor<JournalEntry>())
-            entries = allEntries.sorted { $0.date > $1.date } // newest first
+            entries = try context.fetch(descriptor)
         } catch {
             print("[JournalManager] Failed to load entries: \(error) — keeping existing in-memory state")
             return
-        }
-
-        if entries.isEmpty {
-            currentMood = .neutral
-            currentSymptoms = []
-        } else if let lastEntry = entries.first {
-            currentMood = lastEntry.mood
-            currentSymptoms = lastEntry.symptoms
         }
     }
 }

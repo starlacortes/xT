@@ -30,7 +30,6 @@ struct Theme {
 
         // Surfaces
         static var cardSurface: Color   { ThemeManager.shared.palette.cardSurface }
-        static var glassSurface: Color  { ThemeManager.shared.palette.glassSurface }
         static var border: Color        { ThemeManager.shared.palette.border }
         /// Opaque screen canvas — use instead of raw `Color(.systemBackground)`.
         static var appBackground: Color { ThemeManager.shared.palette.appBackground }
@@ -47,7 +46,6 @@ struct Theme {
         static let success          = Color.green
         static let warning          = Color.orange
         static let error            = Color.red
-        static let info             = Color.blue
         static let successBrand     = Color(lightHex: "#3B8C6E", darkHex: "#64DC9E")
 
         // Graph level ramp — deep rose (low) → light lavender (high)

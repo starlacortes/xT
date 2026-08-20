@@ -162,33 +162,11 @@ enum StarFieldGeometry {
 
     // MARK: - Deterministic per-star randomness
 
-    /// Night-sky palette: mostly warm white, a fifth cool blue, a few gold
-    /// accents, each with mild brightness variation so the field doesn't read
-    /// as a uniform grid of identical LEDs.
     private static func starColor(_ h: UInt32) -> SIMD3<Float> {
-        let pick = rand(h, 0)
-        let base: SIMD3<Float>
-        if pick < 0.72 {
-            base = SIMD3<Float>(1.00, 0.95, 0.86) // warm white
-        } else if pick < 0.92 {
-            base = SIMD3<Float>(0.72, 0.82, 1.00) // cool blue
-        } else {
-            base = SIMD3<Float>(1.00, 0.78, 0.45) // gold
-        }
-        let brightness = 0.55 + 0.45 * rand(h, 1)
-        return base * brightness
+        StarPalette.fieldColor(pick: rand(h, 0), brightness: 0.55 + 0.45 * rand(h, 1))
     }
 
-    /// SplitMix32-style avalanche — stable across runs, unlike `Int.hashValue`.
-    private static func hash(_ x: UInt32) -> UInt32 {
-        var z = x &+ 0x9E3779B9
-        z = (z ^ (z >> 16)) &* 0x21F0AAAD
-        z = (z ^ (z >> 15)) &* 0x735A2D97
-        return z ^ (z >> 15)
-    }
+    private static func hash(_ x: UInt32) -> UInt32 { SplitMix32.hash(x) }
 
-    /// Uniform [0, 1) stream `lane` derived from a star's hash.
-    private static func rand(_ h: UInt32, _ lane: UInt32) -> Float {
-        Float(hash(h &+ lane &* 0x85EBCA6B)) / Float(UInt32.max)
-    }
+    private static func rand(_ h: UInt32, _ lane: UInt32) -> Float { SplitMix32.rand(h, lane) }
 }

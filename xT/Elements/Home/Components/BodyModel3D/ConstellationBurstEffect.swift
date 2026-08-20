@@ -55,23 +55,6 @@ struct ConstellationBurstLayout {
         return ConstellationBurstLayout(positions: points, connections: connections)
     }
 
-    /// SplitMix64 — stable across runs, unlike Swift's randomized hashing.
-    private struct SplitMix64 {
-        var state: UInt64
-
-        mutating func next() -> UInt64 {
-            state &+= 0x9E3779B97F4A7C15
-            var z = state
-            z = (z ^ (z >> 30)) &* 0xBF58476D1CE4E5B9
-            z = (z ^ (z >> 27)) &* 0x94D049BB133111EB
-            return z ^ (z >> 31)
-        }
-
-        /// Uniform float in [0, 1).
-        mutating func nextUnit() -> Float {
-            Float(next() >> 40) / Float(1 << 24)
-        }
-    }
 }
 
 // MARK: - Effect
@@ -403,15 +386,9 @@ final class ConstellationBurstEffect: NSObject {
         reduceMotion ? reducedPopDuration : popDuration
     }
 
-    /// Same playful night-sky palette as `StarFieldGeometry` — deliberately
-    /// *not* theme-tinted, so the burst sparkles against the starfield body.
+    /// Deliberately *not* theme-tinted, so the burst sparkles against the
+    /// starfield body.
     private static func starColor(index: Int, count: Int) -> SIMD3<Float> {
-        let palette: [SIMD3<Float>] = [
-            SIMD3(1.00, 0.95, 0.86),  // warm white
-            SIMD3(0.72, 0.82, 1.00),  // cool blue
-            SIMD3(1.00, 0.78, 0.45),  // gold
-            SIMD3(1.00, 0.95, 0.86),  // warm white
-        ]
-        return palette[index % palette.count]
+        StarPalette.burstSequence[index % StarPalette.burstSequence.count]
     }
 }

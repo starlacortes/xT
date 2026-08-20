@@ -163,20 +163,8 @@ final class ZoneCentroidStore {
             "Left Upper Glute", "Right Upper Glute",
         ],
         "Estrogen|oral": [],
-
-        "Progesterone|injection": [
-            "Right Ventrogluteal", "Left Ventrogluteal",
-            "Upper Right Thigh", "Upper Left Thigh",
-        ],
-        "Progesterone|topical": [
-            "Left Forearm", "Right Forearm",
-            "Left Inner Wrist", "Right Inner Wrist",
-            "Neck", "Upper Chest",
-        ],
-        "Progesterone|patch": [
-            "Upper Left Abdomen", "Upper Right Abdomen",
-            "Left Upper Glute", "Right Upper Glute",
-        ],
+        // (Progesterone rows removed — unreachable: MedicationType only has
+        // estrogen/testosterone cases.)
     ]
 
     /// Returns the preferred zone labels for a given medication + route class.

@@ -121,6 +121,25 @@ extension MedicationManager {
 
     // MARK: - Persistence
 
+    // MARK: - Shared JSON coding
+
+    /// `persistUserPreferences()` fires from the `didSet` of ~15 properties, so
+    /// encoders/decoders must not be allocated per call.
+    private static let prefsEncoder = JSONEncoder()
+    private static let prefsDecoder = JSONDecoder()
+
+    /// Encodes a value to a JSON string, or nil on failure — the pattern that
+    /// `persistUserPreferences` and the legacy migration each hand-rolled.
+    static func jsonString<T: Encodable>(_ value: T) -> String? {
+        guard let data = try? prefsEncoder.encode(value) else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
+    static func jsonValue<T: Decodable>(_ type: T.Type, from json: String) -> T? {
+        guard let data = json.data(using: .utf8) else { return nil }
+        return try? prefsDecoder.decode(type, from: data)
+    }
+
     func updateDoseDates(last: Date?, next: Date?) {
         lastDoseDate = last
         nextDoseDate = next
@@ -168,14 +187,12 @@ extension MedicationManager {
         }
 
         if let json = prefs.userTherapeuticTargetJSON,
-           let data = json.data(using: .utf8),
-           let target = try? JSONDecoder().decode(TherapeuticTarget.self, from: data) {
+           let target = Self.jsonValue(TherapeuticTarget.self, from: json) {
             userTherapeuticTarget = target
         }
 
         if let json = prefs.avoidZonesJSON,
-           let data = json.data(using: .utf8),
-           let zones = try? JSONDecoder().decode([String: AvoidZoneInfo].self, from: data) {
+           let zones = Self.jsonValue([String: AvoidZoneInfo].self, from: json) {
             avoidZones = zones
         }
 
@@ -187,6 +204,9 @@ extension MedicationManager {
             ? prefs.rotationWindowPatch : RouteClass.patch.defaultRotationWindowDays
 
         bodyTypeRaw = prefs.bodyTypeRaw.isEmpty ? BodyType.neutral.rawValue : prefs.bodyTypeRaw
+
+        cachedDefaultEstrogenConcentration = prefs.defaultEstrogenConcentration
+        cachedDefaultTestosteroneConcentration = prefs.defaultTestosteroneConcentration
     }
 
     func persistUserPreferences() {
@@ -212,33 +232,17 @@ extension MedicationManager {
             existing.rotationWindowTopical = rotationWindowTopical
             existing.rotationWindowPatch = rotationWindowPatch
             existing.bodyTypeRaw = bodyTypeRaw
-            if let target = userTherapeuticTarget,
-               let data = try? JSONEncoder().encode(target),
-               let json = String(data: data, encoding: .utf8) {
-                existing.userTherapeuticTargetJSON = json
+            existing.userTherapeuticTargetJSON = userTherapeuticTarget.flatMap { Self.jsonString($0) }
+            if !avoidZones.isEmpty {
+                // A failed encode keeps the previously stored zones rather than
+                // wiping them — the nil else-branch is deliberate.
+                existing.avoidZonesJSON = Self.jsonString(avoidZones) ?? existing.avoidZonesJSON
             } else {
-                existing.userTherapeuticTargetJSON = nil
-            }
-            if !avoidZones.isEmpty,
-               let data = try? JSONEncoder().encode(avoidZones),
-               let json = String(data: data, encoding: .utf8) {
-                existing.avoidZonesJSON = json
-            } else {
-                existing.avoidZonesJSON = avoidZones.isEmpty ? nil : existing.avoidZonesJSON
+                existing.avoidZonesJSON = nil
             }
         } else {
-            let targetJSON: String? = {
-                guard let t = userTherapeuticTarget,
-                      let d = try? JSONEncoder().encode(t),
-                      let s = String(data: d, encoding: .utf8) else { return nil }
-                return s
-            }()
-            let zonesJSON: String? = {
-                guard !avoidZones.isEmpty,
-                      let d = try? JSONEncoder().encode(avoidZones),
-                      let s = String(data: d, encoding: .utf8) else { return nil }
-                return s
-            }()
+            let targetJSON = userTherapeuticTarget.flatMap { Self.jsonString($0) }
+            let zonesJSON = avoidZones.isEmpty ? nil : Self.jsonString(avoidZones)
             let prefs = UserPreferences(
                 selectedMedication: selectedMedication,
                 selectedAdministrationMethod: selectedAdministrationMethod,

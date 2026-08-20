@@ -71,65 +71,53 @@ struct BloodTestComposerView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    Picker("Hormone", selection: $hormoneType) {
-                        Text("Estrogen").tag("Estrogen")
-                        Text("Testosterone").tag("Testosterone")
-                    }
-                    .pickerStyle(.segmented)
-
-                    DatePicker(
-                        "Draw date",
-                        selection: $drawDate,
-                        in: ...Date(),
-                        displayedComponents: [.date, .hourAndMinute]
-                    )
-
-                    HStack {
-                        Text("Level")
-                            .foregroundStyle(.primary)
-                        Spacer()
-                        TextField("0", text: $measuredLevelText)
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                            .focused($levelFieldFocused)
-                            .frame(width: 80)
-                        Text(unit)
-                            .foregroundStyle(.secondary)
-                    }
+        RecordComposerShell(
+            title: isEditing ? "Edit Blood Test" : "Add Blood Test",
+            canSave: canSave,
+            onSave: save
+        ) {
+            Section {
+                Picker("Hormone", selection: $hormoneType) {
+                    Text("Estrogen").tag("Estrogen")
+                    Text("Testosterone").tag("Testosterone")
                 }
+                .pickerStyle(.segmented)
 
-                if let warning = plausibilityWarning {
-                    Section {
-                        Label(warning, systemImage: "exclamationmark.triangle.fill")
-                            .font(Theme.Fonts.caption)
-                            .foregroundStyle(Theme.Colors.warning)
-                    }
-                }
+                DatePicker(
+                    "Draw date",
+                    selection: $drawDate,
+                    in: ...Date(),
+                    displayedComponents: [.date, .hourAndMinute]
+                )
 
-                Section("Notes") {
-                    TextField("e.g. Quest Diagnostics, trough draw", text: $notes, axis: .vertical)
-                        .lineLimit(3...6)
+                HStack {
+                    Text("Level")
+                        .foregroundStyle(.primary)
+                    Spacer()
+                    TextField("0", text: $measuredLevelText)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                        .focused($levelFieldFocused)
+                        .frame(width: 80)
+                    Text(unit)
+                        .foregroundStyle(.secondary)
                 }
             }
-            .navigationTitle(isEditing ? "Edit Blood Test" : "Add Blood Test")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-                    Button("Done") { levelFieldFocused = false }
+
+            if let warning = plausibilityWarning {
+                Section {
+                    Label(warning, systemImage: "exclamationmark.triangle.fill")
+                        .font(Theme.Fonts.caption)
+                        .foregroundStyle(Theme.Colors.warning)
                 }
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { save() }
-                        .disabled(!canSave)
-                }
+            }
+
+            Section("Notes") {
+                TextField("e.g. Quest Diagnostics, trough draw", text: $notes, axis: .vertical)
+                    .lineLimit(3...6)
             }
         }
+        .keyboardDoneToolbar { levelFieldFocused = false }
     }
 
     // MARK: - Save

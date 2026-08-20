@@ -658,7 +658,7 @@ struct TimeBodyDiagramView: UIViewRepresentable {
 
             if animating {
                 let t = min(Float((now - animStart) / animDuration), 1)
-                let e = t < 0.5 ? 2 * t * t : 1 - pow(-2 * t + 2, 2) / 2
+                let e = Float(Ease.inOutQuad(Double(t)))
                 current = FocusConfig.lerp(from, to, e)
                 applyCamera()
                 heatMapRenderer?.setConstellation(current.constellation, twinkle: true)

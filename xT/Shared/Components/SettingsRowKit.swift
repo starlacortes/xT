@@ -35,12 +35,18 @@ struct SettingsSection<Content: View>: View {
 // MARK: - Row
 
 /// A settings row: icon tile, title, optional subtitle, and trailing accessory.
+///
+/// `subtitle` is a `LocalizedStringResource?` (not `String?`) so that Markdown
+/// grammar in the localized value — most importantly `^[…](inflect: true)` for
+/// automatic plural agreement — is parsed by `Text(_:LocalizedStringResource)`.
+/// Passing a `String` variable would route through `Text(_:StringProtocol)`,
+/// which is verbatim and leaves the `^[N day](inflect: true)` text on screen.
 struct SettingsRow<Trailing: View>: View {
     let icon: String
     var iconBackground: Color
     var iconColor: Color
     let title: String
-    var subtitle: String? = nil
+    var subtitle: LocalizedStringResource? = nil
     @ViewBuilder let trailing: () -> Trailing
 
     var body: some View {
@@ -71,7 +77,7 @@ struct SettingsRow<Trailing: View>: View {
 
 extension SettingsRow where Trailing == EmptyView {
     init(icon: String, iconBackground: Color, iconColor: Color,
-         title: String, subtitle: String? = nil) {
+         title: String, subtitle: LocalizedStringResource? = nil) {
         self.init(icon: icon, iconBackground: iconBackground, iconColor: iconColor,
                   title: title, subtitle: subtitle) { EmptyView() }
     }
@@ -112,6 +118,24 @@ struct SettingsRowDivider: View {
     }
 }
 
+// MARK: - Sheet section label
+
+/// The larger footnote-weight uppercase label used inside the type/method and
+/// dose-schedule sheets — deliberately distinct from the caption2 `SectionHeader`
+/// on the main Settings page. Both sheets carried byte-identical copies.
+struct SheetSectionLabel: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(Theme.Fonts.footnote)
+            .fontWeight(.semibold)
+            .foregroundStyle(.secondary)
+            .textCase(.uppercase)
+            .padding(.leading, 4)
+    }
+}
+
 // MARK: - Card
 
 extension View {
@@ -122,7 +146,7 @@ extension View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                    .fill(Color(.systemBackground))
+                    .fill(Theme.Colors.appBackground)
             )
     }
 }

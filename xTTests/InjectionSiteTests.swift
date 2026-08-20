@@ -68,11 +68,11 @@ struct InjectionSiteTests {
         #expect(RouteClass.from(method: "Injectable (IM)") == .injection)
         #expect(RouteClass.from(method: "SubQ Injection") == .injection)
         #expect(RouteClass.from(method: "Cream") == .topical)
-        #expect(RouteClass.from(method: "Gel") == .topical)
         #expect(RouteClass.from(method: "Patch") == .patch)
         #expect(RouteClass.from(method: "Oral") == .oral)
-        #expect(RouteClass.from(method: "Sublingual") == .oral)
         #expect(RouteClass.from(method: "Unknown") == .injection) // default
+        // Legacy "Gel"/"Sublingual" arms were removed with the dead code — no
+        // AdministrationMethod case or record route can ever carry them now.
     }
 
     // MARK: - AvoidZoneInfo
@@ -184,7 +184,7 @@ struct InjectionSiteTests {
 
     // MARK: - InjectionSite Formatting
 
-    @Test func lastDoseSentence() {
+    @Test func shortLabel() {
         let site = InjectionSite(
             sketchId: "thighsFront",
             normalizedX: 0.3,
@@ -194,7 +194,6 @@ struct InjectionSiteTests {
             bodyRegion: "thighs",
             routeClass: "injection"
         )
-        #expect(site.lastDoseSentence == "Last dose: Upper Right Thigh (front)")
         #expect(site.shortLabel == "Upper Right Thigh")
     }
 
@@ -331,7 +330,9 @@ struct InjectionSiteTests {
         #expect(RouteClass.oral.iconName == "pills")
     }
 
-    @Test func routeClassTintColor() {
+    // tintColor routes through the actor-isolated Theme.Colors tokens, so the
+    // test must run on the main actor too.
+    @MainActor @Test func routeClassTintColor() {
         // Verify tintColor returns a Color (not nil)
         for route in RouteClass.allCases {
             _ = route.tintColor // must not crash
@@ -514,164 +515,4 @@ struct InjectionSiteTests {
         #expect(oralDose.injectionSitesJSON == "[]")
     }
 
-    // MARK: - Rotation Safety: conflictsWith & daysSinceLastUse
-
-    @Test func conflictsWithSameZoneWithinWindow() {
-        let site = InjectionSite(
-            sketchId: "thighsFront", normalizedX: 0.3, normalizedY: 0.15,
-            zoneLabel: "Upper Right Thigh", viewContext: "front", bodyRegion: "thighs",
-            routeClass: "injection"
-        )
-        let dose = DoseRecord(
-            doseDate: Calendar.current.date(byAdding: .day, value: -5, to: Date())!,
-            medicationType: "Estrogen", ester: "Valerate (EV)",
-            administrationMethod: "Injectable", doseAmount: 4.0,
-            injectionSites: [InjectionSite(
-                sketchId: "thighsFront", normalizedX: 0.3, normalizedY: 0.15,
-                zoneLabel: "Upper Right Thigh", viewContext: "front", bodyRegion: "thighs",
-                routeClass: "injection"
-            )]
-        )
-        #expect(site.conflictsWith(doses: [dose], withinDays: 14) == true)
-    }
-
-    @Test func conflictsWithSameZoneOutsideWindow() {
-        let site = InjectionSite(
-            sketchId: "thighsFront", normalizedX: 0.3, normalizedY: 0.15,
-            zoneLabel: "Upper Right Thigh", viewContext: "front", bodyRegion: "thighs",
-            routeClass: "injection"
-        )
-        let dose = DoseRecord(
-            doseDate: Calendar.current.date(byAdding: .day, value: -20, to: Date())!,
-            medicationType: "Estrogen", ester: "Valerate (EV)",
-            administrationMethod: "Injectable", doseAmount: 4.0,
-            injectionSites: [InjectionSite(
-                sketchId: "thighsFront", normalizedX: 0.3, normalizedY: 0.15,
-                zoneLabel: "Upper Right Thigh", viewContext: "front", bodyRegion: "thighs",
-                routeClass: "injection"
-            )]
-        )
-        #expect(site.conflictsWith(doses: [dose], withinDays: 14) == false)
-    }
-
-    @Test func conflictsWithDifferentZone() {
-        let site = InjectionSite(
-            sketchId: "thighsFront", normalizedX: 0.3, normalizedY: 0.15,
-            zoneLabel: "Upper Right Thigh", viewContext: "front", bodyRegion: "thighs",
-            routeClass: "injection"
-        )
-        let dose = DoseRecord(
-            doseDate: Calendar.current.date(byAdding: .day, value: -2, to: Date())!,
-            medicationType: "Estrogen", ester: "Valerate (EV)",
-            administrationMethod: "Injectable", doseAmount: 4.0,
-            injectionSites: [InjectionSite(
-                sketchId: "armsFront", normalizedX: 0.5, normalizedY: 0.3,
-                zoneLabel: "Left Deltoid", viewContext: "front", bodyRegion: "arms",
-                routeClass: "injection"
-            )]
-        )
-        #expect(site.conflictsWith(doses: [dose], withinDays: 14) == false)
-    }
-
-    @Test func conflictsWithPatchDurationExtendsWindow() {
-        let site = InjectionSite(
-            sketchId: "midsectionFront", normalizedX: 0.5, normalizedY: 0.3,
-            zoneLabel: "Lower Abdomen Right", viewContext: "front", bodyRegion: "abdomen",
-            routeClass: "patch"
-        )
-        let dose = DoseRecord(
-            doseDate: Calendar.current.date(byAdding: .day, value: -10, to: Date())!,
-            medicationType: "Estrogen", ester: "",
-            administrationMethod: "Patch", doseAmount: 0.1,
-            injectionSites: [InjectionSite(
-                sketchId: "midsectionFront", normalizedX: 0.5, normalizedY: 0.3,
-                zoneLabel: "Lower Abdomen Right", viewContext: "front", bodyRegion: "abdomen",
-                routeClass: "patch", durationDays: 7
-            )]
-        )
-        #expect(site.conflictsWith(doses: [dose], withinDays: 5) == true)
-    }
-
-    @Test func conflictsWithDefaultWindow() {
-        let site = InjectionSite(
-            sketchId: "thighsFront", normalizedX: 0.3, normalizedY: 0.15,
-            zoneLabel: "Upper Right Thigh", viewContext: "front", bodyRegion: "thighs",
-            routeClass: "injection"
-        )
-        let dose = DoseRecord(
-            doseDate: Calendar.current.date(byAdding: .day, value: -5, to: Date())!,
-            medicationType: "Estrogen", ester: "Valerate (EV)",
-            administrationMethod: "Injectable", doseAmount: 4.0,
-            injectionSites: [InjectionSite(
-                sketchId: "thighsFront", normalizedX: 0.3, normalizedY: 0.15,
-                zoneLabel: "Upper Right Thigh", viewContext: "front", bodyRegion: "thighs",
-                routeClass: "injection"
-            )]
-        )
-        #expect(site.conflictsWith(doses: [dose]) == true)
-    }
-
-    @Test func daysSinceLastUseReturnsDays() {
-        let fiveDaysAgo = Calendar.current.date(byAdding: .day, value: -5, to: Date())!
-        let dose = DoseRecord(
-            doseDate: fiveDaysAgo,
-            medicationType: "Estrogen", ester: "Valerate (EV)",
-            administrationMethod: "Injectable", doseAmount: 4.0,
-            injectionSites: [InjectionSite(
-                sketchId: "thighsFront", normalizedX: 0.3, normalizedY: 0.15,
-                zoneLabel: "Upper Right Thigh", viewContext: "front", bodyRegion: "thighs",
-                routeClass: "injection", lastUsedDate: fiveDaysAgo
-            )]
-        )
-        let site = InjectionSite(
-            sketchId: "thighsFront", normalizedX: 0.3, normalizedY: 0.15,
-            zoneLabel: "Upper Right Thigh", viewContext: "front", bodyRegion: "thighs",
-            routeClass: "injection", lastUsedDate: Date()
-        )
-        let days = site.daysSinceLastUse(from: [dose])
-        #expect(days != nil)
-        #expect(days! >= 5)
-    }
-
-    @Test func daysSinceLastUseReturnsNilForFirstUse() {
-        let site = InjectionSite(
-            sketchId: "thighsFront", normalizedX: 0.3, normalizedY: 0.15,
-            zoneLabel: "Upper Right Thigh", viewContext: "front", bodyRegion: "thighs",
-            routeClass: "injection"
-        )
-        #expect(site.daysSinceLastUse(from: []) == nil)
-    }
-
-    @Test func daysSinceLastUseFilterOutSameDate() {
-        let now = Date()
-        let sevenDaysAgo = Calendar.current.date(byAdding: .day, value: -7, to: now)!
-        let site = InjectionSite(
-            sketchId: "thighsFront", normalizedX: 0.3, normalizedY: 0.15,
-            zoneLabel: "Upper Right Thigh", viewContext: "front", bodyRegion: "thighs",
-            routeClass: "injection", lastUsedDate: now
-        )
-        let doseSameDate = DoseRecord(
-            doseDate: Calendar.current.date(byAdding: .day, value: -3, to: now)!,
-            medicationType: "Estrogen", ester: "Valerate (EV)",
-            administrationMethod: "Injectable", doseAmount: 4.0,
-            injectionSites: [InjectionSite(
-                sketchId: "thighsFront", normalizedX: 0.3, normalizedY: 0.15,
-                zoneLabel: "Upper Right Thigh", viewContext: "front", bodyRegion: "thighs",
-                routeClass: "injection", lastUsedDate: now
-            )]
-        )
-        let dosePrior = DoseRecord(
-            doseDate: sevenDaysAgo,
-            medicationType: "Estrogen", ester: "Valerate (EV)",
-            administrationMethod: "Injectable", doseAmount: 4.0,
-            injectionSites: [InjectionSite(
-                sketchId: "thighsFront", normalizedX: 0.3, normalizedY: 0.15,
-                zoneLabel: "Upper Right Thigh", viewContext: "front", bodyRegion: "thighs",
-                routeClass: "injection", lastUsedDate: sevenDaysAgo
-            )]
-        )
-        let days = site.daysSinceLastUse(from: [doseSameDate, dosePrior])
-        #expect(days != nil)
-        #expect(days! >= 7)
-    }
 }
