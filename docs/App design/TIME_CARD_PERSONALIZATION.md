@@ -121,7 +121,7 @@ contradicting each other on screen.
 
 ---
 
-## 4. Phase — present tense only
+## 4. Phase — present tense, and two vocabularies
 
 Replace the four `phaseLabel` strings:
 
@@ -130,20 +130,55 @@ enum RegionPhase {
     case pending      // month < startMonth
     case developing   // month < peakMonth
     case refining     // month < completeMonth
-    case settled      // month >= completeMonth
+    case matured      // month >= completeMonth
 }
 ```
 
-| Phase | Label | Was |
-|-------|-------|-----|
-| `pending` | `Begins month 3` | `Begins month 3` |
-| `developing` | `Developing` | `Active · peak ahead` |
-| `refining` | `Refining` | `Maturing · peak passed` |
-| `settled` | `Settled` | `Established month 61+` |
+Peak language is removed. The label describes the region's present state
+and nothing else. `peakMonth` stays in the model — it still drives change
+rate (§5) — it just stops being shown to the reader.
 
-Peak language is removed. The label now describes the tissue's present
-state and nothing else. `peakMonth` stays in the model — it still drives
-change rate (§5) — it just stops being shown to the reader.
+### Two vocabularies
+
+A brain region does not *settle*; it adapts, and adaptation is an ongoing
+process rather than a finished one. The phase enum is shared, but the
+words it renders are not:
+
+```swift
+enum PhaseVocabulary { case tissue, neural }
+```
+
+| Phase | `.tissue` | `.neural` | Was |
+|-------|-----------|-----------|-----|
+| `pending` | `Begins month 3` | `Begins month 3` | `Begins month 3` |
+| `developing` | `Developing` | `Adapting` | `Active · peak ahead` |
+| `refining` | `Refining` | `Tuning` | `Maturing · peak passed` |
+| `matured` | `Settled` | `Adapted` | `Established month 61+` |
+
+The neural column is not invented for this spec — it is the vocabulary
+the mind copy already uses. `TimeBodyRegions.mindRegions` currently
+contains *"the amygdala is recalibrating"*, *"the PFC's adaptation"*,
+*"hippocampal adaptation is in its later phase"*, *"fully adapted to the
+estrogen-dominant neurochemical environment"* and *"subtle circuit-level
+tuning"*. The labels now agree with the prose underneath them.
+
+`Adapting → Adapted` deliberately shares a root: it reads as one process
+at two stages, which is what neural adaptation is. The two states are 6
+to 24 months apart depending on region, so no user sees both in a
+session.
+
+`vocabulary` is a stored property on `BodyRegion`, set once per array —
+`.neural` for `mindRegions` and `mindRegionsT`, `.tissue` for
+`bodyRegions` and `bodyRegionsT` — not derived at the call site.
+
+### Why `settled` is not the enum case name either
+
+`TenureTier.t5Settled` already has the rawValue `"Settled"`, and it
+labels the *user's global tenure* at 24-59 months. A region phase
+rendering the identical word next to it on the same card is precisely
+the two-clocks confusion §1 identifies. The enum case is `matured`; only
+the `.tissue` vocabulary renders the word "Settled", and it never
+appears in the same view as a tier label.
 
 ---
 
@@ -162,7 +197,7 @@ the default:
 | within ±25% of `peakMonth` | `.fast` |
 | `phase == .developing` | `.moderate` |
 | `phase == .refining` | `.slow` |
-| `phase == .settled` | `.steady` |
+| `phase == .matured` | `.steady` |
 
 Rate does not appear on the card. It selects **which bank the second
 slot draws from** — the mechanism that answers the brief.
@@ -288,7 +323,7 @@ endpoints it currently lacks. Tanner staging is referenced in E Chest
 prose today but is not modelled, so nothing can be said about reaching —
 or not reaching — stage 5.
 
-NEXT is suppressed when `phase == .settled` or when the nearest marker
+NEXT is suppressed when `phase == .matured` or when the nearest marker
 is more than 24 months out. A card with nothing ahead of it says nothing
 about what is ahead of it.
 
