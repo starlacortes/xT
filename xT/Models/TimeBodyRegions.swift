@@ -35,8 +35,19 @@ struct BodyRegion: Identifiable {
     /// focus is authored for this month — only below `startMonth`, where the
     /// caller falls back to `pendingText`.
     func focusText(at months: Int) -> String? {
+        band(at: months)?.text
+    }
+
+    /// The band the NOW copy is drawn from, with its range, or `nil` below
+    /// `startMonth`.
+    ///
+    /// The range is what makes a band addressable from outside. A marker knows
+    /// its month; without this it could not know which sentence the reader is
+    /// looking at when that month arrives, so the two were authored blind to
+    /// each other. See `RegionStageTests`.
+    func band(at months: Int) -> (range: ClosedRange<Int>, text: String)? {
         for (range, text) in monthFocus where range.contains(months) {
-            return text
+            return (range, text)
         }
         return nil
     }
@@ -297,7 +308,7 @@ enum TimeBodyRegions {
                 (21...26,   "Visible growth is slowing. The work continuing is internal — ducts branching and lobules forming."),
                 (27...34,   "The visible phase is largely complete. Ductal-lobular maturation continues through years three to five."),
                 (35...45,   "The ductal-lobular system is in its final maturation phase. Tissue is approaching full maturity."),
-                (46...59,   "Maturation is approaching completion. Full development can take the whole 60 months."),
+                (46...59,   "Tanner stage 5, where it is reached, typically arrives across this window. Full ductal-lobular maturation can take the whole sixty months."),
                 (60...71,   "Breast tissue is estrogen-dependent tissue. Estradiol is what holds the ductal-lobular architecture in place, reading the signal the way it did while building it."),
                 (72...83,   "Day to day, estradiol sustains the epithelium and the stromal fat that gives breast tissue its volume. Both respond to level, not to tenure."),
                 (84...95,   "Tanner stage 5 is the named endpoint of the developmental sequence. A documented minority reach stage 3 or 4 and hold there, which is a recognised outcome."),

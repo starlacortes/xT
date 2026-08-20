@@ -327,9 +327,15 @@ struct RegionMarker {
 
 Markers do three jobs: they populate NEXT, they anchor the NOW copy in
 the band that contains them, and they give the long-tail card named
-endpoints it currently lacks. Tanner staging is referenced in E Chest
-prose today but is not modelled, so nothing can be said about reaching —
-or not reaching — stage 5.
+endpoints.
+
+The second and third are built for **stages** — markers that belong to a
+named clinical scale — and deliberately not for plain markers, whose
+names are UI labels rather than prose. Tanner staging is now modelled,
+the band containing each stage's arrival is required to name it, and no
+region's copy may name a stage the model does not hold. The full design,
+including why plain markers stay unanchored, is
+`TIME_STAGE_SYSTEM.md` §1.
 
 NEXT is suppressed when `phase == .matured` or when the nearest marker
 is more than 24 months out. A card with nothing ahead of it says nothing
@@ -759,10 +765,14 @@ the card is describing:
 ```
 
 The month was previously nowhere on the card. It sat in the screen
-header behind the panel, in a different unit — `monthsOnHRT` there
+header behind the panel, and in a different unit — `monthsOnHRT` there
 against `activeMonthsOnHRT` here — so the card's own copy had no visible
-anchor. Naming it makes two consecutive months read as two dated
-entries rather than as one screen that failed to update.
+anchor and the number above it could disagree with it. Naming it makes
+two consecutive months read as two dated entries rather than as one
+screen that failed to update, and it forced the unit question, which is
+now settled: `activeMonthsOnHRT` is the tenure number everywhere a
+single figure answers "how long have I been doing this". See
+`TIME_STAGE_SYSTEM.md` §2.
 
 What the header deliberately does not carry: a progress bar, a percentage,
 a track with the current month plotted on it. §3.4 removed the progress

@@ -591,7 +591,7 @@ Voice rules these strings are held to are in `TIME_CARD_PERSONALIZATION.md`
 | 21–26 | Visible growth is slowing. The work continuing is internal — ducts branching and lobules forming. |
 | 27–34 | The visible phase is largely complete. Ductal-lobular maturation continues through years three to five. |
 | 35–45 | The ductal-lobular system is in its final maturation phase. Tissue is approaching full maturity. |
-| 46–59 | Maturation is approaching completion. Full development can take the whole 60 months. |
+| 46–59 | Tanner stage 5, where it is reached, typically arrives across this window. Full ductal-lobular maturation can take the whole sixty months. |
 | 60–71 | Breast tissue is estrogen-dependent tissue. Estradiol is what holds the ductal-lobular architecture in place, reading the signal the way it did while building it. |
 | 72–83 | Day to day, estradiol sustains the epithelium and the stromal fat that gives breast tissue its volume. Both respond to level, not to tenure. |
 | 84–95 | Tanner stage 5 is the named endpoint of the developmental sequence. A documented minority reach stage 3 or 4 and hold there, which is a recognised outcome. |
@@ -630,7 +630,7 @@ Voice rules these strings are held to are in `TIME_CARD_PERSONALIZATION.md`
 |---|---|---|
 | 3 | Tanner stage 2 | Typically establishes around month 3. |
 | 9 | Tanner stage 3 | Typically arrives around month 9. |
-| 18 | Tanner stage 4 | Typically arrives around month 18. |
+| 14 | Tanner stage 4 | Typically arrives around month 14. |
 | 48 | Tanner stage 5 | Where it is reached, typically arrives around month 48. |
 
 ---

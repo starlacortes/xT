@@ -26,10 +26,25 @@ extension SettingsView {
                     .frame(width: 56, height: 56)
             }
 
-            Text(profileManager.profileDisplayName.isEmpty ? profileManager.profileName : profileManager.profileDisplayName)
-                .font(Theme.Fonts.headline)
-                .foregroundStyle(.primary)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(profileManager.profileDisplayName.isEmpty ? profileManager.profileName : profileManager.profileDisplayName)
+                    .font(Theme.Fonts.headline)
+                    .foregroundStyle(.primary)
+
+                if let tenure = medicationManager.tenureLabel {
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(Theme.Colors.accent)
+                            .frame(width: 5, height: 5)
+                        Text(tenure)
+                            .font(Theme.Fonts.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel(Text(tenure) + Text(" on HRT"))
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             NavigationLink(destination: ProfileEditorView()) {
                 Text("Edit Profile")
