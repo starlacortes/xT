@@ -177,10 +177,14 @@ struct TimeRegionDetailView: View {
 
 /// Picks the copy for each card slot from a region and a `JourneyContext`.
 ///
-/// Phase A wiring: NOW draws the banded month fact, INSIGHT draws the region's
-/// phase copy, and the two never render the same string. Phase B replaces
-/// INSIGHT's source with the mechanism and fact banks and the deterministic
-/// month-rotating selector — the slot contract here doesn't change.
+/// NOW comes from the region's own band grid, re-cut in Phase C so band width
+/// tracks the region's clock rather than the calendar — a month wide where it
+/// is moving fastest, a year wide where it is being maintained. Bands start at
+/// `startMonth`, so a region whose clock hasn't started falls through to the
+/// pending sentence and shows ABOUT instead.
+///
+/// INSIGHT comes from the region's insight bank and rotates every month. That
+/// is what makes month 11 differ from month 10 while NOW holds still.
 struct RegionCardSlots {
     let now: String
     let insight: String?
@@ -195,14 +199,14 @@ struct RegionCardSlots {
         }
 
         let month = context.month
-        let banded = region.focusText(at: month)
-        let phaseCopy = region.phaseText(at: month)
 
-        now = banded ?? phaseCopy
-        // When no band is authored for this month the phase copy has already
-        // been spent on NOW; showing it again would be the duplication this
-        // restructure exists to remove.
-        insight = banded == nil ? nil : phaseCopy
+        now = region.focusText(at: month) ?? region.phaseText(at: month)
+        insight = TimeRegionInsights.insight(
+            track: context.track,
+            key: region.key,
+            month: month,
+            rate: region.changeRate(at: month)
+        )
         about = region.phase(at: month) == .pending ? region.overview : nil
     }
 }

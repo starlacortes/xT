@@ -272,16 +272,17 @@ Voice check, three drafts:
 Both banks use the same selector:
 
 ```swift
-func entry(at month: Int, seed: Int) -> String? {
-    let pool = entries.filter { $0.months.contains(month) }
-    guard !pool.isEmpty else { return nil }
-    return pool[abs(month &+ seed) % pool.count].text
+static func select(from pool: [InsightEntry], month: Int, seed: Int) -> String? {
+    let eligible = pool.filter { $0.months.contains(month) }
+    guard !eligible.isEmpty else { return nil }
+    return eligible[(max(0, month) &+ seed) % eligible.count].text
 }
 ```
 
-`seed` is a stable FNV-1a hash of the region key computed at build time —
-**not** `hashValue`, which is randomly seeded per process in Swift and
-would reshuffle the card on every launch.
+`seed` is a stable FNV-1a hash over the region identifier (`"e.abdomen"`,
+`"t.chest"`) — **not** `hashValue`, which is randomly seeded per process in
+Swift and would reshuffle the card on every launch. A test pins two seeds to
+literal constants so that substitution fails loudly rather than silently.
 
 Properties:
 
@@ -301,9 +302,15 @@ test, which also gives a 4-month minimum before any entry recurs. Both
 are unit-testable against the static data with no view layer involved:
 
 ```swift
-@Test func consecutiveMonthsNeverMatch() // all 18 regions × months 0...240
-@Test func everyPoolHasFourEntries()     // all 18 regions × months 0...240
+@Test func consecutiveMonthsNeverMatch()     // all 18 regions × months 0...240
+@Test func everyPoolHasFourEntries()         // all 18 regions × months 0...240
+@Test func selectionIsStableWithinAMonth()   // reopening never reshuffles
+@Test func seedIsProcessIndependent()        // seeds pinned to constants
 ```
+
+Both hold on the shipped data: the eligible pool is five entries at every
+month for every region, and no region's card repeats across any month
+boundary in 0...240.
 
 ---
 
@@ -475,9 +482,9 @@ so.
 
 | Item | Count | Notes |
 |------|-------|-------|
-| NOW bands, re-cut 0-59 | 18 regions × ~9 | Re-cut and trimmed from existing `monthFocus` |
+| NOW bands, re-cut 0-59 | 196 | **written** — 10-12 per region, on each region's own clock |
 | NOW bands, 60-240 | 18 × 8 = 144 | 90 net new (replaces 5 per region) |
-| Mechanism entries | 18 × 4 = 72 | Largely re-cut from `earlyText`/`midText`/`lateText` + 1,005 words of unrendered `scienceText` |
+| Mechanism entries | 90 | **written** — 5 per region, eligible at every month |
 | Fact entries | 18 × 10 = 180 | Net new. The real writing job. |
 | Markers | ~4 per region = 72 | Tanner stages, receptor saturation, ductal-lobular completion, BMD plateau |
 | Terminus rewrites | 39 strings | The `no further` / `complete` / `plateaued` / `finished` worklist from §9 |
@@ -504,13 +511,13 @@ test asserts the 60+ pool size directly rather than the global count:
 | Phase | Work | New copy? | Status |
 |-------|------|-----------|--------|
 | A | `JourneyContext`, `RegionPhase` + `PhaseVocabulary`, present-tense labels, four slots, delete `minimalEngine`, drop the deep-dive section, gate `overview` on `.pending` | none | **landed** |
-| B | Mechanism bank + selector + invariant tests | re-cut only | |
-| C | Re-cut NOW bands onto per-region grids | re-cut only | |
+| B | Mechanism bank + selector + invariant tests | 90 entries | **landed** |
+| C | Re-cut NOW bands onto per-region grids | 196 bands | **landed** |
 | D | Fact bank | 180 strings | |
 | E | 60+ bands and markers | ~160 strings | |
 | F | Style lint test; extend `TIME_REGION_COPY.md` for clinical sign-off | none | |
 
-Phase B and C make consecutive months differ. D and E are the writing.
+Phases B and C make consecutive months differ. D and E deepen the pools.
 
 ### What Phase A landed
 
@@ -544,6 +551,62 @@ anyone with a dosing gap they disagree — the header can say month 14 over a
 card computing phase from month 11. The distinction looks deliberate
 (`months` is commented "for display" and drives the change-unlock lists), so
 collapsing it changes more than the card. It needs a decision, not a patch.
+
+### What Phases B and C landed
+
+The invariant holds. For all eighteen regions across months 0-240, the card at
+*m* differs from the card at *m+1* — verified by test, not by inspection. NOW
+holds still for a band at a time; INSIGHT rotates every month underneath it.
+Month 10 and month 11 on E Abdomen share a NOW sentence and draw different
+INSIGHT copy, which is the case this system was built to answer.
+
+**Phase B** is `TimeRegionInsights`: 90 mechanism entries, five per region, and
+the deterministic selector. Two decisions are worth recording because neither is
+in §6 as written.
+
+Mechanism entries carry `0...240` rather than phase-scoped ranges. The register
+is the pathway, not the calendar — receptors, enzymes, residence times — and
+that copy is as true at month 200 as at month 2. It keeps the two slots in
+different registers (NOW is the timeline, INSIGHT is the biology), and it keeps
+the eligible pool at full depth for a ten-year user rather than draining as the
+regions mature. The cost is a five-month rotation cycle; Phase D's fact bank is
+what lengthens it.
+
+`ChangeRate` now steers bank selection, but the fact banks are empty, so every
+card resolves to mechanism copy through the fall-through. The rate machinery is
+live and tested; it has one bank to choose from until Phase D fills the other.
+
+**Phase C** re-cut all 196 pre-60 bands onto per-region grids derived from
+`startMonth`/`peakMonth`/`completeMonth`. E Abdomen (3/12/24) lands on exactly
+the grid §6 specifies: `3, 4-5, 6-7, 8-9, 10-11, 12-13, 14-17, 18-23, 24-35,
+36-47, 48-59`. The old grid was one calendar shape stamped on all eighteen
+regions, so E Chest — which develops for five years — got the same 24-35 and
+36-47 bands as E Amygdala, which finished at 24. Three properties are now tested
+rather than assumed: bands cover `startMonth...240` with no gap or overlap, no
+band before the peak runs wider than six months, and no developing band is
+wider than any matured one in the same region.
+
+The grid starting at `startMonth` is what keeps ABOUT working: a region whose
+clock hasn't started has no band, falls through to the pending sentence, and
+shows its `overview`.
+
+### What Phases B and C did not do
+
+Neither phase was "re-cut only", as the table above claimed before they ran.
+Moving band boundaries means rewriting the sentences inside them, and mechanism
+copy in a pathway register is not a re-slicing of timeline copy. All 286 bands
+and all 90 entries are authored text held to the §6 caps (34 words for NOW, 30
+for INSIGHT), enforced by test.
+
+The 60+ bands are untouched — still five per region, carried through verbatim.
+Phase E replaces them with eight and changes what they are about. They are
+inside the caps and inside the coverage guarantee, so they are correct as they
+stand; they are just not yet the maintenance-biology copy §8 asks for.
+
+`earlyText`/`midText`/`lateText` are now reachable only as the NOW fallback for
+pending months, since every non-pending month has a band. They are still the
+`phaseText(at:)` source and still worth keeping as the safety net, but the card
+no longer renders them in the normal case.
 
 ### NEXT
 

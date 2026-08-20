@@ -7,7 +7,7 @@
 //
 //  These cover the structural guarantees Phase A lands — present-tense phase
 //  labels, the two phase vocabularies, and the slot contract. The month-to-month
-//  variance invariant arrives with the mechanism and fact banks in Phase B.
+//  variance invariant lives in `RegionInsightBankTests` alongside Phases B and C.
 //
 
 import Testing
