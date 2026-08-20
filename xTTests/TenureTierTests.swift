@@ -413,43 +413,43 @@ func tBodyRegionOverviews() {
     }
 }
 
-// MARK: - Phase 5: Fact coverage (focusText ?? phaseText non-nil and non-empty)
+// MARK: - Phase 5: Fact coverage (focusText ?? pendingText non-nil and non-empty)
 
-@Test("E mind regions: focusText ?? phaseText non-empty at every month 0-240")
+@Test("E mind regions: focusText ?? pendingText non-empty at every month 0-240")
 func eMindFactCoverage() {
     for region in TimeBodyRegions.mindRegions {
         for month in stride(from: 0, through: 240, by: 1) {
-            let text = region.focusText(at: month) ?? region.phaseText(at: month)
+            let text = region.focusText(at: month) ?? region.pendingText
             #expect(!text.isEmpty, "E mind '\(region.key)' empty at month \(month)")
         }
     }
 }
 
-@Test("E body regions: focusText ?? phaseText non-empty at every month 0-240")
+@Test("E body regions: focusText ?? pendingText non-empty at every month 0-240")
 func eBodyFactCoverage() {
     for region in TimeBodyRegions.bodyRegions {
         for month in stride(from: 0, through: 240, by: 1) {
-            let text = region.focusText(at: month) ?? region.phaseText(at: month)
+            let text = region.focusText(at: month) ?? region.pendingText
             #expect(!text.isEmpty, "E body '\(region.key)' empty at month \(month)")
         }
     }
 }
 
-@Test("T mind regions: focusText ?? phaseText non-empty at every month 0-240")
+@Test("T mind regions: focusText ?? pendingText non-empty at every month 0-240")
 func tMindFactCoverage() {
     for region in TimeBodyRegions.mindRegionsT {
         for month in stride(from: 0, through: 240, by: 1) {
-            let text = region.focusText(at: month) ?? region.phaseText(at: month)
+            let text = region.focusText(at: month) ?? region.pendingText
             #expect(!text.isEmpty, "T mind '\(region.key)' empty at month \(month)")
         }
     }
 }
 
-@Test("T body regions: focusText ?? phaseText non-empty at every month 0-240")
+@Test("T body regions: focusText ?? pendingText non-empty at every month 0-240")
 func tBodyFactCoverage() {
     for region in TimeBodyRegions.bodyRegionsT {
         for month in stride(from: 0, through: 240, by: 1) {
-            let text = region.focusText(at: month) ?? region.phaseText(at: month)
+            let text = region.focusText(at: month) ?? region.pendingText
             #expect(!text.isEmpty, "T body '\(region.key)' empty at month \(month)")
         }
     }
@@ -460,7 +460,7 @@ func distinctFocusBandsEHips() {
     let hips = TimeBodyRegions.bodyRegions.first { $0.key == "hips" }!
     // Sample representative months from different bands and assert distinct text.
     let samples = [6, 15, 25, 42, 65, 84, 110, 150, 200]
-    let texts = samples.map { hips.focusText(at: $0) ?? hips.phaseText(at: $0) }
+    let texts = samples.map { hips.focusText(at: $0) ?? hips.pendingText }
     // No two adjacent samples should produce identical copy.
     for i in 1..<texts.count {
         #expect(texts[i] != texts[i - 1],
@@ -499,7 +499,7 @@ func detailReachabilityTChest() {
 func headRegionHeroAndOverview() {
     let mindRegions = TimeBodyRegions.mindRegions
     let pfc = mindRegions.first { $0.key == "pfc" }!
-    let heroText = pfc.focusText(at: 18) ?? pfc.phaseText(at: 18)
+    let heroText = pfc.focusText(at: 18) ?? pfc.pendingText
     #expect(!heroText.isEmpty)
     #expect(!pfc.overview.isEmpty)
 }

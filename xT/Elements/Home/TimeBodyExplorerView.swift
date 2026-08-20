@@ -79,10 +79,7 @@ struct TimeBodyExplorerView: View {
                     regionKey: regionKey,
                     region: regionKey.isMind ? nil : bodyRegionData.first { $0.key == regionKey.bodyRegionKey },
                     mindRegions: mindRegionData,
-                    months: months,
-                    isTestosterone: isTestosterone,
-                    tenureTier: TenureTier(months: months),
-                    bodySystemDetail: resolvedBodySystemDetail(for: regionKey),
+                    context: journeyContext,
                     selectedBrainRegion: $selectedBrainRegion,
                     onClose: { withAnimation(.easeInOut(duration: 0.3)) { selectedRegion = nil } }
                 )
@@ -107,58 +104,18 @@ struct TimeBodyExplorerView: View {
         .frame(maxWidth: .infinity)
     }
 
-    // MARK: - Body system detail resolution
+    // MARK: - Journey context
 
-    /// Maps a tapped region to the BodySystemKey whose detail supplements it,
-    /// then materialises the detail from a minimal engine. Returns nil for regions
-    /// whose content is fully self-contained (E chest, T abdomen).
-    ///
-    /// Mapping per spec Phase 2:
-    ///   E head → moodAndMind,  E hips/thighs/glutes/abdomen → bodyShape,  E chest → nil
-    ///   T chest/thighs/hips/glutes → muscleStrength,  T abdomen/head → nil
-    private func resolvedBodySystemDetail(for regionKey: TimeRegionKey) -> TimeBodySystemDetail? {
-        guard let systemKey = bodySystemKey(for: regionKey) else { return nil }
-        return minimalEngine.bodySystemDetail(for: systemKey)
-    }
-
-    private func bodySystemKey(for regionKey: TimeRegionKey) -> BodySystemKey? {
-        if isTestosterone {
-            switch regionKey {
-            case .chest, .thighs, .hips, .glutes: return .muscleStrength
-            case .abdomen, .head:                  return nil
-            }
-        } else {
-            switch regionKey {
-            case .head:                            return .moodAndMind
-            case .hips, .thighs, .glutes, .abdomen: return .bodyShape
-            case .chest:                           return nil
-            }
-        }
-    }
-
-    /// Minimal engine for body-system detail lookup only.
-    /// Uses activeMonthsOnHRT for correct tenureTier; other fields aren't
-    /// accessed by bodySystemDetail and are set to safe defaults.
-    private var minimalEngine: TimeContentEngine {
-        TimeContentEngine(
-            medication: isTestosterone ? "Testosterone" : "Estrogen",
-            method: medicationManager.selectedAdministrationMethod ?? "Injectable",
-            months: months,
-            currentLevel: nil,
-            dayOfCycle: 1,
-            activeMonthsOnHRT: months,
-            ageAtStart: nil,
-            screeningLog: nil,
-            showDoseIntensity: false,
-            adherenceRate: nil,
-            cyclePosition: .midCycle,
-            regimenSegments: [],
-            onTimeStreak: 0,
-            relativeDoseIntensity: 1.0,
-            doseIntensityNote: nil,
-            bloodTestSchedulingText: "",
-            suggestedBloodTestMonth: nil,
-            cycleLengthDays: 7
+    /// Everything the region card selects copy against. One object, one month
+    /// count — see `docs/App design/TIME_CARD_PERSONALIZATION.md` §3.
+    private var journeyContext: JourneyContext {
+        JourneyContext(
+            track: isTestosterone ? .testosterone : .estrogen,
+            month: months,
+            method: medicationManager.selectedAdministrationMethod,
+            ageAtStart: medicationManager.ageAtHRTStart,
+            adherence: medicationManager.adherenceRate,
+            hasLabs: medicationManager.currentHormoneLevel != nil
         )
     }
 }

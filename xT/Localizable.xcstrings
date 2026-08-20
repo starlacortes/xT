@@ -4,6 +4,24 @@
     "" : {
 
     },
+    "Adapted" : {
+      "comment" : "Phase label once a brain region's adaptation is maintained"
+    },
+    "Adapting" : {
+      "comment" : "Phase label while a brain region is actively adapting"
+    },
+    "Developing" : {
+      "comment" : "Phase label while tissue is actively changing"
+    },
+    "Refining" : {
+      "comment" : "Phase label while tissue change is slowing but ongoing"
+    },
+    "Settled" : {
+      "comment" : "Phase label once tissue change is maintained rather than driven"
+    },
+    "Tuning" : {
+      "comment" : "Phase label while a brain region's adaptation is slowing but ongoing"
+    },
     "·" : {
       "localizations" : {
         "en" : {
@@ -879,9 +897,6 @@
           }
         }
       }
-    },
-    "Active · peak ahead" : {
-      "comment" : "Phase label during early active change before peak"
     },
     "Add Blood Test" : {
       "comment" : "A button that adds a blood test.",
@@ -2211,9 +2226,6 @@
         }
       }
     },
-    "Established month %lld+" : {
-      "comment" : "Phase label once a region's changes are established"
-    },
     "Estimated" : {
       "localizations" : {
         "en" : {
@@ -2905,9 +2917,6 @@
           }
         }
       }
-    },
-    "Maturing · peak passed" : {
-      "comment" : "Phase label after peak velocity but before maturity"
     },
     "Measured" : {
       "comment" : "A label describing the measured values in the chart.",
