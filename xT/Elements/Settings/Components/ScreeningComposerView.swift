@@ -43,37 +43,28 @@ struct ScreeningComposerView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    Picker("Type", selection: $type) {
-                        ForEach(ScreeningType.allCases, id: \.self) { type in
-                            Text(type.label).tag(type)
-                        }
+        RecordComposerShell(
+            title: isEditing ? "Edit Screening" : "Add Screening",
+            onSave: save
+        ) {
+            Section {
+                Picker("Type", selection: $type) {
+                    ForEach(ScreeningType.allCases, id: \.self) { type in
+                        Text(type.label).tag(type)
                     }
-
-                    DatePicker(
-                        "Date",
-                        selection: $date,
-                        in: ...Date(),
-                        displayedComponents: [.date]
-                    )
                 }
 
-                Section("Notes") {
-                    TextField("e.g. Provider, location, results summary", text: $notes, axis: .vertical)
-                        .lineLimit(3...6)
-                }
+                DatePicker(
+                    "Date",
+                    selection: $date,
+                    in: ...Date(),
+                    displayedComponents: [.date]
+                )
             }
-            .navigationTitle(isEditing ? "Edit Screening" : "Add Screening")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { save() }
-                }
+
+            Section("Notes") {
+                TextField("e.g. Provider, location, results summary", text: $notes, axis: .vertical)
+                    .lineLimit(3...6)
             }
         }
     }

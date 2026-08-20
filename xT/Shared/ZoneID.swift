@@ -59,8 +59,4 @@ enum ZoneID: String, CaseIterable, Identifiable, Sendable {
     case lowerRightHamstring = "Lower Right Hamstring"
 
     var id: String { rawValue }
-
-    /// The zone's display name. Identical to `rawValue` today, but kept separate so a
-    /// label can be reworded in the UI without breaking stored records.
-    var displayName: String { rawValue }
 }

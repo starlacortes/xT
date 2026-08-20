@@ -83,7 +83,7 @@ struct JournalView: View {
                 }
                 .navigationTitle(Text(verbatim: ""))
                 .navigationBarTitleDisplayMode(.inline)
-                .background(Color(.systemBackground))
+                .background(Theme.Colors.appBackground)
                 .sheet(isPresented: $showingComposer) {
                     JournalComposerView()
                         .environment(\.journalManager, journalManager)
@@ -104,7 +104,7 @@ struct JournalView: View {
                     .frame(width: 56, height: 56)
                     .background(Theme.Colors.accent)
                     .clipShape(Circle())
-                    .shadow(color: Theme.Colors.accent.opacity(0.35), radius: 12, x: 0, y: 6)
+                    .themeShadow(Theme.Shadows.accentFab)
             }
             .buttonStyle(.pressable)
             .padding(.trailing, 22)
@@ -120,7 +120,7 @@ struct JournalView: View {
                     .frame(width: 50, height: 50)
                     .background(.regularMaterial)
                     .clipShape(Circle())
-                    .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
+                    .themeShadow(Theme.Shadows.floating)
             }
             .buttonStyle(.pressable)
             .padding(.leading, 22)

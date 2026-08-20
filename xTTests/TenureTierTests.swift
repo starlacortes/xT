@@ -82,9 +82,10 @@ func t7Month240() {
     #expect(TenureTier(months: 240) == TenureTier.t7Veteran)
 }
 
-@Test("Negative months fall to default (t7Veteran) — valid input expected in practice")
+@Test("Negative months clamp to t1Beginning")
 func negativeMonths() {
-    #expect(TenureTier(months: -1) == TenureTier.t7Veteran)
+    #expect(TenureTier(months: -1) == TenureTier.t1Beginning)
+    #expect(TenureTier(months: -100) == TenureTier.t1Beginning)
 }
 
 @Test("Tiers are ordered from beginning to veteran")
@@ -140,7 +141,7 @@ private func engine(
         doseIntensityNote: nil,
         bloodTestSchedulingText: "Schedule your next blood test around month 9.",
         suggestedBloodTestMonth: 9,
-        calibrationContext: nil
+        cycleLengthDays: 7
     )
 }
 
@@ -340,10 +341,254 @@ func screeningBadgeDone() {
         regimenSegments: [], onTimeStreak: 10,
         relativeDoseIntensity: 1.0, doseIntensityNote: nil,
         bloodTestSchedulingText: "test", suggestedBloodTestMonth: 12,
-        calibrationContext: nil
+        cycleLengthDays: 7
     )
     let milestones = e.upcomingMilestones
     let dexa = milestones.first(where: { $0.title.contains("Bone density") })
     #expect(dexa != nil)
     #expect(dexa?.badge?.contains("Done") == true)
+}
+
+// MARK: - Gap-aware consistency regression
+
+@Test("Gap-aware: hormoneInsight uses tenureTier, not calendar months")
+func gapAwareHormoneInsight() {
+    // Calendar months=50 (T5 → established baseline) but only 10 active months (T3 → no baseline).
+    // Before fix, estrogenInsight re-derived TenureTier(months: 50) → hasEstablishedBaseline = true.
+    // After fix, it uses tenureTier (T3) → hasEstablishedBaseline = false.
+    let e = engine(medication: "Estrogen", months: 50, activeMonthsOnHRT: 10, currentLevel: 150)
+    #expect(e.tenureTier == TenureTier.t3InMotion)
+    let insight = e.hormoneInsight
+    // T3 → newer-user copy mentions "therapeutic range" context, not "established therapy".
+    #expect(insight?.bodyDescription.contains("established estrogen therapy") == false)
+    #expect(insight?.bodyDescription.contains("hormone therapy aims for") == true)
+}
+
+@Test("Gap-aware: muscle progressLabel uses active months, not calendar months")
+func gapAwareMuscleLabel() {
+    // Calendar 7 months (>= 6 → "Growing") but only 3 active months (< 6 → "Building").
+    let e = engine(medication: "Testosterone", months: 7, activeMonthsOnHRT: 3)
+    let muscle = e.bodySystems.first(where: { $0.systemKey == .muscleStrength })
+    #expect(muscle?.progressLabel == "Building")
+}
+
+@Test("Gap-aware: T7 retrospective names active months, not calendar months")
+func gapAwareT7Retrospective() {
+    // Calendar 130 months (T7) but 130 active months too; just verify the label uses active count.
+    let e = engine(months: 200, activeMonthsOnHRT: 130)
+    #expect(e.tenureTier == TenureTier.t7Veteran)
+    let changes = e.unlockedChanges
+    #expect(changes.count == 1)
+    #expect(changes[0].label.contains("130 months"))
+    #expect(!changes[0].label.contains("200 months"))
+}
+
+// MARK: - Phase 2: Region overview coverage
+
+@Test("All E mind regions have non-empty overviews")
+func eMindRegionOverviews() {
+    for region in TimeBodyRegions.mindRegions {
+        #expect(!region.overview.isEmpty, "E mind region '\(region.key)' has empty overview")
+    }
+}
+
+@Test("All E body regions have non-empty overviews")
+func eBodyRegionOverviews() {
+    for region in TimeBodyRegions.bodyRegions {
+        #expect(!region.overview.isEmpty, "E body region '\(region.key)' has empty overview")
+    }
+}
+
+@Test("All T mind regions have non-empty overviews")
+func tMindRegionOverviews() {
+    for region in TimeBodyRegions.mindRegionsT {
+        #expect(!region.overview.isEmpty, "T mind region '\(region.key)' has empty overview")
+    }
+}
+
+@Test("All T body regions have non-empty overviews")
+func tBodyRegionOverviews() {
+    for region in TimeBodyRegions.bodyRegionsT {
+        #expect(!region.overview.isEmpty, "T body region '\(region.key)' has empty overview")
+    }
+}
+
+// MARK: - Phase 5: Fact coverage (focusText ?? phaseText non-nil and non-empty)
+
+@Test("E mind regions: focusText ?? phaseText non-empty at every month 0-240")
+func eMindFactCoverage() {
+    for region in TimeBodyRegions.mindRegions {
+        for month in stride(from: 0, through: 240, by: 1) {
+            let text = region.focusText(at: month) ?? region.phaseText(at: month)
+            #expect(!text.isEmpty, "E mind '\(region.key)' empty at month \(month)")
+        }
+    }
+}
+
+@Test("E body regions: focusText ?? phaseText non-empty at every month 0-240")
+func eBodyFactCoverage() {
+    for region in TimeBodyRegions.bodyRegions {
+        for month in stride(from: 0, through: 240, by: 1) {
+            let text = region.focusText(at: month) ?? region.phaseText(at: month)
+            #expect(!text.isEmpty, "E body '\(region.key)' empty at month \(month)")
+        }
+    }
+}
+
+@Test("T mind regions: focusText ?? phaseText non-empty at every month 0-240")
+func tMindFactCoverage() {
+    for region in TimeBodyRegions.mindRegionsT {
+        for month in stride(from: 0, through: 240, by: 1) {
+            let text = region.focusText(at: month) ?? region.phaseText(at: month)
+            #expect(!text.isEmpty, "T mind '\(region.key)' empty at month \(month)")
+        }
+    }
+}
+
+@Test("T body regions: focusText ?? phaseText non-empty at every month 0-240")
+func tBodyFactCoverage() {
+    for region in TimeBodyRegions.bodyRegionsT {
+        for month in stride(from: 0, through: 240, by: 1) {
+            let text = region.focusText(at: month) ?? region.phaseText(at: month)
+            #expect(!text.isEmpty, "T body '\(region.key)' empty at month \(month)")
+        }
+    }
+}
+
+@Test("focusText bands are distinct across months in the same region (E hips)")
+func distinctFocusBandsEHips() {
+    let hips = TimeBodyRegions.bodyRegions.first { $0.key == "hips" }!
+    // Sample representative months from different bands and assert distinct text.
+    let samples = [6, 15, 25, 42, 65, 84, 110, 150, 200]
+    let texts = samples.map { hips.focusText(at: $0) ?? hips.phaseText(at: $0) }
+    // No two adjacent samples should produce identical copy.
+    for i in 1..<texts.count {
+        #expect(texts[i] != texts[i - 1],
+                "Months \(samples[i - 1]) and \(samples[i]) share identical focus text")
+    }
+}
+
+// MARK: - Phase 3 & 4: Detail reachability
+
+@Test("E mind (head) resolves bodySystemKey → moodAndMind")
+func detailReachabilityEMind() {
+    let e = engine(medication: "Estrogen", months: 18)
+    let detail = e.bodySystemDetail(for: .moodAndMind)
+    #expect(!detail.title.isEmpty)
+    #expect(!detail.timelineText.isEmpty)
+    #expect(!detail.whatToExpect.isEmpty)
+}
+
+@Test("E hips resolves bodySystemKey → bodyShape")
+func detailReachabilityEHips() {
+    let e = engine(medication: "Estrogen", months: 18)
+    let detail = e.bodySystemDetail(for: .bodyShape)
+    #expect(!detail.title.isEmpty)
+    #expect(!detail.timelineText.isEmpty)
+}
+
+@Test("T chest resolves bodySystemKey → muscleStrength")
+func detailReachabilityTChest() {
+    let e = engine(medication: "Testosterone", months: 18)
+    let detail = e.bodySystemDetail(for: .muscleStrength)
+    #expect(!detail.title.isEmpty)
+    #expect(!detail.timelineText.isEmpty)
+}
+
+@Test("Region overview and focusText text are both non-empty for head region at month 18")
+func headRegionHeroAndOverview() {
+    let mindRegions = TimeBodyRegions.mindRegions
+    let pfc = mindRegions.first { $0.key == "pfc" }!
+    let heroText = pfc.focusText(at: 18) ?? pfc.phaseText(at: 18)
+    #expect(!heroText.isEmpty)
+    #expect(!pfc.overview.isEmpty)
+}
+
+@Test("Gap-aware: insight tier and progressLabel agree with tenureTier (regression)")
+func gapAwareConsistencyRegression() {
+    // A user with calendar 50 months but only 10 active months should be T3, not T5.
+    let e = engine(medication: "Estrogen", months: 50, activeMonthsOnHRT: 10)
+    let tier = e.tenureTier
+    #expect(tier == .t3InMotion)
+    // Body systems' progressLabels are gap-aware — they should read early-stage copy.
+    let mood = e.bodySystems.first { $0.systemKey == .moodAndMind }
+    // T3 progress label should not contain mature/settled copy.
+    #expect(mood?.progressLabel.contains("Settled") == false)
+    #expect(mood?.progressLabel.contains("Maintained") == false)
+}
+
+// MARK: - activeMonthsOnHRT Gap Awareness
+
+/// Tests the manager-side computation behind the engine's gap-aware tiering.
+/// Regression: a long-term user whose dose log only spans recent months (installed
+/// the app later) must not collapse to "months 0–3" tiering.
+@Suite("activeMonthsOnHRT gap-aware tenure")
+struct ActiveMonthsGapAwarenessTests {
+
+    private func takenDose(on date: Date) -> DoseRecord {
+        DoseRecord(
+            doseDate: date,
+            medicationType: "Estrogen",
+            ester: MedicationEster.valerate.rawValue,
+            administrationMethod: "Injectable",
+            doseAmount: 4.0,
+            concentrationMgPerMl: 20.0
+        )
+    }
+
+    @MainActor
+    @Test("Fresh install with retroactive start trusts declared tenure")
+    func freshInstallTrustsDeclaredStart() {
+        let mgr = TestDefaults.manager()
+        let calendar = Calendar.current
+        let now = Date()
+        mgr.hrtStartDate = calendar.date(byAdding: .month, value: -60, to: now)
+
+        // Only the last three months have logged doses — the rest predate app use.
+        mgr.doseHistory = [
+            takenDose(on: calendar.date(byAdding: .month, value: -2, to: now)!),
+            takenDose(on: calendar.date(byAdding: .month, value: -1, to: now)!),
+            takenDose(on: now),
+        ]
+
+        let months = mgr.activeMonthsOnHRT
+        #expect(months >= 60, "60-month user with 3 logged months must not collapse to \(months)")
+        #expect(TenureTier(months: months) == .t6Rooted,
+                "60-month fresh install should tier t6Rooted, got \(TenureTier(months: months))")
+    }
+
+    @MainActor
+    @Test("Internal gap subtracts exactly the missing months")
+    func internalGapSubtracts() {
+        let mgr = TestDefaults.manager()
+        let calendar = Calendar.current
+        let now = Date()
+        mgr.hrtStartDate = calendar.date(byAdding: .month, value: -60, to: now)!
+
+        func dose(_ offset: Int) -> DoseRecord {
+            takenDose(on: calendar.date(byAdding: .month, value: offset, to: now)!)
+        }
+
+        // Continuous log spanning offsets -60...0.
+        mgr.doseHistory = (-60 ... 0).map(dose)
+        let fullMonths = mgr.activeMonthsOnHRT
+
+        // Same log minus a 6-month hole in the middle (-58...-53).
+        mgr.doseHistory = (-60 ... 0).filter { !(-58 ... -53).contains($0) }.map(dose)
+        let gapMonths = mgr.activeMonthsOnHRT
+
+        #expect(fullMonths - gapMonths == 6,
+                "a 6-month hole should subtract exactly 6 months (full \(fullMonths), gap \(gapMonths))")
+    }
+
+    @MainActor
+    @Test("No logged doses falls back to calendar tenure")
+    func noDosesFallsBack() {
+        let mgr = TestDefaults.manager()
+        mgr.hrtStartDate = Calendar.current.date(byAdding: .month, value: -60, to: Date())
+        mgr.doseHistory = []
+
+        #expect(mgr.activeMonthsOnHRT == mgr.monthsOnHRT)
+        #expect(mgr.activeMonthsOnHRT >= 60)
+    }
 }

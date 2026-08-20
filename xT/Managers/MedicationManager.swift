@@ -8,7 +8,7 @@
 
 import SwiftUI
 import SwiftData
-import CryptoKit
+import Observation
 
 /// Unit of measure for a hormone level. A value rather than a display string so
 /// that classification and formatting stay independent of the display locale.
@@ -84,7 +84,8 @@ struct HormoneLevel: Equatable {
 /// MedicationManager with a Reactive Data Pipeline to ensure UI synchronization.
 /// This class acts as the Single Source of Truth for all hormone-related state.
 @MainActor
-class MedicationManager: ObservableObject {
+@Observable
+class MedicationManager {
     static let shared = MedicationManager()
 
     /// Backing store for this manager's transient preferences.
@@ -97,10 +98,9 @@ class MedicationManager: ObservableObject {
     /// own suite (see `TestDefaults` in the test target) and cannot reach each other.
     let defaults: UserDefaults
 
-    // MARK: - UserDefaults Keys for Transient Properties
-    // These properties are persisted to UserDefaults via didSet so the
-    // snapshot/restore cycle (ProfileSnapshot) can capture and restore them.
+    // MARK: - UserDefaults Keys
     enum Keys {
+        // Legacy keys retained for one-time migration in migrateToUserPreferences()
         static let antiAndrogenInUse = "mm.antiAndrogenInUse"
         static let spironolactoneInUse = "mm.spironolactoneInUse"
         static let spironolactoneClearanceEnabled = "mm.spironolactoneClearanceEnabled"
@@ -108,7 +108,13 @@ class MedicationManager: ObservableObject {
         static let customFrequencyDays = "mm.customFrequencyDays"
         static let missedDoseGracePeriodHours = "mm.missedDoseGracePeriodHours"
         static let userTherapeuticTarget = "mm.userTherapeuticTarget"
+        // Migration completion flag (device-local, not synced)
+        static let cloudKitMigrationDone = "prefs.cloudKitMigrationDone"
     }
+
+    /// Prevents `persistUserPreferences()` from firing during a bulk load from SwiftData.
+    @ObservationIgnored
+    var isLoadingPreferences = false
 
     // MARK: - SwiftData
     /// Injected from the app container so this singleton can query SwiftData.
@@ -119,35 +125,58 @@ class MedicationManager: ObservableObject {
     }
 
     // MARK: - Core State
-    @Published var selectedMedication: String?
-    @Published var selectedAdministrationMethod: String?
-    @Published var selectedEster: String?
-    @Published var lastDoseDate: Date?
-    @Published var nextDoseDate: Date?
-    @Published var defaultDoseAmount: Double?
-    @Published var defaultInjectionTime: Date?
+    var selectedMedication: String? { didSet { persistUserPreferences() } }
+    var selectedAdministrationMethod: String? { didSet { persistUserPreferences() } }
+    var selectedEster: String? { didSet { persistUserPreferences() } }
+    var lastDoseDate: Date?
+    var nextDoseDate: Date?
+    var defaultDoseAmount: Double?
+    var defaultInjectionTime: Date?
     /// When the user actually began HRT (may predate app install). Drives monthsOnHRT.
-    @Published var hrtStartDate: Date?
+    var hrtStartDate: Date? { didSet { persistUserPreferences() } }
+
+    // MARK: - Body Type & Rotation Windows (synced via UserPreferences)
+
+    /// The user's chosen body silhouette model. Rawvalue of BodyType.
+    var bodyTypeRaw: String = BodyType.neutral.rawValue { didSet { persistUserPreferences() } }
+
+    var rotationWindowInjection: Int = RouteClass.injection.defaultRotationWindowDays {
+        didSet { persistUserPreferences() }
+    }
+    var rotationWindowTopical: Int = RouteClass.topical.defaultRotationWindowDays {
+        didSet { persistUserPreferences() }
+    }
+    var rotationWindowPatch: Int = RouteClass.patch.defaultRotationWindowDays {
+        didSet { persistUserPreferences() }
+    }
 
     // MARK: - Reactive Research Properties (The "Signals" for SwiftUI)
     /// Provides the current level summary, including unit, range, and plain-language explanation.
-    @Published var currentHormoneLevel: HormoneLevel? = nil
+    var currentHormoneLevel: HormoneLevel? = nil
     /// Provides the historical data points used to drive the 7-day and long-term charts.
-    @Published var recentLevels: [EstimatedPoint] = []
+    var recentLevels: [EstimatedPoint] = []
 
     // MARK: - Dose History (The Real Source of Truth)
     /// Full log of all logged doses — the backbone of the PK model.
-    @Published var doseHistory: [DoseRecord] = []
+    var doseHistory: [DoseRecord] = []
 
     /// Incremented each time a dose is successfully recorded. Drives celebration
     /// animations and reactive refresh hooks across the UI.
-    @Published var doseRecordedCount: Int = 0
+    var doseRecordedCount: Int = 0
+
+    /// How long HomeView should wait after `doseRecordedCount` changes before
+    /// firing the celebration confetti — tuned per recording flow, since each
+    /// sheet dismisses on its own schedule. Read once per increment then reset
+    /// to `defaultCelebrationDelay`, so an override never leaks into the next
+    /// dose recorded through a different flow.
+    static let defaultCelebrationDelay: TimeInterval = 0.55
+    var celebrationDelay: TimeInterval = defaultCelebrationDelay
 
     // MARK: - Injection Site Tracking
 
     /// Zones marked as "avoid" by the user. Key = zone label.
-    /// Persisted to UserDefaults for cross-launch durability.
-    @Published var avoidZones: [String: AvoidZoneInfo] = [:]
+    /// Persisted via `UserPreferences.avoidZonesJSON` (SwiftData/CloudKit).
+    var avoidZones: [String: AvoidZoneInfo] = [:]
 
     /// Convenience accessor: returns the set of zone labels currently marked as avoid.
     var avoidZoneLabels: Set<String> {
@@ -156,7 +185,23 @@ class MedicationManager: ObservableObject {
 
     /// In-memory cache for async heat map computations.
     /// Keyed by "routeClass_windowDays". Invalidated on dose record.
+    @ObservationIgnored
     var heatMapCache: [String: [String: Int]] = [:]
+
+    /// Incremented every time `invalidateHeatMapCache()` is called, so async
+    /// heat-map computations can detect that their cached result is stale.
+    @ObservationIgnored
+    var heatMapCacheGeneration: Int = 0
+
+    /// Cached copies of the two onboarding-chosen vial strengths, filled by
+    /// `loadUserPreferences()` (which already fetches the prefs record) so the
+    /// concentration fallback chain in `+Dosing` doesn't re-fetch from SwiftData
+    /// on every view render. Direct record writes outside the manager must route
+    /// through `updateOnboardingDefaultConcentration` to keep these fresh.
+    @ObservationIgnored
+    var cachedDefaultEstrogenConcentration: Double?
+    @ObservationIgnored
+    var cachedDefaultTestosteroneConcentration: Double?
 
     // MARK: - Batch mutation
 
@@ -166,6 +211,7 @@ class MedicationManager: ObservableObject {
     /// dose history plus a SwiftData save, which is the right behaviour for a single user
     /// action but quadratic when seeding many doses at once (the sample profile logs ~110).
     /// Wrap bulk work in `performBatch(_:)` so the recompute happens once at the end.
+    @ObservationIgnored
     var suppressRefresh: Bool = false
 
     /// Runs `body` with `refreshState()` suppressed, then refreshes exactly once.
@@ -184,64 +230,38 @@ class MedicationManager: ObservableObject {
     // MARK: - Endogenous Suppression Settings
     /// Whether the user takes an anti‑androgen (spironolactone, cyproterone, GnRH agonist).
     /// When true, endogenous testosterone baseline is aggressively suppressed to near‑zero.
-    @Published var antiAndrogenInUse: Bool = false {
-        didSet { defaults.set(antiAndrogenInUse, forKey: Keys.antiAndrogenInUse) }
-    }
+    var antiAndrogenInUse: Bool = false { didSet { persistUserPreferences() } }
 
     /// Spironolactone is a known enzyme inducer (CYP3A4) that can modestly increase
     /// estradiol clearance. When the user is on spiro, we apply a small multiplier to ke
-    /// to reflect this interaction. Typical estimates: 10‑20% faster clearance.
+    /// to reflect this interaction (see `PKConstants.spiroClearanceFactor`).
     /// Set to false if the user is on other AAs (cyproterone, GnRH agonists).
-    @Published var spironolactoneInUse: Bool = false {
-        didSet { defaults.set(spironolactoneInUse, forKey: Keys.spironolactoneInUse) }
-    }
-
-    /// Multiplier applied to elimination rate (ke) when spironolactone is in use.
-    /// Accounts for CYP3A4 induction → faster E2 clearance.
-    let spiroClearanceFactor: Double = 1.15
+    var spironolactoneInUse: Bool = false { didSet { persistUserPreferences() } }
 
     // --- User Preference-Driven Settings (#9, #12, #18) ---
     /// User-configurable suppression timescale (4/8/12 weeks).
-    @Published var suppressionSpeed: SuppressionSpeed = .fast {
-        didSet { defaults.set(suppressionSpeed.rawValue, forKey: Keys.suppressionSpeed) }
-    }
+    var suppressionSpeed: SuppressionSpeed = .fast { didSet { persistUserPreferences() } }
     /// Whether the spironolactone clearance adjustment is opted in.
-    @Published var spironolactoneClearanceEnabled: Bool = false {
-        didSet { defaults.set(spironolactoneClearanceEnabled, forKey: Keys.spironolactoneClearanceEnabled) }
-    }
+    var spironolactoneClearanceEnabled: Bool = false { didSet { persistUserPreferences() } }
     /// Custom dosing interval in days; nil = use method default.
-    @Published var customFrequencyDays: Int? = nil {
-        didSet {
-            if let val = customFrequencyDays {
-                defaults.set(val, forKey: Keys.customFrequencyDays)
-            } else {
-                defaults.removeObject(forKey: Keys.customFrequencyDays)
-            }
-        }
-    }
+    var customFrequencyDays: Int? = nil { didSet { persistUserPreferences() } }
 
     /// When true, the Time tab surfaces relativeDoseIntensity-derived copy.
-    /// T5+ users default to off. Persisted via UserPreferences (plan §4.4).
-    @Published var showDoseIntensityInsights: Bool = false
+    /// T5+ users default to off. Persisted via UserPreferences.
+    var showDoseIntensityInsights: Bool = false { didSet { persistUserPreferences() } }
 
     // --- Missed Dose Settings (#1) ---
     /// Grace period in hours after the scheduled dose during which it's still "Due Soon".
     /// Default 12 hours. After this window, the dose is marked "Missed".
-    @Published var missedDoseGracePeriodHours: Double = 12.0 {
-        didSet { defaults.set(missedDoseGracePeriodHours, forKey: Keys.missedDoseGracePeriodHours) }
-    }
-
-    /// Predicted trough drop when a dose is missed (pg/mL or ng/dL).
-    /// Computed from the PK model: difference between expected trough with vs. without the missed dose.
-    @Published var predictedTroughDrop: Double? = nil
+    var missedDoseGracePeriodHours: Double = PKConstants.missedDoseGraceHours { didSet { persistUserPreferences() } }
 
     // MARK: - Blood Test Calibration
     /// History of user‑entered lab results used to calibrate the PK model.
-    @Published var bloodTestHistory: [BloodTestRecord] = []
+    var bloodTestHistory: [BloodTestRecord] = []
 
     /// Health screening log (DEXA, breast, cardio, liver, CBC, etc.).
     /// Drives milestone completion tracking for long-term tenure tiers (plan §4.1).
-    @Published var screeningRecords: [ScreeningRecord] = [] {
+    var screeningRecords: [ScreeningRecord] = [] {
         didSet { rebuildScreeningLog() }
     }
 
@@ -297,10 +317,16 @@ class MedicationManager: ObservableObject {
             }
         }
 
-        var defaultEster: MedicationEster {
+        /// The ester assumed for this medication when no prior dose carries one.
+        ///
+        /// Returns the *raw ester name* rather than an enum case: the two ester
+        /// enums are separate types, and a `MedicationEster` return value meant
+        /// the testosterone arm used to produce "Cypionate (EC)" — the estradiol
+        /// ester's raw value — instead of "Cypionate (TC)".
+        var defaultEsterName: String {
             switch self {
-            case .estrogen: return .valerate
-            case .testosterone: return .cypionate
+            case .estrogen: return MedicationEster.valerate.rawValue
+            case .testosterone: return TestosteroneEster.cypionate.rawValue
             }
         }
     }
@@ -341,9 +367,9 @@ class MedicationManager: ObservableObject {
     /// Personalized therapeutic target ranges set by the user (or their provider).
     /// When nil, the model falls back to clinical defaults.
     struct TherapeuticTarget: Codable, Equatable {
-        var troughMin: Double   // e.g., 150 pg/mL
-        var troughMax: Double   // e.g., 250 pg/mL
-        var peakCeiling: Double // e.g., 600 pg/mL (upper safety limit)
+        var troughMin: Double   // E2 default 100 pg/mL; T default 400 ng/dL
+        var troughMax: Double   // E2 default 200 pg/mL; T default 700 ng/dL
+        var peakCeiling: Double // E2 default 600 pg/mL; T default 1200 ng/dL
         
         static let `default` = TherapeuticTarget(troughMin: 100, troughMax: 200, peakCeiling: 600)
         
@@ -351,25 +377,21 @@ class MedicationManager: ObservableObject {
     }
     
     /// User's personal therapeutic target. When nil, clinical defaults are used.
-    @Published var userTherapeuticTarget: TherapeuticTarget? = nil {
-        didSet {
-            if let target = userTherapeuticTarget, let data = try? JSONEncoder().encode(target) {
-                defaults.set(data, forKey: Keys.userTherapeuticTarget)
-            } else {
-                defaults.removeObject(forKey: Keys.userTherapeuticTarget)
-            }
-        }
-    }
+    var userTherapeuticTarget: TherapeuticTarget? = nil { didSet { persistUserPreferences() } }
 
     // MARK: - Configuration & UI Helpers
 
-    var medicationDisplayInfo: String {
+    /// `LocalizedStringResource` (not `String`) so any Markdown grammar in the
+    /// localized value is parsed by `Text(_:LocalizedStringResource)` at the
+    /// render site. Returning `String` would route through the verbatim
+    /// `Text(_:StringProtocol)` overload and leave markup visible.
+    var medicationDisplayInfo: LocalizedStringResource {
         if let medication = selectedMedication, let method = selectedAdministrationMethod {
-            return String(localized: "\(medication) via \(method)")
+            return "\(medication) via \(method)"
         } else if let medication = selectedMedication {
-            return String(localized: "\(medication) (method not selected)")
+            return "\(medication) (method not selected)"
         } else {
-            return String(localized: "No medication selected")
+            return "No medication selected"
         }
     }
 
@@ -424,23 +446,31 @@ class MedicationManager: ObservableObject {
     }
 
     /// Gap-aware months on HRT for tiering and content (plan §4.2).
-    /// Counts calendar months that contain at least one active (taken, non-deleted)
-    /// dose record. This means a user who paused for 6 months is correctly tiered
-    /// based on active therapy time, not calendar span.
+    ///
+    /// The span from the declared start date up to the first logged dose is
+    /// trusted as active therapy — an empty dose log there means "started logging
+    /// later," not "paused." From the first logged dose forward, only calendar
+    /// months that contain at least one taken dose count; months with no dose are
+    /// genuine gaps and drop out.
     var activeMonthsOnHRT: Int {
         let referenceDate = hrtStartDate ?? lastDoseDate
         guard let first = referenceDate else { return 0 }
-        let activeDoses = doseHistory.filter { $0.doseStatus == DoseStatus.taken.rawValue && !$0.isDeleted }
-        guard !activeDoses.isEmpty else { return monthsOnHRT }
+        let activeDoses = doseHistory.filter { $0.doseStatus == DoseStatus.taken.rawValue }
         guard let earliestDose = activeDoses.map(\.doseDate).min() else { return monthsOnHRT }
-        let start = min(first, earliestDose)
+
         let calendar = Calendar.current
-        var monthSet = Set<String>()
-        for dose in activeDoses where dose.doseDate >= start {
+        // Months from the declared start to the first logged dose: counted as
+        // active, since a missing record there isn't evidence of a pause.
+        let preLogMonths = max(0, calendar.dateComponents([.month], from: first, to: earliestDose).month ?? 0)
+
+        // From the first logged dose on, count distinct months that contain a
+        // taken dose — months with no dose are real gaps and subtract.
+        var loggedMonths = Set<String>()
+        for dose in activeDoses where dose.doseDate >= earliestDose {
             let comps = calendar.dateComponents([.year, .month], from: dose.doseDate)
-            monthSet.insert("\(comps.year ?? 0)-\(comps.month ?? 0)")
+            loggedMonths.insert("\(comps.year ?? 0)-\(comps.month ?? 0)")
         }
-        return max(0, monthSet.count)
+        return max(0, preLogMonths + loggedMonths.count)
     }
 
     /// Age at HRT start, derived from ProfileManager.dateOfBirth and hrtStartDate.
@@ -455,40 +485,22 @@ class MedicationManager: ObservableObject {
     // MARK: - Initialization
 
     /// - Parameter defaults: the preferences store to persist through. Defaults to
-    ///   `.standard`; tests inject an isolated suite. Assigned first, because every
-    ///   `load*` call below reads through it.
+    ///   `.standard`; tests inject an isolated suite.
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-
-        // UserDefaults-backed state — available immediately.
-        // (`loadTransientPreferences()` also restores the avoid zones.)
-        loadTransientPreferences()
-        loadSelection()
-        loadDoseDates()
-        migrateToEncryptedStorage()
-
-        // SwiftData-backed state. `modelContext` is injected by `xTApp` *after* this
-        // initialiser returns, so this call is a no-op on the real launch path and the
-        // `modelContext` didSet re-runs it for real. It stays here so a manager built
-        // without a container (tests, previews) still follows the same code path.
+        // All settings are loaded from SwiftData in reloadFromContext(), which runs after
+        // modelContext is injected by xTApp. The call here is a no-op until then.
         reloadFromContext()
-        refreshState() // Initialize reactive state even when there is no context yet.
+        refreshState()
     }
 
     /// Reloads all state that depends on `modelContext`.
     ///
-    /// `init()` runs before `xTApp` injects the context, so every context-backed step in
-    /// it hits its `guard let context = modelContext` and bails. This hook is the only
-    /// place those steps actually execute, so it must mirror `init()` in full — omitting
-    /// `loadUserPreferences()`, `recomputeCalibrationFactors()` or the legacy migration
-    /// meant the user's default dose/time, the dose-intensity toggle, blood-test
-    /// calibration and `recordedAt` backfill were silently dropped on every cold launch.
-    ///
-    /// Order matters: preferences and history first, then the legacy backfill, then the
-    /// values derived from them, and `refreshState()` last so the published chart state
-    /// reflects the recomputed calibration.
+    /// Order: migration first, then preferences and history, then derived values,
+    /// then refreshState() last so published chart state reflects the recomputed calibration.
     private func reloadFromContext() {
         guard modelContext != nil else { return }
+        migrateToUserPreferences()
         loadUserPreferences()
         loadDoseHistory()
         loadBloodTestHistory()
@@ -496,6 +508,13 @@ class MedicationManager: ObservableObject {
         migrateRecordedAtForLegacyRecords()
         recomputeCalibrationFactors()
         refreshState()
+    }
+
+    /// Re-fetches all data from the local SwiftData store (which CloudKit may have
+    /// just populated). Call this after giving CloudKit a moment to complete its
+    /// initial sync, e.g. from the "Restore from iCloud" path in onboarding.
+    func reloadAllFromStore() {
+        reloadFromContext()
     }
 
     // MARK: - Screening Log (plan §4.1)
@@ -523,6 +542,7 @@ class MedicationManager: ObservableObject {
     ///
     /// Cached rather than computed: `TimeView` reads it from `body`, so as a computed
     /// property it rebuilt the whole dictionary on every render pass.
+    @ObservationIgnored
     private(set) var screeningLog: [ScreeningType: Date] = [:]
 
     /// Recomputes ``screeningLog``. Called from `screeningRecords`' observer, which is the
@@ -556,28 +576,27 @@ class MedicationManager: ObservableObject {
     // MARK: - Dose Deletion
 
     func softDeleteDose(id: String) {
+        guard let context = modelContext else { return }
         guard let index = doseHistory.firstIndex(where: { $0.id == id }) else { return }
 
-        doseHistory[index].isDeleted = true
-        try? modelContext?.save()
+        let record = doseHistory[index]
+        context.delete(record)
+        try? context.save()
 
-        // Reload from SwiftData to ensure the in-memory array is consistent
-        // with the persisted state – the deleted record is filtered out by loadDoseHistory.
         loadDoseHistory()
 
-        let active = doseHistory.filter {
-            $0.isActive && $0.doseStatus == DoseStatus.taken.rawValue
-        }
+        let active = doseHistory.filter { $0.doseStatus == DoseStatus.taken.rawValue }
         lastDoseDate = active.max(by: { $0.doseDate < $1.doseDate })?.doseDate
         nextDoseDate = lastDoseDate.map { calculateNextDoseDate(from: $0) }
 
+        invalidateHeatMapCache()
         refreshState()
     }
     // MARK: - Regimen & Adherence Properties
     
-    @Published var regimenTransitionHistory: [RegimenSegment] = []
-    @Published var adherenceRate: Double? = nil
-    @Published var onTimeStreak: Int = 0
+    var regimenTransitionHistory: [RegimenSegment] = []
+    var adherenceRate: Double? = nil
+    var onTimeStreak: Int = 0
     
 }
 

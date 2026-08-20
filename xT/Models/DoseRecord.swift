@@ -21,25 +21,25 @@ enum DoseStatus: String, Codable, CaseIterable {
 /// amounts instead of back-calculated ones.
 @Model
 class DoseRecord: Identifiable, Hashable {
-    @Attribute(.unique) var id: String
-    var doseDate: Date
-    var medicationType: String          // "Estrogen" | "Testosterone"
-    var ester: String                   // "Valerate (EV)" | "Cypionate (EC)" | etc.
-    var administrationMethod: String    // "Injectable" | "Cream" | "Oral"
-    var doseAmount: Double              // actual mg administered (always stored, regardless of input method)
+    var id: String = UUID().uuidString
+    var doseDate: Date = Date()
+    var medicationType: String = ""     // "Estrogen" | "Testosterone"
+    var ester: String = ""              // "Valerate (EV)" | "Cypionate (EC)" | etc.
+    var administrationMethod: String = "" // "Injectable" | "Cream" | "Oral"
+    var doseAmount: Double = 0          // actual mg administered (always stored, regardless of input method)
     var concentrationMgPerMl: Double?   // vial concentration used; nil if dose was entered directly in mg
     var notes: String?                  // optional user notes
-    var isDeleted: Bool                 // soft-delete flag (for HIPAA-friendly audits)
+    var isDeleted: Bool = false         // soft-delete flag (for HIPAA-friendly audits)
 
     // --- Missed/Skipped Dose Handling ---
-    var doseStatus: String              // rawValue of DoseStatus enum (SwiftData-friendly)
+    var doseStatus: String = "taken"    // rawValue of DoseStatus enum (SwiftData-friendly)
     var skipReason: String?             // optional reason for intentionally skipping
     var injectionTime: Date?            // precise time-of-day for accurate PK modeling; nil = midnight
 
     // --- Injection Site Tracking (v2.1) ---
     var injectionSitesJSON: String?     // JSON-encoded [InjectionSite]; empty for oral routes
     var recordedAt: Date?               // Real timestamp of record creation/edit
-    var isUserCorrected: Bool           // true if this record replaced a previous one
+    var isUserCorrected: Bool = false   // true if this record replaced a previous one
     var originalDoseId: String?         // UUID of the original dose (nil for new doses)
     var originalSiteJSON: String?       // JSON of original [InjectionSite] before correction (nil for new doses)
 
@@ -107,33 +107,18 @@ extension DoseRecord {
 // MARK: - Convenience Extensions
 
 extension DoseRecord {
-    /// Human-readable summary string (e.g., "Estrogen @ 2mg EV i.j. — Jun 10, 2026")
-    var summary: String {
-        let formatter = DoseRecord.dateFormatter
-        let dateStr = formatter.string(from: doseDate)
-        if let conc = concentrationMgPerMl {
-            let volumeMl = doseAmount / conc
-            return "\(medicationType) @ \(String(format: "%.1f", doseAmount))mg (\(String(format: "%.3f", volumeMl)) mL @ \(String(format: "%.0f", conc)) mg/mL) \(ester) \(administrationMethod) — \(dateStr)"
-        }
-        return "\(medicationType) @ \(String(format: "%.1f", doseAmount))mg \(ester) \(administrationMethod) — \(dateStr)"
-    }
-
     /// Computed injection volume in mL (nil if concentration not recorded)
     var injectionVolumeMl: Double? {
         guard let conc = concentrationMgPerMl, conc > 0 else { return nil }
         return doseAmount / conc
     }
 
-    private static let dateFormatter: DateFormatter = {
-        return AppDateFormatters.monthDayYear
-    }()
-
     /// Is this dose considered active (not soft-deleted)?
     var isActive: Bool { !isDeleted }
 
     /// Number of days since this dose (useful for decay calculations)
     var daysSinceDose: Double {
-        let diff = Date().timeIntervalSince(doseDate) / 86400.0
+        let diff = Date().timeIntervalSince(doseDate) / AppConstants.secondsPerDay
         return max(0, diff)
     }
 }

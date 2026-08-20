@@ -7,6 +7,7 @@
 
 import Foundation
 import UserNotifications
+import Observation
 
 /// Manages all local notification scheduling, permission state and tap handling.
 ///
@@ -14,7 +15,8 @@ import UserNotifications
 /// must be called once during startup or notifications will neither appear in the foreground nor
 /// route anywhere when tapped.
 @MainActor
-final class NotificationManager: NSObject, ObservableObject {
+@Observable
+final class NotificationManager: NSObject {
     static let shared = NotificationManager()
 
     enum NotificationType: String {
@@ -28,21 +30,49 @@ final class NotificationManager: NSObject, ObservableObject {
         case journal
     }
 
+    // MARK: - UserDefaults Keys & Defaults
+
+    /// Device-local reminder preferences (per-device by design — never CloudKit-synced).
+    /// Every read and write of these keys must go through this enum; the raw strings
+    /// used to be hand-typed in six different files.
+    enum Keys {
+        static let doseReminderEnabled = "doseReminderEnabled"
+        static let doseReminderHour = "doseReminderHour"
+        static let doseReminderMinute = "doseReminderMinute"
+        static let journalReminderEnabled = "journalReminderEnabled"
+        static let journalReminderHour = "journalReminderHour"
+        static let journalReminderMinute = "journalReminderMinute"
+    }
+
+    /// Fallback times used when a key has never been written. Chosen once here:
+    /// xTApp's registered defaults, the Settings screen's fallbacks, and the spoof
+    /// seeder had drifted apart (20:00 vs 21:00 for the journal reminder).
+    enum Defaults {
+        static let doseHour = 9
+        static let doseMinute = 0
+        static let journalHour = 21
+        static let journalMinute = 0
+    }
+
+    /// Which reminder settings triple a `configure` call targets.
+    enum ReminderKind {
+        case dose, journal
+    }
+
     // MARK: - Properties
 
     /// Set when the user taps a reminder (or its action button); cleared by `consumePendingRoute()`
-    /// once the UI has navigated. Observe with `@ObservedObject`/`@StateObject` — the
-    /// `\.notificationManager` environment key carries the instance, not its change publisher.
-    @Published private(set) var pendingRoute: Route?
+    /// once the UI has navigated.
+    private(set) var pendingRoute: Route?
 
-    @Published var isDoseNotificationsAuthorized = false
-    @Published var isJournalNotificationsAuthorized = false
-    @Published var doseReminderEnabled = UserDefaults.standard.bool(forKey: "doseReminderEnabled")
-    @Published var doseReminderHour = UserDefaults.standard.integer(forKey: "doseReminderHour")
-    @Published var doseReminderMinute = UserDefaults.standard.integer(forKey: "doseReminderMinute")
-    @Published var journalReminderEnabled = UserDefaults.standard.bool(forKey: "journalReminderEnabled")
-    @Published var journalReminderHour = UserDefaults.standard.integer(forKey: "journalReminderHour")
-    @Published var journalReminderMinute = UserDefaults.standard.integer(forKey: "journalReminderMinute")
+    var isDoseNotificationsAuthorized = false
+    var isJournalNotificationsAuthorized = false
+    var doseReminderEnabled = false
+    var doseReminderHour = Defaults.doseHour
+    var doseReminderMinute = Defaults.doseMinute
+    var journalReminderEnabled = false
+    var journalReminderHour = Defaults.journalHour
+    var journalReminderMinute = Defaults.journalMinute
 
     /// The dosing frequency in days. Drives whether the dose reminder is daily or on
     /// specific days. Single derivation lives on `MedicationManager`.
@@ -57,7 +87,7 @@ final class NotificationManager: NSObject, ObservableObject {
     // MARK: - Initialization
     override init() {
         super.init()
-        loadSettings()
+        loadFromDefaults()
         Task { await checkAuthorizationStatus() }
     }
 
@@ -150,19 +180,9 @@ final class NotificationManager: NSObject, ObservableObject {
         let minute = doseReminderMinute
         let freq = doseFrequencyDays
 
-        let trigger: UNNotificationTrigger
-
-        if freq <= 1 {
-            // Daily user — repeating trigger at the chosen time every day
-            var dateComponents = DateComponents()
-            dateComponents.hour = hour
-            dateComponents.minute = minute
-            dateComponents.second = 0
-            trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
-        } else {
-            // Non-daily user — one-time notification for the next scheduled dose
-            trigger = oneTimeTrigger(forNextDoseFrom: Date(), frequencyDays: freq)
-        }
+        // Daily user — repeating trigger at the chosen time every day;
+        // non-daily — one-time notification for the next scheduled dose.
+        let trigger = doseReminderTrigger(from: Date(), frequencyDays: freq)
 
         let content = doseNotificationContent()
         let request = UNNotificationRequest(identifier: doseNotificationRequestKey, content: content, trigger: trigger)
@@ -189,17 +209,7 @@ final class NotificationManager: NSObject, ObservableObject {
 
         // For daily users, just use the repeating daily trigger (simpler and more reliable)
         let freq = doseFrequencyDays
-        let trigger: UNNotificationTrigger
-
-        if freq <= 1 {
-            var dateComponents = DateComponents()
-            dateComponents.hour = doseReminderHour
-            dateComponents.minute = doseReminderMinute
-            dateComponents.second = 0
-            trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
-        } else {
-            trigger = oneTimeTrigger(forNextDoseFrom: nextDoseDate, frequencyDays: freq)
-        }
+        let trigger = doseReminderTrigger(from: nextDoseDate, frequencyDays: freq)
 
         let content = doseNotificationContent()
         let request = UNNotificationRequest(identifier: doseNotificationRequestKey, content: content, trigger: trigger)
@@ -211,6 +221,21 @@ final class NotificationManager: NSObject, ObservableObject {
                 print("[NotificationManager] Dose reminder rescheduled for \(AppDateFormatters.dateTime.string(from: nextDoseDate))")
             }
         }
+    }
+
+    /// Repeating-daily trigger for daily users, otherwise a one-time trigger
+    /// aimed at the next dose — shared by `scheduleDoseReminder()` and
+    /// `rescheduleAfterDose(nextDoseDate:)`, which used to each hand-roll the
+    /// same branch.
+    private func doseReminderTrigger(from referenceDate: Date, frequencyDays: Int) -> UNNotificationTrigger {
+        if frequencyDays <= 1 {
+            var dateComponents = DateComponents()
+            dateComponents.hour = doseReminderHour
+            dateComponents.minute = doseReminderMinute
+            dateComponents.second = 0
+            return UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
+        }
+        return oneTimeTrigger(forNextDoseFrom: referenceDate, frequencyDays: frequencyDays)
     }
 
     /// Creates a one-time notification trigger for a specific dose date.
@@ -332,57 +357,59 @@ final class NotificationManager: NSObject, ObservableObject {
     // MARK: - Settings Management
 
     /// Configure dose reminders with medication context.
-    func configureDoseReminder(
-        enabled: Bool,
-        hour: Int,
-        minute: Int
-    ) {
-        doseReminderEnabled = enabled
-        doseReminderHour = hour
-        doseReminderMinute = minute
-
-        // Persist settings
-        UserDefaults.standard.set(enabled, forKey: "doseReminderEnabled")
-        UserDefaults.standard.set(hour, forKey: "doseReminderHour")
-        UserDefaults.standard.set(minute, forKey: "doseReminderMinute")
-
-        // Reschedule
-        Task { await scheduleAllReminders() }
-
-        let label = enabled ? "Dose reminder enabled" : "Dose reminder disabled"
-        print("[NotificationManager] \(label) at \(hour):\(String(format: "%02d", minute))")
+    func configureDoseReminder(enabled: Bool, hour: Int, minute: Int) {
+        configureReminder(.dose, enabled: enabled, hour: hour, minute: minute)
     }
 
     /// Configure journal reminders.
-    func configureJournalReminder(
-        enabled: Bool,
-        hour: Int,
-        minute: Int
-    ) {
-        journalReminderEnabled = enabled
-        journalReminderHour = hour
-        journalReminderMinute = minute
+    func configureJournalReminder(enabled: Bool, hour: Int, minute: Int) {
+        configureReminder(.journal, enabled: enabled, hour: hour, minute: minute)
+    }
 
-        // Persist settings
-        UserDefaults.standard.set(enabled, forKey: "journalReminderEnabled")
-        UserDefaults.standard.set(hour, forKey: "journalReminderHour")
-        UserDefaults.standard.set(minute, forKey: "journalReminderMinute")
+    /// Shared body of the two `configure*Reminder` entry points: assign the
+    /// in-memory triple, persist it, reschedule.
+    private func configureReminder(_ kind: ReminderKind, enabled: Bool, hour: Int, minute: Int) {
+        let defaults = UserDefaults.standard
+        switch kind {
+        case .dose:
+            doseReminderEnabled = enabled
+            doseReminderHour = hour
+            doseReminderMinute = minute
+            defaults.set(enabled, forKey: Keys.doseReminderEnabled)
+            defaults.set(hour, forKey: Keys.doseReminderHour)
+            defaults.set(minute, forKey: Keys.doseReminderMinute)
+        case .journal:
+            journalReminderEnabled = enabled
+            journalReminderHour = hour
+            journalReminderMinute = minute
+            defaults.set(enabled, forKey: Keys.journalReminderEnabled)
+            defaults.set(hour, forKey: Keys.journalReminderHour)
+            defaults.set(minute, forKey: Keys.journalReminderMinute)
+        }
 
         // Reschedule
         Task { await scheduleAllReminders() }
 
-        let label = enabled ? "Journal reminder enabled" : "Journal reminder disabled"
+        let name = kind == .dose ? "Dose" : "Journal"
+        let label = enabled ? "\(name) reminder enabled" : "\(name) reminder disabled"
         print("[NotificationManager] \(label) at \(hour):\(String(format: "%02d", minute))")
     }
 
-    /// Load reminder settings from UserDefaults.
-    private func loadSettings() {
-        doseReminderEnabled = UserDefaults.standard.bool(forKey: "doseReminderEnabled")
-        doseReminderHour = UserDefaults.standard.integer(forKey: "doseReminderHour")
-        doseReminderMinute = UserDefaults.standard.integer(forKey: "doseReminderMinute")
-        journalReminderEnabled = UserDefaults.standard.bool(forKey: "journalReminderEnabled")
-        journalReminderHour = UserDefaults.standard.integer(forKey: "journalReminderHour")
-        journalReminderMinute = UserDefaults.standard.integer(forKey: "journalReminderMinute")
+    /// (Re)loads reminder settings from UserDefaults. Called at init and again
+    /// after a snapshot/spoof dataset swap rewrites the keys behind the manager's
+    /// back.
+    func loadFromDefaults() {
+        let defaults = UserDefaults.standard
+        doseReminderEnabled = defaults.bool(forKey: Keys.doseReminderEnabled)
+        doseReminderHour = defaults.object(forKey: Keys.doseReminderHour) != nil
+            ? defaults.integer(forKey: Keys.doseReminderHour) : Defaults.doseHour
+        doseReminderMinute = defaults.object(forKey: Keys.doseReminderMinute) != nil
+            ? defaults.integer(forKey: Keys.doseReminderMinute) : Defaults.doseMinute
+        journalReminderEnabled = defaults.bool(forKey: Keys.journalReminderEnabled)
+        journalReminderHour = defaults.object(forKey: Keys.journalReminderHour) != nil
+            ? defaults.integer(forKey: Keys.journalReminderHour) : Defaults.journalHour
+        journalReminderMinute = defaults.object(forKey: Keys.journalReminderMinute) != nil
+            ? defaults.integer(forKey: Keys.journalReminderMinute) : Defaults.journalMinute
     }
 
     /// A short description of the configured dose, for the reminder body.

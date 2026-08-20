@@ -172,7 +172,7 @@ struct JournalComposerView: View {
             .padding(.vertical, 12)
             .background(.regularMaterial)
         }
-        .background(Color(.systemBackground))
+        .background(Theme.Colors.appBackground)
         .onAppear {
             textFocused = true
         }
@@ -180,7 +180,7 @@ struct JournalComposerView: View {
 
     private var edgeFadeGradient: some View {
         LinearGradient(
-            colors: [Color(.systemBackground).opacity(0), Color(.systemBackground)],
+            colors: [Theme.Colors.appBackground.opacity(0), Theme.Colors.appBackground],
             startPoint: .leading,
             endPoint: .trailing
         )

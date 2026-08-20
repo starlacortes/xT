@@ -14,59 +14,69 @@ struct Theme {
 
     // MARK: Colors
 
+    @MainActor
     struct Colors {
-        // Brand
-        static let accent           = Color(lightHex: "#D4537E", darkHex: "#E8709A")
-        static let accentSecondary  = Color(lightHex: "#534AB7", darkHex: "#7E74D8")
+        // Brand — every color below is derived from the user's chosen theme hue
+        // (`ThemeManager.shared.seedHue`) via `ThemePalette`, cached and
+        // recomputed once per hue change, not per token access. See
+        // `ThemeManager.swift` for the recipe table and contrast-repair passes.
+        static var accent: Color           { ThemeManager.shared.palette.accent }
+        static var accentSecondary: Color  { ThemeManager.shared.palette.accentSecondary }
 
         // Text
-        static let textPrimary      = Color.primary
-        static let textSecondary    = Color.secondary
-        static let textTertiary     = Color(uiColor: .tertiaryLabel)
+        static var textPrimary: Color   { ThemeManager.shared.palette.textPrimary }
+        static var textSecondary: Color { ThemeManager.shared.palette.textSecondary }
+        static var textTertiary: Color  { ThemeManager.shared.palette.textTertiary }
 
         // Surfaces
-        static let cardSurface      = Color(.systemBackground).opacity(0.8)
-        static let glassSurface     = Color(.systemBackground).opacity(0.6)
-        static let border           = Color.white.opacity(0.2)
+        static var cardSurface: Color   { ThemeManager.shared.palette.cardSurface }
+        static var border: Color        { ThemeManager.shared.palette.border }
+        /// Opaque screen canvas — use instead of raw `Color(.systemBackground)`.
+        static var appBackground: Color { ThemeManager.shared.palette.appBackground }
+        /// Opaque icon-tile fill — use instead of raw `Color(.systemGray6)`.
+        static var neutralSurface: Color { ThemeManager.shared.palette.neutralSurface }
 
         // Glass tint — deep purple-black in dark mode, subtle white in light mode
-        static let glassTint        = Color(lightHex: "#F0ECF8", darkHex: "#0A0814")
+        static var glassTint: Color { ThemeManager.shared.palette.glassTint }
 
-        // Semantic
+        // Semantic — deliberately NOT theme-driven. These carry meaning (red =
+        // error, green = success) independent of brand styling; letting them
+        // rotate with the theme risks a "missed dose" warning drifting toward
+        // green at some hues, which is a safety concern, not just an aesthetic one.
         static let success          = Color.green
         static let warning          = Color.orange
         static let error            = Color.red
-        static let info             = Color.blue
         static let successBrand     = Color(lightHex: "#3B8C6E", darkHex: "#64DC9E")
 
         // Graph level ramp — deep rose (low) → light lavender (high)
-        static let levelLow         = Color(lightHex: "#99345A", darkHex: "#C2557E")
-        static let levelHigh        = Color(lightHex: "#8875D4", darkHex: "#B0A4EA")
+        static var levelLow: Color  { ThemeManager.shared.palette.levelLow }
+        static var levelHigh: Color { ThemeManager.shared.palette.levelHigh }
 
         // Graph background — adaptive canvas rendering constants
+        @MainActor
         struct Graph {
-            static let baseDark          = Color(lightHex: "#F2EDF8", darkHex: "#08060F")
-            static let baseMid           = Color(lightHex: "#EBE2F4", darkHex: "#0F0B1C")
-            static let baseTop           = Color(lightHex: "#E4D8F0", darkHex: "#1A0D1A")
-            static let topGlow           = Color(lightHex: "#E898B2", darkHex: "#C0306A")
-            static let rightGlow         = Color(lightHex: "#9B8FE0", darkHex: "#7060D0")
-            static let gridLine          = Color(light: .black.opacity(0.05), dark: .white.opacity(0.035))
-            static let yAxisLabel        = Color(light: .black.opacity(0.10), dark: .white.opacity(0.15))
-            static let curveRose         = Color(lightHex: "#C0486E", darkHex: "#D4537E")
-            static let curveMid          = Color(lightHex: "#9B50B8", darkHex: "#B060C0")
-            static let curveLavender     = Color(lightHex: "#6B58C8", darkHex: "#8875D4")
-            static let dotRose           = Color(lightHex: "#C0486E", darkHex: "#D4537E")
-            static let dotMagenta        = Color(lightHex: "#A838A2", darkHex: "#B446B4")
-            static let dotPurple         = Color(lightHex: "#8D40B8", darkHex: "#A050C8")
-            static let dotDeepPurple     = Color(lightHex: "#7F48C4", darkHex: "#9458D4")
-            static let dotLavenderLight  = Color(lightHex: "#6E48C0", darkHex: "#8C5CDA")
+            static var baseDark: Color          { ThemeManager.shared.palette.graph.baseDark }
+            static var baseMid: Color           { ThemeManager.shared.palette.graph.baseMid }
+            static var baseTop: Color           { ThemeManager.shared.palette.graph.baseTop }
+            static var topGlow: Color           { ThemeManager.shared.palette.graph.topGlow }
+            static var rightGlow: Color         { ThemeManager.shared.palette.graph.rightGlow }
+            static var gridLine: Color          { ThemeManager.shared.palette.graph.gridLine }
+            static var yAxisLabel: Color        { ThemeManager.shared.palette.graph.yAxisLabel }
+            static var curveRose: Color         { ThemeManager.shared.palette.graph.curveRose }
+            static var curveMid: Color          { ThemeManager.shared.palette.graph.curveMid }
+            static var curveLavender: Color     { ThemeManager.shared.palette.graph.curveLavender }
+            static var dotRose: Color           { ThemeManager.shared.palette.graph.dotRose }
+            static var dotMagenta: Color        { ThemeManager.shared.palette.graph.dotMagenta }
+            static var dotPurple: Color         { ThemeManager.shared.palette.graph.dotPurple }
+            static var dotDeepPurple: Color     { ThemeManager.shared.palette.graph.dotDeepPurple }
+            static var dotLavenderLight: Color  { ThemeManager.shared.palette.graph.dotLavenderLight }
 
             // Level overlay text (adaptive)
-            static let levelText         = Color(light: .black, dark: .white)
-            static let levelTextSecondary = Color(light: .black.opacity(0.55), dark: .white.opacity(0.55))
+            static var levelText: Color          { ThemeManager.shared.palette.graph.levelText }
+            static var levelTextSecondary: Color { ThemeManager.shared.palette.graph.levelTextSecondary }
 
             // Unfilled dot track color (adaptive)
-            static let dotUnfilled       = Color(light: .black.opacity(0.08), dark: .white.opacity(0.12))
+            static var dotUnfilled: Color       { ThemeManager.shared.palette.graph.dotUnfilled }
         }
 
         // MARK: Time category palettes
@@ -78,31 +88,12 @@ struct Theme {
             let text: Color     // on-surface text / emphasis, readable on `surface`
         }
 
+        @MainActor
         struct Time {
-            static let mind = TimePalette(
-                base:    Color(lightHex: "#534AB7", darkHex: "#7E74D8"),
-                surface: Color(lightHex: "#EEEDFE", darkHex: "#1E1C3A"),
-                border:  Color(lightHex: "#CECBF6", darkHex: "#3D3880"),
-                text:    Color(lightHex: "#3C3489", darkHex: "#ABA7F0")
-            )
-            static let skin = TimePalette(
-                base:    Color(lightHex: "#0F6E56", darkHex: "#2DB88E"),
-                surface: Color(lightHex: "#E1F5EE", darkHex: "#0C2420"),
-                border:  Color(lightHex: "#9FE1CB", darkHex: "#1A5C46"),
-                text:    Color(lightHex: "#0A4F3E", darkHex: "#7FE0C4")
-            )
-            static let body = TimePalette(
-                base:    Color(lightHex: "#854F0B", darkHex: "#D4862B"),
-                surface: Color(lightHex: "#FAEEDA", darkHex: "#2E1C05"),
-                border:  Color(lightHex: "#FAC775", darkHex: "#6B3D08"),
-                text:    Color(lightHex: "#5C360A", darkHex: "#EFB25F")
-            )
-            static let cycle = TimePalette(
-                base:    Color(lightHex: "#D4537E", darkHex: "#E8709A"),
-                surface: Color(lightHex: "#FBEAF0", darkHex: "#2E1018"),
-                border:  Color(lightHex: "#F4C0D1", darkHex: "#7A2846"),
-                text:    Color(lightHex: "#993554", darkHex: "#F4A8C0")
-            )
+            static var mind: TimePalette  { ThemeManager.shared.palette.time.mind }
+            static var skin: TimePalette  { ThemeManager.shared.palette.time.skin }
+            static var body: TimePalette  { ThemeManager.shared.palette.time.body }
+            static var cycle: TimePalette { ThemeManager.shared.palette.time.cycle }
         }
 
         // MARK: On-accent
@@ -111,14 +102,15 @@ struct Theme {
         /// the Onboarding flow and the app-lock screens. Replaces the raw
         /// `.white.opacity(_:)` literals that previously used six different alphas
         /// for the same semantic role.
+        @MainActor
         struct OnAccent {
-            static let primary        = Color.white
-            static let secondary      = Color.white.opacity(0.9)
-            static let tertiary       = Color.white.opacity(0.7)
-            static let disabled       = Color.white.opacity(0.5)
-            static let fill           = Color.white.opacity(0.15)  // chip / control backgrounds
-            static let stroke         = Color.white.opacity(0.3)   // chip borders
-            static let strokeSelected = Color.white.opacity(0.5)
+            static var primary: Color        { ThemeManager.shared.palette.onAccent.primary }
+            static var secondary: Color      { ThemeManager.shared.palette.onAccent.secondary }
+            static var tertiary: Color       { ThemeManager.shared.palette.onAccent.tertiary }
+            static var disabled: Color       { ThemeManager.shared.palette.onAccent.disabled }
+            static var fill: Color           { ThemeManager.shared.palette.onAccent.fill }  // chip / control backgrounds
+            static var stroke: Color         { ThemeManager.shared.palette.onAccent.stroke }  // chip borders
+            static var strokeSelected: Color { ThemeManager.shared.palette.onAccent.strokeSelected }
         }
 
         /// The de facto hairline stroke width used across the app (27 sites).
@@ -223,21 +215,26 @@ struct Theme {
 
     // MARK: Gradients
 
+    @MainActor
     struct Gradients {
         // Canonical brand colors — single source of truth for the rose→lavender sweep.
-        static let brandColors: [Color] = [Color(hex: "#D4537E"), Color(hex: "#8875D4")]
+        static var brandColors: [Color] { ThemeManager.shared.palette.brandColors }
 
-        static let brand = LinearGradient(
-            colors: brandColors,
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
+        static var brand: LinearGradient {
+            LinearGradient(
+                colors: brandColors,
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        }
     }
 
     // MARK: Motion
 
     /// Shared animation curves so motion feels consistent across the app.
     struct Motion {
+        // Legacy curves — kept for existing callers. Prefer the spring-based
+        // presets below for new code (WWDC23 recommendation: spring(duration:bounce:)).
         /// Gentle spring for entrances and layout settling.
         static let entrance = Animation.spring(response: 0.55, dampingFraction: 0.82)
         /// Quick, lively spring for taps and toggles.
@@ -260,12 +257,37 @@ struct Theme {
         static let reveal   = Animation.easeOut(duration: 1.0)
         /// Continuous attention pulse — the "dose due" indicator. (2 sites)
         static let pulse    = Animation.easeInOut(duration: 1.3).repeatForever(autoreverses: true)
+
+        // MARK: Spring-based presets (iOS 17+, WWDC23 recommended)
+        //
+        // Apple recommends spring(duration:bounce:) over the older
+        // spring(response:dampingFraction:) API. Bounce values:
+        //   0.0   = critically damped — smooth settle, no overshoot
+        //   0.15  = subtle playfulness, slightly brisk tail
+        //   0.30  = noticeable bounce, feels physical
+        //   >0.4  = exaggerated — use sparingly
+        //
+        // Ref: WWDC23 "Animate with springs"
+
+        /// Cards and sections settling into place on first appear.
+        /// Smooth, no bounce — feels like a gentle deceleration.
+        static let settle = Animation.spring(duration: 0.55, bounce: 0.0)
+        /// Lightly playful pop for interactive elements (buttons, selection).
+        static let pop    = Animation.spring(duration: 0.35, bounce: 0.15)
+        /// Gentle attention-grab — noticeable but not jarring. Good for
+        /// overlays and callouts that should feel warm, not aggressive.
+        static let gentle = Animation.spring(duration: 0.45, bounce: 0.08)
+        /// Tactile press-down — tighter, lower bounce than pop.
+        static let tap    = Animation.spring(duration: 0.25, bounce: 0.05)
+        /// Celebration scatter — higher bounce for festive particle bursts.
+        static let burst  = Animation.spring(duration: 0.6, bounce: 0.28)
     }
 
     // MARK: Shadows
 
     /// Named elevation styles. Previously 16 hand-written `.shadow(...)` calls with no
     /// shared vocabulary, several of which were byte-identical across files.
+    @MainActor
     struct Shadows {
         struct Style {
             let color: Color
@@ -277,7 +299,7 @@ struct Theme {
         /// Neutral lift for a floating control over content.
         static let floating = Style(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
         /// Accent-tinted glow under a primary floating action button.
-        static let accentFab = Style(color: Colors.accent.opacity(0.35), radius: 12, x: 0, y: 6)
+        static var accentFab: Style { Style(color: Colors.accent.opacity(0.35), radius: 12, x: 0, y: 6) }
         /// Soft tinted halo under a constellation node or body marker.
         static func nodeGlow(_ tint: Color, selected: Bool) -> Style {
             Style(color: tint.opacity(selected ? 0.5 : 0.25),
@@ -334,7 +356,7 @@ struct AccentButtonModifier: ViewModifier {
             .padding()
             .frame(maxWidth: .infinity)
             .background(Theme.Colors.accent)
-            .foregroundStyle(.white)
+            .foregroundStyle(Theme.Colors.OnAccent.primary)
             .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.lg))
     }
 }
@@ -344,8 +366,9 @@ struct AccentButtonModifier: ViewModifier {
 extension View {
     /// Apply a translucent glass surface with a hairline border.
     /// Uses iOS 26 Liquid Glass with fallback to ultraThinMaterial on older iOS.
-    func asGlassCard(tint: Color = Theme.Colors.glassTint, tintOpacity: CGFloat = 0.55, cornerRadius: CGFloat = Theme.Radius.lg) -> some View {
-        modifier(GlassCardModifier(tint: tint, tintOpacity: tintOpacity, cornerRadius: cornerRadius))
+    @MainActor
+    func asGlassCard(tint: Color? = nil, tintOpacity: CGFloat = 0.55, cornerRadius: CGFloat = Theme.Radius.lg) -> some View {
+        modifier(GlassCardModifier(tint: tint ?? Theme.Colors.glassTint, tintOpacity: tintOpacity, cornerRadius: cornerRadius))
     }
 
     /// Apply an opaque pastel surface keyed to a Time category palette.

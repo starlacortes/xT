@@ -49,19 +49,23 @@ enum ProfileSnapshot {
         "encryptedProfileImageData", "profileImageData",
         "profileDateOfBirth",
         // Reminders
-        "doseReminderEnabled", "doseReminderHour", "doseReminderMinute",
-        "journalReminderEnabled", "journalReminderHour", "journalReminderMinute",
+        NotificationManager.Keys.doseReminderEnabled,
+        NotificationManager.Keys.doseReminderHour,
+        NotificationManager.Keys.doseReminderMinute,
+        NotificationManager.Keys.journalReminderEnabled,
+        NotificationManager.Keys.journalReminderHour,
+        NotificationManager.Keys.journalReminderMinute,
         // Transient MedicationManager preferences (persisted via didSet)
-        "mm.antiAndrogenInUse",
-        "mm.spironolactoneInUse",
-        "mm.spironolactoneClearanceEnabled",
-        "mm.suppressionSpeed",
-        "mm.customFrequencyDays",
-        "mm.missedDoseGracePeriodHours",
-        "mm.userTherapeuticTarget",
+        MedicationManager.Keys.antiAndrogenInUse,
+        MedicationManager.Keys.spironolactoneInUse,
+        MedicationManager.Keys.spironolactoneClearanceEnabled,
+        MedicationManager.Keys.suppressionSpeed,
+        MedicationManager.Keys.customFrequencyDays,
+        MedicationManager.Keys.missedDoseGracePeriodHours,
+        MedicationManager.Keys.userTherapeuticTarget,
         // SpoofProfile "applied" marker — absent for a real user, so restore
         // clears it and a later Sample re-enable can re-apply Jan.
-        "com.xt.spoofProfile_jan_v1",
+        SpoofProfile.spfKey,
         // One-time overlay dismissals
         "hasSeenRecommendedZonesInfo",
     ]
@@ -194,8 +198,6 @@ enum ProfileSnapshot {
     /// same load path `MedicationManager.init` / `ProfileManager.init` use, so
     /// the live app reflects the restored stores without a relaunch.
     private static func rehydrateManagers() {
-        let defaults = UserDefaults.standard
-
         // --- Profile ---
         let pm = ProfileManager.shared
         pm.profileName = ""
@@ -207,6 +209,11 @@ enum ProfileSnapshot {
         // --- Medication ---
         let mm = MedicationManager.shared
         // Reset all state to cold-launch condition to clear Jan's in-memory data.
+        // `isLoadingPreferences` suppresses the didSet-driven persist: without
+        // it, clearing a persisted property would immediately write the nil over
+        // the *restored* UserPreferences record (and the spoof persona's
+        // therapeutic target used to leak into the user's prefs this way).
+        mm.isLoadingPreferences = true
         mm.selectedMedication = nil
         mm.selectedAdministrationMethod = nil
         mm.selectedEster = nil
@@ -218,13 +225,28 @@ enum ProfileSnapshot {
         mm.doseHistory = []
         mm.bloodTestHistory = []
         mm.screeningRecords = []
-        mm.predictedTroughDrop = nil
-        // Transient properties: reset then reload from UserDefaults (step 1 of
-        // restore() already wrote the user's snapshotted values back).
-        mm.loadTransientPreferences()
+        mm.userTherapeuticTarget = nil
+        mm.avoidZones = [:]
+        mm.customFrequencyDays = nil
+        mm.defaultDoseAmount = nil
+        mm.defaultInjectionTime = nil
+        mm.suppressionSpeed = .fast
+        mm.spironolactoneClearanceEnabled = false
+        mm.antiAndrogenInUse = false
+        mm.spironolactoneInUse = false
+        mm.missedDoseGracePeriodHours = PKConstants.missedDoseGraceHours
+        mm.showDoseIntensityInsights = false
+        mm.bodyTypeRaw = BodyType.neutral.rawValue
+        mm.rotationWindowInjection = RouteClass.injection.defaultRotationWindowDays
+        mm.rotationWindowTopical = RouteClass.topical.defaultRotationWindowDays
+        mm.rotationWindowPatch = RouteClass.patch.defaultRotationWindowDays
+        mm.regimenTransitionHistory = []
+        mm.adherenceRate = nil
+        mm.onTimeStreak = 0
+        mm.doseRecordedCount = 0
+        mm.isLoadingPreferences = false
 
-        mm.loadSelection()
-        mm.loadDoseDates()
+        mm.loadUserPreferences()
         mm.loadDoseHistory()
         mm.loadBloodTestHistory()
         mm.loadScreeningHistory()
@@ -232,17 +254,11 @@ enum ProfileSnapshot {
         mm.recomputeCalibrationFactors()
 
         // --- Journal ---
-        JournalManager.shared.currentSymptoms = []
         JournalManager.shared.loadEntries()
 
         // --- Notifications ---
         let nm = NotificationManager.shared
-        nm.doseReminderEnabled = defaults.bool(forKey: "doseReminderEnabled")
-        nm.doseReminderHour = defaults.integer(forKey: "doseReminderHour")
-        nm.doseReminderMinute = defaults.integer(forKey: "doseReminderMinute")
-        nm.journalReminderEnabled = defaults.bool(forKey: "journalReminderEnabled")
-        nm.journalReminderHour = defaults.integer(forKey: "journalReminderHour")
-        nm.journalReminderMinute = defaults.integer(forKey: "journalReminderMinute")
+        nm.loadFromDefaults()
         Task { await nm.scheduleAllReminders() }
     }
 
@@ -421,6 +437,15 @@ enum ProfileSnapshot {
         }
     }
 
+    /// A `UserPreferences` record reduced to plain values.
+    ///
+    /// Like `DosePayload`, this must cover **every** stored property on the model:
+    /// restore deletes the live record and reinserts this one. It previously
+    /// carried 12 of the 26 fields — restoring a snapshot silently destroyed the
+    /// user's HRT start date, avoid zones, rotation windows, body type, ester,
+    /// and therapeutic target. Every field added after the first snapshot ships
+    /// is declared optional so an old snapshot (lacking the key) still decodes;
+    /// nil fields fall through to the model's defaults at rebuild.
     private struct PreferencesPayload: Codable {
         var medicationRow: Int
         var medicationColumn: Int
@@ -434,6 +459,24 @@ enum ProfileSnapshot {
         var defaultDoseAmount: Double?
         var defaultInjectionTime: Date?
         var showDoseIntensityInsights: Bool
+        // Totality pass — everything below was missing from the first snapshot
+        // format and is optional purely for old-snapshot decode compatibility.
+        var selectedMedication: String?
+        var selectedAdministrationMethod: String?
+        var selectedEster: String?
+        var hrtStartDate: Date?
+        var antiAndrogenInUse: Bool?
+        var spironolactoneInUse: Bool?
+        var missedDoseGracePeriodHours: Double?
+        var userTherapeuticTargetJSON: String?
+        var rotationWindowInjection: Int?
+        var rotationWindowTopical: Int?
+        var rotationWindowPatch: Int?
+        var avoidZonesJSON: String?
+        var bodyTypeRaw: String?
+        var profileName: String?
+        var profileImageData: Data?
+        var profileDateOfBirth: Date?
 
         init(_ prefs: UserPreferences) {
             medicationRow = prefs.medicationRow
@@ -448,6 +491,22 @@ enum ProfileSnapshot {
             defaultDoseAmount = prefs.defaultDoseAmount
             defaultInjectionTime = prefs.defaultInjectionTime
             showDoseIntensityInsights = prefs.showDoseIntensityInsights
+            selectedMedication = prefs.selectedMedication
+            selectedAdministrationMethod = prefs.selectedAdministrationMethod
+            selectedEster = prefs.selectedEster
+            hrtStartDate = prefs.hrtStartDate
+            antiAndrogenInUse = prefs.antiAndrogenInUse
+            spironolactoneInUse = prefs.spironolactoneInUse
+            missedDoseGracePeriodHours = prefs.missedDoseGracePeriodHours
+            userTherapeuticTargetJSON = prefs.userTherapeuticTargetJSON
+            rotationWindowInjection = prefs.rotationWindowInjection
+            rotationWindowTopical = prefs.rotationWindowTopical
+            rotationWindowPatch = prefs.rotationWindowPatch
+            avoidZonesJSON = prefs.avoidZonesJSON
+            bodyTypeRaw = prefs.bodyTypeRaw
+            profileName = prefs.profileName
+            profileImageData = prefs.profileImageData
+            profileDateOfBirth = prefs.profileDateOfBirth
         }
 
         var record: UserPreferences {
@@ -465,6 +524,25 @@ enum ProfileSnapshot {
                 defaultInjectionTime: defaultInjectionTime,
                 showDoseIntensityInsights: showDoseIntensityInsights
             )
+            // Apply the totality fields only when present — a nil means either
+            // "never set" or "written by an old snapshot", and both should keep
+            // the model defaults rather than be overwritten with nil.
+            prefs.selectedMedication = selectedMedication
+            prefs.selectedAdministrationMethod = selectedAdministrationMethod
+            prefs.selectedEster = selectedEster
+            prefs.hrtStartDate = hrtStartDate
+            if let antiAndrogenInUse { prefs.antiAndrogenInUse = antiAndrogenInUse }
+            if let spironolactoneInUse { prefs.spironolactoneInUse = spironolactoneInUse }
+            if let missedDoseGracePeriodHours { prefs.missedDoseGracePeriodHours = missedDoseGracePeriodHours }
+            prefs.userTherapeuticTargetJSON = userTherapeuticTargetJSON
+            if let rotationWindowInjection { prefs.rotationWindowInjection = rotationWindowInjection }
+            if let rotationWindowTopical { prefs.rotationWindowTopical = rotationWindowTopical }
+            if let rotationWindowPatch { prefs.rotationWindowPatch = rotationWindowPatch }
+            prefs.avoidZonesJSON = avoidZonesJSON
+            if let bodyTypeRaw { prefs.bodyTypeRaw = bodyTypeRaw }
+            prefs.profileName = profileName
+            prefs.profileImageData = profileImageData
+            prefs.profileDateOfBirth = profileDateOfBirth
             return prefs
         }
     }

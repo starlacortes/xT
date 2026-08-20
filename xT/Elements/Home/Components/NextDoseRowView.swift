@@ -20,16 +20,20 @@ struct NextDoseRowView: View {
     private let dotWidth: CGFloat = 24
     private let dotHeight: CGFloat = 4
 
+    /// Dosing cycle length in days.
+    ///
+    /// Honours the user's custom frequency (`customFrequencyDays`) via
+    /// `effectiveFrequencyDays` rather than the administration method's default —
+    /// otherwise the dot track and "Next dose" weekday always reflected the
+    /// method default (e.g. 7 days for injections) even when the user had set a
+    /// different interval in Dose Schedule settings.
     private var cycleDays: Int {
-        guard let method = medicationManager.selectedAdministrationMethod,
-              let adm = MedicationManager.AdministrationMethod(rawValue: method) else { return 7 }
-        return adm.frequencyDays
+        medicationManager.effectiveFrequencyDays
     }
 
     private var completedDays: Int {
-        guard let last = medicationManager.lastDoseDate else { return 0 }
-        let elapsed = Calendar.current.dateComponents([.day], from: last, to: Date()).day ?? 0
-        return min(elapsed + 1, cycleDays)
+        guard medicationManager.lastDoseDate != nil else { return 0 }
+        return min(daysSinceLastDose + 1, cycleDays)
     }
 
     private var isToday: Bool { completedDays >= cycleDays }
@@ -72,26 +76,26 @@ struct NextDoseRowView: View {
         }
         .onAppear {
             if missedDays > 2 { startPulsing() }
-            if isToday { startTodayPulse() }
+            if isToday && !isMissed { startTodayPulse() }
         }
         .onChange(of: missedDays) { _, days in
             if days > 2 { startPulsing() }
         }
         .onChange(of: isToday) { _, today in
-            if today {
+            if today && !isMissed {
                 startTodayPulse()
             }
         }
     }
 
     private func startPulsing() {
-        withAnimation(.easeInOut(duration: 1.4).repeatForever(autoreverses: true)) {
+        withAnimation(Theme.Motion.pulse) {
             isPulsing = true
         }
     }
 
     private func startTodayPulse() {
-        withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
+        withAnimation(Theme.Motion.pulse) {
             todayDotPulsing = true
         }
     }
@@ -217,7 +221,10 @@ struct NextDoseRowView: View {
 
     // MARK: - Expanded Missed Dose Prompt (>3 days)
 
-    private static let cycleText = Color(lightHex: "#993554", darkHex: "#F4A8C0")
+    /// Rose emphasis text for the missed-dose cycle prompt — the cycle palette's
+    /// `text` role (the old hardcoded #993554/#F4A8C0 pair was a static copy of
+    /// that token that stopped following the seed hue).
+    @MainActor private static var cycleText: Color { Theme.Colors.Time.cycle.text }
 
     private var missedDosePromptExpanded: some View {
         VStack(spacing: Theme.Spacing.md) {
@@ -241,7 +248,7 @@ struct NextDoseRowView: View {
                         .fontWeight(.medium)
                         .foregroundStyle(Self.cycleText)
 
-                    Text("^[\(missedDays) day](inflect: true) since this dose was scheduled")
+                    Text("^[\(missedDays) day](inflect: true) overdue")
                         .font(Theme.Fonts.caption)
                         .foregroundStyle(Theme.Colors.textTertiary)
                 }

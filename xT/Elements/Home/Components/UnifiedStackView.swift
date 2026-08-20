@@ -17,30 +17,24 @@ struct UnifiedStackView: View {
             InsightRowView()
                 .entrance(index: 0)
 
-            divider()
+            HairlineDivider()
 
             MoodRowView()
                 .entrance(index: 1)
 
-            divider()
+            HairlineDivider()
 
             if medicationManager.isFullyConfigured {
                 NextDoseRowView()
                     .entrance(index: 2)
 
-                divider()
+                HairlineDivider()
             }
 
             ActionBarView()
                 .entrance(index: medicationManager.isFullyConfigured ? 3 : 2)
         }
         .asGlassCard(cornerRadius: Theme.Radius.lg)
-    }
-
-    private func divider() -> some View {
-        Rectangle()
-            .fill(Theme.Colors.border.opacity(0.35))
-            .frame(height: 0.5)
     }
 }
 

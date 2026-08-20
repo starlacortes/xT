@@ -92,6 +92,7 @@ class MissedDoseTest: XCTestCase {
         print("✓ Missed dose recovery successful")
     }
 
+    @MainActor
     func testPerformanceExample() {
         // This is an example of a performance test case.
         measure {

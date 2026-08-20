@@ -20,7 +20,7 @@ struct TypeMethodSettingsView: View {
 
     @AppStorage("hasSeenTypeMethodWarning") private var hasSeenWarning = false
 
-    private let medicationTypes: [(id: String, label: String, subtitle: String)] = [
+    private let medicationTypes: [(id: String, label: String, subtitle: LocalizedStringResource)] = [
         ("Estrogen", "Estrogen-based HRT", "Estradiol-based hormone therapy"),
         ("Testosterone", "Testosterone-based HRT", "Testosterone-based hormone therapy")
     ]
@@ -35,7 +35,7 @@ struct TypeMethodSettingsView: View {
     /// silently in place. Both enums now expose `injectableCases`, and every
     /// medication/method pair resolves to the pseudo-ester the PK engine will actually
     /// use (see `MedicationManager.effectiveEsterName`).
-    private var availableEsters: [(name: String, halfLife: String)] {
+    private var availableEsters: [(name: String, halfLife: LocalizedStringResource)] {
         let isEstrogen = selectedType == "Estrogen"
         switch selectedMethod {
         case "Injectable":
@@ -98,7 +98,7 @@ struct TypeMethodSettingsView: View {
 
     private var typeSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            sectionLabel("Medication Type")
+            SheetSectionLabel(text: "Medication Type")
 
             ForEach(medicationTypes, id: \.id) { type in
                 typeCard(type: type)
@@ -106,49 +106,22 @@ struct TypeMethodSettingsView: View {
         }
     }
 
-    private func typeCard(type: (id: String, label: String, subtitle: String)) -> some View {
-        Button {
+    private func typeCard(type: (id: String, label: String, subtitle: LocalizedStringResource)) -> some View {
+        SelectableOptionRow(title: type.label, subtitle: type.subtitle,
+                            isSelected: selectedType == type.id) {
             if selectedType != type.id {
                 selectedType = type.id
                 selectedEster = Self.defaultEster(for: type.id, method: selectedMethod)
                 hasChanges = true
             }
-        } label: {
-            HStack(spacing: 14) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(type.label)
-                        .font(Theme.Fonts.callout)
-                        .foregroundStyle(.primary)
-                    Text(type.subtitle)
-                        .font(Theme.Fonts.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                if selectedType == type.id {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 18))
-                        .foregroundStyle(Theme.Colors.accent)
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                    .fill(selectedType == type.id ? Theme.Colors.accent.opacity(0.1) : Color(.systemBackground))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                    .stroke(selectedType == type.id ? Theme.Colors.accent.opacity(0.3) : Color.clear, lineWidth: 1)
-            )
         }
-        .buttonStyle(.plain)
     }
 
     // MARK: - Method Section
 
     private var methodSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            sectionLabel("Administration Method")
+            SheetSectionLabel(text: "Administration Method")
 
             ForEach(administrationMethods, id: \.rawValue) { method in
                 methodCard(method)
@@ -157,48 +130,21 @@ struct TypeMethodSettingsView: View {
     }
 
     private func methodCard(_ method: MedicationManager.AdministrationMethod) -> some View {
-        Button {
+        SelectableOptionRow(title: method.rawValue, subtitle: frequencyHint(for: method),
+                            isSelected: selectedMethod == method.rawValue) {
             if selectedMethod != method.rawValue {
                 selectedMethod = method.rawValue
                 selectedEster = Self.defaultEster(for: selectedType, method: method.rawValue)
                 hasChanges = true
             }
-        } label: {
-            HStack(spacing: 14) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(method.rawValue)
-                        .font(Theme.Fonts.callout)
-                        .foregroundStyle(.primary)
-                    Text(frequencyHint(for: method))
-                        .font(Theme.Fonts.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                if selectedMethod == method.rawValue {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 18))
-                        .foregroundStyle(Theme.Colors.accent)
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                    .fill(selectedMethod == method.rawValue ? Theme.Colors.accent.opacity(0.1) : Color(.systemBackground))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                    .stroke(selectedMethod == method.rawValue ? Theme.Colors.accent.opacity(0.3) : Color.clear, lineWidth: 1)
-            )
         }
-        .buttonStyle(.plain)
     }
 
     // MARK: - Ester Section
 
     private var esterSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            sectionLabel("Ester")
+            SheetSectionLabel(text: "Ester")
 
             ForEach(availableEsters, id: \.name) { ester in
                 esterCard(ester)
@@ -206,55 +152,20 @@ struct TypeMethodSettingsView: View {
         }
     }
 
-    private func esterCard(_ ester: (name: String, halfLife: String)) -> some View {
-        Button {
+    private func esterCard(_ ester: (name: String, halfLife: LocalizedStringResource)) -> some View {
+        SelectableOptionRow(title: ester.name, subtitle: ester.halfLife,
+                            isSelected: selectedEster == ester.name) {
             if selectedEster != ester.name {
                 selectedEster = ester.name
                 hasChanges = true
             }
-        } label: {
-            HStack(spacing: 14) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(ester.name)
-                        .font(Theme.Fonts.callout)
-                        .foregroundStyle(.primary)
-                    Text(ester.halfLife)
-                        .font(Theme.Fonts.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                if selectedEster == ester.name {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 18))
-                        .foregroundStyle(Theme.Colors.accent)
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                    .fill(selectedEster == ester.name ? Theme.Colors.accent.opacity(0.1) : Color(.systemBackground))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                    .stroke(selectedEster == ester.name ? Theme.Colors.accent.opacity(0.3) : Color.clear, lineWidth: 1)
-            )
         }
-        .buttonStyle(.plain)
     }
 
     // MARK: - Helpers
 
-    private func sectionLabel(_ text: String) -> some View {
-        Text(text)
-            .font(Theme.Fonts.footnote)
-            .fontWeight(.semibold)
-            .foregroundStyle(.secondary)
-            .textCase(.uppercase)
-            .padding(.leading, 4)
-    }
 
-    private func frequencyHint(for method: MedicationManager.AdministrationMethod) -> String {
+    private func frequencyHint(for method: MedicationManager.AdministrationMethod) -> LocalizedStringResource {
         switch method {
         case .injectable: return "Typical cycle: 7 days"
         case .cream: return "Applied daily"
@@ -262,30 +173,24 @@ struct TypeMethodSettingsView: View {
         }
     }
 
-    private func halfLifeLabel(_ days: Double) -> String {
-        String(localized: "Half-life ~^[\(Int(days.rounded())) day](inflect: true)",
-               comment: "Approximate elimination half-life of the selected ester")
+    private func halfLifeLabel(_ days: Double) -> LocalizedStringResource {
+        LocalizedStringResource(
+            "Half-life ~^[\(Int(days.rounded())) day](inflect: true)",
+            comment: "Approximate elimination half-life of the selected ester"
+        )
     }
 
     private static func defaultEster(for type: String, method: String) -> String {
-        if type == "Estrogen" {
-            switch method {
-            case "Injectable": return "Valerate (EV)"
-            case "Oral": return "Oral"
-            case "Cream": return "Transdermal"
-            default: return "Valerate (EV)"
-            }
-        } else {
-            // Cream/Oral must not default to an injectable ester: the PK engine resolves
-            // those routes to the Transdermal/Oral pseudo-esters, and leaving "Cypionate
-            // (TC)" on the record made the stored ester disagree with what was modeled.
-            switch method {
-            case "Injectable": return "Cypionate (TC)"
-            case "Cream": return "Transdermal"
-            case "Oral": return "Oral"
-            default: return "Cypionate (TC)"
-            }
-        }
+        // Two previously hand-maintained switch ladders route through the
+        // manager's single sources: the injectable default ester comes from
+        // `defaultEsterInfo`, and Cream/Oral map to the Transdermal/Oral
+        // pseudo-esters via `effectiveEsterName` — non-injectable routes must
+        // not default to an injectable ester, or the stored ester disagrees
+        // with what the PK engine models.
+        MedicationManager.effectiveEsterName(
+            ester: MedicationManager.defaultEsterInfo(for: type).name,
+            route: method
+        )
     }
 
     // MARK: - Save
@@ -305,8 +210,16 @@ struct TypeMethodSettingsView: View {
 
         medicationManager.selectedEster = selectedEster
         medicationManager.updateSelection(type: type, method: method)
-        medicationManager.persistSelection()
         medicationManager.refreshState()
         dismiss()
     }
 }
+
+#if DEBUG
+#Preview {
+    SpoofPreview {
+        TypeMethodSettingsView()
+            .environment(\.medicationManager, MedicationManager.shared)
+    }
+}
+#endif

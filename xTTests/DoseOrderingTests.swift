@@ -99,7 +99,7 @@ final class DoseOrderingTests: XCTestCase {
         manager.doseHistory.last?.isDeleted = true
 
         XCTAssertEqual(manager.latestActiveDose()?.doseAmount, 3.0,
-                       "a soft-deleted newest dose must fall through to the one before it")
+                       "an inactive newest dose must fall through to the one before it")
     }
 
     @MainActor func testLatestDoseIsNilForEmptyHistory() {
@@ -250,5 +250,66 @@ final class DoseOrderingTests: XCTestCase {
         let gap = Calendar.current.dateComponents([.day], from: last, to: next).day
 
         XCTAssertEqual(gap, 10)
+    }
+
+    // MARK: - recordDose
+
+    /// Regression tests for the "Record dose" quick action silently bypassing
+    /// `doseHistory`. It used to only nudge `lastDoseDate`/`nextDoseDate`, so the
+    /// PK curve never reflected the recorded dose, and a later Journal delete's
+    /// history-only recompute of `nextDoseDate` would discard it entirely.
+
+    @MainActor func testRecordDoseCreatesADoseRecord() {
+        manager.updateSelection(type: .estrogen, method: .injectable)
+        XCTAssertTrue(manager.doseHistory.isEmpty)
+
+        let date = daysAgo(0)
+        manager.recordDose(on: date)
+
+        XCTAssertEqual(manager.doseHistory.count, 1,
+                       "recordDose must append a real DoseRecord, not just update the convenience date fields")
+        XCTAssertEqual(manager.doseHistory.first?.doseDate, date)
+    }
+
+    @MainActor func testRecordDoseDefaultsEsterAndAmountFromLastLoggedDose() {
+        manager.updateSelection(type: .estrogen, method: .injectable)
+        manager.addDose(
+            date: daysAgo(7),
+            type: "Estrogen",
+            ester: MedicationEster.cypionate.rawValue,
+            method: "Injectable",
+            doseAmount: 5.0,
+            concentrationMgPerMl: 100.0
+        )
+
+        manager.recordDose(on: daysAgo(0))
+
+        let recorded = manager.doseHistory.last
+        XCTAssertEqual(recorded?.ester, MedicationEster.cypionate.rawValue,
+                       "recordDose should carry forward the ester of the most recent real dose")
+        XCTAssertEqual(recorded?.doseAmount, 5.0)
+        XCTAssertEqual(recorded?.concentrationMgPerMl, 100.0)
+    }
+
+    @MainActor func testSoftDeleteAfterRecordDoseKeepsNextDoseInTheFuture() {
+        manager.updateSelection(type: .estrogen, method: .injectable)
+        manager.addDose(
+            date: daysAgo(10),
+            type: "Estrogen",
+            ester: MedicationEster.valerate.rawValue,
+            method: "Injectable",
+            doseAmount: 2.0,
+            concentrationMgPerMl: 40.0
+        )
+        let oldDoseId = manager.doseHistory.first!.id
+
+        manager.recordDose(on: daysAgo(0))
+        XCTAssertEqual(manager.doseHistory.count, 2)
+
+        manager.softDeleteDose(id: oldDoseId)
+
+        XCTAssertNotNil(manager.nextDoseDate)
+        XCTAssertGreaterThan(manager.nextDoseDate!, Date(),
+                             "next dose must stay anchored to the dose just recorded, not collapse to the deleted dose's stale schedule")
     }
 }

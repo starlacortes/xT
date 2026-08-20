@@ -19,6 +19,7 @@ struct DataExporter {
         let doseHistory: [DoseRecord]
         let journalEntries: [JournalEntry]
         let bloodTests: [BloodTestRecord]
+        let screenings: [ScreeningRecord]
         let swiftDataPreferences: UserPreferences?
         let selectedMedication: String?
         let hrtStartDate: Date?
@@ -54,6 +55,8 @@ struct DataExporter {
         csv.append("\n")
         csv.append(bloodTestsCSV(state.bloodTests))
         csv.append("\n")
+        csv.append(screeningsCSV(state.screenings))
+        csv.append("\n")
         csv.append(avoidZonesCSV(state.avoidZones))
         csv.append("\n")
         csv.append(exportPreferencesCSV(state))
@@ -64,10 +67,11 @@ struct DataExporter {
     /// Returns JSON-encoded data representing all user data.
     static func exportJSON(state: ExportState) -> Data? {
         let root = ExportPayload(
-            exportedAt: ISO8601DateFormatter().string(from: Date()),
+            exportedAt: isoFormatter.string(from: Date()),
             doseHistory: state.doseHistory.filter(\.isActive).map(DoseExport.from),
             journalEntries: state.journalEntries.map(JournalExport.from),
             bloodTests: state.bloodTests.map(BloodTestExport.from),
+            screenings: state.screenings.map(ScreeningExport.from),
             preferences: PreferencesExport.from(state),
             avoidZones: state.avoidZones.map { (zone, info) in
                 AvoidZoneExport(zoneLabel: zone, reason: info.reason, markedAt: isoFormatter.string(from: info.markedAt))
@@ -80,19 +84,27 @@ struct DataExporter {
 
     // MARK: - CSV Section Formatters
 
+    /// Escapes a value for a double-quoted CSV field. Every quoted field goes
+    /// through here — the hand-rolled `replacingOccurrences` calls used to cover
+    /// only some fields, so a `"` in a medication name or zone label silently
+    /// broke the row.
+    private static func csvEscape(_ s: String) -> String {
+        s.replacingOccurrences(of: "\"", with: "\"\"")
+    }
+
     private static func doseHistoryCSV(_ records: [DoseRecord]) -> String {
         var csv = "# ---- DOSE RECORDS ----\n"
         csv.append("id,date,medication,ester,method,dose_mg,conc_mg_per_ml,status,skip_reason,injection_time,is_user_corrected,original_dose_id,recorded_at,site_count\n")
         for r in records where r.isActive {
-            let status = r.doseStatus
+            let status = csvEscape(r.doseStatus)
             let conc = r.concentrationMgPerMl.map { String($0) } ?? ""
             let injectionTime = r.injectionTime.map { isoFormatter.string(from: $0) } ?? ""
-            let skipReason = (r.skipReason ?? "").replacingOccurrences(of: "\"", with: "\"\"")
+            let skipReason = csvEscape(r.skipReason ?? "")
             let corrected = r.isUserCorrected ? "true" : "false"
             let origId = r.originalDoseId ?? ""
             let recordedStr = r.recordedAt.map { isoFormatter.string(from: $0) } ?? ""
             let siteCount = r.injectionSites.count
-            let line = "\"\(r.id)\",\"\(isoFormatter.string(from: r.doseDate))\",\"\(r.medicationType)\",\"\(r.ester)\",\"\(r.administrationMethod)\",\(r.doseAmount),\(conc),\"\(status)\",\"\(skipReason)\",\"\(injectionTime)\",\(corrected),\"\(origId)\",\"\(recordedStr)\",\(siteCount)\n"
+            let line = "\"\(csvEscape(r.id))\",\"\(isoFormatter.string(from: r.doseDate))\",\"\(csvEscape(r.medicationType))\",\"\(csvEscape(r.ester))\",\"\(csvEscape(r.administrationMethod))\",\(r.doseAmount),\(conc),\"\(status)\",\"\(skipReason)\",\"\(injectionTime)\",\(corrected),\"\(origId)\",\"\(recordedStr)\",\(siteCount)\n"
             csv.append(line)
         }
         return csv
@@ -111,23 +123,21 @@ struct DataExporter {
             let rc = RouteClass.from(method: r.administrationMethod)
             let recordedStr = r.recordedAt.map { isoFormatter.string(from: $0) } ?? ""
             let origId = r.originalDoseId ?? ""
-            let medType = r.medicationType.replacingOccurrences(of: "\"", with: "\"\"")
-            let ester = r.ester.replacingOccurrences(of: "\"", with: "\"\"")
-            let method = r.administrationMethod.replacingOccurrences(of: "\"", with: "\"\"")
+            let medType = csvEscape(r.medicationType)
+            let ester = csvEscape(r.ester)
+            let method = csvEscape(r.administrationMethod)
 
             for (idx, site) in r.injectionSites.enumerated() {
                 let originalSite: String
                 let orig = r.originalSites
                 if r.isUserCorrected, idx < orig.count {
                     let o = orig[idx]
-                    let escapedZone = o.zoneLabel.replacingOccurrences(of: "\"", with: "\"\"")
-                    let escapedCtx = o.viewContext.replacingOccurrences(of: "\"", with: "\"\"")
-                    originalSite = "\"\(escapedZone) (\(escapedCtx))\""
+                    originalSite = "\"\(csvEscape(o.zoneLabel)) (\(csvEscape(o.viewContext)))\""
                 } else {
                     originalSite = ""
                 }
 
-                let zoneLabel = site.zoneLabel.replacingOccurrences(of: "\"", with: "\"\"")
+                let zoneLabel = csvEscape(site.zoneLabel)
                 let line = [
                     "\"\(r.id)\"",
                     "\"\(isoFormatter.string(from: r.doseDate))\"",
@@ -161,19 +171,31 @@ struct DataExporter {
         var csv = "# ---- AVOID ZONES ----\n"
         csv.append("zone_label,reason,marked_at\n")
         for (zone, info) in zones.sorted(by: { $0.key < $1.key }) {
-            let reason = info.reason.replacingOccurrences(of: "\"", with: "\"\"")
-            csv.append("\"\(zone)\",\"\(reason)\",\"\(isoFormatter.string(from: info.markedAt))\"\n")
+            let reason = csvEscape(info.reason)
+            csv.append("\"\(csvEscape(zone))\",\"\(reason)\",\"\(isoFormatter.string(from: info.markedAt))\"\n")
         }
         return csv
     }
 
     private static func journalEntriesCSV(_ entries: [JournalEntry]) -> String {
         var csv = "# ---- JOURNAL ENTRIES ----\n"
-        csv.append("id,date,mood,text,symptoms\n")
+        csv.append("id,date,mood,text,symptoms,hormone_level\n")
         for e in entries {
-            let text = e.text.replacingOccurrences(of: "\"", with: "\"\"")
-            let symptoms = e.symptoms.map(\.name).joined(separator: "; ")
-            csv.append("\"\(e.id.uuidString)\",\"\(isoFormatter.string(from: e.date))\",\"\(e.mood.rawValue)\",\"\(text)\",\"\(symptoms)\"\n")
+            let text = csvEscape(e.text)
+            let symptoms = csvEscape(e.symptoms.map(\.name).joined(separator: "; "))
+            let level = e.hormoneLevel.map { AppNumberFormatters.hormoneLevel.string($0) } ?? ""
+            csv.append("\"\(e.id.uuidString)\",\"\(isoFormatter.string(from: e.date))\",\"\(csvEscape(e.mood.rawValue))\",\"\(text)\",\"\(symptoms)\",\(level)\n")
+        }
+        return csv
+    }
+
+    private static func screeningsCSV(_ records: [ScreeningRecord]) -> String {
+        guard !records.isEmpty else { return "" }
+        var csv = "# ---- HEALTH SCREENINGS ----\n"
+        csv.append("id,date,type,notes\n")
+        for r in records {
+            let notes = csvEscape(r.notes ?? "")
+            csv.append("\"\(csvEscape(r.id))\",\"\(isoFormatter.string(from: r.date))\",\"\(csvEscape(r.typeRawValue))\",\"\(notes)\"\n")
         }
         return csv
     }
@@ -183,9 +205,9 @@ struct DataExporter {
         csv.append("id,draw_date,measured_level,hormone_type,hours_since_last_dose,notes,calibration_factor\n")
         for r in records {
             let hours = r.hoursSinceLastDose.map { String($0) } ?? ""
-            let notes = (r.notes ?? "").replacingOccurrences(of: "\"", with: "\"\"")
+            let notes = csvEscape(r.notes ?? "")
             let cal = r.calibrationFactor.map { String($0) } ?? ""
-            csv.append("\"\(r.id)\",\"\(isoFormatter.string(from: r.drawDate))\",\(r.measuredLevel),\"\(r.hormoneType)\",\(hours),\"\(notes)\",\(cal)\n")
+            csv.append("\"\(csvEscape(r.id))\",\"\(isoFormatter.string(from: r.drawDate))\",\(r.measuredLevel),\"\(csvEscape(r.hormoneType))\",\(hours),\"\(notes)\",\(cal)\n")
         }
         return csv
     }
@@ -195,7 +217,7 @@ struct DataExporter {
         csv.append("key,value\n")
 
         // Profile
-        csv.append("\"profileName\",\"\(state.profileName)\"\n")
+        csv.append("\"profileName\",\"\(csvEscape(state.profileName))\"\n")
         csv.append("\"hrtStartDate\",\"\(state.hrtStartDate.map { isoFormatter.string(from: $0) } ?? "")\"\n")
 
         // Medication selection
@@ -264,6 +286,7 @@ private struct ExportPayload: Encodable {
     let doseHistory: [DoseExport]
     let journalEntries: [JournalExport]
     let bloodTests: [BloodTestExport]
+    let screenings: [ScreeningExport]
     let preferences: PreferencesExport
     let avoidZones: [AvoidZoneExport]
 }
@@ -345,6 +368,10 @@ private struct JournalExport: Encodable {
     let mood: String
     let text: String
     let symptoms: [String]
+    /// The modelled hormone level at the time of writing — the data point every
+    /// journal-vs-level correlation is drawn from. (Was silently dropped before,
+    /// even though the snapshot format learned that lesson the hard way.)
+    let hormoneLevel: Double?
 
     static func from(_ e: JournalEntry) -> JournalExport {
         JournalExport(
@@ -352,7 +379,8 @@ private struct JournalExport: Encodable {
             date: DataExporter.isoFormatter.string(from: e.date),
             mood: e.mood.rawValue,
             text: e.text,
-            symptoms: e.symptoms.map(\.name)
+            symptoms: e.symptoms.map(\.name),
+            hormoneLevel: e.hormoneLevel
         )
     }
 }
@@ -375,6 +403,22 @@ private struct BloodTestExport: Encodable {
             hoursSinceLastDose: r.hoursSinceLastDose,
             notes: r.notes,
             calibrationFactor: r.calibrationFactor
+        )
+    }
+}
+
+private struct ScreeningExport: Encodable {
+    let id: String
+    let date: String
+    let type: String
+    let notes: String?
+
+    static func from(_ r: ScreeningRecord) -> ScreeningExport {
+        ScreeningExport(
+            id: r.id,
+            date: DataExporter.isoFormatter.string(from: r.date),
+            type: r.typeRawValue,
+            notes: r.notes
         )
     }
 }

@@ -21,6 +21,20 @@ final class HeatMap3DRenderer {
     private var animatedTaps: [(center: SCNVector3, startTime: Float)] = []
     // Positions that persist indefinitely as red dots
     private var persistentSpots: [SCNVector3] = []
+    // Keeps the display link ticking `u_currentTime` while the constellation
+    // starfield is twinkling, even with no active ripples.
+    private var constellationActive = false
+
+    // Time-diagram starfield: the solid body wrapper cross-fades against a
+    // point-cloud star node as `u_constellation` ramps (see attachStarField).
+    private weak var bodyNode: SCNNode?
+    private weak var starNode: SCNNode?
+    private weak var starMaterial: SCNMaterial?
+    /// When true, body node opacity is kept at 1 so SceneKit hit-testing still
+    /// works against the mesh even when constellation = 1. The shader's own
+    /// `u_constellation` already makes the skin visually dark; the star node
+    /// (renderingOrder 10, additive blend) renders on top.
+    var keepBodyOpacityAtOne = false
 
     init(material: SCNMaterial,
          bodyType: BodyType = .neutral,
@@ -53,10 +67,20 @@ final class HeatMap3DRenderer {
 
         mat.setValue(Float(CACurrentMediaTime()), forKey: "u_currentTime")
         mat.setValue(SCNMatrix4Identity, forKey: "u_invViewMatrix")
+        // Inert defaults for the Time-diagram uniforms so hosts that never touch
+        // them (e.g. QuickDoseSheet) render the solid skin unchanged.
+        mat.setValue(Float(0), forKey: "u_constellation")
+        mat.setValue(NSValue(scnVector4: SCNVector4(0, 0, 0, 0)), forKey: "u_regionGlow")
 
         // Assign shaderModifiers LAST so SceneKit sees all bound arguments
         // when it compiles the combined fragment shader (commonprofile_frag).
-        mat.shaderModifiers = [SCNShaderModifierEntryPoint.surface: BodyHeatMapShader.surfaceModifier]
+        // The .fragment modifier forces final output alpha to fade with
+        // u_constellation — PBR-safe, unlike _surface.diffuse.a which physically
+        // based lighting ignores as full transparency.
+        mat.shaderModifiers = [
+            SCNShaderModifierEntryPoint.surface: BodyHeatMapShader.surfaceModifier,
+            SCNShaderModifierEntryPoint.fragment: BodyHeatMapShader.fragmentModifier,
+        ]
 
         startDisplayLinkIfNeeded()
     }
@@ -91,12 +115,71 @@ final class HeatMap3DRenderer {
         uploadTapTexture()
     }
 
-    /// Returns the world-space centroid position for a zone label.
-    func centroid(for label: String) -> SCNVector3? {
-        centroidStore.centroid(for: label)
+    // MARK: - Time diagram
+
+    /// Registers the point-cloud starfield and the solid body's wrapper node so
+    /// `setConstellation` can cross-fade between them. `starNode` must carry a
+    /// `StarFieldGeometry` geometry; its material receives the `u_currentTime` /
+    /// `u_regionGlow` uniforms in lock-step with the skin material.
+    func attachStarField(starNode: SCNNode, bodyNode: SCNNode) {
+        self.starNode = starNode
+        self.bodyNode = bodyNode
+        starMaterial = starNode.geometry?.firstMaterial
+        starMaterial?.setValue(Float(CACurrentMediaTime()), forKey: "u_currentTime")
+        starMaterial?.setValue(NSValue(scnVector4: SCNVector4(0, 0, 0, 0)), forKey: "u_regionGlow")
+        starMaterial?.setValue(NSValue(scnVector3: SCNVector3(0, 0, 0)), forKey: "u_tintColor")
+        starMaterial?.setValue(Float(0), forKey: "u_tintStrength")
+    }
+
+    /// Tints the star palette toward a theme-derived color.
+    /// strength 0 = no tint (natural star colors), 1 = fully replaced by tintColor.
+    func setStarTint(color: SIMD3<Float>, strength: Float) {
+        starMaterial?.setValue(NSValue(scnVector3: SCNVector3(color.x, color.y, color.z)), forKey: "u_tintColor")
+        starMaterial?.setValue(strength, forKey: "u_tintStrength")
+    }
+
+    /// Sets the constellation dissolve amount (0 = solid skin, 1 = full starfield).
+    /// The solid body fades out as the star points fade in, so at 1 only the
+    /// glowing starfield remains. When `twinkle` is true and the amount is > 0
+    /// the display link keeps running so the starfield animates; pass
+    /// `twinkle: false` (Reduce Motion) for a static starfield that doesn't
+    /// hold the display link open.
+    func setConstellation(_ amount: Float, twinkle: Bool = true) {
+        material?.setValue(amount, forKey: "u_constellation")
+
+        let a = CGFloat(min(max(amount, 0), 1))
+        if !keepBodyOpacityAtOne { bodyNode?.opacity = 1 - a }
+        if let starNode {
+            starNode.opacity = a
+            // Skip drawing ~8k invisible points when the skin is fully solid.
+            starNode.isHidden = amount <= 0.001
+        }
+
+        constellationActive = twinkle && amount > 0.001
+        if constellationActive {
+            startDisplayLinkIfNeeded()
+        } else if twinkle == false {
+            // Advance the clock once so a static starfield has a defined phase.
+            let now = Float(CACurrentMediaTime())
+            material?.setValue(now, forKey: "u_currentTime")
+            starMaterial?.setValue(now, forKey: "u_currentTime")
+        }
+    }
+
+    /// Sets (or clears) the red glow centred on the selected region's world anchor.
+    func setRegionGlow(center: SCNVector3?, radius: Float) {
+        let v = center.map { SCNVector4($0.x, $0.y, $0.z, radius) } ?? SCNVector4(0, 0, 0, 0)
+        material?.setValue(NSValue(scnVector4: v), forKey: "u_regionGlow")
+        starMaterial?.setValue(NSValue(scnVector4: v), forKey: "u_regionGlow")
     }
 
     // MARK: - Display link
+
+    func stopDisplayLink() {
+        displayLink?.invalidate()
+        displayLink = nil
+        isDisplayLinkRunning = false
+    }
 
     private func startDisplayLinkIfNeeded() {
         guard !isDisplayLinkRunning else { return }
@@ -110,6 +193,7 @@ final class HeatMap3DRenderer {
     @objc private func tick() {
         guard let mat = material else { return }
         mat.setValue(Float(CACurrentMediaTime()), forKey: "u_currentTime")
+        starMaterial?.setValue(Float(CACurrentMediaTime()), forKey: "u_currentTime")
 
         let now = Float(CACurrentMediaTime())
         let oldCount = animatedTaps.count
@@ -117,7 +201,7 @@ final class HeatMap3DRenderer {
         if animatedTaps.count != oldCount {
             uploadTapTexture()
         }
-        if animatedTaps.isEmpty {
+        if animatedTaps.isEmpty && !constellationActive {
             displayLink?.invalidate()
             displayLink = nil
             isDisplayLinkRunning = false

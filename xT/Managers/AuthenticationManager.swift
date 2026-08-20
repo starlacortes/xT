@@ -1,17 +1,7 @@
 import Foundation
 import LocalAuthentication
 import SwiftUI
-
-@propertyWrapper
-struct UserDefault<T> {
-    let key: String
-    let defaultValue: T
-
-    var wrappedValue: T {
-        get { UserDefaults.standard.object(forKey: key) as? T ?? defaultValue }
-        set { UserDefaults.standard.set(newValue, forKey: key) }
-    }
-}
+import Observation
 
 public enum XAuthenticationError: Error {
     case cancelled
@@ -62,33 +52,39 @@ enum AutoLockTimeout: TimeInterval, CaseIterable, Identifiable, Sendable {
 // MARK: - AuthenticationManager
 
 @MainActor
-class AuthenticationManager: ObservableObject {
+@Observable
+class AuthenticationManager {
     static let shared = AuthenticationManager()
 
-    @Published var isAuthenticated = false
-    @Published var showAuthentication = false
+    var isAuthenticated = false
+    var showAuthentication = false
 
     /// The moment the app most recently entered the background, or `nil` while
     /// it is in the foreground. Drives the auto-lock grace period.
+    @ObservationIgnored
     private var backgroundedAt: Date?
 
-    @UserDefault(key: "requireAuthentication", defaultValue: false)
-    var requireAuthentication: Bool {
+    private enum Keys {
+        static let requireAuthentication = "requireAuthentication"
+        static let autoLockTimeout = "autoLockTimeout"
+        static let allowPasscodeFallback = "allowPasscodeFallback"
+    }
+
+    var requireAuthentication: Bool = UserDefaults.standard.bool(forKey: Keys.requireAuthentication) {
         didSet {
+            UserDefaults.standard.set(requireAuthentication, forKey: Keys.requireAuthentication)
             backgroundedAt = nil
             if !requireAuthentication {
                 isAuthenticated = true
                 showAuthentication = false
             } else {
-                // Require auth immediately when turned on
                 isAuthenticated = false
                 showAuthentication = true
             }
         }
     }
 
-    @UserDefault(key: "autoLockTimeout", defaultValue: AutoLockTimeout.fallback.rawValue)
-    var autoLockTimeout: TimeInterval
+    var autoLockTimeout: TimeInterval = UserDefaults.standard.object(forKey: Keys.autoLockTimeout) as? Double ?? AutoLockTimeout.fallback.rawValue
 
     /// Type-safe view of ``autoLockTimeout`` for pickers and labels.
     var autoLockTimeoutOption: AutoLockTimeout {
@@ -97,8 +93,8 @@ class AuthenticationManager: ObservableObject {
     }
 
     var allowPasscodeFallback: Bool {
-        get { UserDefaults.standard.bool(forKey: "allowPasscodeFallback") }
-        set { UserDefaults.standard.set(newValue, forKey: "allowPasscodeFallback") }
+        get { UserDefaults.standard.bool(forKey: Keys.allowPasscodeFallback) }
+        set { UserDefaults.standard.set(newValue, forKey: Keys.allowPasscodeFallback) }
     }
 
     var timeoutLabel: String { autoLockTimeoutOption.label }
@@ -122,9 +118,14 @@ class AuthenticationManager: ObservableObject {
         if context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) {
             let success = try await context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: reason)
             guard success else { throw XAuthenticationError.cancelled }
-        } else {
+        } else if allowPasscodeFallback {
+            guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else {
+                throw XAuthenticationError.passcodeNotSet
+            }
             let success = try await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason)
             guard success else { throw XAuthenticationError.cancelled }
+        } else {
+            throw XAuthenticationError.biometricNotAvailable
         }
 
         isAuthenticated = true

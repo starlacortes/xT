@@ -53,13 +53,16 @@ extension MedicationManager {
         if let cached = heatMapCache[cacheKey] { return cached }
 
         // Decode the managed objects here, on the main actor, and hand the background task
-        // nothing but value types.
+        // nothing but value types.  Capture `now` here so the cutoff uses the same
+        // instant as the snapshot.
+        let now = Date()
+        let genAtCallStart = heatMapCacheGeneration
         let snapshot = doseHistory
             .filter { $0.isActive }
             .map { SiteUsageSnapshot(doseDate: $0.doseDate, sites: $0.injectionSites) }
 
         let counts = await Task.detached(priority: .utility) {
-            let cutoff = Calendar.current.date(byAdding: .day, value: -windowDays, to: Date()) ?? Date()
+            let cutoff = Calendar.current.date(byAdding: .day, value: -windowDays, to: now) ?? now
             var counts: [String: Int] = [:]
 
             for dose in snapshot {
@@ -75,13 +78,17 @@ extension MedicationManager {
             return counts
         }.value
 
-        heatMapCache[cacheKey] = counts
+        // Only cache if the cache was NOT invalidated while we were computing.
+        if heatMapCacheGeneration == genAtCallStart {
+            heatMapCache[cacheKey] = counts
+        }
         return counts
     }
 
     /// Invalidate the heat map cache (called after any dose mutation).
     func invalidateHeatMapCache() {
         heatMapCache.removeAll()
+        heatMapCacheGeneration &+= 1
     }
 
     /// Returns set of zone labels used within the given number of days,
@@ -104,19 +111,27 @@ extension MedicationManager {
     /// Replace a dose's site with corrected values, preserving the original sites
     /// in the new record's `originalSiteJSON` field for audit trail.
     func replaceDoseWithCorrectedSite(originalDose: DoseRecord, newSites: [InjectionSite]) {
+        let originalId    = originalDose.id
         let originalSites = originalDose.injectionSites
-        removeDose(withId: originalDose.id)
+        let originalDate  = originalDose.doseDate
+        let originalType  = originalDose.medicationType
+        let originalEster = originalDose.ester
+        let originalMethod = originalDose.administrationMethod
+        let originalAmount = originalDose.doseAmount
+        let originalConc  = originalDose.concentrationMgPerMl
+        let originalNotes = originalDose.notes
+        softDeleteDose(id: originalId)
         addDose(
-            date: originalDose.doseDate,
-            type: originalDose.medicationType,
-            ester: originalDose.ester,
-            method: originalDose.administrationMethod,
-            doseAmount: originalDose.doseAmount,
-            concentrationMgPerMl: originalDose.concentrationMgPerMl,
-            notes: originalDose.notes,
+            date: originalDate,
+            type: originalType,
+            ester: originalEster,
+            method: originalMethod,
+            doseAmount: originalAmount,
+            concentrationMgPerMl: originalConc,
+            notes: originalNotes,
             injectionSites: newSites,
             isUserCorrected: true,
-            originalDoseId: originalDose.id,
+            originalDoseId: originalId,
             originalSites: originalSites
         )
     }
@@ -136,14 +151,7 @@ extension MedicationManager {
     }
 
     private func persistAvoidZones() {
-        guard let data = try? JSONEncoder().encode(avoidZones) else { return }
-        defaults.set(data, forKey: "injectionSiteAvoidZones")
-    }
-
-    func loadAvoidZones() {
-        guard let data = defaults.data(forKey: "injectionSiteAvoidZones"),
-              let zones = try? JSONDecoder().decode([String: AvoidZoneInfo].self, from: data)
-        else { return }
-        avoidZones = zones
+        persistUserPreferences()
     }
 }
+

@@ -109,12 +109,14 @@ enum RouteClass: String, CaseIterable, Codable {
         }
     }
 
-    /// Semantic tint color for each route class (matches Theme.Colors tokens).
-    var tintColor: Color {
+    /// Semantic tint color for each route class — routes through the Theme
+    /// tokens instead of hand-copied hex so these icons follow the user's theme.
+    /// @MainActor because the accent tokens are actor-isolated to ThemeManager.
+    @MainActor var tintColor: Color {
         switch self {
-        case .injection: return Color(red: 0.831, green: 0.329, blue: 0.494) // #D4537E accent
-        case .topical:   return Color(red: 0.325, green: 0.290, blue: 0.718) // #534AB7 accentSecondary
-        case .patch:     return Color(red: 0.831, green: 0.514, blue: 0.169) // #D4862B warning
+        case .injection: return Theme.Colors.accent
+        case .topical:   return Theme.Colors.accentSecondary
+        case .patch:     return Theme.Colors.warning
         case .oral:      return .secondary
         }
     }
@@ -124,10 +126,8 @@ enum RouteClass: String, CaseIterable, Codable {
         let lower = method.lowercased()
         if lower.contains("inject")  { return .injection }
         if lower.contains("cream")   { return .topical }
-        if lower.contains("gel")     { return .topical }
         if lower.contains("patch")   { return .patch }
         if lower.contains("oral")    { return .oral }
-        if lower.contains("sublingual") { return .oral }
         return .injection
     }
 }
@@ -205,12 +205,12 @@ struct InjectionSite: Codable, Equatable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         schemaVersion  = (try? container.decode(Int.self,    forKey: .schemaVersion))  ?? 1
-        sketchId       = (try? container.decode(String.self,  forKey: .sketchId))      ?? "unknown"
+        sketchId       = (try? container.decode(String.self,  forKey: .sketchId))      ?? InjectionSite.unknownFallback
         normalizedX    = (try? container.decode(Double.self,  forKey: .normalizedX))   ?? 0.5
         normalizedY    = (try? container.decode(Double.self,  forKey: .normalizedY))   ?? 0.5
-        zoneLabel      = (try? container.decode(String.self,  forKey: .zoneLabel))    ?? "Unknown"
+        zoneLabel      = (try? container.decode(String.self,  forKey: .zoneLabel))    ?? InjectionSite.unknownZoneFallback
         viewContext    = (try? container.decode(String.self,  forKey: .viewContext))   ?? "front"
-        bodyRegion     = (try? container.decode(String.self,  forKey: .bodyRegion))    ?? "unknown"
+        bodyRegion     = (try? container.decode(String.self,  forKey: .bodyRegion))    ?? InjectionSite.unknownFallback
         routeClass     = (try? container.decode(String.self,  forKey: .routeClass))    ?? "injection"
         lastUsedDate   = (try? container.decode(Date.self,    forKey: .lastUsedDate))  ?? Date()
         durationDays   = (try? container.decode(Int.self,     forKey: .durationDays))  ?? 0
@@ -288,6 +288,12 @@ struct InjectionSite: Codable, Equatable {
         self.viewNormalZ = viewNormal?.z
     }
 
+    /// Fallback written when a field can't be decoded or a zone can't be
+    /// resolved to a region. Lowercase to match historical records.
+    static let unknownFallback = "unknown"
+    /// Fallback for an unreadable zone label (historically capitalized).
+    static let unknownZoneFallback = "Unknown"
+
     // MARK: - 3D Accessors
 
     /// Returns the 3D world position, or nil for pre-v3 records.
@@ -300,11 +306,6 @@ struct InjectionSite: Codable, Equatable {
     var viewNormal: (x: Double, y: Double, z: Double)? {
         guard let x = viewNormalX, let y = viewNormalY, let z = viewNormalZ else { return nil }
         return (x, y, z)
-    }
-
-    /// Whether this record was created by the 3D body picker (has 3D coordinates).
-    var is3DRecord: Bool {
-        worldPositionX != nil
     }
 }
 
@@ -331,65 +332,6 @@ extension InjectionSite {
 
 extension InjectionSite {
 
-    /// "Last dose: Upper Right Thigh (front)"
-    var lastDoseSentence: String {
-        let context = viewContext.isEmpty ? "3D" : viewContext
-        return String(localized: "Last dose: \(zoneLabel) (\(context))")
-    }
-
     /// Compact label used in pill bars, history rows, and export summaries.
     var shortLabel: String { zoneLabel }
-}
-
-// MARK: - Rotation Safety Helpers
-
-extension InjectionSite {
-
-    /// Returns true if this site overlaps (same zone label) with any site
-    /// from recent doses within `withinDays`, accounting for continuous
-    /// administration via `durationDays`.
-    ///
-    /// A patch applied 5 days ago with a duration of 7 is still "active"
-    /// at that site through day 7, so it counts as a conflict within a
-    /// window that includes day 5.
-    func conflictsWith(doses: [DoseRecord], withinDays: Int) -> Bool {
-        let cutoff = Calendar.current.date(
-            byAdding: .day, value: -withinDays, to: Date()
-        ) ?? Date()
-
-        return doses.contains { dose in
-            for site in dose.injectionSites {
-                guard site.zoneLabel == self.zoneLabel else { continue }
-                let activeEnd = Calendar.current.date(
-                    byAdding: .day, value: site.durationDays, to: dose.doseDate
-                ) ?? dose.doseDate
-                if activeEnd >= cutoff { return true }
-            }
-            return false
-        }
-    }
-
-    /// Convenience overload: checks against the default rotation window
-    /// for this site's RouteClass.
-    func conflictsWith(doses: [DoseRecord]) -> Bool {
-        let route = RouteClass(rawValue: routeClass) ?? .injection
-        return conflictsWith(doses: doses, withinDays: route.defaultRotationWindowDays)
-    }
-
-    /// Returns the number of days since this site was last used,
-    /// based on the most recent dose record (excluding this one) that
-    /// shares the same zone label. Returns nil if never used before.
-    func daysSinceLastUse(from doses: [DoseRecord]) -> Int? {
-        let previousUses = doses
-            .flatMap { dose in
-                dose.injectionSites
-                    .filter { $0.zoneLabel == self.zoneLabel }
-                    .map { (dose.doseDate, $0) }
-            }
-            .filter { $0.1.lastUsedDate < self.lastUsedDate }
-            .sorted { $0.1.lastUsedDate > $1.1.lastUsedDate }
-
-        guard let lastUse = previousUses.first?.1.lastUsedDate else { return nil }
-        return Calendar.current.dateComponents([.day], from: lastUse, to: Date()).day
-    }
 }

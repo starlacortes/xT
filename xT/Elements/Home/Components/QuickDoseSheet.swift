@@ -32,15 +32,12 @@ struct QuickDoseSheet: View {
     @State private var selectedSites: [InjectionSite] = []
     @State private var isCorrectionMode: Bool
     @State private var originalDose: DoseRecord?
-    @State private var patchDurationDays: Int = 7
     @State private var isCustomizing = false
 
     // MARK: - Body Picker Configuration
 
-    @AppStorage("bodyType") private var bodyTypeRaw: String = BodyType.neutral.rawValue
-
     private var bodyType: BodyType {
-        BodyType(rawValue: bodyTypeRaw) ?? .neutral
+        BodyType(rawValue: medicationManager.bodyTypeRaw) ?? .neutral
     }
 
     // MARK: - Init
@@ -75,31 +72,15 @@ struct QuickDoseSheet: View {
         routeClass == .oral
     }
 
-    private var lastInjectionSites: [InjectionSite]? {
-        medicationManager.lastInjectionSites(for: routeClass)
-    }
+    // MARK: - Cached dose/site lookups
 
-    /// True if any of the last dose's sites are marked as avoid.
-    private var lastSitesContainAvoidZone: Bool {
-        guard let sites = lastInjectionSites else { return false }
-        return sites.contains { medicationManager.avoidZones[$0.zoneLabel] != nil }
-    }
-
-    /// Days since the most recent injection dose was recorded (for safety indicator).
-    /// Uses doseDate from the DoseRecord, not InjectionSite.lastUsedDate which reflects struct creation time.
-    private var lastSiteDaysAgo: Int? {
-        guard lastInjectionSites != nil,
-              let lastDate = medicationManager.lastInjectionSiteDoseDate(for: routeClass) else {
-            return nil
-        }
-        return Calendar.current.dateComponents([.day], from: lastDate, to: Date()).day
-    }
-
-    /// True if the last site is safely outside the rotation window.
-    private var lastSiteIsSafe: Bool {
-        guard let days = lastSiteDaysAgo else { return false }
-        return days >= routeClass.defaultRotationWindowDays
-    }
+    // Dose-history lookups that used to recompute on every body evaluation
+    // (injectionHeatMap in particular filters all of doseHistory with Calendar
+    // math, which ran once per keystroke in the dose fields). Hoisted into
+    // state: computed once when the sheet appears and refreshed whenever a
+    // dose is recorded or the regimen selection changes.
+    @State private var recentlyUsedZones: Set<String> = []
+    @State private var injectionHeatMap: [String: Int] = [:]
 
     /// Preferred zones for the current medication + route combination.
     private var preferredZones: Set<String> {
@@ -111,19 +92,12 @@ struct QuickDoseSheet: View {
         Set(ZoneCentroidStore.recommendedZones(for: routeClass))
     }
 
-    /// Recently used zones within the rotation safety window.
-    private var recentlyUsedZones: Set<String> {
-        medicationManager.recentlyUsedZones(withinDays: routeClass.defaultRotationWindowDays)
-    }
-
     // Pre-fill concentration from last dose on appear
     private var defaultConcentration: Double {
-        if let conc = medicationManager.defaultConcentrationMgPerMl {
-            return conc
-        }
-        if medicationManager.selectedMedication == "Estrogen" { return 40.0 }
-        if medicationManager.selectedMedication == "Testosterone" { return 200.0 }
-        return 40.0
+        medicationManager.resolvedDoseDefaults(
+            medication: medicationManager.selectedMedication,
+            method: medicationManager.selectedAdministrationMethod
+        ).concentrationMgPerMl
     }
 
     // MARK: - Body
@@ -136,6 +110,10 @@ struct QuickDoseSheet: View {
                 step2BodySitePicker
             }
         }
+        .onAppear { refreshSiteCaches() }
+        .onChange(of: medicationManager.doseRecordedCount) { _, _ in refreshSiteCaches() }
+        .onChange(of: medicationManager.selectedAdministrationMethod) { _, _ in refreshSiteCaches() }
+        .onChange(of: medicationManager.selectedMedication) { _, _ in refreshSiteCaches() }
     }
 
     // MARK: - Step 1: Dose Details
@@ -176,10 +154,6 @@ struct QuickDoseSheet: View {
                 Spacer()
             }
             .padding(.horizontal, 20)
-
-            if !isOral, lastInjectionSites != nil {
-                lastLocationPanel
-            }
 
             VStack(spacing: 12) {
                 summaryRow(label: "Dose",
@@ -229,24 +203,13 @@ struct QuickDoseSheet: View {
                 .padding(.horizontal, 20)
             }
 
-            Button {
+            AccentActionButton(title: "Record Dose") {
                 recordDoseImmediately()
-            } label: {
-                Text("Record Dose")
-                    .font(.headline.weight(.medium))
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(RoundedRectangle(cornerRadius: Theme.Radius.md)
-                        .fill(Theme.Colors.accent.opacity(0.8)))
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 20)
             .padding(.top, 4)
 
-            if !isOral, let lastSites = lastInjectionSites, let first = lastSites.first {
-                previousDosePreview(first: first, count: lastSites.count)
-            }
         }
     }
 
@@ -261,82 +224,6 @@ struct QuickDoseSheet: View {
         }
     }
 
-    // MARK: Previous dose preview
-
-    @ViewBuilder
-    private func previousDosePreview(first: InjectionSite, count: Int) -> some View {
-        let region = ZoneCentroidStore.shared.region(for: first.zoneLabel) ?? first.bodyRegion
-        let zoneHasHeat = injectionHeatMap[first.zoneLabel] ?? 0 > 0
-
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Previous dose location:")
-                .font(Theme.Fonts.caption2)
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-                .tracking(0.05)
-                .padding(.leading, 20)
-
-            HStack(spacing: 12) {
-                ZStack {
-                    Circle()
-                        .fill(Theme.Colors.accentSecondary.opacity(zoneHasHeat ? 0.22 : 0.10))
-                        .frame(width: 56, height: 56)
-
-                    if zoneHasHeat {
-                        Circle()
-                            .stroke(Theme.Colors.accentSecondary.opacity(0.35), lineWidth: 2)
-                            .frame(width: 48, height: 48)
-                    }
-
-                    Image(systemName: bodyRegionIcon(for: region))
-                        .font(.system(size: 22))
-                        .foregroundStyle(Theme.Colors.accentSecondary.opacity(0.6))
-                }
-
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "mappin.circle.fill")
-                            .font(.caption)
-                            .foregroundStyle(Theme.Colors.accentSecondary)
-                        Text(count > 1 ? "\(first.zoneLabel) +\(count - 1)" : first.zoneLabel)
-                            .font(.subheadline.weight(.medium))
-                    }
-
-                    Text(region)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-
-                    if let lastDate = medicationManager.lastInjectionSiteDoseDate(for: routeClass) {
-                        Text(lastDate.formatted(date: .abbreviated, time: .shortened))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                Spacer()
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: Theme.Radius.md)
-                    .fill(Color(.secondarySystemBackground))
-            )
-            .padding(.horizontal, 20)
-        }
-        .padding(.bottom, 8)
-    }
-
-    private func bodyRegionIcon(for region: String) -> String {
-        let lower = region.lowercased()
-        if lower.contains("thigh") || lower.contains("leg") { return "figure.walk" }
-        if lower.contains("glute") || lower.contains("buttock") { return "figure.strengthtraining.traditional" }
-        if lower.contains("abdomen") || lower.contains("belly") { return "figure.core.training" }
-        if lower.contains("deltoid") || lower.contains("shoulder") { return "figure.archery" }
-        if lower.contains("arm") || lower.contains("forearm") { return "figure.arms.open" }
-        if lower.contains("hip") || lower.contains("ventrogluteal") { return "figure.wave" }
-        return "figure.stand"
-    }
-
     // MARK: Edit view (customize regimen)
 
     private var doseEditView: some View {
@@ -344,6 +231,7 @@ struct QuickDoseSheet: View {
             HStack {
                 if isCustomizing {
                     Button {
+                        commitActiveField()
                         withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                             isCustomizing = false
                         }
@@ -373,9 +261,7 @@ struct QuickDoseSheet: View {
             }
             .padding(.horizontal, 20)
 
-            if !isCorrectionMode && !isOral && lastInjectionSites != nil {
-                lastLocationPanel
-            } else if isCorrectionMode, let original = originalDose, let primary = original.primarySite {
+            if isCorrectionMode, let original = originalDose, let primary = original.primarySite {
                 correctionLockPanel(site: primary)
             }
 
@@ -528,39 +414,36 @@ struct QuickDoseSheet: View {
             Spacer()
 
             if isCustomizing {
-                Button {
+                AccentActionButton(title: "Done") {
+                    commitActiveField()
                     withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                         isCustomizing = false
                     }
-                } label: {
-                    Text("Done")
-                        .font(.headline.weight(.medium))
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(RoundedRectangle(cornerRadius: Theme.Radius.md)
-                            .fill(Theme.Colors.accent.opacity(0.8)))
                 }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 20)
             } else if isCorrectionMode {
-                Button {
+                AccentActionButton(title: "Choose New Site", systemImage: "arrow.triangle.swap") {
                     currentStep = 2
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "arrow.triangle.swap")
-                        Text("Choose New Site")
-                    }
-                    .font(.headline)
-                    .fontWeight(.medium)
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(RoundedRectangle(cornerRadius: Theme.Radius.md)
-                        .fill(Theme.Colors.accent.opacity(0.8)))
                 }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 20)
+            }
+        }
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button {
+                    commitActiveField()
+                    mgFieldFocused = false
+                    mlFieldFocused = false
+                } label: {
+                    Text("Done")
+                        .font(.subheadline.weight(.semibold))
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .asGlassCard(tintOpacity: 0.5, cornerRadius: Theme.Radius.md)
+                }
             }
         }
     }
@@ -573,7 +456,7 @@ struct QuickDoseSheet: View {
     @State private var showOverlapDisclaimer = false
     @State private var tapPositions: [String: BodyModel3DView.HitPosition] = [:]
     /// Marks taps that land on the body but outside any clinical zone.
-    @StateObject private var noZoneTaps = NoZoneTapTracker()
+    @State private var noZoneTaps = NoZoneTapTracker()
     /// Live camera yaw in radians, used to record which side of the body was tapped.
     @State private var cameraYaw: Float = 0
     @State private var showInfoPanel = false
@@ -691,8 +574,11 @@ struct QuickDoseSheet: View {
 
             Spacer()
 
-            Button {
-                guard !selectedZoneLabels3D.isEmpty else { return }
+            AccentActionButton(
+                title: "Record Dose",
+                systemImage: "checkmark.circle.fill",
+                isDisabled: selectedZoneLabels3D.isEmpty
+            ) {
                 let now = Date()
                 // Derived from the live camera yaw, not the snap-angle selection: a user can
                 // free-pan to the back without changing the selected snap angle.
@@ -701,7 +587,7 @@ struct QuickDoseSheet: View {
                     let pos = tapPositions[zoneLabel]
                     return InjectionSite(
                         zoneLabel: zoneLabel,
-                        bodyRegion: ZoneCentroidStore.shared.region(for: zoneLabel) ?? "unknown",
+                        bodyRegion: ZoneCentroidStore.shared.region(for: zoneLabel) ?? InjectionSite.unknownFallback,
                         viewContext: derivedViewContext,
                         worldPosition: pos.map { (x: $0.worldX, y: $0.worldY, z: $0.worldZ) },
                         viewNormal: pos.map { (x: $0.normalX, y: $0.normalY, z: $0.normalZ) },
@@ -711,17 +597,7 @@ struct QuickDoseSheet: View {
                     )
                 }
                 finalizeRecording()
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "checkmark.circle.fill")
-                    Text("Record Dose")
-                }
-                .font(.headline).foregroundStyle(.white)
-                .frame(maxWidth: .infinity).padding(.vertical, 16)
-                .background(RoundedRectangle(cornerRadius: Theme.Radius.md)
-                    .fill(selectedZoneLabels3D.isEmpty ? Color(.tertiarySystemFill) : Theme.Colors.accent.opacity(0.8)))
             }
-            .disabled(selectedZoneLabels3D.isEmpty)
             .padding(.horizontal, 20).padding(.bottom, 20)
         }
     }
@@ -903,7 +779,13 @@ struct QuickDoseSheet: View {
         tapPositions = next.positions
     }
 
-    private var injectionHeatMap: [String: Int] {
+    /// Recomputes the hoisted dose-history lookups. Runs on appear and whenever
+    /// the dose history changes (`doseRecordedCount` bumps on every recorded
+    /// dose) or the regimen selection changes — so the heat map no longer
+    /// re-filters `doseHistory` on every body evaluation.
+    private func refreshSiteCaches() {
+        recentlyUsedZones = medicationManager.recentlyUsedZones(withinDays: routeClass.defaultRotationWindowDays)
+
         var heat: [String: Int] = [:]
         let doses = medicationManager.doseHistory.filter { dose in
             guard RouteClass.from(method: dose.administrationMethod) == routeClass else { return false }
@@ -916,84 +798,7 @@ struct QuickDoseSheet: View {
                 heat[site.zoneLabel, default: 0] += 1
             }
         }
-        return heat
-    }
-
-    // MARK: - Last Location Panel
-
-    private var lastLocationPanel: some View {
-        HStack(spacing: 10) {
-            // Left: pin icon + last zone label
-            HStack(spacing: 6) {
-                Image(systemName: "mappin.circle.fill")
-                    .foregroundStyle(Theme.Colors.accentSecondary)
-                if let sites = lastInjectionSites, let first = sites.first {
-                    Text(sites.count > 1
-                         ? "Last dose: \(first.zoneLabel) +\(sites.count - 1)"
-                         : "Last dose: \(first.zoneLabel)")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .lineLimit(1)
-                }
-            }
-
-            Spacer()
-
-            // Center-right: safety indicator
-            if let days = lastSiteDaysAgo {
-                HStack(spacing: 4) {
-                    if lastSiteIsSafe {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
-                            .font(.caption)
-                    } else {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(Theme.Colors.warning)
-                            .font(.caption)
-                    }
-                    Text("\(days)d ago")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                .fill(Theme.Colors.accentSecondary.opacity(0.13))
-        )
-        .padding(.horizontal, 20)
-        .overlay(alignment: .trailing) {
-            Button {
-                quickSelectLastSites()
-            } label: {
-                Text("Use Same Site →")
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(lastSitesContainAvoidZone ? .secondary : Theme.Colors.accent)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(
-                        Capsule()
-                            .fill(lastSitesContainAvoidZone
-                                  ? Color(.tertiarySystemFill)
-                                  : Theme.Colors.accent.opacity(0.12))
-                    )
-            }
-            .disabled(lastSitesContainAvoidZone)
-            .overlay(alignment: .top) {
-                if lastSitesContainAvoidZone {
-                    Text("Last site is marked as avoid. Choose a different site.")
-                        .font(.caption2)
-                        .padding(6)
-                        .background(Color(.systemGray6))
-                        .cornerRadius(6)
-                        .offset(y: -28)
-                }
-            }
-            .padding(.trailing, 28)
-        }
+        injectionHeatMap = heat
     }
 
     // MARK: - Correction Lock Panel
@@ -1045,6 +850,19 @@ struct QuickDoseSheet: View {
         }
     }
 
+    /// Parses the text field backing the currently selected dose unit.
+    /// The decimal-pad TextFields only commit on submit (never fires — the pad
+    /// has no return key) or focus loss (unreliable when the field is torn down
+    /// by in-sheet navigation, e.g. the customize "Done" button), so any action
+    /// that reads the dose must commit explicitly first.
+    private func commitActiveField() {
+        if doseUnit == "mg" {
+            commitMgText()
+        } else {
+            commitMlText()
+        }
+    }
+
     private func prefillFromRecentDose() {
         if isCorrectionMode, let original = originalDose {
             mgAmount = original.doseAmount
@@ -1082,6 +900,7 @@ struct QuickDoseSheet: View {
 
     /// For oral routes: record immediately without site selection.
     private func recordDoseImmediately() {
+        commitActiveField()
         let finalMg = doseUnit == "mg" ? mgAmount : mlAmount * concentration
         let finalConcentration = concentration > 0 ? concentration : nil
 
@@ -1108,6 +927,7 @@ struct QuickDoseSheet: View {
     }
 
     private func finalizeRecording() {
+        commitActiveField()
         let finalMg = doseUnit == "mg" ? mgAmount : mlAmount * concentration
         let finalConcentration = concentration > 0 ? concentration : nil
 
@@ -1143,25 +963,11 @@ struct QuickDoseSheet: View {
         isPresented = false
     }
 
-    private func quickSelectLastSites() {
-        guard let sites = lastInjectionSites, !sites.isEmpty else { return }
-        guard !lastSitesContainAvoidZone else { return }
-        selectedSites = sites
-        finalizeRecording()
-    }
-
-    private func markZoneAsAvoid(_ zone: String, reason: String) {
-        medicationManager.markZoneAsAvoid(zone, reason: reason)
-    }
-
     private func resolveEster(medType: String) -> String {
-        if let recentEster = medicationManager.lastLoggedDose?.ester {
-            return recentEster
-        }
-        if medType == "Estrogen" {
-            return String(localized: "Valerate (EV)")
-        }
-        return String(localized: "Cypionate (TC)")
+        medicationManager.resolvedDoseDefaults(
+            medication: medType,
+            method: medicationManager.selectedAdministrationMethod
+        ).esterName
     }
 
     // MARK: - Volume Warning

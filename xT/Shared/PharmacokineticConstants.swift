@@ -8,6 +8,27 @@
 
 import Foundation
 
+// MARK: - Shared PK Formulas
+
+/// Exact Bateman time to peak, in days: `t_max = ln(ka/ke) / (ka − ke)`.
+/// Shared by `MedicationEster.timeToPeakDays` and `TestosteroneEster.timeToPeakDays`,
+/// which previously carried two copies of the formula. With
+/// `eliminationHalfLifeHours == 0` (transdermal) `ke` is infinite and the result
+/// is NaN — that is intentional; see `timeToPeakDays` on each enum.
+private func batemanTmaxDays(halfLifeDays: Double, eliminationHalfLifeHours: Double) -> Double {
+    let ka = log(2) / halfLifeDays
+    let ke = log(2) / (eliminationHalfLifeHours / 24.0)
+    guard abs(ka - ke) > 0.0001 else { return 1.0 / ka }
+    return log(ka / ke) / (ka - ke)
+}
+
+/// Combined effective dose factor = ester weight factor × bioavailability.
+/// Converts administered mg of ester → systemic mg of active hormone. Shared by
+/// both ester enums; the deprecated `potencyFactor` aliases were removed.
+private func combinedDoseFactor(esterWeightFactor: Double, bioavailability: Double) -> Double {
+    esterWeightFactor * bioavailability
+}
+
 // MARK: - Estrogen Esters
 
 enum MedicationEster: String, CaseIterable {
@@ -107,10 +128,8 @@ enum MedicationEster: String, CaseIterable {
     /// the `eliminationHalfLifeHours` note above) — which is exactly what an
     /// ester-level label wants.
     var timeToPeakDays: Double {
-        let ka = log(2) / halfLifeDays
-        let ke = log(2) / (eliminationHalfLifeHours / 24.0)
-        guard abs(ka - ke) > 0.0001 else { return 1.0 / ka }
-        return log(ka / ke) / (ka - ke)
+        batemanTmaxDays(halfLifeDays: halfLifeDays,
+                        eliminationHalfLifeHours: eliminationHalfLifeHours)
     }
 
     /// Whether `timeToPeakDays` rests on a primary- or label-anchored fit, and may
@@ -158,7 +177,8 @@ enum MedicationEster: String, CaseIterable {
     /// Combined effective dose factor = EWF × bioavailability.
     /// Converts administered mg of ester → systemic mg of active estradiol.
     var effectiveDoseFactor: Double {
-        return esterWeightFactor * bioavailability
+        combinedDoseFactor(esterWeightFactor: esterWeightFactor,
+                           bioavailability: bioavailability)
     }
 
     /// Pre‑tuned scaling constant F/Vd (arbitrary units) that produces clinically
@@ -232,11 +252,6 @@ enum MedicationEster: String, CaseIterable {
         }
     }
 
-    /// DEPRECATED — kept for backward compatibility during migration.
-    /// Use effectiveDoseFactor instead.
-    var potencyFactor: Double {
-        return effectiveDoseFactor
-    }
 }
 
 // MARK: - Testosterone Esters
@@ -429,10 +444,8 @@ enum TestosteroneEster: String, CaseIterable {
     /// reason. Callers that format this into a string must gate on `isFinite`, since
     /// `Int(Double.nan)` traps in Swift.
     var timeToPeakDays: Double {
-        let ka = log(2) / halfLifeDays
-        let ke = log(2) / (eliminationHalfLifeHours / 24.0)
-        guard abs(ka - ke) > 0.0001 else { return 1.0 / ka }
-        return log(ka / ke) / (ka - ke)
+        batemanTmaxDays(halfLifeDays: halfLifeDays,
+                        eliminationHalfLifeHours: eliminationHalfLifeHours)
     }
 
     /// Whether `timeToPeakDays` rests on a primary- or label-anchored fit, and may
@@ -511,7 +524,8 @@ enum TestosteroneEster: String, CaseIterable {
 
     /// Combined effective dose factor = EWF × bioavailability.
     var effectiveDoseFactor: Double {
-        return esterWeightFactor * bioavailability
+        combinedDoseFactor(esterWeightFactor: esterWeightFactor,
+                           bioavailability: bioavailability)
     }
 
     /// Pre‑tuned scaling constant F/Vd (arbitrary units) that produces clinically
@@ -704,11 +718,6 @@ enum TestosteroneEster: String, CaseIterable {
         }
     }
 
-    /// DEPRECATED — kept for backward compatibility during migration.
-    /// Use effectiveDoseFactor instead.
-    var potencyFactor: Double {
-        return effectiveDoseFactor
-    }
 }
 // MARK: - Model Constants
 
@@ -725,7 +734,7 @@ enum PKConstants {
 
     /// Weeks of continuous HRT after which endogenous production is treated as fully
     /// suppressed and the dynamic baseline stops decaying.
-    static let fullSuppressionWeeks = 104
+    static let fullSuppressionWeeks = 104.0
 
     /// Exponential decay rate applied to the endogenous baseline as suppression
     /// progresses. Larger values suppress faster.
@@ -740,9 +749,21 @@ enum PKConstants {
     static let estradiolHighThreshold = 1000.0
     static let estradiolVeryHighThreshold = 1500.0
 
+    /// Testosterone (ng/dL) above which a level is flagged as supraphysiologic.
+    /// Kept separate from the estradiol thresholds — the two hormones use
+    /// different units and different clinical cutoffs.
+    static let testosteroneSupraphysiologicThreshold = 1500.0
+
     /// Estradiol (pg/mL) below which a level is flagged as low / very low.
     static let estradiolLowThreshold = 80.0
     static let estradiolVeryLowThreshold = 50.0
+
+    // MARK: Drug interactions
+
+    /// Multiplier applied to the estradiol elimination rate (ke) when the user
+    /// takes spironolactone and has opted in. Spiro induces CYP3A4, modestly
+    /// accelerating E2 clearance — typical estimates run 10–20% faster.
+    static let spiroClearanceFactor = 1.15
 
     // MARK: Scheduling windows
 
@@ -780,9 +801,22 @@ enum PKConstants {
     // MARK: Reference dosing
 
     /// Reference dose (mg) and concentration (mg/mL) used to normalize relative dose
-    /// intensity for estrogen valerate.
+    /// intensity for estrogen valerate and testosterone cypionate.
+    ///
+    /// These are *population* references — what the published curves are normalized
+    /// against — not the dose defaulted into the logging UI (`defaultDoseAmount`).
     static let referenceEstrogenDoseMg = 2.0
+    static let referenceTestosteroneDoseMg = 50.0
     static let referenceEstrogenConcentrationMgPerMl = 40.0
+
+    /// The vial strength most commonly stocked for testosterone cypionate (mg/mL),
+    /// used as the last-resort concentration default.
+    static let referenceTestosteroneConcentrationMgPerMl = 200.0
+
+    /// Dose (mg) pre-filled in the logging UI when no prior dose exists to copy.
+    /// Deliberately *not* the population reference above: 40 mg is a common weekly
+    /// starting prescription, and what a new user is most likely to actually log.
+    static let defaultTestosteroneDoseMg = 40.0
 
     // MARK: Chart window
 

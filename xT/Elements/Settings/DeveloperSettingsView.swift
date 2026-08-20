@@ -5,6 +5,10 @@
 //  Developer tools page — accessed via Settings → About → Developer.
 //  Only compiled and reachable in DEBUG builds.
 //
+//  Multi-persona support (2026-08-04): replaces the single Jan toggle with a
+//  persona picker. Select a persona, enable the Sample Profile toggle, and
+//  the app quits + relaunches with that persona's data active.
+//
 
 #if DEBUG
 import SwiftUI
@@ -37,12 +41,21 @@ struct DeveloperSettingsView: View {
 
                     devDivider()
 
+                    // Persona picker — only active when developer mode is on
+                    personaPickerRow(dev: dev)
+                        .disabled(!dev.developerModeEnabled)
+                        .opacity(dev.developerModeEnabled ? 1 : 0.4)
+
+                    devDivider()
+
                     devToggleRow(
                         icon: "person.crop.circle.badge",
                         bg: Theme.Colors.Time.cycle.surface,
                         color: Theme.Colors.Time.cycle.base,
-                        title: "Sample profile (Jan)",
-                        subtitle: dev.sampleProfileEnabled ? "Jan test profile active" : "Load Jan test profile",
+                        title: "Sample profile",
+                        subtitle: dev.sampleProfileEnabled
+                            ? "\(dev.activePersonaName) active"
+                            : "Load \(dev.activePersonaName)",
                         isOn: Binding(
                             get: { dev.sampleProfileEnabled },
                             set: { newValue in
@@ -54,6 +67,21 @@ struct DeveloperSettingsView: View {
                     .disabled(!dev.developerModeEnabled)
                     .opacity(dev.developerModeEnabled ? 1 : 0.4)
 
+                    if dev.sampleProfileEnabled {
+                        devDivider()
+
+                        HStack {
+                            Image(systemName: "info.circle.fill")
+                                .font(.system(size: 13))
+                                .foregroundStyle(Theme.Colors.accent)
+                            Text("Active persona: \(dev.activePersonaName)")
+                                .font(Theme.Fonts.caption)
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                        }
+                        .padding(.horizontal, 22)
+                        .padding(.vertical, 10)
+                    }
                 }
             }
             .padding(.top, 24)
@@ -62,25 +90,63 @@ struct DeveloperSettingsView: View {
         .scrollIndicators(.hidden)
         .navigationTitle("Developer")
         .navigationBarTitleDisplayMode(.inline)
-        .background(Color(.systemBackground))
+        .background(Theme.Colors.appBackground)
         .alert("Enable developer mode?", isPresented: $showingDeveloperModeAlert) {
             Button("Cancel", role: .cancel) {}
             Button("Enable") { DeveloperSettings.shared.developerModeEnabled = true }
         } message: {
             Text("Developer mode unlocks test-only tools. Leave this off for normal use.")
         }
-        .alert("Switch to the Jan test profile?", isPresented: $showingSampleProfileAlert) {
+        .alert("Switch to sample profile?", isPresented: $showingSampleProfileAlert) {
             Button("Cancel", role: .cancel) {}
             Button("Quit & Switch") { onSampleProfileEnabled() }
         } message: {
-            Text("Your data is preserved and will be restored when you turn this off. The app will quit.")
+            Text("Your data is preserved and will be restored when you turn this off. The app will quit.\n\nActive persona: \(dev.activePersonaName)")
         }
         .alert("Restore your profile?", isPresented: $showingSampleProfileDisableAlert) {
             Button("Cancel", role: .cancel) {}
             Button("Quit & Restore") { onSampleProfileDisabled() }
         } message: {
-            Text("Jan's test data will be removed and your original data restored. The app will quit.")
+            Text("The sample data will be removed and your original data restored. The app will quit.")
         }
+    }
+
+    // MARK: - Persona Picker
+
+    private func personaPickerRow(dev: DeveloperSettings) -> some View {
+        HStack(spacing: 14) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color(.systemGray5))
+                    .frame(width: 32, height: 32)
+                Image(systemName: "person.3.fill")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Persona")
+                    .font(Theme.Fonts.callout)
+                    .foregroundStyle(.primary)
+                Text(dev.activePersonaName)
+                    .font(Theme.Fonts.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Picker("", selection: Binding(
+                get: { dev.activePersonaIndex },
+                set: { dev.activePersonaIndex = $0 }
+            )) {
+                ForEach(0..<DeveloperSettings.personaNames.count, id: \.self) { i in
+                    Text(DeveloperSettings.personaNames[i]).tag(i)
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.menu)
+            .tint(Theme.Colors.accent)
+        }
+        .padding(.horizontal, 22)
+        .padding(.vertical, 16)
+        .contentShape(Rectangle())
     }
 
     // MARK: - Actions

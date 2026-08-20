@@ -13,10 +13,10 @@ import SwiftData
 /// and how long it had been since the last dose (auto‑computed from dose history).
 @Model
 class BloodTestRecord: Identifiable, Hashable {
-    @Attribute(.unique) var id: String
-    var drawDate: Date                    // when the blood was drawn
-    var measuredLevel: Double             // lab result in pg/mL (E2) or ng/dL (T)
-    var hormoneType: String               // "Estrogen" or "Testosterone"
+    var id: String = UUID().uuidString
+    var drawDate: Date = Date()           // when the blood was drawn
+    var measuredLevel: Double = 0         // lab result in pg/mL (E2) or ng/dL (T)
+    var hormoneType: String = ""          // "Estrogen" or "Testosterone"
     var hoursSinceLastDose: Double?       // time between last dose and draw (auto‑calculated)
     var notes: String?                    // optional user notes (e.g., "Quest Diagnostics, trough draw")
 
@@ -53,28 +53,12 @@ class BloodTestRecord: Identifiable, Hashable {
 
 extension BloodTestRecord {
     /// The display unit for a hormone type's lab result.
-    ///
-    /// Hoisted out of `summary` so the composer and the labs chart can label their
-    /// level fields with the same unit the summary uses, without duplicating the
-    /// ternary. Estrogen is measured in pg/mL; testosterone in ng/dL.
+    /// Single source for the pg/mL-vs-ng/dL ternary — the composer, the labs
+    /// chart, and the data exporter all label their level fields from here.
+    /// Estrogen is measured in pg/mL; testosterone in ng/dL.
     static func unit(for hormoneType: String) -> String {
         hormoneType == "Estrogen" ? "pg/mL" : "ng/dL"
     }
-
-    /// Human-readable summary (e.g., "E2: 185 pg/mL — Jun 15, 2026 (trough)")
-    var summary: String {
-        let unit = BloodTestRecord.unit(for: hormoneType)
-        let dateStr = BloodTestRecord.dateFormatter.string(from: drawDate)
-        var base = "\(hormoneType): \(String(format: "%.0f", measuredLevel)) \(unit) — \(dateStr)"
-        if let hrs = hoursSinceLastDose {
-            base += " (\(String(format: "%.1f", hrs))h post‑dose)"
-        }
-        return base
-    }
-
-    private static let dateFormatter: DateFormatter = {
-        return AppDateFormatters.monthDayYear
-    }()
 
     /// Whether this record has a valid calibration factor computed.
     var isCalibrated: Bool { calibrationFactor != nil }

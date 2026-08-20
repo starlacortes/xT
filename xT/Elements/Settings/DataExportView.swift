@@ -26,7 +26,6 @@ struct DataExportView: View {
             // MARK: - Export Actions
             Section {
                 Button {
-                    generateExports()
                     showCSVShare = true
                 } label: {
                     exportRow(
@@ -37,7 +36,6 @@ struct DataExportView: View {
                 }
 
                 Button {
-                    generateExports()
                     showJSONShare = true
                 } label: {
                     exportRow(
@@ -58,6 +56,7 @@ struct DataExportView: View {
                 summaryRow(icon: "figure.arms.open", label: "Administration site history", count: siteDoseCount)
                 summaryRow(icon: "book", label: "Journal entries", count: journalManager.entries.count)
                 summaryRow(icon: "drop", label: "Blood test results", count: medicationManager.bloodTestHistory.count)
+                summaryRow(icon: "heart.text.square", label: "Health screenings", count: medicationManager.screeningRecords.count)
                 summaryRow(icon: "exclamationmark.shield", label: "Avoid zones", count: avoidZoneCount)
             } header: {
                 Text("What's Included")
@@ -81,19 +80,18 @@ struct DataExportView: View {
         .navigationTitle("Data Export")
         .navigationBarTitleDisplayMode(.inline)
         .background(Color(.systemGroupedBackground))
-        .onAppear {
-            generateExports()
-        }
         .sheet(isPresented: $showCSVShare) {
-            if let csv = csvString {
+            if let csv = generateCSV() {
                 ShareSheet(items: [csvStringAsFile(csv)])
             }
         }
         .sheet(isPresented: $showJSONShare) {
-            if let json = jsonData {
+            if let json = generateJSON() {
                 ShareSheet(items: [jsonAsFile(json)])
             }
         }
+        .onChange(of: showCSVShare) { _, shown in if !shown { csvString = nil } }
+        .onChange(of: showJSONShare) { _, shown in if !shown { jsonData = nil } }
     }
 
     // MARK: - Views
@@ -150,37 +148,53 @@ struct DataExportView: View {
         medicationManager.avoidZones.count
     }
 
-    private func generateExports() {
-        guard let context = modelContainer?.mainContext else { return }
+    /// Builds only the format actually being shared — serializing CSV *and*
+    /// JSON on screen-open (and then again per tap) wasted a full-History pass
+    /// per visit.
+    private func buildExportState() -> DataExporter.ExportState? {
+        guard let context = modelContainer?.mainContext else { return nil }
         let prefs = try? context.fetch(FetchDescriptor<UserPreferences>()).first
+        let defaults = UserDefaults.standard
 
-        let state = DataExporter.ExportState(
+        return DataExporter.ExportState(
             doseHistory: medicationManager.doseHistory,
             journalEntries: journalManager.entries,
             bloodTests: medicationManager.bloodTestHistory,
+            screenings: medicationManager.screeningRecords,
             swiftDataPreferences: prefs,
             selectedMedication: medicationManager.selectedMedication,
             hrtStartDate: medicationManager.hrtStartDate,
             antiAndrogenInUse: medicationManager.antiAndrogenInUse,
             spironolactoneInUse: medicationManager.spironolactoneInUse,
             missedDoseGracePeriodHours: medicationManager.missedDoseGracePeriodHours,
-            doseReminderEnabled: UserDefaults.standard.bool(forKey: "doseReminderEnabled"),
-            doseReminderHour: UserDefaults.standard.integer(forKey: "doseReminderHour"),
-            doseReminderMinute: UserDefaults.standard.integer(forKey: "doseReminderMinute"),
-            journalReminderEnabled: UserDefaults.standard.bool(forKey: "journalReminderEnabled"),
-            journalReminderHour: UserDefaults.standard.integer(forKey: "journalReminderHour"),
-            journalReminderMinute: UserDefaults.standard.integer(forKey: "journalReminderMinute"),
+            doseReminderEnabled: defaults.bool(forKey: NotificationManager.Keys.doseReminderEnabled),
+            doseReminderHour: defaults.integer(forKey: NotificationManager.Keys.doseReminderHour),
+            doseReminderMinute: defaults.integer(forKey: NotificationManager.Keys.doseReminderMinute),
+            journalReminderEnabled: defaults.bool(forKey: NotificationManager.Keys.journalReminderEnabled),
+            journalReminderHour: defaults.integer(forKey: NotificationManager.Keys.journalReminderHour),
+            journalReminderMinute: defaults.integer(forKey: NotificationManager.Keys.journalReminderMinute),
             useCustomTargets: medicationManager.userTherapeuticTarget != nil,
             targetTroughMin: medicationManager.userTherapeuticTarget?.troughMin ?? 0,
             targetTroughMax: medicationManager.userTherapeuticTarget?.troughMax ?? 0,
             targetPeakCeiling: medicationManager.userTherapeuticTarget?.peakCeiling ?? 0,
-            medicationUnit: medicationManager.selectedMedication == "Estrogen" ? "pg/mL" : "ng/dL",
+            medicationUnit: medicationManager.selectedMedication.map(BloodTestRecord.unit(for:)) ?? "pg/mL",
             profileName: profileManager.profileName,
             avoidZones: medicationManager.avoidZones
         )
+    }
 
-        csvString = DataExporter.exportCSV(state: state)
-        jsonData = DataExporter.exportJSON(state: state)
+    private func generateCSV() -> String? {
+        guard let state = buildExportState() else { return nil }
+        let csv = DataExporter.exportCSV(state: state)
+        csvString = csv
+        return csv
+    }
+
+    private func generateJSON() -> Data? {
+        guard let state = buildExportState() else { return nil }
+        let data = DataExporter.exportJSON(state: state)
+        jsonData = data
+        return data
     }
 
     private func csvStringAsFile(_ csv: String) -> URL {

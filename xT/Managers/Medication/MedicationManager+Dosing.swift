@@ -47,8 +47,9 @@ extension MedicationManager {
     /// Returns the default vial concentration (mg/mL) for the currently selected medication type.
     ///
     /// Resolution order: the most recently logged dose that recorded a concentration, then
-    /// the default the user chose during onboarding, then the most commonly stocked vial
-    /// strength for the medication.
+    /// the default the user chose during onboarding (cached by `loadUserPreferences()` —
+    /// the prefs record used to be re-fetched here on every view render), then the most
+    /// commonly stocked vial strength for the medication.
     var defaultConcentrationMgPerMl: Double? {
         if let recent = latestDose(matching: {
             $0.isActive && $0.medicationType == selectedMedication && $0.concentrationMgPerMl != nil
@@ -57,26 +58,73 @@ extension MedicationManager {
         }
         switch selectedMedication {
         case "Estrogen":
-            return storedDefaultConcentration(\.defaultEstrogenConcentration) ?? 40.0   // EV 40 mg/mL is most common
+            return cachedDefaultEstrogenConcentration ?? PKConstants.referenceEstrogenConcentrationMgPerMl
         case "Testosterone":
-            return storedDefaultConcentration(\.defaultTestosteroneConcentration) ?? 200.0  // TC 200 mg/mL is most common
+            return cachedDefaultTestosteroneConcentration ?? PKConstants.referenceTestosteroneConcentrationMgPerMl
         default:
             return nil
         }
     }
 
-    /// Reads one of the per-medication default concentrations captured during onboarding.
-    ///
-    /// These preferences were written by the onboarding flow but never read back, so the
-    /// user's choice silently had no effect. Only reached when no logged dose carries a
-    /// concentration, so the fetch is off the hot path.
-    private func storedDefaultConcentration(
-        _ keyPath: KeyPath<UserPreferences, Double?>
-    ) -> Double? {
+    /// Writes the onboarding-chosen default vial strength into the prefs record
+    /// and the memory cache in one step, so the fallback chain above never
+    /// serves a stale value to a user who just finished setup.
+    func updateOnboardingDefaultConcentration(_ value: Double, for medication: String) {
         guard let context = modelContext,
               let prefs = try? context.fetch(FetchDescriptor<UserPreferences>()).first
-        else { return nil }
-        return prefs[keyPath: keyPath]
+        else { return }
+        if medication == "Estrogen" {
+            prefs.defaultEstrogenConcentration = value
+            cachedDefaultEstrogenConcentration = value
+        } else {
+            prefs.defaultTestosteroneConcentration = value
+            cachedDefaultTestosteroneConcentration = value
+        }
+        try? context.save()
+    }
+
+    // MARK: - Dose Defaulting
+
+    /// The ester assumed for `medication` when no prior dose carries one, and its
+    /// absorption half-life — the single source for the paired
+    /// "Valerate (EV)"/"Cypionate (TC)" fallbacks that used to be hand-paired in
+    /// four different files.
+    static func defaultEsterInfo(for medication: String) -> (name: String, halfLifeDays: Double) {
+        if medication == MedicationType.estrogen.rawValue {
+            let ester = MedicationEster.valerate
+            return (ester.rawValue, ester.halfLifeDays)
+        }
+        let ester = TestosteroneEster.cypionate
+        return (ester.rawValue, ester.halfLifeDays)
+    }
+
+    /// The single canonical ester/amount/concentration fallback chain for recording
+    /// a dose the caller only partially specified — previously hand-rolled in
+    /// `QuickDoseSheet`, `UnifiedScheduleView`, onboarding, and `defaultDoseDetails`,
+    /// and the three were already drifting apart.
+    ///
+    /// Resolution order per field: the most recent active dose for the medication,
+    /// then the user's selections/onboarding defaults, then the medication-typical
+    /// constants (see `PKConstants`).
+    func resolvedDoseDefaults(
+        medication: String?,
+        method: String?
+    ) -> (esterName: String, amountMg: Double, concentrationMgPerMl: Double) {
+        let med = medication ?? selectedMedication ?? ""
+        let isEstrogen = (med == MedicationType.estrogen.rawValue)
+        let recent = latestDose { $0.isActive && $0.medicationType == med }
+
+        let ester = recent?.ester
+            ?? (med == selectedMedication ? selectedEster : nil)
+            ?? Self.defaultEsterInfo(for: med).name
+        let amount = recent?.doseAmount
+            ?? (isEstrogen ? PKConstants.referenceEstrogenDoseMg
+                           : PKConstants.defaultTestosteroneDoseMg)
+        let concentration = recent?.concentrationMgPerMl
+            ?? (isEstrogen
+                ? cachedDefaultEstrogenConcentration ?? PKConstants.referenceEstrogenConcentrationMgPerMl
+                : cachedDefaultTestosteroneConcentration ?? PKConstants.referenceTestosteroneConcentrationMgPerMl)
+        return (ester, amount, concentration)
     }
 
     /// Common vial concentrations (mg/mL) for a given ester string.
@@ -151,10 +199,15 @@ extension MedicationManager {
     func updateSelection(type: MedicationType, method: AdministrationMethod) {
         selectedMedication = type.rawValue
         selectedAdministrationMethod = method.rawValue
-        persistSelection()
 
-        let next = calculateNextDoseDate(from: Date())
-        updateDoseDates(last: Date(), next: next)
+        // Do NOT stamp a fake lastDoseDate — the user hasn't taken a dose.
+        // Only recompute nextDoseDate if a real lastDoseDate exists.
+        if let last = lastDoseDate {
+            let next = calculateNextDoseDate(from: last)
+            updateDoseDates(last: last, next: next)
+        } else {
+            persistUserPreferences()
+        }
         refreshState()
     }
 
@@ -204,7 +257,7 @@ extension MedicationManager {
         }
 
         try? modelContext?.save()
-        persistDoseDates()
+        persistUserPreferences()
 
         // Bump celebration counter BEFORE refreshState so HomeView.onChange
         // triggers a UI-driven refresh while the doseHistory is already updated
@@ -219,30 +272,57 @@ extension MedicationManager {
         }
     }
 
-    /// Removes a dose (soft delete — keeps it in history for audit purposes).
-    func removeDose(withId id: String) {
-        if let index = doseHistory.firstIndex(where: { $0.id == id }) {
-            doseHistory[index].isDeleted = true
-            try? modelContext?.save()
-            var updated = doseHistory
-            updated.remove(at: index)
-            doseHistory = updated
-            refreshState()
-        }
+    /// Delay before HomeView's celebration confetti fires after a dose recorded
+    /// via `recordDose(on:)`. Longer than `MedicationManager.defaultCelebrationDelay`
+    /// (tuned for `QuickDoseSheet`, which dismisses itself immediately) because
+    /// `RecordDoseView` shows an in-sheet confirmation before dismissing.
+    static let recordDoseCelebrationDelay: TimeInterval = 1.2
+
+    /// Ester/amount/concentration to assume for a dose the caller didn't fully
+    /// specify: the most recently logged dose's values, or a medication-typical
+    /// default when there's no prior dose to read from. Shared by `skipDose` and
+    /// `recordDose`, both of which only capture a date from the user.
+    private func defaultDoseDetails(for medType: String) -> (ester: String, amount: Double, concentration: Double?) {
+        let ester = lastLoggedDose?.ester
+            ?? selectedEster
+            ?? Self.defaultEsterInfo(for: medType).name
+        let amount = lastLoggedDose?.doseAmount
+            ?? (medType == "Estrogen" ? 2.0 : 40.0)
+        let concentration = lastLoggedDose?.concentrationMgPerMl
+        return (ester, amount, concentration)
     }
 
+    /// Records a dose from the lightweight "Record dose" quick action (the
+    /// next-dose row's sheet), which captures a date but no amount/ester/
+    /// concentration. Routes through `addDose` — using the same last-logged-dose
+    /// defaulting as `skipDose` — so this dose actually lands in `doseHistory`
+    /// rather than only nudging the `lastDoseDate`/`nextDoseDate` convenience
+    /// fields. Without a real `DoseRecord`, `estimatedLevels` (which builds the
+    /// curve exclusively from `doseHistory` once it's non-empty) never saw this
+    /// dose, and a later Journal delete's history-only recompute of `nextDoseDate`
+    /// would silently discard it too.
     func recordDose(on date: Date = Date()) {
-        lastDoseDate = date
-        if selectedMedication != nil, selectedAdministrationMethod != nil {
-            nextDoseDate = calculateNextDoseDate(from: date)
+        guard let medType = selectedMedication,
+              let medMethod = selectedAdministrationMethod else {
+            lastDoseDate = date
+            persistUserPreferences()
+            refreshState()
+            if let next = nextDoseDate {
+                NotificationManager.shared.rescheduleAfterDose(nextDoseDate: next)
+            }
+            return
         }
-        persistDoseDates()
-        refreshState()
 
-        // Reschedule dose reminder to next dose date (frequency-aware)
-        if let next = nextDoseDate {
-            NotificationManager.shared.rescheduleAfterDose(nextDoseDate: next)
-        }
+        let details = defaultDoseDetails(for: medType)
+        celebrationDelay = Self.recordDoseCelebrationDelay
+        addDose(
+            date: date,
+            type: medType,
+            ester: details.ester,
+            method: medMethod,
+            doseAmount: details.amount,
+            concentrationMgPerMl: details.concentration
+        )
     }
 
     /// Logs an intentionally skipped dose. Does NOT advance `nextDoseDate`;
@@ -252,19 +332,15 @@ extension MedicationManager {
         guard let medType = selectedMedication,
               let medMethod = selectedAdministrationMethod else { return }
 
-        let ester = lastLoggedDose?.ester
-            ?? (medType == "Estrogen" ? "Valerate (EV)" : "Cypionate (TC)")
-        let amount = lastLoggedDose?.doseAmount
-            ?? (medType == "Estrogen" ? 2.0 : 40.0)
-        let concentration = lastLoggedDose?.concentrationMgPerMl
+        let details = defaultDoseDetails(for: medType)
 
         let record = DoseRecord(
             doseDate: date,
             medicationType: medType,
-            ester: ester,
+            ester: details.ester,
             administrationMethod: medMethod,
-            doseAmount: amount,
-            concentrationMgPerMl: concentration,
+            doseAmount: details.amount,
+            concentrationMgPerMl: details.concentration,
             doseStatus: .skipped,
             skipReason: reason
         )

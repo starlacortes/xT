@@ -21,6 +21,9 @@ struct FlatGraphView: View {
     /// 0.55 keeps the curve above the glass card on the home screen.
     var dataRegionFraction: CGFloat = 0.55
 
+    /// Journal entries to render as mood markers on the curve.
+    var journalEntries: [JournalEntry] = []
+
     /// Animated data vector for smooth curve morphing between data sets.
     /// Falls back to live data via `effectiveValues` until first animation cycle.
     @State private var animatedValues: AnimatableVector = .zero
@@ -122,6 +125,8 @@ struct FlatGraphView: View {
 
                     currentDot(bounds: bounds, w: w, h: h)
 
+                    journalMoodMarkers(bounds: bounds, w: w, h: h)
+
                     lastDoseDot(bounds: bounds, w: w, h: h)
 
                     nextDoseDot(bounds: bounds, w: w, h: h)
@@ -164,14 +169,6 @@ struct FlatGraphView: View {
                 withAnimation(.spring(response: 0.55, dampingFraction: 0.75)) {
                     animatedValues = AnimatableVector(values: newValues)
                 }
-                generateDensePoints()
-            }
-            .onChange(of: medicationManager.doseRecordedCount) { _, _ in
-                // Safety net: force chart refresh after dose recording,
-                // in case the sheet dismissal blocks the recentLevels observation.
-                let values = points.map(\.value)
-                guard !values.isEmpty else { return }
-                animatedValues = AnimatableVector(values: values)
                 generateDensePoints()
             }
             .onChange(of: medicationManager.userTherapeuticTarget?.peakCeiling) { _, _ in }
@@ -244,7 +241,9 @@ struct FlatGraphView: View {
                 }
             }
             .onEnded { _ in
-                withAnimation(.easeOut(duration: 0.08)) {
+                // Snap-back ~45% faster than the original 0.04s hold so the
+                // estimated level returns to "now" quickly after lift-off.
+                withAnimation(.easeOut(duration: 0.022)) {
                     scrubFraction = nil
                     scrubValue = nil
                     scrubDate = nil
@@ -439,11 +438,12 @@ struct FlatGraphView: View {
            !points.isEmpty {
             let visibleStart = points.first!.date
             let visibleEnd = points.last!.date
-            if lastDoseDate >= visibleStart && lastDoseDate <= visibleEnd {
-                let idx = points.enumerated().min(by: { abs($0.element.date.timeIntervalSince(lastDoseDate)) < abs($1.element.date.timeIntervalSince(lastDoseDate)) })!.offset
+            let totalTime = visibleEnd.timeIntervalSince(visibleStart)
+            if totalTime > 0, lastDoseDate >= visibleStart, lastDoseDate <= visibleEnd {
+                let fraction = lastDoseDate.timeIntervalSince(visibleStart) / totalTime
+                let px = fraction * w
                 let (minV, _, range) = bounds
-                let px = CurveLayout.markerX(index: idx, count: points.count, width: w)
-                let py = CurveLayout.yPos(value: points[idx].value, min: minV, range: range,
+                let py = CurveLayout.yPos(value: nearestCurveValue(at: lastDoseDate), min: minV, range: range,
                                           height: h, dataFraction: dataRegionFraction)
 
                 ZStack {
@@ -498,6 +498,69 @@ struct FlatGraphView: View {
                         .position(x: px, y: py + 14)
                 }
             }
+        }
+    }
+
+    // MARK: - Journal mood markers
+
+    @ViewBuilder
+    private func journalMoodMarkers(bounds: (min: Double, max: Double, range: Double),
+                                    w: CGFloat, h: CGFloat) -> some View {
+        if !journalEntries.isEmpty, !points.isEmpty {
+            let firstDate = points.first!.date
+            let lastDate = points.last!.date
+            let totalTime = lastDate.timeIntervalSince(firstDate)
+            if totalTime > 0 {
+                let visible = journalEntries.filter { $0.date >= firstDate && $0.date <= lastDate }
+                let (minV, _, rangeV) = bounds
+                ForEach(visible) { entry in
+                    moodMarker(entry: entry, firstDate: firstDate, totalTime: totalTime,
+                               minV: minV, rangeV: rangeV, w: w, h: h)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func moodMarker(entry: JournalEntry, firstDate: Date, totalTime: TimeInterval,
+                            minV: Double, rangeV: Double, w: CGFloat, h: CGFloat) -> some View {
+        let fraction = entry.date.timeIntervalSince(firstDate) / totalTime
+        let px = CGFloat(fraction) * w
+        let curveValue = nearestCurveValue(at: entry.date)
+        let py = CurveLayout.yPos(value: curveValue, min: minV, range: rangeV,
+                                  height: h, dataFraction: dataRegionFraction)
+        let color = moodColor(entry.mood)
+
+        ZStack {
+            Circle()
+                .fill(color.opacity(0.18))
+                .frame(width: 18, height: 18)
+            Circle()
+                .fill(color)
+                .frame(width: 7, height: 7)
+        }
+        .position(x: px, y: py - 16)
+
+        Image(systemName: entry.mood.icon)
+            .font(.system(size: 8, weight: .medium))
+            .foregroundStyle(color.opacity(0.8))
+            .position(x: px, y: py - 32)
+    }
+
+    private func nearestCurveValue(at date: Date) -> Double {
+        let source: [(date: Date, value: Double)] = densePoints.isEmpty
+            ? points.map { (date: $0.date, value: $0.value) }
+            : densePoints.map { (date: $0.date, value: $0.value) }
+        return source.min(by: {
+            abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date))
+        })?.value ?? 0
+    }
+
+    private func moodColor(_ mood: Mood) -> Color {
+        switch mood {
+        case .happy, .calm, .energetic: return Theme.Colors.Time.mind.base
+        case .neutral:                   return Color.secondary
+        case .tired, .anxious, .sad:    return Theme.Colors.Time.cycle.base
         }
     }
 

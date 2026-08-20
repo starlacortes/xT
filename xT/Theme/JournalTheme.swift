@@ -17,25 +17,27 @@ struct JournalPalette {
     let title: Color     // headline + body text
 }
 
+@MainActor
 enum JournalTheme {
-    static let rose     = Theme.Colors.accent
-    static let lavender = Theme.Colors.accentSecondary
-
     static func palette(for mood: Mood) -> JournalPalette {
         switch mood {
         case .happy, .energetic:
+            // Surface/border/title mirror Theme.Colors.Time.cycle exactly (were
+            // independently duplicated hex before) — deriving from it keeps
+            // Journal mood colors in sync as the theme rotates instead of
+            // silently freezing at today's hues.
             return JournalPalette(
-                surface: Color(lightHex: "#FBEAF0", darkHex: "#2E1018"),
-                border:  Color(lightHex: "#F4C0D1", darkHex: "#7A2846"),
+                surface: Theme.Colors.Time.cycle.surface,
+                border:  Theme.Colors.Time.cycle.border,
                 accent:  Theme.Colors.accent,
-                title:   Color(lightHex: "#72243E", darkHex: "#F4A8C0")
+                title:   Theme.Colors.Time.cycle.text
             )
         case .calm, .neutral:
             return JournalPalette(
-                surface: Color(lightHex: "#EEEDFE", darkHex: "#1E1C3A"),
-                border:  Color(lightHex: "#CECBF6", darkHex: "#3D3880"),
+                surface: Theme.Colors.Time.mind.surface,
+                border:  Theme.Colors.Time.mind.border,
                 accent:  Theme.Colors.accentSecondary,
-                title:   Color(lightHex: "#3C3489", darkHex: "#ABA7F0")
+                title:   Theme.Colors.Time.mind.text
             )
         case .tired, .sad, .anxious:
             return JournalPalette(

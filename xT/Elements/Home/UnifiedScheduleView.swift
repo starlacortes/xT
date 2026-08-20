@@ -13,24 +13,15 @@ struct UnifiedScheduleView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.medicationManager) private var medicationManager
     @Environment(\.profileManager) private var profileManager
-    @Environment(\.authenticationManager) private var authManager
 
     // State for dose management
     @State private var selectedDoseDate = Date()
     @State private var showConfirmation = false
-    @State private var showDoseRecorder = false
 
     // Site location state (Phase 12)
     @State private var scheduledZoneLabel: String? = nil
     @State private var scheduledSites: [InjectionSite] = []
     @State private var showFullBodyPicker = false
-
-    // Context detection
-    var isFromSettings: Bool
-
-    init(isFromSettings: Bool = false) {
-        self.isFromSettings = isFromSettings
-    }
 
     var body: some View {
         ScrollView {
@@ -222,7 +213,7 @@ struct UnifiedScheduleView: View {
                 }
 
                 Button(action: {
-                    recordDose()
+                    recordDose(on: selectedDoseDate)
                 }) {
                     Text("Record Dose on Selected Date")
                         .asAccentButton()
@@ -264,42 +255,17 @@ struct UnifiedScheduleView: View {
     }
 
     private func recordCurrentDose() {
-        guard let medType = medicationManager.selectedMedication,
-              let medMethod = medicationManager.selectedAdministrationMethod else { return }
-        let ester = medicationManager.selectedEster
-            ?? medicationManager.lastLoggedDose?.ester
-            ?? defaultEsterForCurrentType
-        let amount = medicationManager.defaultDoseAmount
-            ?? medicationManager.lastLoggedDose?.doseAmount
-            ?? defaultDoseForCurrentType
-        let concentration = medicationManager.lastLoggedDose?.concentrationMgPerMl ?? medicationManager.defaultConcentrationMgPerMl
-        medicationManager.addDose(date: Date(), type: medType, ester: ester, method: medMethod, doseAmount: amount, concentrationMgPerMl: concentration, injectionSites: scheduledSites)
-        showConfirmation = true
+        recordDose(on: Date())
         selectedDoseDate = Date()
-        scheduledSites = []
     }
 
-    private func recordDose() {
+    private func recordDose(on date: Date) {
         guard let medType = medicationManager.selectedMedication,
               let medMethod = medicationManager.selectedAdministrationMethod else { return }
-        let ester = medicationManager.selectedEster
-            ?? medicationManager.lastLoggedDose?.ester
-            ?? defaultEsterForCurrentType
-        let amount = medicationManager.defaultDoseAmount
-            ?? medicationManager.lastLoggedDose?.doseAmount
-            ?? defaultDoseForCurrentType
-        let concentration = medicationManager.lastLoggedDose?.concentrationMgPerMl ?? medicationManager.defaultConcentrationMgPerMl
-        medicationManager.addDose(date: selectedDoseDate, type: medType, ester: ester, method: medMethod, doseAmount: amount, concentrationMgPerMl: concentration, injectionSites: scheduledSites)
+        let defaults = medicationManager.resolvedDoseDefaults(medication: medType, method: medMethod)
+        medicationManager.addDose(date: date, type: medType, ester: defaults.esterName, method: medMethod, doseAmount: defaults.amountMg, concentrationMgPerMl: defaults.concentrationMgPerMl, injectionSites: scheduledSites)
         showConfirmation = true
         scheduledSites = []
-    }
-
-    private var defaultEsterForCurrentType: String {
-        medicationManager.selectedMedication == "Estrogen" ? "Valerate (EV)" : "Cypionate (TC)"
-    }
-
-    private var defaultDoseForCurrentType: Double {
-        medicationManager.selectedMedication == "Estrogen" ? 2.0 : 40.0
     }
 
     // MARK: - Phase 12: Site Location Support
@@ -318,14 +284,6 @@ struct UnifiedScheduleView: View {
     private var currentRouteClass: RouteClass {
         guard let method = medicationManager.selectedAdministrationMethod else { return .injection }
         return RouteClass.from(method: method)
-    }
-
-    private var medType: String {
-        medicationManager.selectedMedication ?? "Estrogen"
-    }
-
-    private var medMethod: String {
-        medicationManager.selectedAdministrationMethod ?? "Injectable"
     }
 
     private var bodyPickerSheet: some View {

@@ -127,7 +127,7 @@ struct ZoneMapTests {
 
     /// Every zone must map to a body region — `region(for:)` feeds the settings grouping and
     /// the recorded `bodyRegion` field.
-    @Test func everyZoneHasARegion() {
+    @MainActor @Test func everyZoneHasARegion() {
         for zone in ZoneID.allCases {
             #expect(ZoneCentroidStore.shared.region(for: zone.rawValue) != nil,
                     "\"\(zone.rawValue)\" has no region")

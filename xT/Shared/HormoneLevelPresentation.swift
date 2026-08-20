@@ -124,6 +124,7 @@ extension HormoneLevel {
     /// Error red is reserved for documented clinical thresholds. Sitting outside a
     /// self-chosen range is not an error, so it takes the neutral accent — and with
     /// no user-set range there is nothing to colour at all.
+    @MainActor
     var statusTint: Color {
         if safety != nil { return Theme.Colors.error }
         return Theme.Colors.accent
@@ -170,22 +171,6 @@ extension HormoneLevel {
     /// States the association only. It does not instruct the user to do anything —
     /// what to do with the information is theirs and their provider's to decide.
     var safetyNote: String? { safety?.note }
-
-    /// How the calibrated estimate compares to the uncalibrated population model.
-    /// Shown only where blood-test calibration is being discussed; `nil` when there
-    /// is no meaningful comparison to draw.
-    var deviationNote: String? {
-        switch deviation {
-        case .below:
-            return String(localized: "Measured lower than the population model predicts for this regimen.",
-                          comment: "Comparison of the user's calibrated level to the uncalibrated model")
-        case .above:
-            return String(localized: "Measured higher than the population model predicts for this regimen.",
-                          comment: "Comparison of the user's calibrated level to the uncalibrated model")
-        case .onTrack, .incomparable:
-            return nil
-        }
-    }
 }
 
 // MARK: - Safety flags

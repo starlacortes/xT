@@ -11,12 +11,6 @@ import SwiftUI
 struct BloodTestHistoryView: View {
     @Environment(\.medicationManager) private var medicationManager
 
-    @State private var composerMode: BloodTestComposerView.Mode?
-
-    // Delete confirmation state
-    @State private var testToDelete: BloodTestRecord? = nil
-    @State private var showDeleteConfirmation = false
-
     // MARK: - Grouped Tests
 
     /// Blood tests grouped by hormone type, sorted newest first within each group.
@@ -28,76 +22,34 @@ struct BloodTestHistoryView: View {
     }
 
     var body: some View {
-        List {
-            if !medicationManager.bloodTestHistory.isEmpty {
+        HistoryListView(
+            title: "Blood Tests",
+            emptyTitle: "No Blood Tests",
+            emptyIcon: "drop.fill",
+            emptyDescription: "Log a lab result to calibrate the model to your own levels.",
+            groups: groupedTests.map { (title: $0.hormone, items: $0.tests) },
+            deleteAlertTitle: "Delete Blood Test?",
+            deleteMessage: deleteAlertMessage(for:),
+            onDelete: { medicationManager.removeBloodTest(withId: $0.id) },
+            topContent: medicationManager.bloodTestHistory.isEmpty ? nil : AnyView(
                 Section {
                     LabsChartView()
                         .padding(.vertical, Theme.Spacing.sm)
                 }
-            }
-
-            if groupedTests.isEmpty {
-                ContentUnavailableView(
-                    "No Blood Tests",
-                    systemImage: "drop.fill",
-                    description: Text("Log a lab result to calibrate the model to your own levels.")
-                )
-            }
-
-            ForEach(groupedTests, id: \.hormone) { group in
-                Section(group.hormone) {
-                    ForEach(group.tests) { test in
-                        BloodTestRow(test: test)
-                            .swipeActions(edge: .trailing) {
-                                Button(role: .destructive) {
-                                    testToDelete = test
-                                    showDeleteConfirmation = true
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
-                                .tint(.red)
-
-                                Button("Edit") {
-                                    composerMode = .edit(test)
-                                }
-                                .tint(Theme.Colors.accentSecondary)
-                            }
-                    }
+            ),
+            addLabel: "Add Blood Test",
+            row: { BloodTestRow(test: $0) },
+            composer: { mode in
+                switch mode {
+                case .add:
+                    BloodTestComposerView(mode: .add,
+                                          defaultHormone: medicationManager.selectedMedication ?? "Estrogen")
+                case .edit(let test):
+                    BloodTestComposerView(mode: .edit(test),
+                                          defaultHormone: medicationManager.selectedMedication ?? "Estrogen")
                 }
             }
-        }
-        .navigationTitle("Blood Tests")
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    composerMode = .add
-                } label: {
-                    Label("Add Blood Test", systemImage: "plus")
-                }
-            }
-        }
-        .alert("Delete Blood Test?", isPresented: $showDeleteConfirmation, presenting: testToDelete) { test in
-            Button("Delete", role: .destructive) {
-                medicationManager.removeBloodTest(withId: test.id)
-                testToDelete = nil
-            }
-            Button("Cancel", role: .cancel) {
-                testToDelete = nil
-            }
-        } message: { test in
-            Text(deleteAlertMessage(for: test))
-        }
-        .sheet(isPresented: Binding(
-            get: { composerMode != nil },
-            set: { isPresented in if !isPresented { composerMode = nil } }
-        )) {
-            if let composerMode {
-                BloodTestComposerView(
-                    mode: composerMode,
-                    defaultHormone: medicationManager.selectedMedication ?? "Estrogen"
-                )
-            }
-        }
+        )
     }
 
     // MARK: - Delete alert message

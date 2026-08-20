@@ -12,10 +12,10 @@ import SwiftData
 
 @Model
 class JournalEntry: Identifiable {
-    var id: UUID
-    var date: Date
-    var mood: Mood
-    var text: String
+    var id: UUID = UUID()
+    var date: Date = Date()
+    var mood: Mood = Mood.neutral
+    var text: String = ""
     var hormoneLevel: Double?
 
     private var symptomsJSON: String = "[]"

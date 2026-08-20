@@ -98,11 +98,16 @@ struct BodyModel3DView: UIViewRepresentable {
         context.coordinator.centroidStore  = ZoneCentroidStore.shared
         context.coordinator.renderHeatMap()
 
+        let coordinator = context.coordinator
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-            context.coordinator.renderHeatMap()
+            coordinator.renderHeatMap()
         }
 
         return scnView
+    }
+
+    static func dismantleUIView(_ uiView: SCNView, coordinator: Coordinator) {
+        coordinator.tearDown()
     }
 
     func updateUIView(_ uiView: SCNView, context: Context) {
@@ -301,7 +306,9 @@ struct BodyModel3DView: UIViewRepresentable {
     private func skinMaterial() -> SCNMaterial {
         let m = SCNMaterial()
         m.lightingModel     = .physicallyBased
-        m.diffuse.contents  = UIColor.accentSecondaryAdaptive
+        // Adaptive + hue-dial-aware (the old `accentSecondaryAdaptive` literal
+        // was frozen at the default seed hue).
+        m.diffuse.contents  = UIColor(Theme.Colors.accentSecondary)
         m.roughness.contents = Float(0.62)
         m.metalness.contents = Float(0.0)
         // BodyTransform is a proper rotation, so triangle winding is preserved and
@@ -383,6 +390,8 @@ struct BodyModel3DView: UIViewRepresentable {
             self.onTapZone        = onTapZone
             self.tapPositions     = tapPositions
             self.onPreTap         = onPreTap
+            self.onNoZoneTap      = onNoZoneTap
+            self.onYawChange      = onYawChange
         }
 
         // MARK: Gestures
@@ -394,7 +403,7 @@ struct BodyModel3DView: UIViewRepresentable {
                 cameraAnimLink = nil
             }
             let delta = gesture.translation(in: view)
-            yaw += Float(delta.x) * 0.005
+            yaw -= Float(delta.x) * 0.005
             applyCameraPosition(animated: false)
             gesture.setTranslation(.zero, in: view)
         }
@@ -428,13 +437,20 @@ struct BodyModel3DView: UIViewRepresentable {
         @objc private func tickCameraAnim() {
             let elapsed = CACurrentMediaTime() - cameraAnimStartTime
             let t = Float(min(elapsed / cameraAnimDuration, 1.0))
-            let et = t < 0.5 ? 2 * t * t : 1 - pow(-2 * t + 2, 2) / 2
+            let et = Float(Ease.inOutQuad(Double(t)))
             yaw = cameraAnimStartYaw + (cameraAnimEndYaw - cameraAnimStartYaw) * et
             applyCameraPosition(animated: false)
             if elapsed >= cameraAnimDuration {
                 cameraAnimLink?.invalidate()
                 cameraAnimLink = nil
             }
+        }
+
+        func tearDown() {
+            cameraAnimLink?.invalidate()
+            cameraAnimLink = nil
+            heatMapRenderer?.stopDisplayLink()
+            heatMapRenderer = nil
         }
 
         private func applyCameraPosition(animated: Bool) {
