@@ -483,11 +483,11 @@ so.
 | Item | Count | Notes |
 |------|-------|-------|
 | NOW bands, re-cut 0-59 | 196 | **written** — 10-12 per region, on each region's own clock |
-| NOW bands, 60-240 | 18 × 8 = 144 | 90 net new (replaces 5 per region) |
+| NOW bands, 60-240 | 144 | **written** — 8 per region on the frame table below |
 | Mechanism entries | 90 | **written** — 5 per region, eligible at every month |
-| Fact entries | 18 × 10 = 180 | Net new. The real writing job. |
-| Markers | ~4 per region = 72 | Tanner stages, receptor saturation, ductal-lobular completion, BMD plateau |
-| Terminus rewrites | 39 strings | The `no further` / `complete` / `plateaued` / `finished` worklist from §9 |
+| Fact entries | 180 | **written** — 10 per region, 8 of them eligible past month 60 |
+| Markers | 72 | **written** — 4 per region: Tanner stages, adipocyte cycles, training ceilings |
+| Terminus rewrites | 15 strings | **cleared** in the region corpus, and held there by test |
 
 Fact-bank sizing is set by the long-tail user, not the new one. Past
 `completeMonth` the rate is `.steady`, so the fact slot fires nearly
@@ -504,6 +504,10 @@ test asserts the 60+ pool size directly rather than the global count:
 @Test func longTailFactPoolIsDeep()  // every region, months 60...240, pool ≥ 8
 ```
 
+Shipped as eight entries scoped `0...600` and two scoped `0...59`. The
+long-tail pool is exactly eight, which is the eight-month cycle §10 asks
+for; a reader in their first five years sees ten.
+
 ---
 
 ## 11. Migration
@@ -513,11 +517,11 @@ test asserts the 60+ pool size directly rather than the global count:
 | A | `JourneyContext`, `RegionPhase` + `PhaseVocabulary`, present-tense labels, four slots, delete `minimalEngine`, drop the deep-dive section, gate `overview` on `.pending` | none | **landed** |
 | B | Mechanism bank + selector + invariant tests | 90 entries | **landed** |
 | C | Re-cut NOW bands onto per-region grids | 196 bands | **landed** |
-| D | Fact bank | 180 strings | |
-| E | 60+ bands and markers | ~160 strings | |
-| F | Style lint test; extend `TIME_REGION_COPY.md` for clinical sign-off | none | |
+| D | Fact bank | 180 strings | **landed** |
+| E | 60+ bands and markers | 216 strings | **landed** |
+| F | Style lint test; extend `TIME_REGION_COPY.md` for clinical sign-off | none | partly — see below |
 
-Phases B and C make consecutive months differ. D and E deepen the pools.
+Phases B and C make consecutive months differ. D and E are the writing.
 
 ### What Phase A landed
 
@@ -608,9 +612,68 @@ pending months, since every non-pending month has a band. They are still the
 `phaseText(at:)` source and still worth keeping as the safety net, but the card
 no longer renders them in the normal case.
 
-### NEXT
+### What Phases D and E landed
 
-The fourth slot is specified in §6 and not built. It needs `RegionMarker`
-data, which is Phase E. The slot renders when a marker falls within 24
-months; until markers exist there is nothing for it to render, so the view
-does not carry a branch for it yet.
+**Phase D** is the fact bank: 180 entries, ten per region, eight of them
+eligible at every month. Past `completeMonth` the rate is `.steady`, so this is
+the bank the card draws from nearly every month — the long-tail reader sees more
+of it than of anything else on the card, and now gets eight months before
+anything recurs.
+
+The facts are written as tissue state, never as a population comparison, per §9.
+"In any estrogen-maintained skeleton, the pelvis is a primary site of bone
+remodelling" says the thing without making the reader the exception to it.
+
+**Phase E** replaced all 144 long-tail bands on the §8 frame table and added 72
+markers. The 60+ card is now about maintenance biology in the present active:
+what holds this tissue, what the hormone does in it daily, what the signal is
+load-bearing for, what gets measured, what the cohorts show, and where the
+published follow-up runs out. The last band is honest about that edge rather
+than trailing off.
+
+The terminus worklist is cleared. Fifteen strings carried `complete`,
+`plateaued`, `finished` or `no further` as an editorial verdict; all fifteen are
+rewritten, and `RegionCopyRulesTests` now holds the whole 718-string region
+corpus to both that rule and the comparison-group rule. What survives is the
+factual use §9 explicitly protects: "breast growth typically plateaus" stays,
+because it is information rather than a verdict.
+
+**NEXT** is built. `RegionMarker` carries a month, a name and a sentence; the
+slot renders the name as its eyebrow and the sentence as its body, at the same
+weight as NOW and INSIGHT. It is suppressed once a region has matured and
+suppressed when the nearest landmark is more than 24 months out.
+
+This is the one slot that looks forward, which is worth being careful about
+given that `peak ahead` and `peak passed` were removed for exactly that reason.
+The difference is that a marker names something concrete — "Tanner stage 4",
+"First fat-cell cycle" — rather than reporting the reader's position on a curve,
+and it disappears entirely when there is nothing concrete within reach. A test
+asserts no marker name or note contains the word "peak".
+
+### What Phases D and E did not do
+
+Phase F is only partly done. The two §9 rules that are not stylistic — terminus
+framing and comparison groups — ship as tests, because Phase E exists to clear
+them and a cleared worklist with nothing holding it reopens. The rest of the
+style lint (em-dash count, hedge doubling, sentence-length caps, `many people
+report` placement) is not built, and the corpus would not pass it today: five
+legacy `earlyText`/`midText`/`overview` strings carry more than one em-dash and
+two carry parenthetical asides. All seven are in the phase-text fields, which
+the card now reads only as the pending-month fallback.
+
+`TimeContentData` still carries nine terminus strings of its own, in
+`scienceText` and `timelineText`. None are reachable from the region card, and
+`RegionCopyRulesTests` deliberately does not read them — the §9 count of 39 was
+taken across both corpora. They come out with the `TimeBodySystem` family, which
+is still test-referenced and still holds the `scienceText` prose.
+
+`RegionMarker` does one of the three jobs §7 gives it. It populates NEXT; it
+does not yet anchor the NOW copy in the band that contains it, and the long-tail
+bands do not yet reference markers by name.
+
+### Slot inventory, as shipped
+
+All four slots in §6 are built. NOW and INSIGHT render unconditionally, NEXT
+when a landmark is within the horizon, ABOUT while the region's clock has not
+started. A card therefore runs two blocks at its thinnest and four at its
+fullest, and the two that are always present are the two the brief asked for.

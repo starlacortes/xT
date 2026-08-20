@@ -108,14 +108,64 @@ func bankFallthrough() {
     #expect(TimeRegionInsights.select(from: bank.entries(.mechanism), month: 4, seed: seed) == "mechanism")
     #expect(TimeRegionInsights.select(from: bank.entries(.fact), month: 4, seed: seed) == "fact")
 
-    // Every shipped bank has an empty fact list until Phase D, so a region that
-    // prefers a fact must still resolve to mechanism copy rather than nothing.
+    // A matured region prefers a fact and every shipped bank now has one, so it
+    // must be fact copy that lands — not a mechanism entry via the fall-through.
     for t in tracked {
         let matured = max(t.region.completeMonth, 60)
         #expect(t.region.changeRate(at: matured).prefersFact,
                 "\(t.region.key) should prefer a fact at month \(matured)")
-        #expect(slots(t, month: matured).insight != nil,
-                "\(t.region.key) month \(matured): INSIGHT fell through to nothing")
+        guard let insight = slots(t, month: matured).insight else {
+            Issue.record("\(t.region.key) month \(matured): INSIGHT fell through to nothing")
+            continue
+        }
+        guard let regionBank = TimeRegionInsights.bank(track: t.track, key: t.region.key) else { continue }
+        #expect(regionBank.fact.contains { $0.text == insight },
+                "\(t.region.key) month \(matured): drew mechanism copy where a fact was available")
+    }
+}
+
+// MARK: - Fact bank (Phase D)
+
+@Test("The long-tail fact pool is at least eight deep at every month past 60")
+func longTailFactPoolIsDeep() {
+    for t in tracked {
+        guard let bank = TimeRegionInsights.bank(track: t.track, key: t.region.key) else {
+            Issue.record("\(t.region.key) has no insight bank")
+            continue
+        }
+        for month in 60...240 {
+            let pool = bank.fact.filter { $0.months.contains(month) }
+            #expect(pool.count >= 8,
+                    "\(t.region.key) month \(month): fact pool is only \(pool.count)")
+        }
+    }
+}
+
+@Test("A region past completeMonth draws a fact, not a mechanism")
+func maturedRegionsDrawFromTheFactBank() {
+    for t in tracked {
+        guard let bank = TimeRegionInsights.bank(track: t.track, key: t.region.key) else { continue }
+        for month in stride(from: max(t.region.completeMonth, 60), through: 240, by: 7) {
+            guard let insight = slots(t, month: month).insight else {
+                Issue.record("\(t.region.key) month \(month): no INSIGHT")
+                continue
+            }
+            #expect(bank.fact.contains { $0.text == insight },
+                    "\(t.region.key) month \(month): INSIGHT is not fact copy")
+        }
+    }
+}
+
+@Test("No entry appears in both banks for the same region")
+func banksDoNotOverlap() {
+    for t in tracked {
+        guard let bank = TimeRegionInsights.bank(track: t.track, key: t.region.key) else { continue }
+        let mechanism = Set(bank.mechanism.map(\.text))
+        let fact = Set(bank.fact.map(\.text))
+        #expect(mechanism.intersection(fact).isEmpty,
+                "\(t.region.key): an entry is in both the mechanism and fact banks")
+        #expect(mechanism.count == bank.mechanism.count, "\(t.region.key): duplicate mechanism entry")
+        #expect(fact.count == bank.fact.count, "\(t.region.key): duplicate fact entry")
     }
 }
 
@@ -132,7 +182,7 @@ func bandGridIsContiguousFromStart() {
                 seen.insert(month)
             }
         }
-        #expect(seen == Set(t.region.startMonth...240),
+        #expect(seen.intersection(Set(0...240)) == Set(t.region.startMonth...240),
                 "\(t.region.key): band coverage does not equal [\(t.region.startMonth), 240]")
     }
 }

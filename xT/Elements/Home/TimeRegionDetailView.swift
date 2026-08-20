@@ -10,6 +10,7 @@ import SwiftUI
 //
 //   NOW      always      what this tissue is doing this month
 //   INSIGHT  always      mechanism while the region is moving, fact when it isn't
+//   NEXT     conditional the next named landmark, when one is within two years
 //   ABOUT    pending     the region's overview, until its clock starts
 //
 // The three tier-level blocks that used to sit below ("Your timeline", "What to
@@ -51,42 +52,32 @@ struct TimeRegionDetailView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
+            // One spacing value for the whole stack. The slots are conditional,
+            // so per-slot bottom padding would need a branch per combination.
+            VStack(alignment: .leading, spacing: 18) {
                 headerRow
-                    .padding(.horizontal, 20)
-                    .padding(.top, 20)
-                    .padding(.bottom, 16)
 
                 if isMind {
                     brainChipRow
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 16)
                 }
 
-                Text(slots.now)
-                    .font(.system(size: 15))
-                    .foregroundStyle(.primary)
-                    .lineSpacing(4)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, slots.insight == nil && slots.about == nil ? 24 : 18)
+                slotText(slots.now)
 
                 if let insight = slots.insight {
-                    Text(insight)
-                        .font(.system(size: 15))
-                        .foregroundStyle(.primary)
-                        .lineSpacing(4)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, slots.about == nil ? 24 : 18)
+                    slotText(insight)
+                }
+
+                if let next = slots.next {
+                    nextSection(next)
                 }
 
                 if let about = slots.about {
                     aboutSection(about)
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 24)
                 }
             }
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
+            .padding(.bottom, 24)
         }
         .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
@@ -152,6 +143,32 @@ struct TimeRegionDetailView: View {
         }
     }
 
+    // MARK: Slot body copy
+
+    /// NOW and INSIGHT render identically. That is the point: the second is not
+    /// an aside, a callout or a footnote, it is the card's normal content for a
+    /// month when the progression line has not moved.
+    private func slotText(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 15))
+            .foregroundStyle(.primary)
+            .lineSpacing(4)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    // MARK: Next (shown when a named landmark is within two years)
+
+    private func nextSection(_ marker: RegionMarker) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(marker.name)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+                .tracking(0.5)
+            slotText(marker.note)
+        }
+    }
+
     // MARK: About (shown only while the region's clock hasn't started)
 
     private func aboutSection(_ text: String) -> some View {
@@ -184,21 +201,31 @@ struct TimeRegionDetailView: View {
 /// pending sentence and shows ABOUT instead.
 ///
 /// INSIGHT comes from the region's insight bank and rotates every month. That
-/// is what makes month 11 differ from month 10 while NOW holds still.
+/// is what makes month 11 differ from month 10 while NOW holds still. It draws
+/// the mechanism behind the change while the region is moving and a fact about
+/// the region when it isn't — `ChangeRate` picks, and either bank answers if
+/// the other has nothing eligible for this month.
+///
+/// NEXT is the only forward-looking slot, and it renders only when a named
+/// landmark falls inside the horizon. ABOUT is the region's overview, and it
+/// earns the space only while the region's clock has not started.
 struct RegionCardSlots {
     let now: String
     let insight: String?
+    let next: RegionMarker?
     let about: String?
 
     init(region: BodyRegion?, context: JourneyContext, mindFallback: String?) {
         guard let region else {
             now = mindFallback ?? ""
             insight = nil
+            next = nil
             about = nil
             return
         }
 
         let month = context.month
+        let phase = region.phase(at: month)
 
         now = region.focusText(at: month) ?? region.phaseText(at: month)
         insight = TimeRegionInsights.insight(
@@ -207,6 +234,12 @@ struct RegionCardSlots {
             month: month,
             rate: region.changeRate(at: month)
         )
-        about = region.phase(at: month) == .pending ? region.overview : nil
+        next = TimeRegionMarkers.next(
+            track: context.track,
+            key: region.key,
+            month: month,
+            phase: phase
+        )
+        about = phase == .pending ? region.overview : nil
     }
 }
