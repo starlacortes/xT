@@ -1,10 +1,20 @@
 import SwiftUI
 
-// MARK: - Region Detail View (Phase 3)
+// MARK: - Region Detail View
 //
 // Full-screen overlay reached by tapping a region on the 3-D body diagram.
 // Absorbs RegionInfoPanel and MindInfoPanel — both are superseded by this view.
 // Opens from the trailing edge via .transition(.move(edge: .trailing).combined(with: .opacity)).
+//
+// Slot structure per `docs/App design/TIME_CARD_PERSONALIZATION.md` §6:
+//
+//   NOW      always      what this tissue is doing this month
+//   INSIGHT  always      mechanism while the region is moving, fact when it isn't
+//   ABOUT    pending     the region's overview, until its clock starts
+//
+// The three tier-level blocks that used to sit below ("Your timeline", "What to
+// expect", "Long-term") are gone. They were keyed to tenure rather than to the
+// region, so all four estrogen body regions rendered the same fifty words.
 
 struct TimeRegionDetailView: View {
     let regionKey: TimeRegionKey
@@ -12,20 +22,31 @@ struct TimeRegionDetailView: View {
     let region: BodyRegion?
     /// The full array of mind sub-regions (pfc/hippocampus/amygdala/synaptic).
     let mindRegions: [BodyRegion]
-    let months: Int
-    let isTestosterone: Bool
-    let tenureTier: TenureTier
-    /// Pre-resolved body system detail, or nil when the region has no supplement.
-    let bodySystemDetail: TimeBodySystemDetail?
+    let context: JourneyContext
     @Binding var selectedBrainRegion: String?
     let onClose: () -> Void
 
     private var isMind: Bool { regionKey == .head }
 
+    private var month: Int { context.month }
+
     private var activeRegion: BodyRegion? {
         isMind
             ? mindRegions.first { $0.key == selectedBrainRegion }
             : region
+    }
+
+    /// Resolved slot content for whichever region the card is currently showing.
+    private var slots: RegionCardSlots {
+        RegionCardSlots(
+            region: activeRegion,
+            context: context,
+            mindFallback: isMind && activeRegion == nil
+                ? (context.isTestosterone
+                    ? TimeBodyRegions.mindInsightT(months: month)
+                    : TimeBodyRegions.mindInsight(months: month))
+                : nil
+        )
     }
 
     var body: some View {
@@ -42,18 +63,28 @@ struct TimeRegionDetailView: View {
                         .padding(.bottom, 16)
                 }
 
-                heroSection
+                Text(slots.now)
+                    .font(.system(size: 15))
+                    .foregroundStyle(.primary)
+                    .lineSpacing(4)
+                    .fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal, 20)
-                    .padding(.bottom, 20)
+                    .padding(.bottom, slots.insight == nil && slots.about == nil ? 24 : 18)
 
-                overviewSection
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 20)
-
-                if let detail = bodySystemDetail {
-                    deepDiveSection(detail: detail)
+                if let insight = slots.insight {
+                    Text(insight)
+                        .font(.system(size: 15))
+                        .foregroundStyle(.primary)
+                        .lineSpacing(4)
+                        .fixedSize(horizontal: false, vertical: true)
                         .padding(.horizontal, 20)
-                        .padding(.bottom, 28)
+                        .padding(.bottom, slots.about == nil ? 24 : 18)
+                }
+
+                if let about = slots.about {
+                    aboutSection(about)
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 24)
                 }
             }
         }
@@ -76,7 +107,7 @@ struct TimeRegionDetailView: View {
                     .tracking(-0.5)
                     .foregroundStyle(.primary)
 
-                if let phaseLabel = currentPhaseLabel {
+                if let phaseLabel = activeRegion?.phaseLabel(at: month) {
                     Text(phaseLabel)
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(.secondary)
@@ -93,13 +124,6 @@ struct TimeRegionDetailView: View {
             }
             .buttonStyle(.plain)
         }
-    }
-
-    private var currentPhaseLabel: String? {
-        if isMind {
-            return activeRegion?.phaseLabel(at: months)
-        }
-        return region?.phaseLabel(at: months)
     }
 
     // MARK: Brain sub-region chips (mind only)
@@ -128,120 +152,57 @@ struct TimeRegionDetailView: View {
         }
     }
 
-    // MARK: Hero section
+    // MARK: About (shown only while the region's clock hasn't started)
 
-    private var heroSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            let heroText = currentHeroText
-            Text(heroText)
-                .font(.system(size: 15))
-                .foregroundStyle(.primary)
-                .lineSpacing(4)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
-    private var currentHeroText: String {
-        if isMind {
-            if let active = activeRegion {
-                return active.focusText(at: months) ?? active.phaseText(at: months)
-            }
-            return isTestosterone
-                ? TimeBodyRegions.mindInsightT(months: months)
-                : TimeBodyRegions.mindInsight(months: months)
-        }
-        guard let r = region else { return "" }
-        return r.focusText(at: months) ?? r.phaseText(at: months)
-    }
-
-    // MARK: Overview section
-
-    @ViewBuilder
-    private var overviewSection: some View {
-        let text = currentOverview
-        if !text.isEmpty {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("About this region")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .textCase(.uppercase)
-                    .tracking(0.5)
-                Text(text)
-                    .font(.system(size: 14))
-                    .foregroundStyle(.secondary)
-                    .lineSpacing(3)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(14)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        }
-    }
-
-    private var currentOverview: String {
-        if isMind {
-            return activeRegion?.overview
-                ?? (isTestosterone
-                    ? TimeBodyRegions.mindRegionsT.first?.overview ?? ""
-                    : TimeBodyRegions.mindRegions.first?.overview ?? "")
-        }
-        return region?.overview ?? ""
-    }
-
-    // MARK: Deep-dive section (body system detail)
-
-    @ViewBuilder
-    private func deepDiveSection(detail: TimeBodySystemDetail) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            DetailDivider()
-
-            detailBlock(
-                label: "Your timeline",
-                text: detail.timelineText
-            )
-
-            detailBlock(
-                label: "What to expect",
-                text: detail.whatToExpect
-            )
-
-            if let note = deepeningOrMaintenanceNote(detail: detail) {
-                detailBlock(
-                    label: tenureTier >= .t5Settled ? "Long-term" : "At this stage",
-                    text: note
-                )
-            }
-        }
-    }
-
-    private func deepeningOrMaintenanceNote(detail: TimeBodySystemDetail) -> String? {
-        if tenureTier >= .t5Settled { return detail.maintenanceNote }
-        if tenureTier == .t4Deepening { return detail.deepeningNote }
-        return nil
-    }
-
-    private func detailBlock(label: String, text: String) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text(label)
+    private func aboutSection(_ text: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("About this region")
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
                 .tracking(0.5)
             Text(text)
                 .font(.system(size: 14))
-                .foregroundStyle(.primary)
+                .foregroundStyle(.secondary)
                 .lineSpacing(3)
                 .fixedSize(horizontal: false, vertical: true)
         }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }
 
-// MARK: - Hairline divider
+// MARK: - Slot resolution
 
-private struct DetailDivider: View {
-    var body: some View {
-        Rectangle()
-            .fill(Color.primary.opacity(0.08))
-            .frame(height: 0.5)
+/// Picks the copy for each card slot from a region and a `JourneyContext`.
+///
+/// Phase A wiring: NOW draws the banded month fact, INSIGHT draws the region's
+/// phase copy, and the two never render the same string. Phase B replaces
+/// INSIGHT's source with the mechanism and fact banks and the deterministic
+/// month-rotating selector — the slot contract here doesn't change.
+struct RegionCardSlots {
+    let now: String
+    let insight: String?
+    let about: String?
+
+    init(region: BodyRegion?, context: JourneyContext, mindFallback: String?) {
+        guard let region else {
+            now = mindFallback ?? ""
+            insight = nil
+            about = nil
+            return
+        }
+
+        let month = context.month
+        let banded = region.focusText(at: month)
+        let phaseCopy = region.phaseText(at: month)
+
+        now = banded ?? phaseCopy
+        // When no band is authored for this month the phase copy has already
+        // been spent on NOW; showing it again would be the duplication this
+        // restructure exists to remove.
+        insight = banded == nil ? nil : phaseCopy
+        about = region.phase(at: month) == .pending ? region.overview : nil
     }
 }

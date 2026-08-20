@@ -23,24 +23,9 @@ struct BodyRegion: Identifiable {
     /// phase label and tier copy are unchanged. `nil` falls back to `phaseText`.
     let monthFocus: [(ClosedRange<Int>, String)]
 
-    /// Non-numeric phase label — replaces the old `% underway / % complete`
-    /// badge. Four states keyed to the existing start/peak/complete boundaries.
-    func phaseLabel(at months: Int) -> String {
-        if months < startMonth {
-            return String(localized: "Begins month \(startMonth)",
-                          comment: "Phase label before a region's changes start")
-        }
-        if months < peakMonth {
-            return String(localized: "Active · peak ahead",
-                          comment: "Phase label during early active change before peak")
-        }
-        if months < completeMonth {
-            return String(localized: "Maturing · peak passed",
-                          comment: "Phase label after peak velocity but before maturity")
-        }
-        return String(localized: "Established month \(months)+",
-                      comment: "Phase label once a region's changes are established")
-    }
+    /// Which register this region's phase labels are named in. Tissue remodels;
+    /// neural circuits adapt. Set once per array — see `PhaseVocabulary`.
+    var vocabulary: PhaseVocabulary = .tissue
 
     func phaseText(at months: Int) -> String {
         if months < startMonth {
@@ -94,7 +79,8 @@ enum TimeBodyRegions {
                 (96...120,"Eight-to-ten years. Research tracking long-term HRT users shows no adverse cognitive signal at this tenure. Lifestyle factors — sleep, physical activity, and social engagement — are the primary additional levers."),
                 (121...168,"A decade-plus. PFC neuroprotection continues as an active, ongoing process maintained by consistent dosing. Annual HRT reviews track cognitive health and hormone levels together."),
                 (169...240,"Long-term estrogen users show preserved executive function and prefrontal grey matter volume compared to untreated populations. The benefit is cumulative — consistent dosing over years sustains it."),
-            ]
+            ],
+            vocabulary: .neural
         ),
         BodyRegion(
             key: "hippocampus",
@@ -120,7 +106,8 @@ enum TimeBodyRegions {
                 (96...120,"Eight-to-ten years. Hippocampal neuroprotection is ongoing and requires consistent hormone levels to sustain. Dose gaps allow gradual reversal over the same multi-year timescale."),
                 (121...168,"A decade-plus. Hippocampal BDNF signaling continues as an active maintenance process. Physical activity amplifies estrogen's hippocampal effects at this stage — it's the most potent lifestyle adjunct."),
                 (169...240,"Long-term estrogen-maintained hippocampal architecture. The adaptive changes from the first years are sustained by ongoing dosing — an active biological requirement, not a one-time structural change."),
-            ]
+            ],
+            vocabulary: .neural
         ),
         BodyRegion(
             key: "amygdala",
@@ -145,7 +132,8 @@ enum TimeBodyRegions {
                 (96...120,"Eight-to-ten years. Emotional baseline is stable and requires no further adjustment from HRT tenure. Sleep quality and stress are the primary modulators at this stage."),
                 (121...168,"A decade-plus. Amygdala function is maintained by consistent estradiol as an ongoing steady state. Any significant mood shift warrants attention to dosing schedule."),
                 (169...240,"Long-term estrogen-dominant emotional processing — fully established and maintained by consistent hormone levels. Dose stability is what preserves the emotional baseline."),
-            ]
+            ],
+            vocabulary: .neural
         ),
         BodyRegion(
             key: "synaptic",
@@ -171,7 +159,8 @@ enum TimeBodyRegions {
                 (96...120,"Eight-to-ten years. Cognitively stimulating activity and physical exercise amplify estrogen-maintained synaptic plasticity at this stage."),
                 (121...168,"A decade-plus. Sustained synaptic plasticity continues to be maintained by consistent hormone levels. Dose disruptions produce neurosteroid gaps that can affect cognitive and emotional function."),
                 (169...240,"Long-term estrogen-maintained synaptic health — an active process that requires consistent dosing to sustain. The architecture is embedded through years of maintained signaling."),
-            ]
+            ],
+            vocabulary: .neural
         ),
     ]
 
@@ -352,7 +341,8 @@ enum TimeBodyRegions {
                 (96...120,"Eight-to-ten years. PFC function is fully adapted and stable. Research tracking long-term testosterone HRT users shows no adverse cognitive signal at this tenure."),
                 (121...168,"A decade-plus. Androgen-maintained prefrontal function continues as a stable state. Annual HRT reviews include cognitive wellness alongside hormone levels."),
                 (169...240,"Long-term androgen-dominant PFC signaling — a stable, established state maintained by consistent testosterone levels. Cognitive health responds to lifestyle factors and dosing continuity."),
-            ]
+            ],
+            vocabulary: .neural
         ),
         BodyRegion(
             key: "hippocampus",
@@ -377,7 +367,8 @@ enum TimeBodyRegions {
                 (96...120,"Eight-to-ten years. Hippocampal function is stable. Physical activity — especially exercise involving spatial navigation or motor learning — amplifies the androgen-maintained cognitive benefit."),
                 (121...168,"A decade-plus. Androgen-maintained hippocampal function continues as a stable, ongoing state. Cognitive health from here tracks general aging and lifestyle alongside dosing consistency."),
                 (169...240,"Long-term androgen-dominant hippocampal signaling — maintained by consistent testosterone as an active ongoing requirement. Spatial cognition benefits persist through continued dosing."),
-            ]
+            ],
+            vocabulary: .neural
         ),
         BodyRegion(
             key: "amygdala",
@@ -402,7 +393,8 @@ enum TimeBodyRegions {
                 (96...120,"Eight-to-ten years. Emotional baseline is your stable, established state. Life circumstances and sleep quality are the primary modulators at this tenure."),
                 (121...168,"A decade-plus. Amygdala function is maintained by consistent testosterone. The androgen-adapted emotional baseline is well established through years of sustained hormone exposure."),
                 (169...240,"Long-term androgen-dominant amygdala signaling — a fully established and maintained state. Dose consistency is what preserves the emotional baseline across decades."),
-            ]
+            ],
+            vocabulary: .neural
         ),
         BodyRegion(
             key: "synaptic",
@@ -427,7 +419,8 @@ enum TimeBodyRegions {
                 (96...120,"Eight-to-ten years. Cognitively stimulating activities and physical exercise provide the most meaningful additional benefit at this stage."),
                 (121...168,"A decade-plus. Androgen-maintained synaptic architecture continues as an active maintenance process. Dose stability is the key hormonal input — fluctuations produce neurosteroid changes."),
                 (169...240,"Long-term androgen-dominant synaptic maintenance — an ongoing, active process sustained by consistent testosterone levels. The architecture established in the first years is maintained through continued dosing."),
-            ]
+            ],
+            vocabulary: .neural
         ),
     ]
 

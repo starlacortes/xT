@@ -501,19 +501,53 @@ test asserts the 60+ pool size directly rather than the global count:
 
 ## 11. Migration
 
-| Phase | Work | New copy? |
-|-------|------|-----------|
-| A | `JourneyContext`, `RegionPhase`, delete `minimalEngine`, drop the deep-dive section, gate `overview` on `.pending` | none |
-| B | Mechanism bank + selector + invariant tests | re-cut only |
-| C | Re-cut NOW bands onto per-region grids | re-cut only |
-| D | Fact bank | 144 strings |
-| E | 60+ bands and markers | ~160 strings |
-| F | Style lint test; extend `TIME_REGION_COPY.md` for clinical sign-off | none |
+| Phase | Work | New copy? | Status |
+|-------|------|-----------|--------|
+| A | `JourneyContext`, `RegionPhase` + `PhaseVocabulary`, present-tense labels, four slots, delete `minimalEngine`, drop the deep-dive section, gate `overview` on `.pending` | none | **landed** |
+| B | Mechanism bank + selector + invariant tests | re-cut only | |
+| C | Re-cut NOW bands onto per-region grids | re-cut only | |
+| D | Fact bank | 180 strings | |
+| E | 60+ bands and markers | ~160 strings | |
+| F | Style lint test; extend `TIME_REGION_COPY.md` for clinical sign-off | none | |
 
-Phase A alone drops the standing card from 121 words to ~71 and removes
-the duplicated bottom halves. Phases B and C make consecutive months
-differ. D and E are the writing.
+Phase B and C make consecutive months differ. D and E are the writing.
 
-`TimeBodySystem`, `TimeBodySystemDetail`, `BodySystemKey` and
-`bodySystemKey(for:)` are retired at the end of Phase A. `scienceText`
-is harvested for Phase B before its type is deleted.
+### What Phase A landed
+
+The standing month-10 estrogen Abdomen card went from five blocks and 121
+words to two blocks and 52: the banded month sentence in NOW, the region's
+phase copy in INSIGHT, and nothing else. `overview` now appears only while
+the region's clock has not started, where it is the only thing worth saying.
+
+The three tier-keyed blocks are gone from the card, which is where the four
+identical estrogen bottom halves went with them. `Active · peak ahead` and
+`Maturing · peak passed` are gone from the string catalog.
+
+`RegionCardSlots` is the seam Phase B needs: it resolves NOW, INSIGHT and
+ABOUT from a region and a `JourneyContext`, and swapping INSIGHT's source
+for the mechanism and fact banks does not change the view.
+
+`ChangeRate` ships unused. It is the input Phase B's bank selection reads,
+and the tests already pin its behaviour at the peak and past `completeMonth`.
+
+### What Phase A did not do
+
+`TimeBodySystem`, `TimeBodySystemDetail` and `BodySystemKey` are no longer
+reachable from the region card, but `TimeContentEngine.bodySystems` still
+builds them and `TenureTierTests` still asserts against them. They are dead
+to the UI and alive to the test suite — retire them once `scienceText` has
+been harvested for Phase B, not before.
+
+The month mismatch between `TimeHeroHeader` and the card is also still open.
+The header reads `monthsOnHRT`, the card reads `activeMonthsOnHRT`, and for
+anyone with a dosing gap they disagree — the header can say month 14 over a
+card computing phase from month 11. The distinction looks deliberate
+(`months` is commented "for display" and drives the change-unlock lists), so
+collapsing it changes more than the card. It needs a decision, not a patch.
+
+### NEXT
+
+The fourth slot is specified in §6 and not built. It needs `RegionMarker`
+data, which is Phase E. The slot renders when a marker falls within 24
+months; until markers exist there is nothing for it to render, so the view
+does not carry a branch for it yet.
