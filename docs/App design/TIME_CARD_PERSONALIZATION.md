@@ -735,3 +735,117 @@ All four slots in §6 are built. NOW and INSIGHT render unconditionally, NEXT
 when a landmark is within the horizon, ABOUT while the region's clock has not
 started. A card therefore runs two blocks at its thinnest and four at its
 fullest, and the two that are always present are the two the brief asked for.
+
+---
+
+## 12. The card itself
+
+§§1–11 decide what the card says. This section decides how it reads. The
+view is `TimeRegionDetailView`; the panel it was before this pass is the
+base, and everything below is what changed and why.
+
+### Thesis: the card is dated
+
+The originating brief is the month-10-to-month-11 case — two consecutive
+opens where the tissue has not done anything new. The copy system answers
+it by rotating INSIGHT while NOW holds its band. The design's job is to
+make that legible rather than to hide it, so the header states the month
+the card is describing:
+
+```
+[icon]  Hippocampus                       (×)
+        MONTH 11   ( Adapting )
+        ──────────────────────────────────────
+```
+
+The month was previously nowhere on the card. It sat in the screen
+header behind the panel, in a different unit — `monthsOnHRT` there
+against `activeMonthsOnHRT` here — so the card's own copy had no visible
+anchor. Naming it makes two consecutive months read as two dated
+entries rather than as one screen that failed to update.
+
+What the header deliberately does not carry: a progress bar, a percentage,
+a track with the current month plotted on it. §3.4 removed the progress
+bar and §4 removed "peak ahead" and "peak passed" for the same reason —
+each of them describes the reader's position relative to an endpoint
+instead of describing the present. A rail with a dot on it would put that
+framing back as geometry.
+
+### The phase pill
+
+The phase label was a grey uppercase eyebrow, visually identical to the
+"About this region" caption below it, which made a state read as a
+heading. It is now a pill in the region's category palette: filled
+`palette.surface`, `palette.text` ink, hairline `palette.border`. The
+strings are unchanged — the two vocabularies from §4 and the
+`Begins month N` pending case.
+
+### NOW and INSIGHT are one passage
+
+The brief's requirement is that the fact arrive "not presented as extra or
+as an aside but rather in-line like normal". That rules out a callout box,
+a lightbulb, a "Did you know", and a tinted panel. It does not rule out
+rhythm. Both paragraphs are `Theme.Fonts.body`, `.primary`, the same
+weight and the same line spacing, separated by `Spacing.md` (12) inside a
+stack whose slots are separated by `Spacing.xl` (20). The tighter internal
+gap groups them as two paragraphs of one passage; nothing else marks the
+seam. For VoiceOver they are one combined element, read as continuous
+prose.
+
+### NEXT is the quietest thing on the card
+
+It is the only slot making a claim about a month the reader is not in, so
+it sits below a hairline rule, under a coloured `NEXT` eyebrow, with the
+marker name in `headline` and the note in `callout`/`.secondary`. The rule
+marks a change of kind, not a change of topic: everything above it is true
+now.
+
+### Category colour
+
+`Theme.Colors.Time.mind` for the head, `Theme.Colors.Time.body` for every
+body region — the same palettes the Time cards already use, so the panel
+does not introduce a fifth colour language. Body regions share one hue so
+that moving between them does not recolour the screen; the mind reads in
+its own because it is a different kind of subject.
+
+### Forced dark
+
+`NightSkyBackdrop` is `Color.black` in both appearances by design. The
+panel is `.ultraThinMaterial` over it, so in Light Mode `.primary`
+resolved to near-black ink on a dark blur. The card now sets
+`.environment(\.colorScheme, .dark)` on its root, which also resolves the
+`Color(light:dark:)` palette pairs to the dark variants the contrast
+repair in `ThemeManager` computed against the dark surface.
+
+### The title follows the subject
+
+Tapping a brain chip changes what every word on the card is about, but the
+title stayed on "Mind". It now reads the active sub-region — "Hippocampus"
+— and falls back to the tap target's name when no chip is selected. This
+is a defect fix, not a design choice.
+
+### Tokens and type
+
+The card was written entirely in raw literals: `.system(size: 28)`,
+`.padding(.horizontal, 20)`, `cornerRadius: 28`, `Color.primary.opacity(0.07)`.
+It now uses `Theme.Fonts`, `Theme.Spacing`, `Theme.Radius` and
+`Theme.Colors` throughout. The consequence that matters is Dynamic Type:
+body copy was fixed at 15pt on a surface whose entire purpose is reading
+paragraphs, and now scales.
+
+### Accessibility
+
+Close button labelled; icon tile hidden; each of the three prose groups
+combined into one VoiceOver element so the card is read as prose rather
+than as a list of fragments; chips carry `.isSelected`.
+
+### Not built here
+
+- **The band is not exposed.** `monthFocus` knows that month 11 sits in a
+  10–13 band, and the card could say so. It would explain the stillness
+  and would also draw attention to it, and it exposes the seams of the
+  content system to the reader. Left out deliberately; revisit if the
+  rotating insight turns out not to carry the case on its own.
+- **No transition between months.** There is nothing to animate — the card
+  is built fresh on open, and a month boundary is never crossed while the
+  reader is looking at it.
