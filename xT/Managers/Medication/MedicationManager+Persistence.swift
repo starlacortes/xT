@@ -32,8 +32,7 @@ extension MedicationManager {
         guard let context = modelContext else { return }
         guard !defaults.bool(forKey: Keys.cloudKitMigrationDone) else { return }
 
-        let descriptor = FetchDescriptor<UserPreferences>()
-        guard let prefs = (try? context.fetch(descriptor))?.first else { return }
+        guard let prefs = UserPreferences.canonical(in: context) else { return }
 
         let security = SecurityManager.shared
         var needsSave = false
@@ -148,18 +147,9 @@ extension MedicationManager {
 
     func loadUserPreferences() {
         guard let context = modelContext else { return }
-        let descriptor = FetchDescriptor<UserPreferences>()
-
-        let prefs: UserPreferences
-        if let existing = (try? context.fetch(descriptor))?.first {
-            prefs = existing
-        } else {
-            // First launch: create the singleton preferences record.
-            let newPrefs = UserPreferences()
-            context.insert(newPrefs)
-            try? context.save()
-            prefs = newPrefs
-        }
+        // The canonical singleton row — consolidates any duplicates a CloudKit
+        // import brought in (see UserPreferences.canonical(in:)).
+        guard let prefs = UserPreferences.canonical(in: context) else { return }
 
         isLoadingPreferences = true
         defer { isLoadingPreferences = false }
@@ -210,63 +200,34 @@ extension MedicationManager {
     }
 
     func persistUserPreferences() {
-        guard let context = modelContext, !isLoadingPreferences else { return }
-        let descriptor = FetchDescriptor<UserPreferences>()
-        if let existing = (try? context.fetch(descriptor))?.first {
-            existing.selectedMedication = selectedMedication
-            existing.selectedAdministrationMethod = selectedAdministrationMethod
-            existing.selectedEster = selectedEster
-            existing.lastDoseDate = lastDoseDate
-            existing.nextDoseDate = nextDoseDate
-            existing.hrtStartDate = hrtStartDate
-            existing.customFrequencyDays = customFrequencyDays
-            existing.defaultDoseAmount = defaultDoseAmount
-            existing.defaultInjectionTime = defaultInjectionTime
-            existing.showDoseIntensityInsights = showDoseIntensityInsights
-            existing.suppressionSpeed = suppressionSpeed.rawValue
-            existing.spironolactoneClearanceEnabled = spironolactoneClearanceEnabled
-            existing.antiAndrogenInUse = antiAndrogenInUse
-            existing.spironolactoneInUse = spironolactoneInUse
-            existing.missedDoseGracePeriodHours = missedDoseGracePeriodHours
-            existing.rotationWindowInjection = rotationWindowInjection
-            existing.rotationWindowTopical = rotationWindowTopical
-            existing.rotationWindowPatch = rotationWindowPatch
-            existing.bodyTypeRaw = bodyTypeRaw
-            existing.userTherapeuticTargetJSON = userTherapeuticTarget.flatMap { Self.jsonString($0) }
-            if !avoidZones.isEmpty {
-                // A failed encode keeps the previously stored zones rather than
-                // wiping them — the nil else-branch is deliberate.
-                existing.avoidZonesJSON = Self.jsonString(avoidZones) ?? existing.avoidZonesJSON
-            } else {
-                existing.avoidZonesJSON = nil
-            }
+        guard modelContext != nil, !isLoadingPreferences else { return }
+        guard let context = modelContext, let prefs = UserPreferences.canonical(in: context) else { return }
+        prefs.selectedMedication = selectedMedication
+        prefs.selectedAdministrationMethod = selectedAdministrationMethod
+        prefs.selectedEster = selectedEster
+        prefs.lastDoseDate = lastDoseDate
+        prefs.nextDoseDate = nextDoseDate
+        prefs.hrtStartDate = hrtStartDate
+        prefs.customFrequencyDays = customFrequencyDays
+        prefs.defaultDoseAmount = defaultDoseAmount
+        prefs.defaultInjectionTime = defaultInjectionTime
+        prefs.showDoseIntensityInsights = showDoseIntensityInsights
+        prefs.suppressionSpeed = suppressionSpeed.rawValue
+        prefs.spironolactoneClearanceEnabled = spironolactoneClearanceEnabled
+        prefs.antiAndrogenInUse = antiAndrogenInUse
+        prefs.spironolactoneInUse = spironolactoneInUse
+        prefs.missedDoseGracePeriodHours = missedDoseGracePeriodHours
+        prefs.rotationWindowInjection = rotationWindowInjection
+        prefs.rotationWindowTopical = rotationWindowTopical
+        prefs.rotationWindowPatch = rotationWindowPatch
+        prefs.bodyTypeRaw = bodyTypeRaw
+        prefs.userTherapeuticTargetJSON = userTherapeuticTarget.flatMap { Self.jsonString($0) }
+        if !avoidZones.isEmpty {
+            // A failed encode keeps the previously stored zones rather than
+            // wiping them — the nil else-branch is deliberate.
+            prefs.avoidZonesJSON = Self.jsonString(avoidZones) ?? prefs.avoidZonesJSON
         } else {
-            let targetJSON = userTherapeuticTarget.flatMap { Self.jsonString($0) }
-            let zonesJSON = avoidZones.isEmpty ? nil : Self.jsonString(avoidZones)
-            let prefs = UserPreferences(
-                selectedMedication: selectedMedication,
-                selectedAdministrationMethod: selectedAdministrationMethod,
-                selectedEster: selectedEster,
-                lastDoseDate: lastDoseDate,
-                nextDoseDate: nextDoseDate,
-                hrtStartDate: hrtStartDate,
-                suppressionSpeed: suppressionSpeed,
-                spironolactoneClearanceEnabled: spironolactoneClearanceEnabled,
-                antiAndrogenInUse: antiAndrogenInUse,
-                spironolactoneInUse: spironolactoneInUse,
-                customFrequencyDays: customFrequencyDays,
-                missedDoseGracePeriodHours: missedDoseGracePeriodHours,
-                defaultDoseAmount: defaultDoseAmount,
-                defaultInjectionTime: defaultInjectionTime,
-                showDoseIntensityInsights: showDoseIntensityInsights,
-                userTherapeuticTargetJSON: targetJSON,
-                rotationWindowInjection: rotationWindowInjection,
-                rotationWindowTopical: rotationWindowTopical,
-                rotationWindowPatch: rotationWindowPatch,
-                avoidZonesJSON: zonesJSON,
-                bodyTypeRaw: bodyTypeRaw
-            )
-            context.insert(prefs)
+            prefs.avoidZonesJSON = nil
         }
         try? context.save()
     }

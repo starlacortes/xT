@@ -489,6 +489,50 @@ extension SettingsView {
                 Text("This change will take effect the next time you open xT.")
             }
 
+            if icloudSyncEnabled {
+                settingsDivider()
+
+                Button {
+                    Task { await restoreFromiCloud() }
+                } label: {
+                    settingsRowContent(
+                        icon: "icloud.and.arrow.down",
+                        iconBg: Theme.Colors.Time.cycle.surface,
+                        iconColor: Theme.Colors.Time.cycle.base,
+                        title: "Restore from iCloud",
+                        subtitle: "Download your data from iCloud",
+                        trailing: {
+                            if cloudActivity == .restoring {
+                                ProgressView().controlSize(.small)
+                            }
+                        }
+                    )
+                }
+                .buttonStyle(.plain)
+                .disabled(cloudActivity != nil)
+
+                settingsDivider()
+
+                Button {
+                    Task { await syncNow() }
+                } label: {
+                    settingsRowContent(
+                        icon: "arrow.triangle.2.circlepath.icloud",
+                        iconBg: Theme.Colors.Time.cycle.surface,
+                        iconColor: Theme.Colors.Time.cycle.base,
+                        title: "Sync Now",
+                        subtitle: "Upload changes and refresh from iCloud",
+                        trailing: {
+                            if cloudActivity == .syncing {
+                                ProgressView().controlSize(.small)
+                            }
+                        }
+                    )
+                }
+                .buttonStyle(.plain)
+                .disabled(cloudActivity != nil)
+            }
+
             settingsDivider()
 
             NavigationLink(destination: AppLockSettingsView()) {

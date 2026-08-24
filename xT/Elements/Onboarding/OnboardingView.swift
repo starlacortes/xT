@@ -20,6 +20,7 @@ struct OnboardingView: View {
     @Environment(\.medicationManager) var medicationManager
     @Environment(\.profileManager) var profileManager
     @Environment(\.themeManager) var themeManager
+    @Environment(\.rebuildCloudContainer) var rebuildCloudContainer
 
     var onboardingComplete: (() -> Void)? = nil
 
@@ -30,6 +31,9 @@ struct OnboardingView: View {
     // iCloud restore
     @State var isRestoringFromiCloud = false
     @State var showRestoreNotFoundAlert = false
+    @State var showTurnOnSyncAlert = false
+    // iCloud consent sheet (shown once, after the profile step)
+    @State var showCloudSyncChoice = false
     
     // Step 2 — medication type
     @State var selectedType: String = ""
@@ -139,6 +143,19 @@ struct OnboardingView: View {
         .onChange(of: doseDecimal) { _, _ in
             updateMlFromMg()
         }
+        .sheet(isPresented: $showCloudSyncChoice) {
+            CloudSyncChoiceView { useCloudKit in
+                UserDefaults.standard.set(useCloudKit, forKey: "icloudSyncEnabled")
+                if !useCloudKit {
+                    // Declined: swap the container to local-only in place. No
+                    // restart needed — nothing sync-relevant has been written
+                    // at this point in onboarding.
+                    rebuildCloudContainer(.cloudKit(false))
+                }
+                showCloudSyncChoice = false
+                advanceStep()
+            }
+        }
     }
 
     // MARK: - Progress Bar
@@ -184,6 +201,12 @@ struct OnboardingView: View {
     }
 
     func advanceStep() {
+        if currentStep == 9, UserDefaults.standard.object(forKey: "icloudSyncEnabled") == nil {
+            // First-run iCloud consent: asked right after the profile step,
+            // never as a separate screen before onboarding.
+            showCloudSyncChoice = true
+            return
+        }
         var nextStep = currentStep + 1
         if currentStep == 5 && !isRouteShowsBodyPicker {
             nextStep = 7

@@ -28,18 +28,22 @@ enum StarFieldGeometry {
         Tier(pointSize: 4.05, minRadius: 1.8, maxRadius: 5.4, threshold: 1.01), // bright
     ]
 
-    /// Twinkle + selected-region highlight, evaluated per star in the vertex
-    /// stage. `_geometry.color.a` carries each star's random phase (assigned at
-    /// build time); it is consumed here and reset to 1 so it never leaks into
-    /// blending. `u_regionGlow` is the same world-space uniform the body's
-    /// surface shader uses, so the star highlight and the (fading) skin pulse
-    /// agree about where the selected region is.
+    /// Twinkle + selected-region highlight + soft tap bloom, evaluated per star
+    /// in the vertex stage. `_geometry.color.a` carries each star's random phase
+    /// (assigned at build time); it is consumed here and reset to 1 so it never
+    /// leaks into blending. `u_regionGlow` is the same world-space uniform the
+    /// body's surface shader uses, so the star highlight and the (fading) skin
+    /// pulse agree about where the selected region is. `u_tapCenter` /
+    /// `u_tapStart` drive a brief local bloom at the tap point — a fixed-radius
+    /// warm glow that rises fast and fades in ~0.5 s, no expanding ring.
     private static let twinkleModifier = """
     #pragma arguments
     float u_currentTime;
     float4 u_regionGlow;
     float3 u_tintColor;
     float  u_tintStrength;
+    float3 u_tapCenter;
+    float  u_tapStart;
 
     #pragma body
     float phase = _geometry.color.a;
@@ -60,6 +64,16 @@ enum StarFieldGeometry {
         col = mix(col, float3(1.0, 0.42, 0.30), g * 0.55);
         col += float3(1.0, 0.30, 0.22) * g * pulse * 0.6;
     }
+
+    // Soft tap bloom: fixed-radius glow that rises fast and fades (~0.5 s).
+    if (u_tapStart > 0.0) {
+        float te  = u_currentTime - u_tapStart;
+        float d   = distance(world.xyz, u_tapCenter);
+        float g   = 1.0 - smoothstep(0.0, 0.13, d);
+        float env = smoothstep(0.0, 0.06, te) * (1.0 - smoothstep(0.18, 0.52, te));
+        col += float3(1.0, 0.92, 0.78) * g * env * 0.85;
+    }
+
     _geometry.color = float4(col, 1.0);
     """
 

@@ -2,8 +2,8 @@
 //  CloudSyncChoiceView.swift
 //  xT
 //
-//  Shown on first launch before the model container is created, so the user can
-//  choose whether to sync data to iCloud or keep it on-device only.
+//  The iCloud consent sheet — presented inside onboarding after the profile
+//  step (never as a standalone screen before onboarding).
 //
 
 import SwiftUI

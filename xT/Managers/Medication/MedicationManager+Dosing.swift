@@ -71,7 +71,7 @@ extension MedicationManager {
     /// serves a stale value to a user who just finished setup.
     func updateOnboardingDefaultConcentration(_ value: Double, for medication: String) {
         guard let context = modelContext,
-              let prefs = try? context.fetch(FetchDescriptor<UserPreferences>()).first
+              let prefs = UserPreferences.canonical(in: context)
         else { return }
         if medication == "Estrogen" {
             prefs.defaultEstrogenConcentration = value

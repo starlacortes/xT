@@ -25,6 +25,20 @@ enum TimeRegionKey: String, CaseIterable, Identifiable {
     /// Matching key into `TimeBodyRegions.bodyRegions` (nil for the head/Mind).
     var bodyRegionKey: String? { isMind ? nil : rawValue }
 
+    /// How the screen is composed while this region's card is open.
+    /// `.stage` lifts the model into the upper ~65% and renders the card as a
+    /// strip across the bottom ~35%; `.profile` keeps the card on the right
+    /// (narrow, ~40%) and pushes the model left only gently. Thighs stays
+    /// profile because its anchor (y 0.55) is the lowest on the body — a
+    /// bottom strip would cover the very region it describes. Every other
+    /// region stages.
+    var framing: TimeRegionFraming {
+        switch self {
+        case .thighs: return .profile
+        case .head, .chest, .abdomen, .hips, .glutes: return .stage
+        }
+    }
+
     var title: String {
         switch self {
         case .head:    return String(localized: "Mind")
@@ -59,13 +73,25 @@ enum TimeRegionKey: String, CaseIterable, Identifiable {
     }
 }
 
+/// Screen-composition mode while a region card is open. See
+/// `TimeRegionKey.framing` for which regions use which.
+enum TimeRegionFraming {
+    /// Card across the bottom ~35%; the camera lifts the model into the upper
+    /// portion of the screen (negative `biasY`).
+    case stage
+    /// Narrow card on the right; the camera pushes the model left only far
+    /// enough to clear it (small `biasX`).
+    case profile
+}
+
 // MARK: - View
 
 /// A single interactive whole-body 3-D diagram for the Time screen. The body
 /// rests centred in theme-coloured skin with a slow idle rotation; tapping a
-/// region fires the shared ripple, animates the camera to zoom in and shift the
-/// body off the left edge (or, for the head, down and rotated to expose the
-/// skull), and dissolves the skin into a twinkling constellation starfield.
+/// region fires the shared ripple, animates the camera to zoom in and reframe
+/// the model around the region (lifting it into the upper screen for
+/// `.stage` regions, sliding it left for `.profile`), and dissolves the skin
+/// into a twinkling constellation starfield.
 struct TimeBodyDiagramView: UIViewRepresentable {
 
     var bodyType: BodyType
@@ -148,7 +174,6 @@ struct TimeBodyDiagramView: UIViewRepresentable {
 
     static func dismantleUIView(_ uiView: SCNView, coordinator: Coordinator) {
         coordinator.stopLink()
-        coordinator.invalidateBurstEffect()
     }
 
     // MARK: - Scene setup
@@ -420,9 +445,6 @@ struct TimeBodyDiagramView: UIViewRepresentable {
         weak var skinMaterial: SCNMaterial?
         weak var starNode: SCNNode?
         var heatMapRenderer: HeatMap3DRenderer?
-        /// Playful tap-constellation bursts; owns its own display link (this
-        /// Coordinator's link pauses while a region is selected).
-        private let burstEffect = ConstellationBurstEffect()
 
         var reduceMotion = false
         var appliedRegion: TimeRegionKey?
@@ -476,20 +498,42 @@ struct TimeBodyDiagramView: UIViewRepresentable {
         }
 
         private func focusConfig(for key: TimeRegionKey) -> FocusConfig {
-            if key.isMind {
-                // Zoom into the head from the anatomical-left with a slight downward
-                // tilt. biasY = 0.12 nudges the head below viewport centre so the
-                // Mind info panel (pinned at the top of the screen) doesn't overlap it.
-                return FocusConfig(yaw: .pi / 2, pitch: 0.34, distance: 0.98,
-                                   lookAt: key.worldAnchor, biasX: 0, biasY: 0.12, constellation: 1)
-            } else {
-                // Zoom into the region and push the body off the left edge so the
-                // info panel owns the right of the screen. Rotate to the back for
-                // regions that live on the posterior (glutes) so the glowing region
-                // actually faces the camera.
-                let yaw: Float = (key == .glutes) ? .pi : 0
-                return FocusConfig(yaw: yaw, pitch: 0.02, distance: 1.20,
-                                   lookAt: key.worldAnchor, biasX: 0.28, biasY: 0, constellation: 1)
+            switch key.framing {
+            case .stage:
+                // Stage framing: the card owns the bottom ~35% of the screen, so
+                // the camera moves both itself and its look target DOWN (negative
+                // biasY), which places the region above viewport centre in the
+                // upper area the model occupies. Each region's lift is tuned so
+                // its anchor clears the card without losing the body off the top
+                // edge. Glutes stays rotated to the posterior so the glowing
+                // region faces the camera.
+                switch key {
+                case .head:
+                    return FocusConfig(yaw: .pi / 2, pitch: 0.34, distance: 0.98,
+                                       lookAt: key.worldAnchor, biasX: 0, biasY: -0.10, constellation: 1)
+                case .chest:
+                    return FocusConfig(yaw: 0, pitch: 0.02, distance: 1.15,
+                                       lookAt: key.worldAnchor, biasX: 0, biasY: -0.16, constellation: 1)
+                case .abdomen:
+                    return FocusConfig(yaw: 0, pitch: 0.0, distance: 1.20,
+                                       lookAt: key.worldAnchor, biasX: 0, biasY: -0.18, constellation: 1)
+                case .hips:
+                    return FocusConfig(yaw: 0, pitch: 0.0, distance: 1.20,
+                                       lookAt: key.worldAnchor, biasX: 0, biasY: -0.16, constellation: 1)
+                case .glutes:
+                    return FocusConfig(yaw: .pi, pitch: 0.0, distance: 1.20,
+                                       lookAt: key.worldAnchor, biasX: 0, biasY: -0.14, constellation: 1)
+                case .thighs:
+                    // Unreachable — thighs is .profile. Keep a sane fallback.
+                    return FocusConfig(yaw: 0, pitch: 0.02, distance: 1.20,
+                                       lookAt: key.worldAnchor, biasX: 0.12, biasY: 0, constellation: 1)
+                }
+            case .profile:
+                // Profile framing: the card owns a narrow slice on the right, so
+                // the model shifts left only far enough to clear it (0.12, down
+                // from the old 0.28, which halved the body).
+                return FocusConfig(yaw: 0, pitch: 0.02, distance: 1.20,
+                                   lookAt: key.worldAnchor, biasX: 0.12, biasY: 0, constellation: 1)
             }
         }
 
@@ -543,11 +587,6 @@ struct TimeBodyDiagramView: UIViewRepresentable {
         /// tap through it behaves like a tap on empty space (i.e. dismisses the card).
         static let orientationCardName = "timeOrientationCard"
 
-        /// Node name for the playful tap-constellation bursts — excluded from
-        /// region hit-tests so tapping through an active burst still resolves
-        /// against the body surface behind it.
-        static let burstNodeName = ConstellationBurstEffect.nodeName
-
         @objc func handleTap(_ gesture: UITapGestureRecognizer) {
             guard let view = scnView else { return }
             let pt = gesture.location(in: view)
@@ -562,7 +601,6 @@ struct TimeBodyDiagramView: UIViewRepresentable {
                         $0.node.geometry != nil
                         && $0.node !== starNode
                         && $0.node.name != Self.orientationCardName
-                        && $0.node.name != Self.burstNodeName
                     }) else {
                 // Tap landed on open space: dismiss the open detail card. (Tapping a
                 // different body region still switches regions, so a landing that hits
@@ -574,18 +612,10 @@ struct TimeBodyDiagramView: UIViewRepresentable {
             let world = hit.worldCoordinates
             let region = Self.nearestRegion(to: SIMD3<Float>(Float(world.x), Float(world.y), Float(world.z)))
 
-            if let mat = skinMaterial {
-                heatMapRenderer?.triggerRipple(at: world, material: mat, currentTime: CACurrentMediaTime())
-            }
-            // Poke first so still-alive bursts flare; the fresh spawn below
-            // starts un-flared and draws in on its own schedule.
-            burstEffect.poke()
-            if let scene = view.scene {
-                burstEffect.spawn(at: world, normal: hit.worldNormal, in: scene,
-                                  reduceMotion: reduceMotion,
-                                  lightMode: false)
-            }
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            if !reduceMotion {
+                heatMapRenderer?.triggerTapBloom(at: world)
+            }
 
             // Toggle: tapping the already-selected region deselects it.
             let next: TimeRegionKey? = (region == appliedRegion) ? nil : region
@@ -643,12 +673,6 @@ struct TimeBodyDiagramView: UIViewRepresentable {
         func stopLink() {
             link?.invalidate()
             link = nil
-        }
-
-        /// Tears down any in-flight tap-constellation bursts (their display
-        /// link, and their scene nodes).
-        func invalidateBurstEffect() {
-            burstEffect.invalidate()
         }
 
         @objc private func tick() {

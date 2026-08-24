@@ -12,6 +12,7 @@ struct ContentView: View {
     @Environment(\.profileManager) private var profileManager
     @Environment(\.authenticationManager) private var authManager
     @State private var showOnboarding = false
+    @State private var showProfileNamePrompt = false
 
     var body: some View {
         ZStack {
@@ -41,9 +42,25 @@ struct ContentView: View {
         }
         .fullScreenCover(isPresented: $showOnboarding) {
             OnboardingView(onboardingComplete: {
+                // A successful restore may have delivered data with no readable
+                // profile name (the stored name is encrypted with a device-local
+                // key). Consume the one-shot flag and, once Home appears, ask
+                // for a name.
+                let needsNamePrompt = UserDefaults.standard.bool(forKey: CloudSyncService.profileNamePromptPendingKey)
+                UserDefaults.standard.removeObject(forKey: CloudSyncService.profileNamePromptPendingKey)
+
                 hasCompletedOnboarding = true
                 showOnboarding = false
+                if needsNamePrompt && profileManager.profileName.isEmpty {
+                    // Wait out the cover dismissal, or the sheet collides with it.
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                        showProfileNamePrompt = true
+                    }
+                }
             })
+        }
+        .sheet(isPresented: $showProfileNamePrompt) {
+            ProfileNamePromptView(isPresented: $showProfileNamePrompt)
         }
         // Full-screen lock overlay — shown whenever the manager requires auth.
         // interactiveDismissDisabled prevents any gesture from bypassing the lock.

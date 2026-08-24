@@ -4,10 +4,11 @@
 //
 //  The Time screen is a single interactive whole-body 3-D diagram. The body
 //  rests centred in theme-coloured skin with a slow idle rotation; tapping a
-//  region fires the shared ripple, zooms the camera in while shifting the body
-//  off the left edge, dissolves the skin into a constellation starfield, and
-//  reveals that region's timeline/phase content. The head surfaces the "Mind"
-//  content, dropping the model to the bottom of the screen.
+//  region fires the shared ripple, zooms the camera in and reframes the model
+//  around the region's `framing` — lifted into the upper screen with the card
+//  as a bottom strip for `.stage` regions, nudged left beside a narrow card
+//  for `.profile` (thighs) — dissolves the skin into a constellation
+//  starfield, and reveals that region's timeline/phase content.
 //
 //  A compact header (months on HRT + regimen + adherence) stays pinned at top.
 //  Honors Reduce Motion (idle rotation and camera moves degrade to jump cuts;

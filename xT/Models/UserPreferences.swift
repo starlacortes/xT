@@ -142,3 +142,88 @@ final class UserPreferences {
         self.profileDateOfBirth = profileDateOfBirth
     }
 }
+
+// MARK: - Canonical singleton row
+
+extension UserPreferences {
+    /// Returns the single canonical preferences row for `context`.
+    ///
+    /// The table was designed as a singleton, but CloudKit can break that
+    /// invariant: every install or onboarding attempt that ever created a row
+    /// exports its own, and a fresh install imports them all. Unordered
+    /// `.first` fetches then load an arbitrary — often blank — row, which made
+    /// restore report "No iCloud Data Found" while a fully populated row sat
+    /// in the store.
+    ///
+    /// This consolidates: pick the most active completed profile, merge any
+    /// values the duplicates hold that it lacks, delete the duplicates, and
+    /// return the survivor. A no-op once the table is back to one row.
+    static func canonical(in context: ModelContext) -> UserPreferences? {
+        let rows = (try? context.fetch(FetchDescriptor<UserPreferences>())) ?? []
+
+        guard !rows.isEmpty else {
+            // First launch with a genuinely empty store: create the singleton.
+            let prefs = UserPreferences()
+            context.insert(prefs)
+            try? context.save()
+            return prefs
+        }
+
+        guard rows.count > 1 else { return rows[0] }
+
+        // Completed profiles (medication selected) first, most recently active
+        // first; blank rows from installs that never onboarded sort last.
+        let ordered = rows.sorted { lhs, rhs in
+            let lhsActive = lhs.selectedMedication != nil
+            let rhsActive = rhs.selectedMedication != nil
+            if lhsActive != rhsActive { return lhsActive }
+            return activityStamp(lhs) > activityStamp(rhs)
+        }
+        guard let canonical = ordered.first else { return nil }
+
+        for duplicate in ordered.dropFirst() {
+            mergeValues(from: duplicate, into: canonical)
+            context.delete(duplicate)
+        }
+        try? context.save()
+        return canonical
+    }
+
+    /// Fill any value the canonical row is missing from a duplicate before the
+    /// duplicate is deleted. Defaults below mirror the model's declared
+    /// defaults.
+    private static func mergeValues(from duplicate: UserPreferences, into canonical: UserPreferences) {
+        if canonical.medicationRow == -1 { canonical.medicationRow = duplicate.medicationRow }
+        if canonical.medicationColumn == -1 { canonical.medicationColumn = duplicate.medicationColumn }
+        if canonical.selectedMedication == nil { canonical.selectedMedication = duplicate.selectedMedication }
+        if canonical.selectedAdministrationMethod == nil { canonical.selectedAdministrationMethod = duplicate.selectedAdministrationMethod }
+        if canonical.selectedEster == nil { canonical.selectedEster = duplicate.selectedEster }
+        if canonical.lastDoseDate == nil { canonical.lastDoseDate = duplicate.lastDoseDate }
+        if canonical.nextDoseDate == nil { canonical.nextDoseDate = duplicate.nextDoseDate }
+        if canonical.hrtStartDate == nil { canonical.hrtStartDate = duplicate.hrtStartDate }
+        if canonical.defaultEstrogenConcentration == nil { canonical.defaultEstrogenConcentration = duplicate.defaultEstrogenConcentration }
+        if canonical.defaultTestosteroneConcentration == nil { canonical.defaultTestosteroneConcentration = duplicate.defaultTestosteroneConcentration }
+        if canonical.suppressionSpeed == "fast" { canonical.suppressionSpeed = duplicate.suppressionSpeed }
+        canonical.spironolactoneClearanceEnabled = canonical.spironolactoneClearanceEnabled || duplicate.spironolactoneClearanceEnabled
+        canonical.antiAndrogenInUse = canonical.antiAndrogenInUse || duplicate.antiAndrogenInUse
+        canonical.spironolactoneInUse = canonical.spironolactoneInUse || duplicate.spironolactoneInUse
+        if canonical.customFrequencyDays == nil { canonical.customFrequencyDays = duplicate.customFrequencyDays }
+        if canonical.missedDoseGracePeriodHours == 12.0 { canonical.missedDoseGracePeriodHours = duplicate.missedDoseGracePeriodHours }
+        if canonical.defaultDoseAmount == nil { canonical.defaultDoseAmount = duplicate.defaultDoseAmount }
+        if canonical.defaultInjectionTime == nil { canonical.defaultInjectionTime = duplicate.defaultInjectionTime }
+        canonical.showDoseIntensityInsights = canonical.showDoseIntensityInsights || duplicate.showDoseIntensityInsights
+        if canonical.userTherapeuticTargetJSON == nil { canonical.userTherapeuticTargetJSON = duplicate.userTherapeuticTargetJSON }
+        if canonical.rotationWindowInjection == 14 { canonical.rotationWindowInjection = duplicate.rotationWindowInjection }
+        if canonical.rotationWindowTopical == 7 { canonical.rotationWindowTopical = duplicate.rotationWindowTopical }
+        if canonical.rotationWindowPatch == 30 { canonical.rotationWindowPatch = duplicate.rotationWindowPatch }
+        if canonical.avoidZonesJSON == nil { canonical.avoidZonesJSON = duplicate.avoidZonesJSON }
+        if canonical.bodyTypeRaw == "neutral" { canonical.bodyTypeRaw = duplicate.bodyTypeRaw }
+        if canonical.profileName == nil { canonical.profileName = duplicate.profileName }
+        if canonical.profileImageData == nil { canonical.profileImageData = duplicate.profileImageData }
+        if canonical.profileDateOfBirth == nil { canonical.profileDateOfBirth = duplicate.profileDateOfBirth }
+    }
+
+    private static func activityStamp(_ prefs: UserPreferences) -> Date {
+        prefs.lastDoseDate ?? prefs.hrtStartDate ?? .distantPast
+    }
+}
