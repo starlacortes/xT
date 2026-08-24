@@ -656,89 +656,24 @@ extension MedicationManager {
                                                              amount: effAmount))
             }
 
-            // Generate synthetic FORWARD-only doses so the chart can preview the
-            // user's projected trajectory if they stay on schedule.
+            // No synthetic forward doses, deliberately. The chart window extends
+            // 2W/3 past `now` (see `PKChartWindow`), and this used to fill that
+            // region with phantom doses at `latestReal + k · effectivePKIntervalDays`.
+            // The curve then *rose to meet the next-dose marker* as though that dose
+            // had already been given, drawn identically to recorded history — so the
+            // chart showed levels climbing on the strength of an injection the user
+            // had not taken, and would not take for days. If they then delayed or
+            // skipped it, the trajectory they had been shown was never going to happen.
             //
-            // This used to be gated on `activeDoses.count == 1` (fresh onboarding),
-            // which meant an established user got no forward projection at all: past
-            // the next scheduled dose the curve fell away into a washout that isn't
-            // going to happen. That was invisible while the chart window ended ~2 days
-            // out and injectables dose weekly, but the ester-aware window (see
-            // `PKChartWindow`) extends 2W/3 into the future, and daily oral/cream
-            // regimens cross their next dose well inside it — roughly 18% of the
-            // window at a typical phase, up to ~33% depending on time of day. The
-            // guard now only requires that at least one real dose exists to project
-            // from; the reference is the MOST RECENT one, so the projection follows
-            // the regimen the user is actually on rather than whatever they logged
-            // first.
+            // The forward region is still meaningful without it: a dose that *was*
+            // logged keeps rising toward its own t_max (EV peaks 2.1 d out), which is
+            // the only future rise the model can actually justify from recorded data.
+            // Past that the curve decays — which is what "no further dose logged"
+            // honestly predicts.
             //
-            // QA fix (2026-07-28): this used to ALSO backfill synthetic doses
-            // BACKWARD up to 90 days before the user's one real dose, at full
-            // dose strength, on a weekly/daily cadence. For a genuinely new
-            // user (their first-ever logged dose), that fabricated up to ~13
-            // full-strength phantom prior doses that never happened — and
-            // because `estimatedLevels()` sums every dose event regardless of
-            // the requested date range, those phantom doses fed directly into
-            // `getCurrentHormoneLevel()`, not just the chart. The user's very
-            // first injection would report a "current level" computed as if
-            // they'd already been on a stable regimen for three months.
-            // Under the old, severely miscalibrated scaling constants this was
-            // numerically invisible; once those were corrected (see the
-            // testosterone/oral/transdermal fixes above) it became a large,
-            // clearly wrong overstatement (confirmed via xTTests — see
-            // teSingleDosePeak/tuSingleDosePeak/evSingleDosePeak/
-            // tcSingleDosePeak/oralE2Kinetics/veryOldDose, which all assume a
-            // single logged dose means exactly one dose contributing).
-            // Forward-filling is left in place: it only affects points at or
-            // after `end`/future dates (dt < 0 doses are skipped), so it can't
-            // distort "now", and it lets the chart preview an upcoming
-            // trajectory the user hasn't actually experienced yet — which is
-            // clearly labeled as projection, unlike fabricated history.
-            if let refDose = activeDoses.last {
-                // `activeDoses` is sorted ascending, so `.last` is both the most recent
-                // dose and the anchor the projection cadence counts forward from.
-                let latestReal = refDose.doseDate
-                let effAmount = refDose.doseAmount * dosePotencyFactor(for: refDose)
-                let refEster = refDose.ester
-                // Project on the reference dose's OWN route. Previously this gated on
-                // `isInjectable` (the manager's global selection) and otherwise emitted
-                // an unscaled single-exponential, so oral and transdermal users got a
-                // projected trajectory that was effectively flat at baseline.
-                let refRoute = refDose.administrationMethod
-
-                // Projection interval. A user-set frequency always wins. Failing that,
-                // this used to fall straight to `AdministrationMethod.frequencyDays`,
-                // which is 7 for *every* injectable — so a single logged 1000 mg TU dose
-                // was projected forward as weekly 1000 mg injections, roughly 2.4× the
-                // level a correctly-spaced regimen reaches. Ask the ester instead; it is
-                // the thing that determines a sane interval. See `typicalIntervalDays`.
-                let freqDays = effectivePKIntervalDays(ester: refEster,
-                                                       route: refRoute,
-                                                       medication: medication)
-
-                let lookaheadLimit = calendar.date(byAdding: .day, value: PKConstants.scheduleLookaheadDays, to: end) ?? end
-                let now = Date()
-                var cursor = calendar.date(byAdding: .day, value: freqDays, to: latestReal) ?? latestReal
-                while cursor <= lookaheadLimit {
-                    // Only project future doses. When the single real dose is old, this loop
-                    // would otherwise generate phantom past doses (latestReal + freqDays…now)
-                    // that contribute non-zero Bateman values at current cursor positions,
-                    // inflating the predicted level as if the user had never missed a dose.
-                    guard cursor > now else {
-                        guard let next = calendar.date(byAdding: .day, value: freqDays, to: cursor) else { break }
-                        cursor = next
-                        continue
-                    }
-                    if !doseEvents.contains(where: { abs($0.date.timeIntervalSince(cursor)) < 3600 }) {
-                        doseEvents.append(contentsOf: makeDoseEvents(date: cursor,
-                                                                     ester: refEster,
-                                                                     route: refRoute,
-                                                                     amount: effAmount))
-                    }
-                    guard let next = calendar.date(byAdding: .day, value: freqDays, to: cursor) else { break }
-                    cursor = next
-                }
-            }
+            // This cannot move "now": future events were already skipped by the
+            // `dt < 0` guard below, so `getCurrentHormoneLevel()` and
+            // `predictedLevel(at:)` (lab-draw dates, always past) are untouched.
         } else {
             // No real dose records: return baseline-only points.  Do NOT fabricate
             // phantom backfilled doses from `lastDoseDate` — that path mixed a

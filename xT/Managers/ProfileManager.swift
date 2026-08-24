@@ -174,10 +174,25 @@ internal extension ProfileManager {
     /// fallback for records written before encryption or by the write-side
     /// failure fallback.
     private func decryptName(_ stored: String) -> String {
-        if let encryptedData = Data(base64Encoded: stored),
-           let decryptedData = try? SecurityManager.shared.decryptData(encryptedData),
-           let name = String(data: decryptedData, encoding: .utf8) {
-            return name.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let encryptedData = Data(base64Encoded: stored) {
+            if let decryptedData = try? SecurityManager.shared.decryptData(encryptedData),
+               let name = String(data: decryptedData, encoding: .utf8) {
+                return name.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            // Base64 that decrypts to nothing is either a plaintext name that
+            // happens to be valid base64, or an encrypted blob this key can't
+            // open — written before an app delete/reinstall regenerated the
+            // keychain key, or synced from another device (device-local key).
+            // A sealed box is ≥ 29 bytes (12 nonce + 16 tag + payload) of
+            // random ciphertext, so it's never valid UTF-8; a real name is
+            // short readable text. Showing an undecryptable blob as the
+            // user's name is garbage — report no name instead, like
+            // `decryptImage` already does for undecryptable images.
+            let looksLikeSealedBox = encryptedData.count >= 29
+                && String(data: encryptedData, encoding: .utf8) == nil
+            if looksLikeSealedBox {
+                return ""
+            }
         }
         return stored.trimmingCharacters(in: .whitespacesAndNewlines)
     }
@@ -205,7 +220,7 @@ internal extension ProfileManager {
     func loadProfile() {
         // SwiftData-backed path: reads from UserPreferences, which CloudKit keeps in sync.
         if let context = modelContext,
-           let prefs = try? context.fetch(FetchDescriptor<UserPreferences>()).first {
+           let prefs = UserPreferences.canonical(in: context) {
             let securityManager = SecurityManager.shared
 
             // Profile name: try encrypted (base64) first, fall back to plaintext for
@@ -237,7 +252,7 @@ internal extension ProfileManager {
         guard !defaults.bool(forKey: "profileCloudKitMigrationDone") else { return }
 
         guard let context = modelContext,
-              let prefs = try? context.fetch(FetchDescriptor<UserPreferences>()).first
+              let prefs = UserPreferences.canonical(in: context)
         else { return }
 
         // Don't overwrite data that arrived from CloudKit on this device.
@@ -282,7 +297,7 @@ internal extension ProfileManager {
         // encrypted blobs synced via CloudKit are not decryptable on another
         // device — but they remain protected if a device or backup is compromised.
         if let context = modelContext,
-           let prefs = try? context.fetch(FetchDescriptor<UserPreferences>()).first {
+           let prefs = UserPreferences.canonical(in: context) {
             let securityManager = SecurityManager.shared
             let trimmedName = profileName.trimmingCharacters(in: .whitespacesAndNewlines)
 

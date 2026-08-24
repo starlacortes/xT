@@ -57,16 +57,12 @@ enum SplitMix32 {
     }
 }
 
-/// Night-sky palette — deliberately *not* theme-tinted, so stars and burst
-/// sparkles read against the starfield body. Shared by `StarFieldGeometry`
-/// and `ConstellationBurstEffect` (whose comment long admitted the copy).
+/// Night-sky palette — deliberately *not* theme-tinted, so stars read
+/// against the starfield body. Shared by `StarFieldGeometry`.
 enum StarPalette {
     static let warmWhite = SIMD3<Float>(1.00, 0.95, 0.86)
     static let coolBlue  = SIMD3<Float>(0.72, 0.82, 1.00)
     static let gold      = SIMD3<Float>(1.00, 0.78, 0.45)
-
-    /// Constellation-burst sequence cycled by star index.
-    static let burstSequence: [SIMD3<Float>] = [warmWhite, coolBlue, gold, warmWhite]
 
     /// Starfield color: mostly warm white, a fifth cool blue, a few gold
     /// accents, scaled by a brightness variation so the field doesn't read

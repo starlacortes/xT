@@ -120,7 +120,7 @@ final class HeatMap3DRenderer {
     /// Registers the point-cloud starfield and the solid body's wrapper node so
     /// `setConstellation` can cross-fade between them. `starNode` must carry a
     /// `StarFieldGeometry` geometry; its material receives the `u_currentTime` /
-    /// `u_regionGlow` uniforms in lock-step with the skin material.
+    /// `u_regionGlow` / tap-bloom uniforms in lock-step with the skin material.
     func attachStarField(starNode: SCNNode, bodyNode: SCNNode) {
         self.starNode = starNode
         self.bodyNode = bodyNode
@@ -129,6 +129,8 @@ final class HeatMap3DRenderer {
         starMaterial?.setValue(NSValue(scnVector4: SCNVector4(0, 0, 0, 0)), forKey: "u_regionGlow")
         starMaterial?.setValue(NSValue(scnVector3: SCNVector3(0, 0, 0)), forKey: "u_tintColor")
         starMaterial?.setValue(Float(0), forKey: "u_tintStrength")
+        starMaterial?.setValue(NSValue(scnVector3: SCNVector3(0, 0, 0)), forKey: "u_tapCenter")
+        starMaterial?.setValue(Float(0), forKey: "u_tapStart")
     }
 
     /// Tints the star palette toward a theme-derived color.
@@ -171,6 +173,15 @@ final class HeatMap3DRenderer {
         let v = center.map { SCNVector4($0.x, $0.y, $0.z, radius) } ?? SCNVector4(0, 0, 0, 0)
         material?.setValue(NSValue(scnVector4: v), forKey: "u_regionGlow")
         starMaterial?.setValue(NSValue(scnVector4: v), forKey: "u_regionGlow")
+    }
+
+    /// Triggers a soft radial bloom in the starfield at the tap world position.
+    /// The bloom rises quickly and fades over ~0.5 s. Has no effect when the
+    /// star material isn't wired up (e.g. QuickDose, which uses the skin ripple).
+    func triggerTapBloom(at world: SCNVector3) {
+        starMaterial?.setValue(NSValue(scnVector3: world), forKey: "u_tapCenter")
+        starMaterial?.setValue(Float(CACurrentMediaTime()), forKey: "u_tapStart")
+        startDisplayLinkIfNeeded()
     }
 
     // MARK: - Display link

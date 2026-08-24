@@ -17,6 +17,7 @@ struct SettingsView: View {
     @Environment(\.notificationManager) var notificationManager
     @Environment(\.authenticationManager) var authManager
     @Environment(\.themeManager) var themeManager
+    @Environment(\.rebuildCloudContainer) var rebuildCloudContainer
     @State var showingResetAlert = false
     @State var showingAuthRequest = false
     @State var showingTypeMethodSheet = false
@@ -33,6 +34,15 @@ struct SettingsView: View {
     // iCloud sync
     @State var icloudSyncEnabled: Bool = UserDefaults.standard.bool(forKey: "icloudSyncEnabled")
     @State var showingRestartAlert = false
+
+    // iCloud restore / sync now
+    enum CloudActivity: Equatable { case restoring, syncing }
+    @State var cloudActivity: CloudActivity?
+    @State var showRestoreCompleteAlert = false
+    @State var showRestoreNotFoundAlert = false
+    @State var showSyncCompleteAlert = false
+    @State var showSyncFailedAlert = false
+    @State var showProfileNamePrompt = false
 
     // Therapeutic target state
     @State var useCustomTargets: Bool = false
@@ -82,6 +92,9 @@ struct SettingsView: View {
             .sheet(isPresented: $showingDoseScheduleSheet) {
                 DoseScheduleSettingsView()
             }
+            .sheet(isPresented: $showProfileNamePrompt) {
+                ProfileNamePromptView(isPresented: $showProfileNamePrompt)
+            }
             .onAppear { loadSettings() }
             .onChange(of: doseRemindersEnabled) { _, newValue in onDoseReminderToggle(newValue) }
             .onChange(of: doseReminderHour) { _, _ in onDoseTimeChange() }
@@ -94,11 +107,38 @@ struct SettingsView: View {
             } message: {
                 Text("To receive dose and journal reminders, please enable notifications in System Settings.")
             }
-            .alert("Are you sure?", isPresented: $showingResetAlert) {
+            .alert("Reset App Data", isPresented: $showingResetAlert) {
                 Button("Cancel", role: .cancel) {}
-                Button("Reset", role: .destructive) { resetAppData() }
+                Button("This Device Only") { resetAppData(includingCloud: false) }
+                Button("This Device and iCloud", role: .destructive) { resetAppData(includingCloud: true) }
             } message: {
-                Text("xT will close and restart the onboarding process.")
+                Text("\"This Device Only\" keeps your iCloud data — turning iCloud Sync back on later restores it. \"This Device and iCloud\" deletes your data everywhere.\n\nThis will close xT.")
+            }
+            .alert("Data Restored", isPresented: $showRestoreCompleteAlert) {
+                Button("OK", role: .cancel) {
+                    // Same device-key caveat as the onboarding restore: if the
+                    // restored profile name is unreadable, collect a new one.
+                    if profileManager.profileName.isEmpty {
+                        showProfileNamePrompt = true
+                    }
+                }
+            } message: {
+                Text("Your data was restored from iCloud.")
+            }
+            .alert("No iCloud Data Found", isPresented: $showRestoreNotFoundAlert) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("No existing data was found in iCloud.")
+            }
+            .alert("Sync Complete", isPresented: $showSyncCompleteAlert) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("xT saved your changes. iCloud will finish syncing automatically.")
+            }
+            .alert("Sync Unavailable", isPresented: $showSyncFailedAlert) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("iCloud sync isn't available right now. Try again in a moment.")
             }
         }
     }
@@ -124,8 +164,18 @@ struct SettingsView: View {
         }
     }
 
-    func resetAppData() {
+    func resetAppData(includingCloud: Bool) {
         let defaults = UserDefaults.standard
+
+        if !includingCloud {
+            // Local-only reset: switch to a store with no CloudKit backing
+            // BEFORE deleting rows, so no tombstones are exported and the
+            // iCloud copy survives. The store file itself is replaced at the
+            // next launch (pendingLocalStoreWipeKey) so no history of the
+            // deletion survives to a later re-enable of sync either.
+            defaults.set(false, forKey: "icloudSyncEnabled")
+            rebuildCloudContainer(.cloudKit(false))
+        }
 
         // 1-2. Clear in-memory profile + medication/dose state (shared implementation,
         //      so a spoof/persona swap and a full reset can no longer drift apart).
@@ -153,6 +203,20 @@ struct SettingsView: View {
 
         // 7. Set onboarding flag after the wipe
         defaults.set(false, forKey: "hasCompletedOnboarding")
+
+        if !includingCloud {
+            // Post-wipe flags for the local-only path: stay local-only, and
+            // replace the store file at the next launch (safe — no container
+            // is alive in xTApp.init).
+            defaults.set(false, forKey: "icloudSyncEnabled")
+            defaults.set(true, forKey: CloudSyncService.pendingLocalStoreWipeKey)
+        }
+
+        // 8. Close the app — every reset path wants a clean relaunch (fresh
+        //    store file, onboarding from the top). Synchronize first so the
+        //    flags written above survive the abrupt exit.
+        defaults.synchronize()
+        exit(0)
     }
 
 }

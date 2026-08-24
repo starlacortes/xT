@@ -2,9 +2,11 @@ import SwiftUI
 
 // MARK: - Region Detail View
 //
-// Full-screen overlay reached by tapping a region on the 3-D body diagram.
+// Detail card reached by tapping a region on the 3-D body diagram.
 // Absorbs RegionInfoPanel and MindInfoPanel — both are superseded by this view.
-// Opens from the trailing edge via .transition(.move(edge: .trailing).combined(with: .opacity)).
+// Position and entrance are the caller's (`TimeBodyExplorerView`): the card
+// is presented in a native sheet in `.stage` framing and slides in from the
+// trailing edge in `.profile`.
 //
 // Slot structure per `docs/App design/TIME_CARD_PERSONALIZATION.md` §6:
 //
@@ -22,6 +24,19 @@ import SwiftUI
 // The three tier-level blocks that used to sit below ("Your timeline", "What to
 // expect", "Long-term") are gone. They were keyed to tenure rather than to the
 // region, so all four estrogen body regions rendered the same fifty words.
+
+/// Reports the natural height of the card's content (header + slots + their
+/// padding) so the caller can set the sheet's expanded detent to fit the text
+/// instead of always filling the screen. The background geometry is attached to
+/// the padded content stack, which lays out at its ideal height inside the
+/// ScrollView regardless of the viewport's height — so the value is stable
+/// whether the sheet is at its standard or expanded height.
+struct TimeCardContentHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
 
 struct TimeRegionDetailView: View {
     let regionKey: TimeRegionKey
@@ -73,6 +88,10 @@ struct TimeRegionDetailView: View {
         )
     }
 
+    /// Height of the soft fade at the card's bottom edge. Kept small so it
+    /// reads as a finish on the edge, not a large vignette over the content.
+    private let bottomFadeHeight: CGFloat = 28
+
     var body: some View {
         ScrollView {
             // One spacing value between slots. The prose block sets its own,
@@ -98,19 +117,41 @@ struct TimeRegionDetailView: View {
             .padding(.horizontal, Theme.Spacing.xl)
             .padding(.top, Theme.Spacing.xl)
             .padding(.bottom, Theme.Spacing.xxl)
+            .background(
+                GeometryReader { proxy in
+                    Color.clear.preference(
+                        key: TimeCardContentHeightKey.self,
+                        value: proxy.size.height
+                    )
+                }
+            )
         }
-        .scrollBounceBehavior(.basedOnSize)
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous)
-                .stroke(palette.border.opacity(0.35), lineWidth: Theme.Colors.hairlineWidth)
+        // Soften the bottom edge so scrolling content dissolves into the card
+        // rather than being cut off by a hard line. The mask sits above the
+        // glass surface, so only the content fades. A fixed-height fade keeps
+        // the effect identical whatever height the sheet resolves to.
+        .mask(
+            VStack(spacing: 0) {
+                Rectangle()
+                LinearGradient(
+                    colors: [.black, .clear],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: bottomFadeHeight)
+            }
         )
-        .padding(.trailing, Theme.Spacing.md)
+        // Palette-tinted glass panel inside the sheet's own liquid glass — the
+        // same `.glassEffect` idiom as `Theme.GlassCardModifier`, so the card
+        // keeps its Time category identity on the system surface.
+        .glassEffect(.regular.tint(palette.base.opacity(0.12)),
+                     in: .rect(cornerRadius: Theme.Radius.xl))
+        // Screen-edge padding is the caller's: the Time explorer pads the card
+        // trailing in `.profile` framing and horizontal+bottom in `.stage`.
         // The Time screen's backdrop is near-black in both appearances, so the
         // panel is a dark surface whatever the system setting is. Without this,
-        // Light Mode resolves `.primary` to near-black over a dark blur and the
-        // material's own tint to the wrong side of the ground.
+        // Light Mode resolves `.primary` to near-black over dark glass and the
+        // glass's own tint to the wrong side of the ground.
         .environment(\.colorScheme, .dark)
     }
 
@@ -119,21 +160,34 @@ struct TimeRegionDetailView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.md) {
             HStack(alignment: .top, spacing: Theme.Spacing.md) {
-                iconTile
+                // The icon tile is decorative (accessibilityHidden) and consumes
+                // ~50pt of horizontal space the title needs in the narrow
+                // `.profile` card, so it only renders in `.stage` framing where
+                // the card spans the full width.
+                if regionKey.framing == .stage {
+                    iconTile
+                }
 
                 VStack(alignment: .leading, spacing: Theme.Spacing.tiny) {
                     Text(title)
                         .font(Theme.Fonts.title2.weight(.bold))
                         .tracking(-0.4)
                         .foregroundStyle(.primary)
-                        .fixedSize(horizontal: false, vertical: true)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
 
                     monthLine
                 }
+                .layoutPriority(1)
 
-                Spacer(minLength: Theme.Spacing.sm)
+                Spacer(minLength: 0)
 
-                closeButton
+                // `.stage` cards dismiss by swipe (the sheet's drag indicator
+                // hints it), so the explicit close button only remains on the
+                // `.profile` (thighs) card, which has no drag-dismiss gesture.
+                if regionKey.framing == .profile {
+                    closeButton
+                }
             }
 
             rule
@@ -157,18 +211,29 @@ struct TimeRegionDetailView: View {
     /// region's own clock — "Developing", "Begins month 9" — never a position
     /// relative to a peak.
     private var monthLine: some View {
-        HStack(spacing: Theme.Spacing.sm) {
+        // The month eyebrow and the phase pill sit side by side in the
+        // full-width `.stage` card, but the narrow `.profile` card can't fit
+        // both on one line — an HStack there wraps each label character by
+        // character. Stack them for `.profile`, and pin every label to a
+        // single line so a long phase ("Begins month 9") never breaks apart.
+        let layout = regionKey.framing == .profile
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: Theme.Spacing.tiny))
+            : AnyLayout(HStackLayout(spacing: Theme.Spacing.tiny))
+
+        return layout {
             Text("Month \(month)")
                 .font(Theme.Fonts.eyebrow)
                 .textCase(.uppercase)
                 .tracking(0.6)
                 .foregroundStyle(palette.base)
+                .fixedSize()
 
             if let phase = activeRegion?.phaseLabel(at: month) {
                 Text(phase)
                     .font(Theme.Fonts.pill)
                     .foregroundStyle(palette.text)
-                    .padding(.horizontal, Theme.Spacing.sm)
+                    .fixedSize()
+                    .padding(.horizontal, Theme.Spacing.tiny)
                     .padding(.vertical, 3)
                     .background(palette.surface, in: Capsule())
                     .overlay(
@@ -420,5 +485,9 @@ private struct RegionCardPreview: View {
 
 #Preview("Mind · hippocampus") {
     RegionCardPreview(regionKey: .head, month: 11, brainRegion: "hippocampus")
+}
+
+#Preview("Thighs · month 11") {
+    RegionCardPreview(regionKey: .thighs, month: 11)
 }
 #endif

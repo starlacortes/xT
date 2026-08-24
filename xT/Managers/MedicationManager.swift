@@ -406,10 +406,12 @@ class MedicationManager {
     }
 
     var scheduleSummary: String {
-        // `effectiveFrequencyDays` honours the user's custom interval; the method default
-        // this used to read ignored it, so the summary contradicted the actual schedule.
+        // `effectiveDueIntervalDays` honours the user's custom interval and the ester of
+        // the most recent dose; the method default this used to read ignored both, so
+        // the summary contradicted the actual schedule (and said "every 7 days" for a
+        // 10-week TU cycle).
         if let medication = selectedMedication, let method = selectedAdministrationMethod {
-            return String(localized: "\(medication) via \(method) every \(effectiveFrequencyDays) days")
+            return String(localized: "\(medication) via \(method) every \(effectiveDueIntervalDays) days")
         } else {
             return String(localized: "Not configured")
         }
@@ -526,6 +528,7 @@ class MedicationManager {
         migrateToUserPreferences()
         loadUserPreferences()
         loadDoseHistory()
+        repairStoredNextDoseDate()
         loadBloodTestHistory()
         loadScreeningHistory()
         migrateRecordedAtForLegacyRecords()

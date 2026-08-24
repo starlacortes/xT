@@ -153,7 +153,7 @@ struct DataExportView: View {
     /// per visit.
     private func buildExportState() -> DataExporter.ExportState? {
         guard let context = modelContainer?.mainContext else { return nil }
-        let prefs = try? context.fetch(FetchDescriptor<UserPreferences>()).first
+        let prefs = UserPreferences.canonical(in: context)
         let defaults = UserDefaults.standard
 
         return DataExporter.ExportState(

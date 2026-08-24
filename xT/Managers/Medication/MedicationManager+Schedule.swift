@@ -122,8 +122,10 @@ extension MedicationManager {
             .filter { $0.doseDate >= windowStart && $0.doseDate <= now }
             .count
 
-        // Calculate how many doses SHOULD have been scheduled in that window
-        let scheduledCount = max(1, Int(ceil(Double(windowDays) / effectiveFrequencyDaysValue)))
+        // Calculate how many doses SHOULD have been scheduled in that window.
+        // The ester-aware due interval, not the method default: a TU user dosed every
+        // ~10 weeks was previously judged against ~5 weekly doses per month.
+        let scheduledCount = max(1, Int(ceil(Double(windowDays) / Double(effectiveDueIntervalDays))))
         adherenceRate = min(1.0, Double(takenDoses) / Double(scheduledCount))
     }
     
@@ -143,7 +145,8 @@ extension MedicationManager {
         }
         
         // Determine grace window based on dosing frequency: tighter for daily regimens.
-        let intervalDays = effectiveFrequencyDaysValue
+        // Ester-aware, so a TU streak is measured against its real 10-week cadence.
+        let intervalDays = Double(effectiveDueIntervalDays)
         let graceHours = intervalDays <= 1
             ? PKConstants.onTimeGraceHoursDaily
             : PKConstants.onTimeGraceHoursPeriodic

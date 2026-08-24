@@ -10,7 +10,6 @@ import SwiftUI
 
 struct HomeView: View {
     @Environment(\.medicationManager) private var medicationManager
-    @Environment(\.journalManager) private var journalManager
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
@@ -54,7 +53,6 @@ struct HomeView: View {
 
                     if medicationManager.isFullyConfigured {
                         FlatGraphView(dataRegionFraction: 0.55,
-                                      journalEntries: journalManager.entries,
                                       scrubFraction: $scrubFraction,
                                       scrubValue: $scrubValue,
                                       scrubDate: $scrubDate)
@@ -262,7 +260,6 @@ private struct HomeGradientBackground: View {
     SpoofPreview {
         HomeView()
             .environment(\.medicationManager, MedicationManager.shared)
-            .environment(\.journalManager, JournalManager.shared)
     }
 }
 #endif

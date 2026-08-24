@@ -24,33 +24,32 @@ extension OnboardingView {
                     .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.85))
                     .multilineTextAlignment(.center)
                 Spacer()
-                VStack(spacing: 12) {
+                VStack(spacing: 14) {
                     primaryButton("Begin") { advanceStep() }
-                    if UserDefaults.standard.bool(forKey: "icloudSyncEnabled") {
-                        Button("Restore from iCloud") {
-                            Task { await restoreFromiCloud() }
-                        }
-                        .font(.subheadline)
-                        .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.55))
-                    }
+                    restoreLink
                 }
                 .padding(.horizontal, 40)
                 .padding(.bottom, 40)
             }
 
+            // Compact overlay box while restore runs — blocks the Begin and
+            // restore controls without taking over the whole step.
             if isRestoringFromiCloud {
                 ZStack {
-                    Theme.Gradients.brand
-                        .opacity(0.85)
+                    Color.black.opacity(0.25)
                         .ignoresSafeArea()
                     VStack(spacing: 16) {
                         ProgressView()
-                            .tint(Theme.Colors.OnAccent.primary)
-                            .scaleEffect(1.3)
-                        Text("Checking iCloud…")
+                            .tint(Theme.Colors.accent)
+                            .scaleEffect(1.2)
+                        Text("Restoring from iCloud…")
                             .font(.body)
-                            .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.8))
+                            .foregroundStyle(.primary)
                     }
+                    .padding(.horizontal, 32)
+                    .padding(.vertical, 28)
+                    .background(Theme.Colors.appBackground, in: RoundedRectangle(cornerRadius: Theme.Radius.lg))
+                    .shadow(color: .black.opacity(0.2), radius: 16, y: 6)
                 }
                 .transition(.opacity)
             }
@@ -60,16 +59,60 @@ extension OnboardingView {
         } message: {
             Text("No existing data was found in iCloud. Complete the setup to get started.")
         }
+        .alert("Turn On iCloud Sync?", isPresented: $showTurnOnSyncAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Turn On") {
+                // Enabling sync must attach CloudKit to a store file with no
+                // local-only deletion history — the post-reset file would
+                // replay its deletes as tombstones and wipe the very iCloud
+                // data we're restoring. Build a fresh CloudKit-backed store
+                // under a temporary file name and swap live, then restore
+                // immediately — no restart.
+                UserDefaults.standard.set(true, forKey: "icloudSyncEnabled")
+                rebuildCloudContainer(.freshCloudKit)
+                Task { await restoreFromiCloud() }
+            }
+        } message: {
+            Text("Restoring from iCloud requires iCloud Sync. Turn it on now and your data will restore automatically.")
+        }
+    }
+
+    private var restoreLink: some View {
+        Button {
+            // A fresh install has no stored preference yet, but its container
+            // is CloudKit-backed from launch, so restore can run immediately.
+            // Only an explicit "off" choice blocks it.
+            if UserDefaults.standard.object(forKey: "icloudSyncEnabled") == nil
+                || UserDefaults.standard.bool(forKey: "icloudSyncEnabled") {
+                Task { await restoreFromiCloud() }
+            } else {
+                showTurnOnSyncAlert = true
+            }
+        } label: {
+            Text("Restore from iCloud")
+                .font(.subheadline)
+                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.8))
+                .underline()
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Checks iCloud for your existing data")
     }
 
     func restoreFromiCloud() async {
         withAnimation { isRestoringFromiCloud = true }
-        // Allow CloudKit's initial sync a moment to populate the local store
-        try? await Task.sleep(for: .seconds(3))
-        await MainActor.run { medicationManager.reloadAllFromStore() }
+        let restored = await CloudSyncService.restoreFromiCloud()
         withAnimation {
             isRestoringFromiCloud = false
-            if medicationManager.selectedMedication != nil {
+            if restored {
+                // Restoring implies consent to sync — record the preference so
+                // the mid-onboarding consent sheet doesn't ask again.
+                UserDefaults.standard.set(true, forKey: "icloudSyncEnabled")
+                // The restored profile name may be unreadable on this device
+                // (it's encrypted with a device-local keychain key), so ask
+                // for a replacement once Home appears.
+                if ProfileManager.shared.profileName.isEmpty {
+                    UserDefaults.standard.set(true, forKey: CloudSyncService.profileNamePromptPendingKey)
+                }
                 onboardingComplete?()
             } else {
                 showRestoreNotFoundAlert = true

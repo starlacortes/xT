@@ -781,9 +781,6 @@ enum PKConstants {
     /// when suggesting the next draw.
     static let bloodTestRelevanceDays = 75
 
-    /// How far ahead scheduled doses are projected, in days.
-    static let scheduleLookaheadDays = 90
-
     // MARK: Volume & syringe sizing
 
     /// Injection volumes below this (mL) cannot be measured reliably on a standard syringe.
