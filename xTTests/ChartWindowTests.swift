@@ -220,13 +220,15 @@ struct ChartWindowResolutionTests {
                           ester: TestosteroneEster.undecanoate.rawValue)
 
         // The ester beats the method default — this is the case that separates
-        // effectivePKIntervalDays from effectiveFrequencyDays, which returns 7 for
-        // everything injectable.
+        // effectivePKIntervalDays (and the due interval that builds on it) from
+        // effectiveFrequencyDays, which stays 7 for the cycle display.
         #expect(mgr.effectivePKIntervalDays(ester: TestosteroneEster.undecanoate.rawValue,
                                             route: "Injectable",
                                             medication: "Testosterone") == 70)
+        #expect(mgr.effectiveDueIntervalDays == 70,
+                "the due interval must follow the ester like the PK interval does")
         #expect(mgr.effectiveFrequencyDays == 7,
-                "effectiveFrequencyDays must keep its method-based contract — due dates depend on it")
+                "effectiveFrequencyDays must keep its method-based contract — the dot track and Day X of N display depend on it")
 
         // An unrecognised ester falls through to the method default.
         #expect(mgr.effectivePKIntervalDays(ester: "Nonsense", route: "Injectable",
@@ -267,8 +269,11 @@ struct OralChartAliasingTests {
         mgr.hrtStartDate = Calendar.current.date(byAdding: .year, value: -3, to: Date())
         mgr.bloodTestHistory = []
 
-        // Ten days of on-schedule daily doses: comfortably at steady state, and more
-        // than one dose so the single-dose forward projection stays out of it.
+        // Ten days of on-schedule daily doses: comfortably at steady state, so the curve
+        // under test is shaped by real accumulation alone. (This once noted that a
+        // multi-dose history kept the forward projection out of the window; it never
+        // actually did, and that projection has since been removed outright — see
+        // `ForwardProjectionTests`.)
         let now = Date()
         let doses = (1...10).reversed().map { day in
             DoseRecord(doseDate: now.addingTimeInterval(-Double(day) * 86400.0 + 3600.0),
@@ -332,33 +337,33 @@ struct OralChartAliasingTests {
     }
 }
 
-// MARK: - Forward projection
+// MARK: - Forward region
 
-@Suite("Chart window — an established regimen projects forward")
+@Suite("Chart window — the forward region never invents a dose")
 struct ForwardProjectionTests {
 
-    /// Was: `estimatedLevels` only synthesised forward doses when exactly ONE dose was
-    /// logged, so an established user's curve simply decayed once the last real dose
-    /// wore off. Nothing in the model says they are about to stop; the washout is an
-    /// artifact of the projection guard.
+    /// The chart window puts 2W/3 of its width *after* `now`, and `estimatedLevels`
+    /// used to fill that region with synthetic doses at
+    /// `latestReal + k · effectivePKIntervalDays`. The curve therefore rose to meet the
+    /// next-dose marker as though that injection had already been given — drawn with the
+    /// same stroke and fill as recorded history, so the chart showed levels climbing on
+    /// the strength of a dose the user had not taken and might yet skip.
     ///
-    /// It stayed invisible while the chart ended ~2 days out and injectables dose
-    /// weekly. The ester-aware window puts 2W/3 in the future, and a daily regimen
-    /// crosses its next scheduled dose well inside that — so the artifact became a
-    /// visible slide toward baseline over the last chunk of the chart.
+    /// Asserted as *monotonicity past the due date* rather than a level, so no threshold
+    /// has to be guessed: once the last logged dose has finished releasing, nothing in
+    /// the model can justify a rise.
     ///
-    /// Asserted as *non-monotonicity* of the forward region rather than a level: with
-    /// the projection missing, every point after the last real dose is absorbed is
-    /// strictly lower than the one before it, and no threshold has to be guessed.
-    @MainActor
+    /// This deliberately is not "the forward region never rises at all". A dose that
+    /// *was* logged keeps rising toward its own t_max, and transdermal releases as 24
+    /// hourly micro-doses — cream legitimately climbs through the first stretch of the
+    /// forward region off a real dose. The line being drawn is untaken doses, not
+    /// future time.
     ///
     /// `lastDoseDaysAgo` is chosen per ester so the next scheduled dose lands strictly
-    /// inside the forward region and not on either edge of it. Spacing the history at
-    /// exact multiples of the interval instead puts that dose at exactly `now`, where
-    /// the projection loop's `cursor > now` guard rightly declines to emit a dose the
-    /// user has not taken yet — and for EV the following one is already past the
-    /// window's 2.1-day forward extent.
-    @Test("The forward region rises again at the next scheduled dose",
+    /// inside the forward region and not on either edge of it, and so the last real dose
+    /// has finished absorbing (or releasing) by the time it falls due.
+    @MainActor
+    @Test("The forward region never rises once the next dose comes due",
           arguments: [("Estrogen", MedicationEster.oral.rawValue, "Oral", 2.0, 1, 0.6),
                       ("Estrogen", MedicationEster.valerate.rawValue, "Injectable", 4.0, 7, 5.5),
                       ("Estrogen", MedicationEster.transdermal.rawValue, "Cream", 3.0, 1, 0.6)])
@@ -387,25 +392,30 @@ struct ForwardProjectionTests {
         let window = mgr.chartWindow(now: now)
         let points = mgr.estimatedLevels(from: window.start, to: window.end,
                                          stepDays: window.stepDays, applyCalibration: false)
-        let forward = points.filter { $0.date > now }.map(\.value)
+        // The instant the next dose falls due — the start of the stretch that used to be
+        // fabricated. No logged dose covers any of it.
+        let nextDue = now.addingTimeInterval((Double(intervalDays) - lastDoseDaysAgo) * 86400.0)
+        let afterDue = points.filter { $0.date >= nextDue }.map(\.value)
 
-        #expect(forward.count > 4,
-                "\(ester) needs a forward region to test, got \(forward.count) points")
+        #expect(afterDue.count > 2,
+                "\(ester) needs points past the next scheduled dose to test, got \(afterDue.count)")
 
-        let rises = zip(forward, forward.dropFirst()).contains { $0 < $1 * 0.999 }
-        #expect(rises,
-                "\(ester) forward region only ever falls (\(forward.first ?? 0) → \(forward.last ?? 0)) — the next dose is not being projected")
+        // 1.001 absorbs float noise; anything above it is an untaken dose being modelled.
+        let rises = zip(afterDue, afterDue.dropFirst()).contains { $1 > $0 * 1.001 }
+        #expect(!rises,
+                "\(ester) rises after the next dose comes due (\(afterDue.first ?? 0) → \(afterDue.max() ?? 0)) — an untaken dose is being modelled")
     }
 
-    /// The projection anchors on the MOST RECENT dose, not the oldest. `activeDoses` is
-    /// sorted ascending and the old code read `.first`, which was harmless only because
-    /// the branch required a count of exactly one. With the guard relaxed, reading the
-    /// wrong end would project a user's long-abandoned starting dose forever.
+    /// The forward region is shaped by the MOST RECENT dose, not the oldest. Both
+    /// histories share an ancient dose that has fully washed out, so any difference in
+    /// the forward peak comes from which real dose is driving the curve.
     ///
-    /// Both histories share an ancient dose that has fully washed out, so any difference
-    /// in the forward peak comes from which dose the projection copied.
+    /// This outlived the synthetic projection it was originally written against: with
+    /// the forward fill gone the newest dose still governs the forward region — now
+    /// because it is the only one still contributing, rather than because it was the
+    /// one the projection copied.
     @MainActor
-    @Test("The projection copies the most recent dose, not the first")
+    @Test("The forward region follows the most recent dose, not the first")
     func projectionFollowsTheLatestDose() {
         func forwardPeak(oldAmount: Double, recentAmount: Double) -> Double {
             let mgr = TestDefaults.manager()
@@ -437,9 +447,9 @@ struct ForwardProjectionTests {
                 "projecting from the latest dose should put the 6 mg regimen above the 1 mg one, got \(steppedUp) vs \(steppedDown)")
     }
 
-    /// A history of nothing but skipped doses must not synthesise a regimen out of
-    /// thin air — the relaxed guard is `activeDoses.last`, so an empty filtered list
-    /// still projects nothing.
+    /// A history of nothing but skipped doses must not produce a rising curve out of
+    /// thin air: `activeTakenDoses` filters every one of them out, so there are no dose
+    /// events at all and the forward region has nothing to climb from.
     @MainActor
     @Test("Skipped-only history projects nothing")
     func skippedOnlyHistoryProjectsNothing() {

@@ -241,6 +241,36 @@ final class DoseOrderingTests: XCTestCase {
                        "zero is not a dosing interval; it must not divide into the schedule")
     }
 
+    @MainActor func testDueIntervalUsesTheEsterWhenNoCustomFrequency() {
+        manager.updateSelection(type: .testosterone, method: .injectable)
+        manager.customFrequencyDays = nil
+        manager.doseHistory = [
+            DoseRecord(doseDate: daysAgo(3), medicationType: "Testosterone",
+                       ester: TestosteroneEster.undecanoate.rawValue,
+                       administrationMethod: "Injectable", doseAmount: 1000.0, doseStatus: .taken)
+        ]
+
+        XCTAssertEqual(manager.effectiveDueIntervalDays, 70,
+                       "TU is dosed every ~10 weeks; the due interval must follow the ester, not the 7-day method default")
+        XCTAssertEqual(manager.effectiveFrequencyDays, 7,
+                       "the cycle display stays method-based even though the due date does not")
+
+        let last = daysAgo(3)
+        let next = manager.calculateNextDoseDate(from: last)
+        let gapDays = next.timeIntervalSince(last) / 86400.0
+        XCTAssertEqual(gapDays, 70, accuracy: 0.01,
+                       "the TU due date should be 10 weeks after the last dose")
+    }
+
+    @MainActor func testDueIntervalFallsBackToMethodWithoutHistory() {
+        manager.updateSelection(type: .estrogen, method: .injectable)
+        manager.customFrequencyDays = nil
+        manager.doseHistory = []
+
+        XCTAssertEqual(manager.effectiveDueIntervalDays, 7,
+                       "with no dose to read an ester from, the due interval is the method default")
+    }
+
     @MainActor func testNextDoseDateUsesTheEffectiveFrequency() {
         manager.updateSelection(type: .estrogen, method: .injectable)
         manager.customFrequencyDays = 10

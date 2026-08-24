@@ -21,6 +21,10 @@ extension MedicationManager {
 
     /// The dosing interval in days: the user's custom frequency when set, otherwise the
     /// selected administration method's default, otherwise a weekly fallback.
+    ///
+    /// Method-based by contract — this one sizes the cycle *display* (the next-dose
+    /// row's dot track, "Day X of N" on the time screen). Due dates and reminders use
+    /// `effectiveDueIntervalDays`, which adds an ester tier on top of the same chain.
     var effectiveFrequencyDays: Int {
         if let custom = customFrequencyDays, custom > 0 { return custom }
         if let methodString = selectedAdministrationMethod,
@@ -30,8 +34,32 @@ extension MedicationManager {
         return Self.fallbackFrequencyDays
     }
 
-    /// `effectiveFrequencyDays` as a `Double`, for interval arithmetic.
-    var effectiveFrequencyDaysValue: Double { Double(effectiveFrequencyDays) }
+    /// The interval used for *due dates*: the next-dose date, reminders, the
+    /// missed-dose window, adherence, and the on-time streak. Resolution order: the
+    /// user's custom frequency, then the most recently **taken** dose's ester typical
+    /// interval, then the administration method's default, then weekly.
+    ///
+    /// Deliberately distinct from `effectiveFrequencyDays`, which stays method-based
+    /// for the cycle *display* — the next-dose row draws one dot per cycle day and the
+    /// time screen renders "Day X of N", and a 70-day TU cycle would make both unusable
+    /// as 70 dots and 70 day-labels.
+    ///
+    /// TU is the case that separates the two: it is dosed every ~10 weeks, but
+    /// `AdministrationMethod.injectable.frequencyDays` is 7 for everything injectable.
+    /// The old arrangement (due dates on the method tier) made every TU user look like
+    /// a weekly dose was overdue 3 days after their last injection. The ester tier
+    /// fixes the due date without re-drawing the dot track.
+    var effectiveDueIntervalDays: Int {
+        guard let medication = selectedMedication else { return effectiveFrequencyDays }
+        let latest = latestDose {
+            $0.isActive && $0.medicationType == medication
+                && DoseStatus(rawValue: $0.doseStatus) == .taken
+        }
+        guard let latest else { return effectiveFrequencyDays }
+        return effectivePKIntervalDays(ester: latest.ester,
+                                       route: latest.administrationMethod,
+                                       medication: medication)
+    }
 
     /// Interval used when neither a custom frequency nor a known method is available.
     static let fallbackFrequencyDays = 7
@@ -41,12 +69,9 @@ extension MedicationManager {
     /// Resolution order: the user's custom frequency, then the **ester's** typical
     /// interval, then the administration method's default, then weekly.
     ///
-    /// Deliberately distinct from `effectiveFrequencyDays`, which has no ester tier and
-    /// is load-bearing for next-dose due dates (`calculateNextDoseDate()`), the schedule
-    /// summary, and notification scheduling (`NotificationManager.doseFrequencyDays`).
-    /// Giving *that* property an ester tier would silently move every user's due date.
-    /// This one is for model sizing only — the single-dose forward projection in
-    /// `estimatedLevels` and the chart window — where the ester is the better predictor.
+    /// Deliberately distinct from `effectiveFrequencyDays`, which has no ester tier.
+    /// This one feeds the PK model (the chart window, and — until 2026-08 — the
+    /// forward projection) and, via `effectiveDueIntervalDays`, every due date.
     ///
     /// TU is the case that separates the two: it is dosed every ~10 weeks, but
     /// `AdministrationMethod.injectable.frequencyDays` is 7 for everything injectable.

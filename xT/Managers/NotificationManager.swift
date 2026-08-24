@@ -75,8 +75,9 @@ final class NotificationManager: NSObject {
     var journalReminderMinute = Defaults.journalMinute
 
     /// The dosing frequency in days. Drives whether the dose reminder is daily or on
-    /// specific days. Single derivation lives on `MedicationManager`.
-    var doseFrequencyDays: Int { MedicationManager.shared.effectiveFrequencyDays }
+    /// specific days. Single derivation lives on `MedicationManager` — the ester-aware
+    /// due interval, so a TU user's next reminder sits 10 weeks out, not weekly.
+    var doseFrequencyDays: Int { MedicationManager.shared.effectiveDueIntervalDays }
 
     private let doseNotificationRequestKey = "dose_reminder_request"
     private let journalNotificationRequestKey = "journal_reminder_request"
@@ -181,8 +182,12 @@ final class NotificationManager: NSObject {
         let freq = doseFrequencyDays
 
         // Daily user — repeating trigger at the chosen time every day;
-        // non-daily — one-time notification for the next scheduled dose.
-        let trigger = doseReminderTrigger(from: Date(), frequencyDays: freq)
+        // non-daily — one-time notification for the next scheduled dose. When the
+        // manager knows the next dose date, aim the one-time trigger at it directly:
+        // advancing `Date()` by the frequency lands on schedule only right after a
+        // dose, and drifts wrong (up to a full interval) for anyone mid-cycle.
+        let referenceDate = MedicationManager.shared.nextDoseDate ?? Date()
+        let trigger = doseReminderTrigger(from: referenceDate, frequencyDays: freq)
 
         let content = doseNotificationContent()
         let request = UNNotificationRequest(identifier: doseNotificationRequestKey, content: content, trigger: trigger)

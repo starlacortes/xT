@@ -354,10 +354,12 @@ extension MedicationManager {
         refreshState()
     }
 
-    /// Calculates the next dose date from `effectiveFrequencyDays` — the user's custom
-    /// frequency when set (#18), otherwise the administration method's default.
+    /// Calculates the next dose date from `effectiveDueIntervalDays` — the user's custom
+    /// frequency when set, otherwise the interval of the ester most recently taken,
+    /// otherwise the administration method's default. The ester tier is what puts a
+    /// testosterone-undecanoate user's due date 10 weeks out instead of 7 days.
     func calculateNextDoseDate(from lastDose: Date) -> Date {
-        Calendar.current.date(byAdding: .day, value: effectiveFrequencyDays, to: lastDose) ?? Date()
+        Calendar.current.date(byAdding: .day, value: effectiveDueIntervalDays, to: lastDose) ?? Date()
     }
 
 }

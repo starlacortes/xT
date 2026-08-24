@@ -240,6 +240,28 @@ extension MedicationManager {
         doseHistory = (allRecords ?? []).filter { !$0.isDeleted }
     }
 
+    /// One-time repair for dates persisted under the old method-based due interval.
+    ///
+    /// Before 2026-08, `nextDoseDate` was computed from `effectiveFrequencyDays`, which
+    /// is 7 days for every injectable — so a testosterone-undecanoate user (dosed every
+    /// ~10 weeks) carried a "due in 7 days" date. Recompute it from the last dose with
+    /// the ester-aware `calculateNextDoseDate` once the history that resolves the ester
+    /// is loaded. Skips when the user set a custom frequency: that interval is the
+    /// rule, so the stored date is already correct.
+    ///
+    /// Runs after `loadDoseHistory()` in `reloadFromContext()`, so the due interval can
+    /// see the latest taken dose's ester. Idempotent: with the ester tier in effect,
+    /// recomputing from the same inputs reproduces the same date, and the non-TU esters
+    /// resolve to the same interval the method tier used to produce.
+    func repairStoredNextDoseDate() {
+        guard customFrequencyDays == nil || customFrequencyDays == 0,
+              let last = lastDoseDate else { return }
+        let recomputed = calculateNextDoseDate(from: last)
+        guard recomputed != nextDoseDate else { return }
+        nextDoseDate = recomputed
+        persistUserPreferences()
+    }
+
     func saveContext() {
         guard let context = modelContext else { return }
         try? context.save()

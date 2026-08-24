@@ -1765,19 +1765,29 @@ struct LevelCopyTests {
 
 /// Covers the testosterone scalingConstant recalibration (previously ~20-98x
 /// too low — see PharmacokineticConstants.swift for the derivation).
-/// NOTE on what these tests actually measure. Each sets up a *single* logged dose, which
-/// puts `estimatedLevels` into its forward-projection branch: with one dose and no custom
-/// frequency it projects future doses on the ester's typical interval so the chart can
-/// preview a trajectory. So the peak seen inside a multi-interval window is the peak of a
-/// projected *regimen*, not of one injection. Before 2026-07-31 that interval was 7 days
-/// for every injectable, which is why the TU expectation below moved: TU is dosed every
-/// 10 weeks, and projecting it weekly reached ~2850 ng/dL against a single-dose ~1190.
+/// NOTE on what these tests actually measure. They check the model against *clinical*
+/// peak bands, and the literature quotes those for an established regimen — accumulation
+/// from earlier doses included — not for one injection into an empty system.
+///
+/// These used to get that accumulation for free. A single logged dose put
+/// `estimatedLevels` into a forward-projection branch that invented the remaining doses
+/// on the ester's typical interval, so the peak inside a multi-interval window was the
+/// peak of a *projected* regimen rather than of one injection. That projection has since
+/// been removed — it drew untaken doses as though they had already been given, which is
+/// what `ForwardProjectionTests` now guards — so a scenario that needs accumulation has
+/// to log the doses for real.
+///
+/// Esters whose interval exceeds the window never accumulated inside it either way, and
+/// stay single-dose scenarios: TU is dosed every 10 weeks, so its 14-day window only ever
+/// held one injection. (Before 2026-07-31 the projection used 7 days for every
+/// injectable, which is why the TU expectation moved: projecting it weekly reached
+/// ~2850 ng/dL against a single-dose ~1190.)
 @Suite("Testosterone Ester — Absolute Peak Accuracy (post-recalibration)")
 struct TestosteronePeakAccuracyTests {
 
     @MainActor
-    @Test("TE 100mg produces clinically plausible peak ~600–900 ng/dL")
-    func teSingleDosePeak() {
+    @Test("TE 100mg weekly produces clinically plausible peak ~600–900 ng/dL")
+    func teWeeklyRegimenPeak() {
         let mgr = TestDefaults.manager()
         mgr.selectedMedication = "Testosterone"
         mgr.selectedAdministrationMethod = "Injectable"
@@ -1786,12 +1796,20 @@ struct TestosteronePeakAccuracyTests {
         mgr.bloodTestHistory = []
 
         let now = Date()
-        let record = DoseRecord(doseDate: now, medicationType: "Testosterone",
-                                 ester: TestosteroneEster.enanthate.rawValue,
-                                 administrationMethod: "Injectable", doseAmount: 100.0, doseStatus: .taken)
-        mgr.doseHistory = [record]
+        // The 400–900 band describes 100 mg *q7d*, so the history has to actually contain
+        // that regimen. Six weeks is well past accumulation plateau for TE's ~4.5-day
+        // terminal half-life. This used to be one dose plus five imaginary ones supplied
+        // by the forward projection; on a single real dose the model reads ~367 ng/dL,
+        // which is the correct single-injection answer to a question nobody was asking.
+        mgr.doseHistory = (0..<6).reversed().map { k in
+            DoseRecord(doseDate: now.addingTimeInterval(-Double(k * 7) * 86400.0),
+                       medicationType: "Testosterone",
+                       ester: TestosteroneEster.enanthate.rawValue,
+                       administrationMethod: "Injectable", doseAmount: 100.0, doseStatus: .taken)
+        }
 
-        let points = mgr.estimatedLevels(from: now, to: now.addingTimeInterval(14 * 86400),
+        // One interval forward from the newest dose: the steady-state peak.
+        let points = mgr.estimatedLevels(from: now, to: now.addingTimeInterval(7 * 86400),
                                           stepDays: 0.25, applyCalibration: false)
         // TE's scaling constant was corrected 2026-07-31 from 923 to 457.67 by the
         // clearance identity; on the old value this same scenario read ~1160 ng/dL.
@@ -1803,12 +1821,12 @@ struct TestosteronePeakAccuracyTests {
         // because the curve is now flatter within the interval, not lower overall.
         let maxLevel = points.map(\.value).max() ?? 0
         #expect(maxLevel > 400 && maxLevel < 900,
-                "TE 100mg q7d projected peak should be 400-900 ng/dL, got \(maxLevel)")
+                "TE 100mg q7d steady-state peak should be 400-900 ng/dL, got \(maxLevel)")
     }
 
     @MainActor
-    @Test("TP 50mg produces clinically plausible peak ~800–1200 ng/dL")
-    func tpSingleDosePeak() {
+    @Test("TP 50mg EOD produces clinically plausible peak ~800–1200 ng/dL")
+    func tpEodRegimenPeak() {
         let mgr = TestDefaults.manager()
         mgr.selectedMedication = "Testosterone"
         mgr.selectedAdministrationMethod = "Injectable"
@@ -1817,20 +1835,24 @@ struct TestosteronePeakAccuracyTests {
         mgr.bloodTestHistory = []
 
         let now = Date()
-        let record = DoseRecord(doseDate: now, medicationType: "Testosterone",
-                                 ester: TestosteroneEster.propionate.rawValue,
-                                 administrationMethod: "Injectable", doseAmount: 50.0, doseStatus: .taken)
-        mgr.doseHistory = [record]
+        // The band below describes 50 mg *EOD* — roughly 146 mg of testosterone per week,
+        // a deliberately high dose — so the history has to contain that regimen. It used
+        // to arrive via the forward projection, which invented doses at the ester's
+        // 2-day interval across this window; with that gone they are logged for real.
+        mgr.doseHistory = (0..<8).reversed().map { k in
+            DoseRecord(doseDate: now.addingTimeInterval(-Double(k * 2) * 86400.0),
+                       medicationType: "Testosterone",
+                       ester: TestosteroneEster.propionate.rawValue,
+                       administrationMethod: "Injectable", doseAmount: 50.0, doseStatus: .taken)
+        }
 
         let points = mgr.estimatedLevels(from: now, to: now.addingTimeInterval(7 * 86400),
                                           stepDays: 0.1, applyCalibration: false)
-        // TP projects every 2 days, not weekly (see `typicalIntervalDays`), so across a
-        // 7-day window this is a 50 mg EOD regimen — roughly 146 mg of testosterone per
-        // week, a deliberately high dose. The peak is correspondingly high. Range widened
-        // 2026-07-31 to match; the old 500-1600 was written against a weekly projection.
+        // Range widened 2026-07-31; the old 500-1600 was written against a weekly
+        // projection rather than the ester's real 2-day interval.
         let maxLevel = points.map(\.value).max() ?? 0
         #expect(maxLevel > 900 && maxLevel < 2200,
-                "TP 50mg EOD projected peak should be 900-2200 ng/dL, got \(maxLevel)")
+                "TP 50mg EOD steady-state peak should be 900-2200 ng/dL, got \(maxLevel)")
     }
 
     @MainActor
@@ -1860,7 +1882,9 @@ struct TestosteronePeakAccuracyTests {
         // S rose 214 → 457.67 (clearance identity), while the forward projection moved
         // from weekly to the ester's real 10-week interval. Net effect on this scenario
         // was ~1190 ng/dL, against ~1050 before. Had only the first landed it would read
-        // ~2850, which is why `typicalIntervalDays` exists.
+        // ~2850, which is why `typicalIntervalDays` exists. The projection has since been
+        // removed outright, which leaves this scenario unchanged: TU's 10-week interval
+        // never placed a second dose inside a 21-day window in the first place.
         //
         // The 2026-08-02 shape refit then moved the peak to ~944 ng/dL and, more to the
         // point, moved *when* it arrives: day 7 rather than day 0.66. This 21-day window
