@@ -141,11 +141,8 @@ struct TimeRegionDetailView: View {
                 .frame(height: bottomFadeHeight)
             }
         )
-        // Palette-tinted glass panel inside the sheet's own liquid glass — the
-        // same `.glassEffect` idiom as `Theme.GlassCardModifier`, so the card
-        // keeps its Time category identity on the system surface.
-        .glassEffect(.regular.tint(palette.base.opacity(0.12)),
-                     in: .rect(cornerRadius: Theme.Radius.xl))
+        .modifier(ProfileSurface(palette: palette,
+                                 enabled: regionKey.framing == .profile))
         // Screen-edge padding is the caller's: the Time explorer pads the card
         // trailing in `.profile` framing and horizontal+bottom in `.stage`.
         // The Time screen's backdrop is near-black in both appearances, so the
@@ -383,6 +380,29 @@ struct TimeRegionDetailView: View {
     }
 }
 
+// MARK: - Surface
+
+/// Own surface only for `.profile` (thighs), which floats on the starfield
+/// with no sheet under it. `.stage` cards sit in a native sheet whose system
+/// glass is the card — iOS 26 ignores `.presentationBackground(.clear)` on
+/// sheets, so a glass panel here would render inside the sheet's own glass as
+/// a card inside a card. Same `.glassEffect` idiom as `Theme.GlassCardModifier`,
+/// so the thighs card keeps its Time category identity.
+private struct ProfileSurface: ViewModifier {
+    let palette: Theme.Colors.TimePalette
+    let enabled: Bool
+
+    func body(content: Content) -> some View {
+        if enabled {
+            content
+                .glassEffect(.regular.tint(palette.base.opacity(0.12)),
+                             in: .rect(cornerRadius: Theme.Radius.xl))
+        } else {
+            content
+        }
+    }
+}
+
 // MARK: - Slot resolution
 
 /// Picks the copy for each card slot from a region and a `JourneyContext`.
@@ -469,6 +489,14 @@ private struct RegionCardPreview: View {
                     onClose: {}
                 )
                 .frame(width: 320)
+                // Stand-in for the sheet's system glass, which hosts the card
+                // surface in `.stage` framing and isn't part of this preview.
+                .background(
+                    regionKey.framing == .stage
+                        ? AnyShapeStyle(.ultraThinMaterial)
+                        : AnyShapeStyle(.clear),
+                    in: RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous)
+                )
                 .frame(maxHeight: .infinity, alignment: .center)
             }
         }

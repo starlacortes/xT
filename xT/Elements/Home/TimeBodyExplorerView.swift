@@ -139,6 +139,11 @@ struct TimeBodyExplorerView: View {
     /// expanded collapses back to the standard strip, and a decisive drag
     /// dismisses — and the background stays interactive so the body diagram
     /// keeps accepting taps at every detent.
+    ///
+    /// The sheet's own system glass is the card surface; the detail view
+    /// renders no background of its own in `.stage` framing. iOS 26 ignores
+    /// `.presentationBackground(.clear)` on sheets, so a tinted glass panel on
+    /// the content would show inside the sheet's glass as a card within a card.
     @ViewBuilder
     private func sheetContent(for regionKey: TimeRegionKey, size: CGSize) -> some View {
         detailCard(for: regionKey)
