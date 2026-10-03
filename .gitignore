@@ -89,9 +89,6 @@ xcuserdata
 # After new code Injection tools there's a generated folder /iOSInjectionProject
 # https://github.com/johnno1962/injectionforxcode
 
-# Project documentation (auto-generated, kept out of source control)
-Implementation/
-
 # Build output (should never be in source control)
 build/
 
@@ -116,4 +113,4 @@ time-screen-animation.mp4
 *.out
 *.synctex.gz
 *.toc
-docs/*.log
+*.log
