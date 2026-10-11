@@ -1,0 +1,924 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Native dark mode: the browser paints its canvas, scrollbars and form controls
+     to match before any CSS loads. theme-color = resolved paper (tokens). -->
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#F8F3E8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1C0C10" media="(prefers-color-scheme: dark)">
+<title>Isocline Design System</title>
+<!--
+  ISOCLINE_DESIGN_SYSTEM — canonical spec, October 2026.
+  Supersedes the direction boards (now in archive/) and absorbs
+  ISOCLINE_SELECTED_DIRECTION (kept as the reference plate).
+
+  Generated inputs (never edit by hand):
+    tokens/isocline.css, tokens/isocline.tokens.js  ← tools/scripts/gen_isocline_tokens.py
+    brand/isocline-marks.js, brand/*.svg            ← tools/scripts/build_isocline_marks.py
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=Atkinson+Hyperlegible+Next:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="tokens/isocline.css">
+<style>
+* { box-sizing: border-box; }
+body { background: var(--paper); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.65; margin: 0; -webkit-font-smoothing: antialiased; }
+.page { max-width: 1060px; margin: 0 auto; padding: 48px 16px 96px; }
+.eyebrow, .mono { font-family: var(--font-mono); font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(36px, 7vw, 56px); letter-spacing: -.01em; line-height: 1.05; margin: 10px 0 0; text-wrap: balance; }
+h2 { font-family: var(--font-display); font-weight: 600; font-size: 26px; letter-spacing: -.01em; margin: 0 0 12px; text-wrap: balance; }
+h2 .n { font-family: var(--font-mono); font-weight: 400; font-size: 13px; letter-spacing: .12em; color: var(--muted); margin-right: 10px; vertical-align: 4px; }
+h3 { font-family: var(--font-display); font-weight: 600; font-size: 16px; margin: 26px 0 8px; }
+section { margin-top: 72px; padding-top: 28px; border-top: 1px solid var(--line); }
+p, li { max-width: 70ch; }
+p { margin: 0 0 12px; }
+ul { padding-left: 20px; margin: 0 0 12px; }
+li { margin-bottom: 6px; }
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+code { font-family: var(--font-mono); font-size: .86em; background: var(--card); border: 1px solid var(--line); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+.lede { font-size: 17px; color: var(--muted); max-width: 48em; margin-top: 14px; }
+.lede strong { color: var(--ink); }
+.grid { display: grid; gap: 16px; }
+.g2 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.g3 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px; min-width: 0; }
+.card h4 { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; font-weight: 500; }
+.card p:last-child, .card ul:last-child { margin-bottom: 0; }
+.rule { border-left: 2px solid var(--accent); padding: 2px 0 2px 16px; margin: 14px 0; }
+.do, .dont { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; }
+.do { color: var(--success); } .dont { color: var(--muted); text-decoration: line-through; }
+
+/* dial */
+.dial { position: sticky; top: 0; z-index: 5; background: color-mix(in srgb, var(--paper) 92%, transparent); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+.dial .in { max-width: 1060px; margin: 0 auto; padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; }
+.dial input[type=range] { flex: 1 1 200px; accent-color: var(--accent); min-width: 0; }
+.dial .readout { font-family: var(--font-mono); font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+.dial .readout b { color: var(--ink); font-weight: 500; }
+.pill { font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; padding: 7px 13px; min-height: 32px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); color: var(--muted); cursor: pointer; }
+.pill[aria-pressed=true] { color: var(--ink); border-color: var(--accent); }
+.pill:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* logo plates */
+.plate { border-radius: 16px; border: 1px solid var(--line); display: grid; place-items: center; padding: 34px 20px; min-height: 150px; position: relative; min-width: 0; }
+.plate svg { display: block; width: 100%; height: auto; max-width: 300px; }
+.plate.mark svg { max-width: 76px; }
+.plate .cap { position: absolute; left: 14px; bottom: 10px; font-family: var(--font-mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.ground-paper { background: var(--paper); color: var(--ink); }
+.ground-night { background: var(--night-paper); color: var(--night-ink); --paper: var(--night-paper); }
+.ground-night .cap { color: color-mix(in srgb, var(--night-ink) 60%, transparent); }
+.ground-seed { background: var(--accent); color: var(--on-accent); }
+.ground-seed .cap { color: color-mix(in srgb, var(--on-accent) 75%, transparent); }
+.ground-card { background: var(--card); color: var(--ink); }
+/* relief only reads on day paper — emboss plates never follow the night toggle */
+.ground-day { background: var(--day-paper); color: var(--day-ink); --paper: var(--day-paper); }
+.ground-day .cap { color: color-mix(in srgb, var(--day-ink) 55%, transparent); }
+
+/* swatches */
+.sw { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.sw div { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--card); }
+.sw i { display: block; height: 52px; }
+.sw span { display: block; padding: 7px 10px 9px; font-family: var(--font-mono); font-size: 10.5px; color: var(--muted); line-height: 1.45; }
+.sw span b { color: var(--ink); font-weight: 500; display: block; }
+
+/* type specimens */
+.spec { border-bottom: 1px solid var(--line); padding: 14px 0; display: grid; grid-template-columns: 150px 1fr; gap: 14px; align-items: baseline; }
+.spec .role { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .1em; color: var(--muted); }
+.spec .show { min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 560px) { .spec { grid-template-columns: 1fr; gap: 4px; } }
+
+/* instrument figure */
+.fig { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px; }
+.fig svg { display: block; width: 100%; height: auto; }
+.fig svg text { font-family: var(--font-mono); font-size: 10px; fill: var(--muted); }
+.figcap { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-top: 8px; }
+
+/* phone sketch */
+.phones { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; }
+.phone { border: 1px solid var(--line); border-radius: 34px; background: var(--paper); padding: 22px 16px 16px; min-height: 420px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 18px 44px rgba(18,12,32,.10); }
+.phone .eyebrow { font-size: 9.5px; }
+.phone .big { font-family: var(--font-mono); font-weight: 500; font-size: 40px; line-height: 1; letter-spacing: -.01em; }
+.phone .big small { font-size: 12px; color: var(--muted); letter-spacing: .1em; margin-left: 6px; }
+.phone .ttl { font-family: var(--font-display); font-weight: 700; font-size: 28px; line-height: 1.1; }
+.row { border: 1px solid var(--line); border-radius: 14px; background: var(--card); padding: 10px 12px; display: flex; gap: 10px; align-items: center; min-width: 0; }
+.row .t { font-weight: 700; font-size: 13.5px; }
+.row .s, .overlay .s { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .tile { width: 30px; height: 30px; border-radius: 9px; border: 1px solid var(--line); flex: none; display: grid; place-items: center; color: var(--accent); }
+.row > div { min-width: 0; }
+.week { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-family: var(--font-mono); font-size: 10.5px; color: var(--muted); gap: 2px; }
+.week b { display: block; font-weight: 500; font-size: 13px; color: var(--ink); padding: 5px 0; border-radius: 999px; }
+.week .on b { border: 1px solid var(--accent); }
+.week i { display: block; height: 6px; font-style: normal; letter-spacing: 2px; color: var(--level-low); font-size: 8px; line-height: 6px; }
+.tabbar { margin-top: auto; border: 1px solid var(--line); border-radius: 999px; display: grid; grid-template-columns: repeat(4, 1fr); padding: 8px 4px; font-family: var(--font-mono); font-size: 9px; letter-spacing: .08em; text-transform: uppercase; text-align: center; color: var(--muted); background: color-mix(in srgb, var(--card) 70%, transparent); }
+.tabbar .on { color: var(--accent); }
+.phone { position: relative; }
+.phone .prov { font-family: var(--font-mono); font-size: 9px; letter-spacing: .1em; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.homecurve { margin: 0 -16px; }
+.homecurve svg { display: block; width: 100%; height: auto; }
+.phases { display: grid; grid-template-columns: repeat(4, 1fr); text-align: center; font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .08em; color: var(--muted); gap: 4px; }
+.phases span { padding: 4px 0; border-radius: 8px; border: 1px solid transparent; }
+.phases span.on { color: var(--accent); border-color: var(--accent); }
+.phases i { display: block; font-style: normal; font-family: var(--font-body); letter-spacing: 0; font-size: 10px; }
+.flat { display: flex; gap: 10px; align-items: center; padding: 9px 2px; border-top: 1px solid var(--line); min-width: 0; }
+.flat .g { width: 30px; text-align: center; color: var(--accent); flex: none; }
+.flat .t { font-weight: 700; font-size: 13.5px; }
+.flat .q { font-size: 12px; font-style: italic; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.flat .s { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted); flex: none; }
+.ghost { border: 1px solid var(--line); border-radius: 14px; background: transparent; padding: 18px 14px; text-align: center; font-size: 13px; color: var(--muted); min-height: 72px; display: grid; place-items: center; }
+.flushprofile { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 10px 0 14px; }
+.flushprofile .s { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted); }
+.overlay { border: 1px solid var(--line); border-radius: 18px; background: var(--card); padding: 4px 12px; }
+.overlay .sec { display: flex; gap: 8px; align-items: center; justify-content: space-between; padding: 9px 0; min-width: 0; }
+.overlay .sec > div { min-width: 0; }
+.overlay .sec + .sec { border-top: 1px solid var(--line); }
+.chip { font-family: var(--font-mono); font-size: 9px; letter-spacing: .08em; color: var(--accent); border: 1px solid var(--line); border-radius: 999px; padding: 1px 7px; vertical-align: 2px; white-space: nowrap; }
+.action { flex: none; background: var(--accent); color: var(--on-accent); font-weight: 700; font-size: 12.5px; border-radius: 999px; padding: 8px 14px; white-space: nowrap; }
+.action.floating { position: absolute; left: 50%; transform: translateX(-50%); bottom: 68px; box-shadow: 0 0 0 10px color-mix(in srgb, var(--paper) 70%, transparent); }
+
+/* hue specimen (Appearance) — a near-square window of sample UI; JS scopes its palette */
+.demo2 { display: grid; grid-template-columns: minmax(250px, 340px) 1fr; gap: 22px; align-items: start; }
+@media (max-width: 760px) { .demo2 { grid-template-columns: 1fr; } }
+.phone.appearance { min-height: 0; }
+.specimen { aspect-ratio: 1 / var(--specimen-aspect); border-radius: var(--radius-specimen); border: 1px solid var(--line); background: var(--paper); color: var(--ink); padding: 13px 13px 11px; display: flex; flex-direction: column; gap: 7px; overflow: hidden; min-width: 0; }
+.specimen .eyebrow { font-size: 8.5px; letter-spacing: .14em; }
+.sp-read { font-family: var(--font-mono); font-weight: 500; font-size: 30px; line-height: 1; letter-spacing: -.01em; }
+.sp-read small { font-size: 10px; color: var(--muted); letter-spacing: .1em; margin-left: 5px; }
+.specimen .prov { font-family: var(--font-mono); font-size: 8px; letter-spacing: .1em; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sp-curve { margin: 0 -13px; }
+.sp-curve svg { display: block; width: 100%; height: auto; }
+.specimen .overlay { margin-top: auto; }
+.specimen .phases { font-size: 8.5px; }
+.specimen .phases i { font-size: 9px; }
+.specimen .overlay { padding: 2px 10px; border-radius: 14px; }
+.specimen .overlay .sec { padding: 7px 0; }
+.specimen .overlay .t { font-family: var(--font-display); font-weight: 600; font-size: 12.5px; white-space: nowrap; }
+.specimen .action { font-size: 11px; padding: 6px 11px; }
+.sp-row { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.sp-tile { width: 24px; height: 24px; border-radius: var(--radius-control); color: var(--accent); display: grid; place-items: center; position: relative; flex: none; font-size: 12px; }
+.sp-tile::before { content: ""; position: absolute; inset: 0; border-radius: inherit; background: var(--accent); opacity: var(--tile-fill-opacity); }
+.sp-chip { font-family: var(--font-mono); font-size: 8.5px; letter-spacing: .08em; border: 1px solid var(--line); border-radius: 999px; padding: 3px 8px; color: var(--muted); white-space: nowrap; }
+.sp-chip.on { border-color: var(--accent); color: var(--ink); }
+.sp-toggle { width: 32px; height: 19px; border-radius: 999px; background: var(--accent); position: relative; flex: none; margin-left: auto; }
+.sp-toggle::after { content: ""; position: absolute; top: 2px; right: 2px; width: 15px; height: 15px; border-radius: 50%; background: var(--on-accent); }
+.sp-icon { width: 24px; height: 24px; border-radius: 7px; background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: var(--on-accent); display: grid; place-items: center; flex: none; }
+.sp-icon svg { width: 62%; height: auto; display: block; }
+.band { -webkit-appearance: none; appearance: none; width: 100%; height: 28px; border-radius: 999px; border: 1px solid var(--line); background: var(--band-gradient, var(--accent)); margin: 2px 0; }
+.band::-webkit-slider-thumb { -webkit-appearance: none; width: 26px; height: 26px; border-radius: 50%; background: var(--paper); border: 1px solid var(--ink); box-shadow: inset 0 0 0 6px var(--accent); }
+.band::-moz-range-thumb { width: 24px; height: 24px; border-radius: 50%; background: var(--paper); border: 1px solid var(--ink); box-shadow: inset 0 0 0 6px var(--accent); }
+.band:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.sp-stops { display: flex; justify-content: space-between; gap: 6px; }
+.sp-stops button { width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--line); padding: 0; cursor: pointer; }
+.sp-stops button[aria-pressed=true] { box-shadow: 0 0 0 2px var(--paper), 0 0 0 3px var(--ink); }
+.sp-meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 10px; letter-spacing: .1em; color: var(--muted); }
+.seg { display: flex; gap: 6px; }
+
+/* dose notification layout — the banner is a mock of system UI, not a component we draw */
+.lock { border-radius: 24px; background: var(--night-paper); border: 1px solid var(--line); padding: 16px 12px 14px; display: grid; gap: 8px; }
+.lock .cap2 { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; color: color-mix(in srgb, var(--night-ink) 60%, transparent); margin: 4px 2px 0; }
+.lock .clock { text-align: center; font-family: var(--font-display); font-weight: 600; font-size: 34px; line-height: 1; color: var(--night-ink); margin-bottom: 4px; }
+.notif { display: grid; grid-template-columns: 30px 1fr; gap: 9px; align-items: start; padding: 10px 12px; border-radius: 18px; background: color-mix(in srgb, var(--day-paper) 88%, transparent); color: var(--day-ink); min-width: 0; }
+.notif .sp-icon { width: 30px; height: 30px; border-radius: 8px; }
+.notif .h { display: flex; justify-content: space-between; font-size: 11px; color: color-mix(in srgb, var(--day-ink) 55%, transparent); }
+.notif .ti { font-weight: 700; font-size: 13px; line-height: 1.3; }
+.notif .bo { font-size: 13px; line-height: 1.35; overflow-wrap: anywhere; }
+.notif .act { font-size: 11px; color: color-mix(in srgb, var(--day-ink) 55%, transparent); margin-top: 3px; }
+.nfields { display: grid; gap: 6px; margin-top: 10px; font-size: 13px; }
+.nfields label { display: flex; gap: 8px; align-items: center; }
+.nfields input[type=text], .nfields select { font: inherit; font-size: 13px; color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; min-width: 0; width: 100%; }
+.nfields[hidden] { display: none; }
+
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-family: var(--font-mono); font-weight: 500; font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.tablewrap { overflow-x: auto; }
+.toc { columns: 2 220px; font-size: 14px; margin-top: 22px; padding: 0; list-style: none; }
+.toc a { color: var(--ink); text-decoration: none; }
+.toc a:hover { color: var(--accent); }
+.toc span { font-family: var(--font-mono); color: var(--muted); font-size: 11px; margin-right: 8px; }
+footer { margin-top: 80px; font-family: var(--font-mono); font-size: 11px; color: var(--muted); letter-spacing: .08em; }
+</style>
+</head>
+<body>
+
+<div class="dial" role="region" aria-label="Seed hue dial">
+  <div class="in">
+    <span class="eyebrow">Seed hue</span>
+    <input id="hue" type="range" min="0" max="360" step="0.5" aria-label="Seed hue in degrees">
+    <span class="readout" id="hue-readout"></span>
+    <button class="pill" id="reset" type="button">Default rose</button>
+    <button class="pill" id="mode" type="button" aria-pressed="false">Night paper</button>
+  </div>
+</div>
+
+<main class="page">
+  <div class="eyebrow">Isocline · Design System · October 2026</div>
+  <h1>Paper &amp; Instrument</h1>
+  <p class="lede">One system for the <strong>app</strong>, <strong>Isocline Research</strong> and <strong>Isocline Labs</strong>.
+  The logo never changes shape; everything else — color, ground, rendering — is a recipe. Spin the dial: every seed-driven color on this page is resolved live from one seed hue by the same math the app runs
+  (<code>xT/Theme/ThemeEngine.swift</code>), exactly as a user's chosen hue re-tints the app.</p>
+
+  <ol class="toc">
+    <li><a href="#principles"><span>01</span>Principles</a></li>
+    <li><a href="#logo"><span>02</span>The logo</a></li>
+    <li><a href="#architecture"><span>03</span>Brand architecture</a></li>
+    <li><a href="#color"><span>04</span>Color</a></li>
+    <li><a href="#type"><span>05</span>Type</a></li>
+    <li><a href="#instrument"><span>06</span>Instrument vocabulary</a></li>
+    <li><a href="#surfaces"><span>07</span>Surfaces</a></li>
+    <li><a href="#components"><span>08</span>Components &amp; screens</a></li>
+    <li><a href="#navigation"><span>09</span>Navigation</a></li>
+    <li><a href="#voice"><span>10</span>Voice</a></li>
+    <li><a href="#media"><span>11</span>Media variants</a></li>
+    <li><a href="#lineage"><span>12</span>Lineage &amp; influences</a></li>
+    <li><a href="#licensing"><span>13</span>Licensing</a></li>
+    <li><a href="#stitch"><span>14</span>Stitch export notes</a></li>
+    <li><a href="#roadmap"><span>15</span>App redesign roadmap</a></li>
+    <li><a href="#sources"><span>—</span>Files &amp; generators</a></li>
+  </ol>
+
+  <!-- ─────────────────────────────────────────────────────────── 01 -->
+  <section id="principles">
+    <h2><span class="n">01</span>Principles</h2>
+    <div class="grid g3">
+      <div class="card"><h4>The sovereignty of the curve</h4><p>The body is a continuous rhythm, not a checklist. The modeled curve is the hero of every surface that shows a level; streaks, badges and scores don't exist.</p></div>
+      <div class="card"><h4>Calm empirical coordinates</h4><p>Isocline presents measurements, ranges and rates of change — never verdicts. No "good/bad", no red/green status, no congratulation. The reader decides what a number means.</p></div>
+      <div class="card"><h4>Discretion first</h4><p>Nothing — icon, notification, lock-screen glance, printed page — may out a person as being on HRT. When brand presence and discretion conflict, discretion wins.</p></div>
+    </div>
+    <div class="card" style="margin-top:16px;background:transparent">
+      <h4>What is, and what you adjust · working principle</h4>
+      <p>Two kinds of content, two kinds of surface. <strong>What simply <em>is</em></strong> (who you are, where your level is now, what was measured) sits <strong>flush on the paper</strong>, with no card, border or container. It is reference, like the "I." of the mark: a statement, not a control. <strong>What you can adjust or act on</strong> (doses, settings, entries, the next thing to do) sits in a <strong>card</strong>. So the Home readout and the Settings profile are flush, and the dose card and the section cards are cards. When it's unclear which a piece of content is, ask whether tapping it would change something.</p>
+      <p class="mono" style="margin:0">Still being developed. Treat it as a strong default, not yet a rule.</p>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────────────────────────────────────── 02 -->
+  <section id="logo">
+    <h2><span class="n">02</span>The logo</h2>
+    <p class="rule"><strong>The word is the logo, and its shape never changes.</strong> Like Apple's apple, ISOCLINE has exactly one outline. What changes is its rendering — fill, size, ground and surroundings. That is what lets it sit anywhere: a lock screen, a journal cover, a lab report, an embossed card.</p>
+
+    <h3>The wordmark</h3>
+    <ul>
+      <li><strong>Source:</strong> IBM Plex Serif SemiBold, all caps, tracking +0.07em, outlined to paths by <code>tools/scripts/build_isocline_marks.py</code>. It is <em>never</em> typed as live text — anyone can type "ISOCLINE" in Plex Serif; only the master outline is the logo.</li>
+      <li><strong>Customization:</strong> intentionally light today (two optical kerning pairs). A type-designer pass to make distinctive letterform cuts — strengthening it as a trademark — is on the roadmap.</li>
+      <li><strong>No curve.</strong> The earlier rise-and-plateau stroke under the word is retired. The curve lives in the product, not the logo.</li>
+    </ul>
+
+    <h3>The small mark — "I."</h3>
+    <p>Where the word can't be read (app icon, favicon, notification badge, watch), the logo reduces to <strong>"I."</strong>: the wordmark's own I, followed by a <strong>perfect-circle point</strong>. The point is a plotted coordinate — a single measurement — and it reads, quietly, as the end of a sentence. Its diameter is the width of Plex Serif's own period, so it carries the weight the type gives punctuation; the gap is the font's native I→period spacing.</p>
+
+    <h3>Three renderings, one shape</h3>
+    <div class="grid g3" id="renderings"></div>
+    <p style="margin-top:12px">All renderings are emitted from identical path data — <code>brand/isocline-{wordmark,mark}-{ink,hairline,emboss}.svg</code>.</p>
+    <div class="grid g3">
+      <div class="card"><h4>Ink &amp; seed hue</h4><p>The default. Solid ink on paper, or filled in the user's chosen hue. App splash, web header, Research title pages.</p></div>
+      <div class="card"><h4>Engraved hairline</h4><p>Outline only, at hairline weight, like a survey plate. Loading states, empty states, chart watermarks, large display uses.</p></div>
+      <div class="card"><h4>Emboss / deboss</h4><p>Inkless relief, after Omar Rayo's intaglios: paper on paper, legible only through light and shadow. The discretion rendering — the stealth icon, packaging, print covers.</p></div>
+    </div>
+
+    <h3>Clear space &amp; minimum size</h3>
+    <ul>
+      <li><strong>Clear space:</strong> the cap height of the O on every side. Nothing enters it.</li>
+      <li><strong>Wordmark minimum:</strong> 96px wide on screen, 22mm in print. Below that, use "I.".</li>
+      <li><strong>"I." minimum:</strong> 16px. On icons it sits optically centred, never touching the mask.</li>
+    </ul>
+
+    <h3>Never</h3>
+    <div class="grid g3">
+      <div class="card"><span class="dont">Re-type it</span><p>Live text, other weights, other fonts, other tracking.</p></div>
+      <div class="card"><span class="dont">Distort it</span><p>Stretch, skew, outline-in-another-weight, rotate, or set it on a curve.</p></div>
+      <div class="card"><span class="dont">Decorate it</span><p>Add the old curve, the ◉ bullseye, gradients inside the letters, glows, or drop shadows. Gradients belong to grounds, not to the mark.</p></div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────────────────────────────────────── 03 -->
+  <section id="architecture">
+    <h2><span class="n">03</span>Brand architecture</h2>
+    <p>One logo, three arms. Arms are distinguished by a mono descriptor, never by a different mark — the way Apple writes "Apple Music" rather than drawing a new apple.</p>
+    <div class="grid g3" id="arms"></div>
+    <div class="tablewrap" style="margin-top:16px">
+      <table>
+        <tr><th>Surface</th><th>Logo</th><th>Rendering</th></tr>
+        <tr><td>App icon</td><td>"I."</td><td>Ink on a soft seed-hue gradient ground (follows the user's hue)</td></tr>
+        <tr><td>Stealth icon</td><td>"I."</td><td>Emboss on plain paper — no hue, no name</td></tr>
+        <tr><td>App splash / About</td><td>Wordmark</td><td>Ink, or emboss in discreet mode</td></tr>
+        <tr><td>Isocline Research papers</td><td>Wordmark + RESEARCH</td><td>Ink on white stock</td></tr>
+        <tr><td>Isocline Labs (legal, company)</td><td>Wordmark + LABS</td><td>Ink</td></tr>
+        <tr><td>Favicon</td><td>"I."</td><td>Ink on paper</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────────────────────────────────────── 04 -->
+  <section id="color">
+    <h2><span class="n">04</span>Color</h2>
+    <p><strong>Every color is a recipe, not a value.</strong> Each token is an OKLCH lightness, chroma and hue <em>offset</em> from the seed, except two that pin an absolute hue: day paper (cream) and the safety red. The seed defaults to the rose of <code>#D4537E</code>; the user may turn it anywhere. Out-of-gamut results lose chroma, never lightness; text is contrast-repaired against its ground to WCAG 4.5:1 (7:1 with Increase Contrast).</p>
+    <div class="grid g2">
+      <div><div class="eyebrow" style="margin-bottom:8px">Paper — day</div><div class="sw" id="sw-light"></div></div>
+      <div><div class="eyebrow" style="margin-bottom:8px">Night paper — dark</div><div class="sw" id="sw-dark"></div></div>
+    </div>
+    <h3>Paper and night paper</h3>
+    <p><strong>Day paper is cream at every dial position</strong>: an absolute OKLCH hue of 86.4° at L .965 / C .0155, which is <code>#F8F3E8</code>; the card is a lighter cream, <code>#FDFAF3</code>. The seed doesn't tint the paper; it lives in the ink's faint tint, the accent, the curve and its fill. <strong>Night paper</strong> takes its lightness and chroma from the Stitch dark reference (<code>#151022</code>, L .19 / C .036) and keeps the seed's hue, so at the default rose it lands on deep plum. Day and night follow the system: the app via iOS appearance, the web via the browser's native <code>prefers-color-scheme</code> and <code>color-scheme: light dark</code>.</p>
+    <h3>Fixed colors</h3>
+    <div class="sw">
+      <div><i style="background:var(--safety)"></i><span><b>safety · #BA3630 / #F47C70</b>Documented clinical thresholds only (see below). Never themed.</span></div>
+      <div><i style="background:var(--success)"></i><span><b>success · #3B8C6E</b>Legacy: drew the old dashed trough lines. Retired from the chart (the range band is accent, §06); removed with the Home pass.</span></div>
+      <div><i style="background:var(--sage)"></i><span><b>sage · #8FA382</b>A secondary data series. Never a status color.</span></div>
+    </div>
+    <p style="margin-top:12px">Values outside <em>your</em> range are shown by position against the band, never by color. <strong>One exception:</strong> a documented clinical threshold (E2 above 1,000 pg/mL; an E2 trough below 50, or below 80 with spironolactone; T above 1,500 ng/dL) takes the <strong>safety</strong> red as the outline, text and glyph of its pill. Never a fill, never on the curve, and never hidden behind calibration or a paywall. It states the clinical association; it doesn't instruct.</p>
+  </section>
+
+  <!-- ─────────────────────────────────────────────────────────── 05 -->
+  <section id="type">
+    <h2><span class="n">05</span>Type</h2>
+    <div class="grid g3">
+      <div class="card"><h4>IBM Plex Serif · display</h4><p style="font-family:var(--font-display);font-weight:600;font-size:22px;line-height:1.2">Chapter headings, titles, the wordmark's source.</p></div>
+      <div class="card"><h4>IBM Plex Mono · values</h4><p style="font-family:var(--font-mono);font-size:15px">412 pg/mL · 4.0 mg q5d · 08:30 · DAY 24</p></div>
+      <div class="card"><h4>Atkinson Hyperlegible Next · prose</h4><p>Body copy, journal reflections and anything a tired person reads at 2&nbsp;a.m.</p></div>
+    </div>
+    <h3>Role scale → <code>Theme.Fonts</code></h3>
+    <div id="type-scale"></div>
+    <h3>Rules</h3>
+    <ul>
+      <li>Every role scales with Dynamic Type: <code>Font.custom(name, size:, relativeTo:)</code> with the text style shown.</li>
+      <li><strong>Mono labels never wrap mid-word.</strong> Give them <code>lineLimit(1)</code> + <code>minimumScaleFactor(0.8)</code>, or shorten the copy. (The Stitch export broke "HOME" into "HOM/E" — the canonical example of what not to ship.)</li>
+      <li>Numbers are always mono, with tabular figures, and always carry their unit.</li>
+    </ul>
+  </section>
+
+  <!-- ─────────────────────────────────────────────────────────── 06 -->
+  <section id="instrument">
+    <h2><span class="n">06</span>Instrument vocabulary</h2>
+    <p>The Home curve is the hero: a full-height, softly filled curve, from the Stitch Home study, drawn on paper. An <em>isocline</em> is a line of equal slope, the plateau where rate of change holds steady. The chart's job is to make that shape legible at a glance, and to be honest about where it comes from <em>without</em> making the user decode line styles.</p>
+    <div class="fig" id="instrument-fig"></div>
+    <div class="figcap">Modeled level · seed-tinted fill · hollow ring = a lab draw · concentric point = now · band = your range</div>
+    <div class="grid g3" style="margin-top:16px">
+      <div class="card"><h4>The fill</h4><p>A vertical gradient under the curve, from <code>levelTint</code> at roughly 30% opacity down to transparent paper. It follows the hue dial like everything else. No glow on paper; a faint glow is allowed on night paper only.</p></div>
+      <div class="card"><h4>The stroke</h4><p>One continuous line, 2.5pt hero / 1.8pt elsewhere, sweeping <code>levelLow</code> → <code>levelHigh</code> along its length (the Stitch rose → lavender, now seed-relative). <strong>No dashed segment.</strong> Most people draw labs once or twice a year, so the curve is almost always modeled, and a permanent dash would mean nothing.</p></div>
+      <div class="card"><h4>Provenance line</h4><p>Under the readout, in mono: <code>MODELED · CALIBRATED TO 2 LABS · LAST 4 MO AGO</code>, or <code>MODELED · NO LABS YET</code>. This carries the measured-vs-modeled message the dash used to carry. The curve is <strong>always shown</strong>, with or without a lab; the provenance line is what says which.</p></div>
+      <div class="card"><h4>Lab points</h4><p>Each lab draw sits on the chart as a <strong>hollow ring</strong> at its measured value, the only measured marks. If the model and the draw disagree, the gap is visible and honest.</p></div>
+      <div class="card"><h4>Now</h4><p>A concentric point (a 15% halo around a solid dot) on the curve at the current time. It is the same perfect-circle point as the "I." mark.</p></div>
+      <div class="card"><h4>Range &amp; phases</h4><p>The user's own range is a soft band labeled <code>YOUR RANGE 100–600</code>, spanning the trough floor to the peak ceiling they set, with gridline values at the edge. With no range set there is no band: clinical defaults aren't "yours". Phase words (<code>PEAK</code>, <code>STEADY</code>, <code>TROUGH</code>, <code>DOSE</code>) name pharmacokinetic position, never goals. No "target", no "limit".</p></div>
+    </div>
+    <p style="margin-top:14px">Hairline engraving stays the rule everywhere else: ink at 14% for rules, 5% for grid. Gauges elsewhere (e.g. the Time tab) settle like an analog needle, with one damped swing and no spinner. The double rule and value-along-the-line devices from the October 8 reference plate are retired in favor of the readout and provenance line.</p>
+  </section>
+
+  <!-- ─────────────────────────────────────────────────────────── 07 -->
+  <section id="surfaces">
+    <h2><span class="n">07</span>Surfaces</h2>
+    <div class="grid g3">
+      <div class="card" style="background:transparent;border-style:dashed"><h4>Flush</h4><p>No surface at all: type and imagery straight on the paper. Reserved for what <em>is</em> (readouts, the profile, measured values). See the working principle in §01.</p></div>
+      <div class="card"><h4>Paper card</h4><p>Card color, a 1px ink hairline at 14%, radius 16–20. <strong>No shadow.</strong> Depth is read from the line.</p></div>
+      <div class="card" style="background:var(--paper)"><h4>Emboss surface</h4><p>For discreet states: content as relief on paper, no ink. Same treatment as the emboss logo.</p></div>
+      <div class="card"><h4>Glass — system chrome only</h4><p>Liquid Glass appears only where iOS 26 supplies it: the floating tab bar and sheets. Never layer <code>glassEffect</code> on content — inside a sheet, the sheet's own glass <em>is</em> the card surface.</p></div>
+    </div>
+    <p style="margin-top:14px">Radii: 4 · 6 · 8 · 10 · 12 · 16 · 20 · 24. Spacing: 2 · 4 · 6 · 8 · 10 · 12 · 14 (card) · 16 · 20 · 24 · 28 · 32; screen gutter 22. Both mirror <code>Theme.Radius</code> / <code>Theme.Spacing</code>.</p>
+  </section>
+
+  <!-- ─────────────────────────────────────────────────────────── 08 -->
+  <section id="components">
+    <h2><span class="n">08</span>Components &amp; screens</h2>
+    <div class="tablewrap">
+      <table>
+        <tr><th>Component</th><th>Spec</th><th>Swift today</th></tr>
+        <tr><td>Readout</td><td>Mono 500, large; unit in muted mono; flush on the canvas, no card; provenance line beneath</td><td><code>LevelOverlayView</code></td></tr>
+        <tr><td>Curve canvas</td><td>Full-height Home graph per §06: fill, sweep stroke, lab rings, now point, range band</td><td><code>Elements/Home/FlatGraphView.swift</code></td></tr>
+        <tr><td>Phase strip</td><td>Four mono weekday chips under the curve (<code>MON Dose · WED Peak · FRI Today · SUN Trough</code>); today ringed in accent</td><td>new (Home)</td></tr>
+        <tr><td>Overlay card</td><td>One paper card docked above the tab bar, holding sections split by hairlines: the dose section (two states, below) and the latest journal entry (serif label, mono time, one-line quote, chevron). The card is only as tall as its content</td><td><code>UnifiedStackView</code>, <code>NextDoseRowView</code></td></tr>
+        <tr><td>Action pill</td><td>Filled seed-accent capsule, icon + label in on-accent ink, 44pt min height. Used for <em>Log Dose</em> (in the Home card) and <em>New entry</em> (floating on Journal)</td><td><code>AccentButton.swift</code></td></tr>
+        <tr><td>Journal entries</td><td><strong>Top entry = card</strong> (still open to you): time-of-day glyph in an icon tile, serif day + muted period ("<strong>Sunday</strong> morning"), mono meta (<code>08:30 · ESTRADIOL VALERATE 2.0 MG</code>), quote in Atkinson, mood chips. <strong>Older entries = flush rows</strong> (the record): no surface, separated by ink hairlines, glyph without a tile, serif day, one-line quote, mono time at the right. With no entry yet today, the top slot is a <strong>ghost card</strong>: hairline outline only, no fill, reading <em>Tap "New entry" below to write in your journal.</em></td><td><code>Elements/Journal/</code></td></tr>
+        <tr><td>Week strip</td><td>7 mono day numbers; today ringed in accent; dose/mood dots beneath</td><td>new (Journal)</td></tr>
+        <tr><td>Section card</td><td>Settings gateway: paper card, accent icon tile (one accent for every tile), sans title, mono subtitle with live values (<code>Estradiol Valerate · 4.0 mg q5d</code>), chevron</td><td><code>SettingsRowKit.swift</code></td></tr>
+        <tr><td>Profile</td><td><strong>Flush on the paper, no card.</strong> Avatar circle with 1px hairline ring; user photo or seed-tinted placeholder; 56pt in rows, larger in the Settings header</td><td><code>SettingsView+Header.swift</code>, <code>ProfileManager</code></td></tr>
+        <tr><td>Hue specimen</td><td>A near-square window (radius <code>specimen</code>, continuous corners, 1 : 1.08) of sample UI that follows the hue: readout, curve, phase strip, dose card with Log Dose, chips, tile, toggle, app icon. Day/Night preview, hue band, eight quick stops (the icon stops)</td><td><code>Theme/ThemePickerView.swift</code> → new <code>ThemeSpecimenView</code></td></tr>
+        <tr><td>Notification layout</td><td>Preset (Discreet, the default · Standard · Detailed · Custom), field toggles and own-words title, with a live lock-screen preview built by the real content builder</td><td>new; <code>Managers/NotificationManager.swift</code></td></tr>
+        <tr><td>Pill / chip</td><td>Mono 11, hairline border, full radius; active = accent border, not fill</td><td><code>Shared/Components/Pill.swift</code></td></tr>
+        <tr><td>Eyebrow / section header</td><td>Mono 11, +0.18em, caps, muted; optional serif title</td><td><code>Theme.Fonts.eyebrow</code>, <code>SectionHeader.swift</code></td></tr>
+      </table>
+    </div>
+    <h3>Screen sketches</h3>
+    <div class="phones">
+      <div class="phone home" aria-label="Home sketch">
+        <div class="eyebrow">Estradiol · day 24</div>
+        <div class="big" id="ph-big">218<small>pg/mL</small></div>
+        <div class="prov">MODELED · CALIBRATED TO 1 LAB · 14 D AGO</div>
+        <div class="homecurve" id="ph-curve"></div>
+        <div class="phases"><span>MON<i>Dose</i></span><span>WED<i>Peak</i></span><span class="on">FRI<i>Today</i></span><span>SUN<i>Trough</i></span></div>
+        <div class="overlay">
+          <div class="sec"><div><div class="t" style="font-family:var(--font-display);font-size:15px">Today 6:00 PM <span class="chip">IN 6H 42M</span></div><div class="s">ESTRADIOL VALERATE 4 MG · SC</div></div><span class="action">Log Dose</span></div>
+          <div class="sec"><div><div class="t" style="font-family:var(--font-display)">Journal <span class="s" style="display:inline">08:30 TODAY</span></div><div style="font-size:12px;font-style:italic;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">“Felt genuinely calm today — good sleep…”</div></div><span class="s">›</span></div>
+        </div>
+        <div class="tabbar"><span class="on">Home</span><span>Journal</span><span>Time</span><span>Settings</span></div>
+      </div>
+      <div class="phone" aria-label="Journal sketch">
+        <div class="ttl">Journal</div>
+        <div class="week">
+          <span>M<b>14</b><i>•</i></span><span>T<b>15</b><i></i></span><span>W<b>16</b><i>•</i></span><span>T<b>17</b><i></i></span><span>F<b>18</b><i>••</i></span><span>S<b>19</b><i>•</i></span><span class="on">S<b>20</b><i>••</i></span>
+        </div>
+        <div class="row" style="align-items:flex-start"><div class="tile">◒</div><div><div class="t" style="font-family:var(--font-display)">Sunday <span style="font-weight:400;color:var(--muted)">morning</span></div><div class="s">08:30 · ESTRADIOL VALERATE 2.0 MG</div><div style="font-size:13px;margin-top:4px">“Felt genuinely calm today — good sleep, steady mood.”</div><div style="margin-top:6px;display:flex;gap:4px"><span class="chip">CALM</span><span class="chip">RESTED</span></div></div></div>
+        <div class="flat"><span class="g">◐</span><div style="flex:1;min-width:0"><div class="t" style="font-family:var(--font-display)">Saturday <span style="font-weight:400;color:var(--muted)">evening</span></div><div class="q">“Skin feels softer…”</div></div><span class="s">21:15</span></div>
+        <div class="flat"><span class="g">◑</span><div style="flex:1;min-width:0"><div class="t" style="font-family:var(--font-display)">Saturday <span style="font-weight:400;color:var(--muted)">morning</span></div><div class="q">“Energy steady, good workout…”</div></div><span class="s">09:15</span></div>
+        <div class="flat"><span class="g">◒</span><div style="flex:1;min-width:0"><div class="t" style="font-family:var(--font-display)">Friday <span style="font-weight:400;color:var(--muted)">evening</span></div><div class="q">“Injected right deltoid, no soreness…”</div></div><span class="s">19:45</span></div>
+        <div class="flat"><span class="g">◐</span><div style="flex:1;min-width:0"><div class="t" style="font-family:var(--font-display)">Thursday <span style="font-weight:400;color:var(--muted)">evening</span></div><div class="q">“Deep restful sleep, clear focus…”</div></div><span class="s">22:20</span></div>
+        <span class="action floating">✎ New entry</span>
+        <div class="tabbar"><span>Home</span><span class="on">Journal</span><span>Time</span><span>Settings</span></div>
+      </div>
+      <div class="phone" aria-label="Settings sketch">
+        <div class="eyebrow">Isocline</div>
+        <div class="ttl">Settings</div>
+        <div class="flushprofile"><div style="width:var(--avatar-row);height:var(--avatar-row);border-radius:50%;background:var(--accent);box-shadow:0 0 0 var(--line-hairline) var(--line);display:grid;place-items:center;color:var(--on-accent);font-size:20px" aria-label="Profile avatar placeholder">●</div><div style="text-align:center"><div class="t" style="font-family:var(--font-display);font-size:17px">Your name</div><div class="s">DAY 412 · 13 MONTHS</div></div></div>
+        <div class="row"><div class="tile">✚</div><div style="flex:1"><div class="t">Medication &amp; Dose</div><div class="s">ESTRADIOL VALERATE · 4.0 MG Q5D</div></div><span class="s">›</span></div>
+        <div class="row"><div class="tile">◇</div><div style="flex:1"><div class="t">Labs &amp; Records</div><div class="s">PANELS · DOSE HISTORY</div></div><span class="s">›</span></div>
+        <div class="row"><div class="tile">◑</div><div style="flex:1"><div class="t">Appearance &amp; Curve</div><div class="s">SEED HUE · CURVE · ICON</div></div><span class="s">›</span></div>
+        <div class="row"><div class="tile">▢</div><div style="flex:1"><div class="t">Privacy &amp; Data</div><div class="s">LOCK · BACKUP · EXPORTS</div></div><span class="s">›</span></div>
+        <div class="tabbar"><span>Home</span><span>Journal</span><span>Time</span><span class="on">Settings</span></div>
+      </div>
+    </div>
+    <h3>Home</h3>
+    <p>The curve fills the screen behind everything, as it does in the app today. The readout and provenance line sit flush at the top, the phase strip sits under the curve, and <strong>one overlay card</strong> is docked above the tab bar. It holds the dose section and the latest journal entry. The injection site isn't on Home: the record-dose sheet shows the last site and suggests the next one, at the moment it matters.</p>
+    <h3>The dose section: two states</h3>
+    <p>The card changes height with the day instead of keeping a fixed height and leaving a gap.</p>
+    <div class="grid g2" style="max-width:720px">
+      <div><div class="eyebrow" style="margin-bottom:6px">Dose day</div><div class="overlay"><div class="sec"><div><div class="t" style="font-family:var(--font-display);font-size:15px">Today 6:00 PM <span class="chip">IN 6H 42M</span></div><div class="s">ESTRADIOL VALERATE 4 MG · SC</div></div><span class="action">Log Dose</span></div></div></div>
+      <div><div class="eyebrow" style="margin-bottom:6px">Blank day</div><div class="overlay"><div class="sec" style="padding:7px 0"><div style="display:flex;gap:8px;align-items:baseline;min-width:0"><span class="s" style="flex:none">NEXT DOSE</span><span class="t" style="font-family:var(--font-display);font-size:14px;white-space:nowrap">Fri 6:00 PM</span></div><span class="chip">IN 2D</span></div></div></div>
+    </div>
+    <ul style="margin-top:12px">
+      <li><strong>Dose day: "Today".</strong> Serif time, countdown chip, mono medication line, and the filled <em>Log Dose</em> pill. This is the card at full height.</li>
+      <li><strong>Blank day: "Next dose".</strong> One line: a mono <code>NEXT DOSE</code> label, the serif day and time, and the countdown chip pushed to the right. No filled pill, so the card gets one row shorter and the curve gets the space back. Tapping the row still opens the record-dose sheet, for early or off-schedule logging.</li>
+      <li>The card's height animates with the state change (a short spring, honoring Reduce Motion), and the journal section moves up with it.</li>
+    </ul>
+    <h3>Journal</h3>
+    <p>Week strip, then the entries. <strong>Only the top entry is a card.</strong> It's the one still open to you: recent, editable, and the natural next thing to touch. <strong>Everything older is flush</strong>: rows straight on the paper, separated by ink hairlines that carry the hierarchy, and receding into a quiet record. This is the "what is / what you adjust" principle applied in time: the past simply <em>is</em>.</p>
+    <p>That hierarchy is the encouragement. The one card on the page is always "now", so a day with no entry yet shows a <strong>ghost card</strong> in its place: the outline of a card, drawn as a single ink hairline with no fill, like the engraved-hairline rendering of the logo. It is not a control and not a surface, just the shape of something not yet written, with one line of text: <em>Tap "New entry" below to write in your journal.</em> It points to the one action instead of duplicating it. <em>New entry</em> stays as the floating action pill above the tab bar, resting on a short paper fade so rows scroll beneath it. No streaks, counts or nudges: the invitation is spatial, not a notification.</p>
+    <div class="grid g2" style="max-width:720px">
+      <div><div class="eyebrow" style="margin-bottom:6px">Top card · entry written</div><div class="row" style="align-items:flex-start"><div class="tile">◒</div><div><div class="t" style="font-family:var(--font-display)">Sunday <span style="font-weight:400;color:var(--muted)">morning</span></div><div class="s">08:30 · ESTRADIOL VALERATE 2.0 MG</div><div style="font-size:13px;margin-top:4px">“Felt genuinely calm today.”</div></div></div></div>
+      <div><div class="eyebrow" style="margin-bottom:6px">Ghost card · nothing yet today</div><div class="ghost">Tap “New entry” below to write in your journal.</div></div>
+    </div>
+    <h3>Settings</h3>
+    <p>The profile sits <strong>flush on the paper</strong>: avatar, serif name and a mono line, with no card, because it is who you are and not a control. Below it are the section cards: everything adjustable. Every icon tile uses the one seed accent, so the page reads as a calm column, and the subtitles carry the live values.</p>
+    <h3>Profile avatar</h3>
+    <p>Settings opens on the user's profile, flush on the paper: avatar, name, and a mono line beneath. Editing happens on tap, in a sheet; the profile itself stays reference. The avatar is a circle with a 1px ink hairline ring (no gradient ring, no glow). It shows the <strong>user's own photo</strong>, chosen from their library or camera and stored only on-device / in their iCloud. Without a photo it falls back to the <strong>seed-tinted placeholder</strong>: an accent disc with a <code>person.fill</code> glyph in on-accent ink, which follows the hue dial. Today that's <code>ProfileManager.profilePhoto</code> / <code>renderPlaceholder</code> and <code>SettingsView+Header.swift</code>. The avatar lives inside the app only: never on the icon, in notifications, or in widgets. Design mockups use the placeholder, never stock photography.</p>
+
+    <h3>Appearance: the hue specimen</h3>
+    <p>The hue picker opens on a <strong>specimen</strong>: a near-square window (radius <code>specimen</code>, continuous corners, 1 : 1.08) of the app in miniature, drawn with <strong>sample data</strong> so it never shows a person's real numbers. It may be screenshotted, and it works before setup. It holds one of each thing the hue drives:</p>
+    <ul>
+      <li>the readout and provenance line;</li>
+      <li>the filled curve with its sweep, lab ring, now point and range band;</li>
+      <li>the phase strip;</li>
+      <li>a dose card with Log Dose;</li>
+      <li>chips, an icon tile, a toggle and the app icon.</li>
+    </ul>
+    <p>Below the specimen:</p>
+    <ul>
+      <li>a Day/Night preview, which applies to the specimen only;</li>
+      <li>the hue band;</li>
+      <li>eight quick stops, the same stops as the alternate icons;</li>
+      <li>a mono readout with <em>Default rose</em>.</li>
+    </ul>
+    <p>Drag the band and the specimen follows; the choice commits when you let go. This sketch is live: the band and the page's dial are the same control.</p>
+    <div class="demo2">
+      <div class="phone appearance" aria-label="Appearance screen sketch">
+        <div class="ttl">Appearance</div>
+        <div class="specimen" id="specimen" role="img" aria-label="Preview of the app in the chosen hue, with sample data">
+          <div class="eyebrow">Estradiol valerate · day 3 of 7</div>
+          <div class="sp-read" id="sp-read">316<small>pg/mL</small></div>
+          <div class="prov">Modeled · last lab 14 d ago</div>
+          <div class="sp-curve" id="sp-curve"></div>
+          <div class="phases"><span>MON<i>Dose</i></span><span>WED<i>Peak</i></span><span class="on">FRI<i>Today</i></span><span>SUN<i>Trough</i></span></div>
+          <div class="overlay"><div class="sec"><div><div class="t">Today 6:00 PM <span class="chip">IN 6H</span></div><div class="s">ESTRADIOL VALERATE 4 MG</div></div><span class="action">Log Dose</span></div></div>
+          <div class="sp-row"><span class="sp-tile" aria-hidden="true">✚</span><span class="sp-chip on">CALM</span><span class="sp-chip">RESTED</span><span class="sp-icon" id="sp-icon" aria-hidden="true"></span><span class="sp-toggle" aria-hidden="true"></span></div>
+        </div>
+        <div class="seg" role="group" aria-label="Preview appearance"><button class="pill" type="button" data-sp="day" aria-pressed="true">Day</button><button class="pill" type="button" data-sp="night" aria-pressed="false">Night</button></div>
+        <input class="band" id="sp-band" type="range" min="0" max="360" step="0.5" aria-label="Theme hue">
+        <div class="sp-stops" id="sp-stops"></div>
+        <div class="sp-meta"><span id="sp-meta">HUE —</span><button class="pill" type="button" id="sp-reset">Default rose</button></div>
+      </div>
+      <div class="card">
+        <h4>Rules</h4>
+        <ul>
+          <li><strong>Sample data, always.</strong> The specimen never reads the person's doses, labs or name.</li>
+          <li><strong>Real components, real sizes.</strong> Build it from <code>paperCard</code>, <code>Pill</code>, <code>ActionPill</code> and the curve shapes, not a scaled screenshot. Inside the specimen only, Dynamic Type is capped at Large, because it's a preview.</li>
+          <li><strong>One control.</strong> To VoiceOver the specimen is a single image with a summary label. The band is the control: adjustable, ±10° per swipe.</li>
+          <li><strong>Night preview</strong> applies the night palette to the specimen alone (a <code>colorScheme</code> override). The screen around it follows the system.</li>
+          <li><strong>Quick stops</strong> come from <code>seed.stops</code> in the tokens. The alternate icons use the same list, so a stop and its icon always match.</li>
+          <li>The same picker appears in onboarding, where the specimen shows someone the app before they've entered anything.</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>Dose notification layout</h3>
+    <p>People choose what a dose reminder says on their lock screen. There are four layouts, and the default is <strong>Discreet</strong>, which names nothing. <strong>Custom</strong> lets someone pick each field and even write their own words.</p>
+    <p>The preview is built by the same content builder the app uses to schedule, fed sample data, so what you see is what arrives. iOS draws the banner itself:</p>
+    <ul>
+      <li>the app's name and icon always show, so pair Discreet with the Discreet icon;</li>
+      <li>when the phone hides previews while locked, only the placeholder shows.</li>
+    </ul>
+    <div class="demo2">
+      <div>
+        <div class="seg" role="group" aria-label="Notification layout" id="nl-presets" style="flex-wrap:wrap;margin-bottom:10px">
+          <button class="pill" type="button" data-nl="discreet" aria-pressed="true">Discreet</button>
+          <button class="pill" type="button" data-nl="standard" aria-pressed="false">Standard</button>
+          <button class="pill" type="button" data-nl="detailed" aria-pressed="false">Detailed</button>
+          <button class="pill" type="button" data-nl="custom" aria-pressed="false">Custom</button>
+        </div>
+        <div class="lock" aria-label="Lock screen preview">
+          <div class="clock">9:41</div>
+          <div class="notif" id="nl-banner"></div>
+          <div class="cap2">Previews hidden while locked</div>
+          <div class="notif" id="nl-hidden"></div>
+        </div>
+        <div class="nfields" id="nl-fields" hidden>
+          <label>Title <select id="nl-title"><option>Reminder</option><option>Dose reminder</option><option>Isocline</option><option value="own">Your own words…</option></select></label>
+          <label id="nl-own-row" hidden>Words <input type="text" id="nl-own" maxlength="40" value="Water the plants"></label>
+          <label><input type="checkbox" data-f="med"> Medication</label>
+          <label><input type="checkbox" data-f="amount"> Amount</label>
+          <label><input type="checkbox" data-f="route"> Route</label>
+          <label><input type="checkbox" data-f="time" checked> Scheduled time</label>
+          <label><input type="checkbox" data-f="site"> Suggested site</label>
+          <label><input type="checkbox" id="nl-log"> Action says “Log dose” (otherwise “Open”)</label>
+        </div>
+      </div>
+      <div class="card">
+        <h4>Rules</h4>
+        <ul>
+          <li><strong>Default: Discreet.</strong> "Reminder" / "Your scheduled entry is ready." It names no medication, dose or body part.</li>
+          <li><strong>One home.</strong> Settings → Medication &amp; Dose → Reminders, next to the reminder times.</li>
+          <li><strong>Fields:</strong> medication, amount, route, scheduled time, suggested site. <strong>Title:</strong> Reminder, Dose reminder, Isocline, or their own words (up to 40 characters, stored on this device only, never synced).</li>
+          <li><strong>The action</strong> reads <em>Open</em> or <em>Log dose</em>. Both open the record-dose sheet; nothing is logged from the lock screen.</li>
+          <li><strong>Hidden previews</strong> always show the placeholder "Reminder".</li>
+          <li><strong>Journal reminders</strong> use the same title, and their body never carries health data.</li>
+          <li>The banner is iOS's own glass. This is a mock, not a component we draw.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────────────────────────────────────── 09 -->
+  <section id="navigation">
+    <h2><span class="n">09</span>Navigation</h2>
+    <p>Four destinations, in this order: <strong>Home · Journal · Time · Settings</strong> — already the order in <code>Elements/Home/MainTabView.swift</code>. Use the native iOS 26 tab bar (its floating glass pill comes free); tint the active item with the accent. No custom pill bar. One icon family (SF Symbols, regular weight) and one label style (mono caps) across every tab.</p>
+  </section>
+
+  <!-- ─────────────────────────────────────────────────────────── 10 -->
+  <section id="voice">
+    <h2><span class="n">10</span>Voice</h2>
+    <div class="grid g2">
+      <div class="card"><span class="do">Write</span><ul><li>"218 pg/mL · inside your range"</li><li>"YOUR RANGE 100–600" · "PEAK" · "TROUGH"</li><li>"Modeled from your last lab, 14 days ago"</li><li>"Lower than this time last cycle"</li><li>"No entry yet today"</li></ul></div>
+      <div class="card"><span class="dont">Not</span><ul><li>"Great job! Levels look good 🎉"</li><li>"Warning: level too low"</li><li>"You missed a dose!"</li><li>"7-day streak"</li><li>"TARGET PEAK" · "TROUGH LIMIT"</li></ul></div>
+    </div>
+    <p style="margin-top:12px">Copy describes position, direction and provenance — never value judgment. <code>docs/app-design/TIME_REGION_COPY.md</code> has range/"warning" phrasing to revisit against this standard.</p>
+  </section>
+
+  <!-- ─────────────────────────────────────────────────────────── 11 -->
+  <section id="media">
+    <h2><span class="n">11</span>Media variants</h2>
+    <div class="grid g3">
+      <div class="card"><h4>App</h4><p>Live seed hue, paper / night paper following system appearance, Dynamic Type, native chrome.</p></div>
+      <div class="card"><h4>Web</h4><p>Default seed, cream paper by day and night paper by dark, following the browser's native appearance (<code>color-scheme: light dark</code> + <code>prefers-color-scheme</code>; <code>data-theme</code> only as a manual override) via <code>tokens/isocline.css</code>. Same type, same hairlines. Landing page and Research site rebuild on these tokens.</p></div>
+      <div class="card"><h4>Print — Isocline Research</h4><p>Near-black ink on white stock, Plex Serif body, Plex Mono numbers and running heads, Atkinson captions, one accent, no status colors. <code>docs/research/isocline.sty</code> — every paper loads it.</p></div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────────────────────────────────────── 12 -->
+  <section id="lineage">
+    <h2><span class="n">12</span>Lineage &amp; influences</h2>
+    <p class="mono" style="margin-bottom:14px">Design rationale · internal and Research "about" only — never app UI or marketing</p>
+    <h3>American survey &amp; space-age</h3>
+    <p>The USGS topographic quadrangle is the model for the hairline: contour lines <em>are</em> isolines, engraved at a weight that recedes until you need it. Apollo-era mission control is the model for the readout — calm telemetry in mono, numbers that carry their units, nothing that flashes.</p>
+    <h3>Omar Rayo (Colombia)</h3>
+    <p>Rayo's intaglios — prints pressed into paper with no ink at all, the form existing only as relief and shadow — are the source of the emboss rendering. They prove a mark can be wholly present and nearly invisible at once, which is exactly what discretion asks of this brand.</p>
+    <h3>A quiet trans lineage</h3>
+    <p>Isocline is built by and for trans people, and its materials carry three debts, acknowledged here rather than advertised:</p>
+    <ul>
+      <li><strong>Lynn Conway</strong>, who co-founded the VLSI revolution in chip design, was fired by IBM in 1968 for transitioning; IBM apologized publicly in 2020. Isocline's type system is IBM Plex. Setting a trans-built instrument in IBM's own typeface is a small, deliberate act of reclamation.</li>
+      <li>The <strong>synthesizer envelope</strong> — attack, decay, sustain, drawn on an oscilloscope — is the rise-and-plateau shape of a dosing curve. The trans composer who brought the Moog synthesizer to a mass audience in 1968 is honored here through that shape rather than by name — she has long asked that her work, not her transition, be the story.</li>
+      <li><strong>Cassils</strong>' <em>Cuts: A Traditional Sculpture</em> recorded a body changing over 23 weeks, photographed daily — the body as a measured time series, which is what Isocline makes private and gentle.</li>
+    </ul>
+    <p class="note" style="color:var(--muted)">Verify dates and specifics against primary sources before any of this appears on a public Research page.</p>
+  </section>
+
+  <!-- ─────────────────────────────────────────────────────────── 13 -->
+  <section id="licensing">
+    <h2><span class="n">13</span>Licensing</h2>
+    <ul>
+      <li><strong>IBM Plex</strong> (Serif, Mono) — SIL Open Font License 1.1, reserved font name "Plex". Free for commercial use, app embedding, and logos. Bundle the license; don't sell the font files alone; don't ship a modified font under the Plex name. Text: <code>brand/licenses/IBM-Plex-OFL.txt</code>.</li>
+      <li><strong>Atkinson Hyperlegible Next</strong> — SIL Open Font License 1.1 in the Google Fonts release (<code>googlefonts/atkinson-hyperlegible-next</code>), with no reserved font name. Free for commercial use and app embedding; subsetting is allowed. Text: <code>brand/licenses/Atkinson-Hyperlegible-Next-OFL.txt</code>. <strong>Bundle that release.</strong> The Braille Institute's own downloads, and the copies TeX Live ships, carry the Braille Institute's license instead, which forbids derivatives; the print template may keep using TeX Live's copies, unmodified.</li>
+      <li><strong>In the app:</strong> both notices go in an Acknowledgements screen (roadmap phase 1).</li>
+      <li><strong>The logo:</strong> outlining and customizing the wordmark makes it our artwork; the font licenses don't restrict that. A plain-typed wordmark would be weak as a trademark — hence the master outline and the planned letterform pass.</li>
+      <li><strong>Trademark:</strong> run a clearance search on "Isocline" (software/health classes) with counsel before significant spend.</li>
+    </ul>
+  </section>
+
+  <!-- ─────────────────────────────────────────────────────────── 14 -->
+  <section id="stitch">
+    <h2><span class="n">14</span>Stitch export notes</h2>
+    <p>The October Stitch export (<code>stitch-isocline-export/</code>) is a dark Liquid Glass rendering. It is a reference, not the identity.</p>
+    <div class="grid g2">
+      <div class="card"><span class="do">Take</span><ul><li>Night paper lightness/chroma (<code>#151022</code>)</li><li>Home: full-height filled curve, flush readout, phase strip, one overlay card with the Log Dose pill</li><li>Journal: week strip, expanded-newest entry cards, the floating New entry pill</li><li>Settings: profile header and section cards with live mono subtitles</li><li>"SHAPED PROTOCOL." as a quiet footer line</li></ul></div>
+      <div class="card"><span class="dont">Reject</span><ul><li>Mono labels wrapping mid-word</li><li>Four screens, four different tab bars</li><li>Plum <code>#1b1113</code> vs violet <code>#151022</code> grounds</li><li>Stock photography in the avatar slot, and its gradient ring (use the user's own photo or the seed placeholder, with a hairline ring)</li><li>Glass on content and heavy glow; "Target / Limit" range labels; multi-colored icon tiles</li></ul></div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────────────────────────────────────── 15 -->
+  <section id="roadmap">
+    <h2><span class="n">15</span>App redesign roadmap</h2>
+    <div class="tablewrap">
+      <table>
+        <tr><th>Phase</th><th>Scope</th><th>Est.</th></tr>
+        <tr><td>1 · Foundations</td><td>Bundle Plex Serif 600/700, Plex Mono 400/500, Atkinson Hyperlegible Next 400/700 (<code>UIAppFonts</code>); Acknowledgements screen; <code>Theme.Fonts</code> → <code>Font.custom(…relativeTo:)</code>; paper + night-paper recipes in <code>ThemePalette.resolve</code>; drop the app-wide brand gradient (<code>ContentView.swift</code>). Low risk: 53 files already read <code>Theme.Colors</code>.</td><td>2–3 d</td></tr>
+        <tr><td>2 · Surfaces</td><td>One <code>.paperCard()</code> replaces <code>.settingsCard()</code>, <code>.timeCard()</code>, <code>.asGlassCard()</code>; hairline tokens.</td><td>1–2 d</td></tr>
+        <tr><td>3 · Screens</td><td>Home (full-height filled curve, provenance line, lab rings, phase strip, overlay card; injection site moves into the record-dose sheet) → Journal (week strip, entry cards, floating New entry) → Settings (profile header + section cards, single-accent tiles) → Time (keeps its night sky; type only). Sweep raw call sites as each screen is touched (~235 raw fonts, ~181 <code>Color(</code>, ~55 hex).</td><td>2–4 d each</td></tr>
+        <tr><td>4 · Icon</td><td>"I." on seed-hue gradient in <code>xTGlassIcon.icon</code>; per-hue alternates; embossed stealth icon.</td><td>2 d</td></tr>
+        <tr><td>Later</td><td>Wordmark motion; landing page + Research site on <code>isocline.css</code>; type-designer wordmark pass; trademark clearance.</td><td>—</td></tr>
+      </table>
+    </div>
+    <p class="note" style="color:var(--muted)">The element-by-element implementation plan (affected systems, required supports, decisions and unsupported items, with revised estimates) is <a href="../planning/implementation/isocline-app-transition.md"><code>planning/implementation/isocline-app-transition.md</code></a>.</p>
+  </section>
+
+  <section id="sources">
+    <h2><span class="n">—</span>Files &amp; generators</h2>
+    <div class="tablewrap">
+      <table>
+        <tr><th>File</th><th>Role</th></tr>
+        <tr><td><code>tokens/isocline.tokens.json</code></td><td>Canonical tokens (edit this)</td></tr>
+        <tr><td><code>tools/scripts/gen_isocline_tokens.py</code></td><td>→ <code>isocline.css</code>, <code>isocline.tokens.js</code>, <code>docs/research/isocline.sty</code>, <code>xTTests/IsoclineTokenExpectations.swift</code></td></tr>
+        <tr><td><code>tools/scripts/build_isocline_marks.py</code></td><td>→ <code>brand/*.svg</code>, <code>*.pgf</code>, <code>isocline-marks.js</code> (needs fontTools in a venv)</td></tr>
+        <tr><td><code>xTTests/IsoclineTokenParityTests.swift</code></td><td>Fails if the app engine drifts from the tokens</td></tr>
+        <tr><td><code>../planning/implementation/isocline-app-transition.md</code></td><td>App transition plan: element-by-element changes, crossroads, unsupported features</td></tr>
+        <tr><td><code>ISOCLINE_SELECTED_DIRECTION.html</code></td><td>Reference plate for the chart language</td></tr>
+        <tr><td><code>BRANDING_AND_POSITIONING.html</code></td><td>Name, positioning, taglines</td></tr>
+        <tr><td><code>archive/</code></td><td>Historical direction boards and the retired curve/◉ identity</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <footer>ISOCLINE · DESIGN SYSTEM 2026.10.10 · SHAPED PROTOCOL.</footer>
+</main>
+
+<script src="tokens/isocline.tokens.js"></script>
+<script src="brand/isocline-marks.js"></script>
+<script>
+(function () {
+  "use strict";
+  var T = window.ISOCLINE_TOKENS, M = window.ISOCLINE_MARKS;
+  if (!T || !M) return;
+
+  /* ── ThemeEngine port (OKLab/OKLCH, chroma-bisection gamut clamp) ── */
+  function lin(c) { return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+  function gam(c) { return c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055; }
+  function toLinear(L, C, H) {
+    var h = H * Math.PI / 180, a = C * Math.cos(h), b = C * Math.sin(h);
+    var l = Math.pow(L + 0.3963377774 * a + 0.2158037573 * b, 3),
+        m = Math.pow(L - 0.1055613458 * a - 0.0638541728 * b, 3),
+        s = Math.pow(L - 0.0894841775 * a - 1.2914855480 * b, 3);
+    return [4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+            -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+            -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s];
+  }
+  function inGamut(L, C, H) { return toLinear(L, C, H).every(function (v) { return v >= -1e-4 && v <= 1 + 1e-4; }); }
+  function clampC(L, C, H) {
+    if (inGamut(L, C, H)) return C;
+    var lo = 0, hi = C, best = 0;
+    for (var i = 0; i < 12; i++) { var mid = (lo + hi) / 2; if (inGamut(L, mid, H)) { best = mid; lo = mid; } else hi = mid; }
+    return best;
+  }
+  function rgb(L, C, H) {
+    C = clampC(L, C, H);
+    return toLinear(L, C, H).map(function (v) { return Math.round(gam(Math.min(Math.max(v, 0), 1)) * 255); });
+  }
+  function hex(c) { return "#" + c.map(function (v) { return ("0" + v.toString(16)).slice(-2); }).join("").toUpperCase(); }
+  function hueOf(hx) {
+    var r = lin(parseInt(hx.substr(1, 2), 16) / 255), g = lin(parseInt(hx.substr(3, 2), 16) / 255), b = lin(parseInt(hx.substr(5, 2), 16) / 255);
+    var l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b),
+        m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b),
+        s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+    var A = 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s, B = 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s;
+    return (Math.atan2(B, A) * 180 / Math.PI + 360) % 360;
+  }
+  var DEFAULT = hueOf(T.seed.defaultHex);
+
+  function resolve(seed, appearance) {
+    var out = {}, idx = appearance === "dark" ? 1 : 0;
+    Object.keys(T.recipes).forEach(function (k) {
+      var r = T.recipes[k][appearance], abs = (T.recipes[k].hue || {})[appearance] === "absolute";
+      out[k] = rgb(r[0], r[1], (((abs ? 0 : seed) + r[2]) % 360 + 360) % 360);
+    });
+    var ink = out.ink;
+    Object.keys(T.inkAlpha).forEach(function (k) {
+      out[k] = "rgba(" + ink.join(", ") + ", " + T.inkAlpha[k][idx] + ")";
+    });
+    Object.keys(T.recipes).forEach(function (k) { out[k] = hex(out[k]); });
+    return out;
+  }
+  function kebab(k) { return k === "accent2" ? "accent-2" : k.replace(/[A-Z]/g, function (c) { return "-" + c.toLowerCase(); }); }
+
+  // Follow the system appearance live; the Night paper button is a manual override
+  // that the next click hands back to the system.
+  var root = document.documentElement, hue = document.getElementById("hue"), mq = null, override = null;
+  try { mq = matchMedia("(prefers-color-scheme: dark)"); } catch (e) {}
+  function systemNight() { return !!(mq && mq.matches); }
+  var night = systemNight();
+
+  function apply() {
+    var seed = parseFloat(hue.value);
+    var day = resolve(seed, "light"), dark = resolve(seed, "dark"), cur = night ? dark : day;
+    Object.keys(cur).forEach(function (k) { root.style.setProperty("--" + kebab(k), cur[k]); });
+    root.style.setProperty("--night-paper", dark.paper);
+    root.style.setProperty("--night-ink", dark.ink);
+    root.style.setProperty("--day-paper", day.paper);
+    if (override === null) root.removeAttribute("data-theme");
+    else root.setAttribute("data-theme", night ? "dark" : "light");
+    document.getElementById("hue-readout").innerHTML = "<b>" + seed.toFixed(1) + "°</b> · paper " + cur.paper + " · accent " + cur.accent;
+    document.getElementById("mode").setAttribute("aria-pressed", String(night));
+    swatches("sw-light", day); swatches("sw-dark", dark);
+    specimenApply(day, dark, seed);
+    figure();
+  }
+  function swatches(id, p) {
+    var keys = ["paper", "card", "ink", "accent", "accent2", "levelLow", "levelHigh", "line"];
+    document.getElementById(id).innerHTML = keys.map(function (k) {
+      var bg = p[k], label = k === "line" ? "line · ink 14%" : k;
+      var show = k === "line" ? "background:" + p.paper + ";box-shadow:inset 0 -1px 0 " + bg + ",inset 0 1px 0 " + bg : "background:" + bg;
+      return '<div><i style="' + show + '"></i><span><b>' + label + "</b>" + (k === "line" ? "" : bg) + "</span></div>";
+    }).join("");
+  }
+
+  /* ── logo plates ── */
+  function svgFor(key, rendering) {
+    var m = M[key], vb = m.viewBox.split(" ").map(Number), d = m.d;
+    if (rendering === "ink") return '<svg viewBox="' + m.viewBox + '" role="img" aria-label="Isocline"><path fill="currentColor" d="' + d + '"/></svg>';
+    if (rendering === "hairline") return '<svg viewBox="' + m.viewBox + '" role="img" aria-label="Isocline"><path fill="none" stroke="currentColor" stroke-width="1" vector-effect="non-scaling-stroke" d="' + d + '"/></svg>';
+    var E = T.logo.emboss, off = (vb[2] * (vb[2] > E.largeThreshold ? E.largeDepthRatio : E.depthRatio)).toFixed(1);
+    var pad = [vb[0] - off, vb[1] - off, vb[2] + 2 * off, vb[3] + 2 * off].join(" ");
+    return '<svg viewBox="' + pad + '" role="img" aria-label="Isocline"><path transform="translate(-' + off + ' -' + off + ')" style="fill:' + E.light + ';fill-opacity:' + E.lightOpacity + '" d="' + d + '"/><path transform="translate(' + off + ' ' + off + ')" style="fill:' + E.shadow + ';fill-opacity:' + E.shadowOpacity + '" d="' + d + '"/><path style="fill:var(--paper)" d="' + d + '"/></svg>';
+  }
+  var plates = [
+    ["wordmark", "ink", "ground-paper", "Ink · paper"], ["wordmark", "ink", "ground-seed", "Ink · seed ground"], ["wordmark", "ink", "ground-night", "Ink · night paper"],
+    ["wordmark", "hairline", "ground-paper", "Hairline · paper"], ["wordmark", "hairline", "ground-night", "Hairline · night"], ["wordmark", "emboss", "ground-day", "Emboss · day paper"],
+    ["mark", "ink", "ground-paper mark", "“I.” · ink"], ["mark", "ink", "ground-seed mark", "“I.” · app icon ground"], ["mark", "emboss", "ground-day mark", "“I.” · stealth emboss"]
+  ];
+  document.getElementById("renderings").innerHTML = plates.map(function (p) {
+    return '<div class="plate ' + p[2] + '">' + svgFor(p[0], p[1]) + '<span class="cap">' + p[3] + "</span></div>";
+  }).join("");
+  document.getElementById("arms").innerHTML = [["", "The app"], ["RESEARCH", "Papers & site"], ["LABS", "The company"]].map(function (a) {
+    return '<div class="plate ground-card" style="flex-direction:column;gap:10px">' + svgFor("wordmark", "ink") +
+      (a[0] ? '<div class="eyebrow" style="letter-spacing:.42em;color:var(--ink)">' + a[0] + "</div>" : '<div class="eyebrow" style="opacity:0">—</div>') +
+      '<span class="cap">' + a[1] + "</span></div>";
+  }).join("");
+
+  /* ── type scale ── */
+  var fam = { display: "var(--font-display)", mono: "var(--font-mono)", prose: "var(--font-body)" };
+  var sample = { display: "Isocline", readout: "218", largeNumber: "412", hero: "Estradiol", numeric: "5.0", serifTitle: "Sunday morning",
+    body: "Calm today — slept well.", serifBody: "A note on the plateau", detail: "Modeled from your last lab", label: "08:30 · 5.0 MG",
+    eyebrow: "Time · body systems", pill: "Every 7 days", statLabel: "Trough", micro: "Build 2026.10", statValue: "4.2 d" };
+  document.getElementById("type-scale").innerHTML = Object.keys(T.type.roles).map(function (k) {
+    var r = T.type.roles[k], size = Math.min(r.size, 44);
+    var st = "font-family:" + fam[r.family] + ";font-weight:" + r.weight + ";font-size:" + size + "px;line-height:1.15;" +
+      (r.tracking ? "letter-spacing:" + r.tracking + "em;" : "") + (r.case === "upper" ? "text-transform:uppercase;" : "");
+    return '<div class="spec"><div class="role">' + k + "<br>" + r.size + "pt · " + r.relativeTo + '</div><div class="show" style="' + st + '">' + (sample[k] || k) + "</div></div>";
+  }).join("");
+
+  /* ── Sample data: every figure on this page (instrument, Home sketch, specimen) reads this,
+        so the numbers can't drift apart. A toy Bateman superposition, not the app's PK model. ── */
+  var SAMPLE = { range: [100, 600], doseEvery: 7, ka: 0.9, ke: 0.1, scale: 240,
+    span: 30, ymax: 620, lab: { t: 10, factor: 1.06 }, today: 24 };
+  function level(t) {
+    var tot = 0;
+    for (var d = 0; d <= t; d += SAMPLE.doseEvery) { var x = t - d; tot += (Math.exp(-SAMPLE.ke * x) - Math.exp(-SAMPLE.ka * x)); }
+    return tot * SAMPLE.scale;
+  }
+  var uid = 0;
+  function curveSVG(w, h, opts) {
+    var id = "c" + (uid++), pad = { l: opts.l || 0, r: opts.r || 0, t: opts.t || 14, b: opts.b || 18 };
+    var tmax = SAMPLE.span, ymax = SAMPLE.ymax, lab = { t: SAMPLE.lab.t, v: Math.round(level(SAMPLE.lab.t) * SAMPLE.lab.factor) }, today = SAMPLE.today;
+    var lo = SAMPLE.range[0], hi = SAMPLE.range[1], C = T.curve, L = T.line;
+    var k = opts.hero ? 1 : 0.75;   // sketches draw the app's point sizes at three-quarter scale
+    var X = function (t) { return pad.l + t / tmax * (w - pad.l - pad.r); }, Y = function (v) { return h - pad.b - v / ymax * (h - pad.t - pad.b); };
+    var s = '<svg viewBox="0 0 ' + w + " " + h + '" role="img" aria-label="Modeled estradiol level: a filled curve, one lab draw marked as a ring, the current point marked">';
+    s += '<defs><linearGradient id="' + id + 'f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--level-low)" stop-opacity="' + C.fill.topOpacity + '"/><stop offset="1" stop-color="var(--level-low)" stop-opacity="0"/></linearGradient>' +
+         '<linearGradient id="' + id + 's" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="var(--level-low)"/><stop offset="1" stop-color="var(--level-high)"/></linearGradient></defs>';
+    // range band + gridlines
+    s += '<rect x="' + pad.l + '" width="' + (w - pad.l - pad.r) + '" y="' + Y(hi) + '" height="' + (Y(lo) - Y(hi)) + '" fill="var(--accent)" opacity="' + C.rangeBand.opacity + '"/>';
+    [lo, hi].forEach(function (g) { s += '<line x1="' + pad.l + '" x2="' + (w - pad.r) + '" y1="' + Y(g) + '" y2="' + Y(g) + '" stroke="var(--grid)"/>'; });
+    if (opts.labels) {
+      s += '<text x="' + (pad.l + 6) + '" y="' + (Y(hi) + 14) + '">' + C.rangeBand.label.replace("{low}", lo).replace("{high}", hi) + "</text>";
+      [lo, hi].forEach(function (g) { s += '<text x="' + (w - pad.r - 4) + '" y="' + (Y(g) - 5) + '" text-anchor="end">' + g + "</text>"; });
+    }
+    var pts = [];
+    for (var t = 0; t <= tmax; t += 0.25) pts.push(X(t).toFixed(1) + " " + Y(level(t)).toFixed(1));
+    s += '<path d="M' + X(0) + " " + Y(0) + " L" + pts.join(" L") + " L" + X(tmax) + " " + Y(0) + 'Z" fill="url(#' + id + 'f)"/>';
+    s += '<path d="M' + pts.join(" L") + '" fill="none" stroke="url(#' + id + 's)" stroke-width="' + (opts.hero ? L.curveHero : L.curve) + '" stroke-linecap="round" stroke-linejoin="round"/>';
+    // lab draw — the only measured mark
+    s += '<circle cx="' + X(lab.t) + '" cy="' + Y(lab.v) + '" r="' + (C.labPoint.diameter / 2 * k) + '" fill="var(--paper)" stroke="var(--ink)" stroke-width="' + L.labRing + '"/>';
+    if (opts.labels) s += '<text x="' + X(lab.t) + '" y="' + (Y(lab.v) - 10) + '" text-anchor="middle">LAB · ' + lab.v + "</text>";
+    // now
+    var nx = X(today), ny = Y(level(today));
+    s += '<circle cx="' + nx + '" cy="' + ny + '" r="' + (C.nowPoint.haloDiameter / 2 * k) + '" fill="var(--accent)" opacity="' + C.nowPoint.haloOpacity + '"/><circle cx="' + nx + '" cy="' + ny + '" r="' + (C.nowPoint.dotDiameter / 2 * k) + '" fill="var(--level-low)"/>';
+    if (opts.labels) s += '<text x="' + nx + '" y="' + (h - 4) + '" text-anchor="middle">NOW</text>';
+    return s + "</svg>";
+  }
+  function figure() {
+    uid = 0;
+    document.getElementById("instrument-fig").innerHTML = curveSVG(980, 280, { labels: true, hero: true, l: 8, r: 8 });
+    document.getElementById("ph-curve").innerHTML = curveSVG(300, 200, { b: 0, t: 8 });
+    document.getElementById("ph-big").firstChild.nodeValue = Math.round(level(SAMPLE.today));
+    document.getElementById("sp-curve").innerHTML = curveSVG(300, 84, { b: 0, t: 6 });
+    document.getElementById("sp-read").firstChild.nodeValue = Math.round(level(SAMPLE.today));
+  }
+
+  /* ── hue specimen: its own palette (Day/Night preview), the band, the quick stops ── */
+  var specimen = document.getElementById("specimen"), band = document.getElementById("sp-band"), spNight = false;
+  var A = T.recipes.accent.light;
+  function accentAt(h) { return "rgb(" + rgb(A[0], A[1], ((h + A[2]) % 360 + 360) % 360).join(",") + ")"; }
+  var bandStops = [];
+  for (var h = 0; h <= 360; h += 30) bandStops.push(accentAt(h));
+  band.style.setProperty("--band-gradient", "linear-gradient(90deg," + bandStops.join(",") + ")");
+  document.getElementById("sp-icon").innerHTML = svgFor("mark", "ink");
+  document.getElementById("sp-stops").innerHTML = T.resolved.seedStops.map(function (h) {
+    return '<button type="button" data-h="' + h + '" aria-label="Hue ' + Math.round(h) + ' degrees" style="background:' + accentAt(h) + '"></button>';
+  }).join("");
+  function specimenApply(day, dark, seed) {
+    var p = spNight ? dark : day;
+    Object.keys(p).forEach(function (k) { specimen.style.setProperty("--" + kebab(k), p[k]); });
+    band.value = seed;
+    document.getElementById("sp-meta").textContent = "HUE " + seed.toFixed(1) + "° · ACCENT " + day.accent;
+    [].forEach.call(document.querySelectorAll("#sp-stops button"), function (b) {
+      b.setAttribute("aria-pressed", String(Math.abs(parseFloat(b.dataset.h) - seed) < 0.5));
+    });
+  }
+  band.addEventListener("input", function () { hue.value = band.value; apply(); });
+  document.getElementById("sp-stops").addEventListener("click", function (e) {
+    var b = e.target.closest("button"); if (b) { hue.value = b.dataset.h; apply(); }
+  });
+  document.getElementById("sp-reset").addEventListener("click", function () { hue.value = DEFAULT.toFixed(1); apply(); });
+  [].forEach.call(document.querySelectorAll("[data-sp]"), function (b) {
+    b.addEventListener("click", function () {
+      spNight = b.dataset.sp === "night";
+      [].forEach.call(document.querySelectorAll("[data-sp]"), function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+      apply();
+    });
+  });
+
+  /* ── dose notification layout: mirrors the app's NotificationContentBuilder ── */
+  var NOTE_SAMPLE = { med: "Estradiol valerate", amount: "4 mg", route: "injection", time: "6:00 PM", site: "right thigh" };
+  var LAYOUTS = {
+    discreet: { title: "Reminder", fields: [], log: false },
+    standard: { title: "Dose reminder", fields: ["med", "amount"], log: true },
+    detailed: { title: "Dose due", fields: ["med", "amount", "route", "time", "site"], log: true },
+    custom:   { title: "Reminder", fields: ["time"], log: false }
+  };
+  var layout = "discreet";
+  function esc(t) { return String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;"); }
+  function noteContent(l) {
+    var has = function (k) { return l.fields.indexOf(k) >= 0; }, parts = [];
+    var dose = [has("med") ? NOTE_SAMPLE.med : "", has("amount") ? NOTE_SAMPLE.amount : ""].filter(Boolean).join(" ");
+    if (dose) parts.push(dose);
+    if (has("route")) parts.push(NOTE_SAMPLE.route);
+    if (has("time")) parts.push("due " + NOTE_SAMPLE.time);
+    if (has("site")) parts.push("suggested site: " + NOTE_SAMPLE.site);
+    return { title: l.title, body: parts.length ? parts.join(" · ") : "Your scheduled entry is ready.", action: l.log ? "Log dose" : "Open" };
+  }
+  function banner(c, withAction) {
+    return '<span class="sp-icon">' + svgFor("mark", "ink") + '</span><div style="min-width:0"><div class="h"><span>ISOCLINE</span><span>now</span></div>' +
+      '<div class="ti">' + esc(c.title) + '</div><div class="bo">' + esc(c.body) + "</div>" +
+      (withAction ? '<div class="act">Press and hold: ' + esc(c.action) + "</div>" : "") + "</div>";
+  }
+  function noteApply() {
+    var l = LAYOUTS[layout];
+    if (layout === "custom") {
+      var sel = document.getElementById("nl-title").value, own = document.getElementById("nl-own").value.trim();
+      document.getElementById("nl-own-row").hidden = sel !== "own";
+      l.title = sel === "own" ? (own || "Reminder") : sel;
+      l.fields = [].filter.call(document.querySelectorAll("#nl-fields [data-f]"), function (x) { return x.checked; })
+        .map(function (x) { return x.dataset.f; });
+      l.log = document.getElementById("nl-log").checked;
+    }
+    document.getElementById("nl-fields").hidden = layout !== "custom";
+    document.getElementById("nl-banner").innerHTML = banner(noteContent(l), true);
+    document.getElementById("nl-hidden").innerHTML = banner({ title: "Isocline", body: "Reminder" }, false);
+    [].forEach.call(document.querySelectorAll("[data-nl]"), function (b) { b.setAttribute("aria-pressed", String(b.dataset.nl === layout)); });
+  }
+  document.getElementById("nl-presets").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-nl]"); if (b) { layout = b.dataset.nl; noteApply(); }
+  });
+  document.getElementById("nl-fields").addEventListener("input", noteApply);
+  document.getElementById("nl-fields").addEventListener("change", noteApply);
+  noteApply();
+
+  hue.value = DEFAULT.toFixed(1);
+  hue.addEventListener("input", apply);
+  document.getElementById("reset").addEventListener("click", function () { hue.value = DEFAULT.toFixed(1); apply(); });
+  document.getElementById("mode").addEventListener("click", function () {
+    override = override === null ? !systemNight() : null;
+    night = override === null ? systemNight() : override;
+    apply();
+  });
+  if (mq) {
+    var follow = function () { if (override === null) { night = systemNight(); apply(); } };
+    if (mq.addEventListener) mq.addEventListener("change", follow); else if (mq.addListener) mq.addListener(follow);
+  }
+  apply();
+})();
+</script>
+</body>
+</html>

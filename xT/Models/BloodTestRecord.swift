@@ -21,8 +21,9 @@ class BloodTestRecord: Identifiable, Hashable {
     var notes: String?                    // optional user notes (e.g., "Quest Diagnostics, trough draw")
 
     /// The calibration factor derived from this test.
-    /// α = measured / predicted.  Values > 1 mean the model under‑predicts;
-    /// values < 1 mean the model over‑predicts.
+    /// α = (measured − base) / exogenous — the multiplier applied to the exogenous
+    /// drug contribution only (`base + exogenous · α`). Values > 1 mean the model
+    /// under‑predicts the drug term; values < 1 mean it over‑predicts.
     /// Only meaningful after the model has been run for the draw date.
     var calibrationFactor: Double?        // transient, not persisted to disk
 

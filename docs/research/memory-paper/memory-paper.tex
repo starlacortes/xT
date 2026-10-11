@@ -18,22 +18,19 @@
 \usepackage{xcolor}
 \usepackage{enumitem}
 \usepackage{fancyhdr}
+\makeatletter\def\input@path{{../}{../../design/brand/}}\makeatother
+\usepackage{isocline}   % docs/research/isocline.sty — Isocline Research template
 \usepackage[hidelinks]{hyperref}
 
-\definecolor{warn}{RGB}{160,60,0}
-\definecolor{ok}{RGB}{20,110,60}
-\newcommand{\bad}[1]{\textcolor{warn}{#1}}
-\newcommand{\good}[1]{\textcolor{ok}{#1}}
+% Legacy markup, now neutral: Isocline reports observations, not verdicts.
+\newcommand{\bad}[1]{\obs{#1}}
+\newcommand{\good}[1]{#1}
 \newcommand{\code}[1]{\texttt{\small #1}}
 
-\pagestyle{fancy}
-\fancyhf{}
-\lhead{\small xT Memory Architecture}
-\rhead{\small\thepage}
-\renewcommand{\headrulewidth}{0.4pt}
+\isoclineshorttitle{Memory Architecture}
 
 \title{\textbf{Local First, Private by Design:}\\[0.3em]
-\large The Memory Architecture of xT}
+\large The Memory Architecture of Isocline}
 \author{Starla Cortes}
 \date{August 2026}
 
@@ -42,7 +39,7 @@
 
 \begin{abstract}
 \noindent
-We present the memory architecture of xT, a mobile application for hormone
+We present the memory architecture of Isocline, a mobile application for hormone
 replacement therapy monitoring---the full persistence stack, state-management
 framework, and privacy model that together determine where user data lives,
 how it is protected, and what guarantees attach to it.
@@ -90,7 +87,7 @@ protected? What happens when the app restarts, when the device is lost, when
 the user upgrades their phone, when iCloud sync conflicts, when the
 encryption key is evicted from the Keychain?
 
-xT answers these questions with a persistence architecture that is the
+Isocline answers these questions with a persistence architecture that is the
 subject of this paper. The application's user experience and pharmacokinetic
 model are described in companion papers~\cite{xtux,xtpk}; this paper concerns
 the \emph{memory} that holds them together---the six-layer persistence stack,
@@ -122,7 +119,7 @@ every persistence decision in the application:
   such that even a forensic image of the device file system does not expose
   the user's medication regimen.
 \item \textbf{No server dependency.} All data lives on-device or in the
-  user's iCloud account. No xT server exists, so no server can be
+  user's iCloud account. No Isocline server exists, so no server can be
   compromised.
 \item \textbf{Cross-device sync.} Users with multiple devices (iPhone, iPad)
   should see consistent data without manual export/import.
@@ -136,7 +133,7 @@ every persistence decision in the application:
 \subsection{The Architecture Response}
 \label{sec:architecture_response}
 
-xT's memory architecture addresses these requirements through three
+Isocline's memory architecture addresses these requirements through three
 structural decisions that operate at every layer:
 
 \textbf{Tiered storage by data sensitivity.} Data is placed at the least
@@ -196,14 +193,14 @@ data.
 \label{sec:principles}
 
 This section describes the five principles that govern every persistence
-decision in xT. They are the memory analog of the UX design principles
+decision in Isocline. They are the memory analog of the UX design principles
 described in the companion paper~\cite{xtux}: every store, every key, every
 encryption boundary is answerable to at least one of them.
 
 \subsection{Defense in Depth}
 \label{sec:defense_in_depth}
 
-Every piece of data in xT is stored at the least-permissive tier that can
+Every piece of data in Isocline is stored at the least-permissive tier that can
 serve its access pattern. The six tiers are:
 
 \begin{table}[h]
@@ -1283,7 +1280,7 @@ would not exist.
 
 Analogous to the UX paper's design decision confidence hierarchy
 (Section~6.7 of~\cite{xtux}) and the PK paper's source quality hierarchy
-(Section~5.3 of~\cite{xtpk}), persistence decisions in xT rest on a
+(Section~5.3 of~\cite{xtpk}), persistence decisions in Isocline rest on a
 hierarchy of confidence:
 
 \begin{enumerate}[nosep,leftmargin=1.4em]
@@ -1317,7 +1314,7 @@ hierarchy of confidence:
 \section{Conclusion}
 \label{sec:conclusion}
 
-We have presented the memory architecture of xT, a mobile application for
+We have presented the memory architecture of Isocline, a mobile application for
 hormone replacement therapy monitoring. The architecture's key structural
 features are:
 
@@ -1370,7 +1367,7 @@ failure---is listed without apology.
 The most important property of a health-data persistence architecture, in
 our view, is the same as the most important property of the pharmacokinetic
 model that drives it and the user interface that delivers it: \textbf{honesty
-about what it can and cannot protect.} xT's memory architecture is designed
+about what it can and cannot protect.} Isocline's memory architecture is designed
 to be honest. It encrypts what must be encrypted and documents what it does
 not. It names its key-loss scenario rather than pretending it does not exist.
 It states which trade-offs are conscious and which are inherited. This
@@ -1394,13 +1391,13 @@ evicted.}
 
 \bibitem{xtux}
 Cortes S.\ (2026). ``Progressive Clarity with Honest Constraint: A Design
-Framework for Hormone Replacement Therapy Tracking in the xT Mobile
+Framework for Hormone Replacement Therapy Tracking in the Isocline Mobile
 Application.'' August 2026.
 
 \bibitem{xtpk}
 Cortes S.\ (2026). ``Superposed Bateman Biexponentials with
 Clearance-Constrained Scaling and Per-User Calibration: A Pharmacokinetic
-Framework for Hormone Replacement Therapy Monitoring in the xT Mobile
+Framework for Hormone Replacement Therapy Monitoring in the Isocline Mobile
 Application.'' August 2026.
 
 \bibitem{apple_cryptokit}

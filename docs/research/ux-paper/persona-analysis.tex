@@ -18,21 +18,18 @@
 \usepackage{xcolor}
 \usepackage{enumitem}
 \usepackage{fancyhdr}
+\makeatletter\def\input@path{{../}{../../design/brand/}}\makeatother
+\usepackage{isocline}   % docs/research/isocline.sty — Isocline Research template
 \usepackage[hidelinks]{hyperref}
 
-\definecolor{warn}{RGB}{160,60,0}
-\definecolor{ok}{RGB}{20,110,60}
-\newcommand{\bad}[1]{\textcolor{warn}{#1}}
-\newcommand{\good}[1]{\textcolor{ok}{#1}}
+% Legacy markup, now neutral: Isocline reports observations, not verdicts.
+\newcommand{\bad}[1]{\obs{#1}}
+\newcommand{\good}[1]{#1}
 \newcommand{\code}[1]{\texttt{\small #1}}
 
-\pagestyle{fancy}
-\fancyhf{}
-\lhead{\small xT Persona Validation Study}
-\rhead{\small\thepage}
-\renewcommand{\headrulewidth}{0.4pt}
+\isoclineshorttitle{Persona Validation Study}
 
-\title{\textbf{Empirical Persona Validation of the xT Mobile Application:}\\[0.3em]
+\title{\textbf{Empirical Persona Validation of the Isocline Mobile Application:}\\[0.3em]
 \large A Programmatic Walkthrough Study of Seven Hormone Replacement\\
 Therapy Regimens Against Live Pharmacokinetic Model Output}
 \author{Starla Cortes}
@@ -43,7 +40,7 @@ Therapy Regimens Against Live Pharmacokinetic Model Output}
 
 \begin{abstract}
 \noindent
-We conduct an empirical validation of xT, a mobile application for hormone
+We conduct an empirical validation of Isocline, a mobile application for hormone
 replacement therapy (HRT) monitoring, by implementing seven synthetic user
 personas as runnable test profiles within the application and examining the
 resulting interface state against the design claims of the companion UX
@@ -60,20 +57,30 @@ The study reveals both strengths and gaps. The presentation rules correctly
 gate comparative language behind user-set therapeutic targets: personas
 without configured targets (Sam, Rowan) receive neutral level estimates
 without ``below target'' judgments, while personas with targets receive
-appropriate comparisons. The calibration engine produces correct $\alpha$
-factors from blood test data (Jules: $\alpha = 1.326$). Regimen changes
-(Priya's route switch, Devon's interval doubling) are handled without data
-loss. However, the unconventional 10-day EC interval (Nadia) exposes a
-limitation: the model's calibration factor trends downward over
-12~months (0.669 $\rightarrow$ 0.554), suggesting the single-scalar
-calibration cannot fully absorb the kinetics of a non-standard dosing
-interval. Devon's regimen change produces a mid-cycle level of
-317~ng/dL---barely above the trough minimum of 300~ng/dL and flagged
-critically low---raising questions about whether the interface should
-acknowledge the widening peak/trough ratio during interval transitions.
-And the transdermal personas (Sam, Rowan) show \code{unknown} cycle
-position, indicating that the phase classifier does not handle daily-application
-routes.
+appropriate comparisons. Regimen changes (Priya's route switch, Devon's
+interval doubling) are handled without data loss, and the pharmacokinetic
+output reproduces the companion model paper's predictions in every case we
+recomputed. The transdermal personas (Sam, Rowan) show \code{unknown} cycle
+position, indicating that the phase classifier does not handle
+daily-application routes.
+
+Two findings reported in the first revision of this study were wrong, and
+correcting them is the substance of this one. The three personas flagged low
+(Maya, Devon, Nadia) were described as a classification-vocabulary problem
+with correct underlying numbers. They are not: in all three cases the
+comparison band's lower bound exceeds the maximum concentration the
+application's own model predicts for that persona's regimen, so
+\code{inRange} is unreachable, and for Devon the band is inverted outright
+($\texttt{min} = 1350 > \texttt{max} = 1250$ at mid-cycle) so that no level
+can satisfy it. The root cause is that dose intensity is computed per
+administration rather than per unit time, so doubling a dosing interval
+alongside the dose doubles every derived target while leaving exposure
+unchanged. And Nadia's downward-trending $\alpha$ (0.669 $\rightarrow$
+0.554) was read as the single-scalar calibration failing to absorb a
+non-standard interval; recomputation shows her predicted trough is constant
+to four significant figures from month~3 onward, so the trend is a 17\% fall
+in her measured levels on an unchanged regimen---a signal about the user
+that the interface currently discards.
 
 \textbf{Keywords:} user experience, persona validation, mobile health,
 hormone replacement therapy, pharmacokinetic visualization, calibration,
@@ -87,7 +94,7 @@ empirical walkthrough
 \section{Introduction}
 \label{sec:intro}
 
-The companion UX paper~\cite{xtux} validates xT's interface architecture
+The companion UX paper~\cite{xtux} validates Isocline's interface architecture
 against eight narrative persona journeys (Section~5 of~\cite{xtux}). Each
 persona exercises a specific UX dimension---onboarding completeness, regimen
 change, route switching, missed-dose handling, custom concentration entry,
@@ -98,7 +105,7 @@ designed} handles each scenario correctly, but they are not backed by
 examination of the interface \emph{as rendered} with actual PK model output.
 
 This paper bridges that gap. We implement seven of the eight personas as
-programmatic test profiles within the xT application itself, using the
+programmatic test profiles within the Isocline application itself, using the
 existing \code{SpoofProfile} infrastructure (Section~\ref{sec:method}).
 Each profile seeds the application's managers with a complete medication
 configuration, a realistic dose history spanning the persona's stated
@@ -255,9 +262,23 @@ She has no blood tests and no prior HRT history.
 The PK model correctly identifies Maya as near peak---the single EV dose was
 administered approximately 24~hours before examination, and EV's
 time-to-peak ($t_{\max}$) is 2.10~days, so she is roughly halfway to peak.
-The level of 323\,pg/mL is consistent with a 4\,mg EV dose rising toward its
-peak, given EV's published single-dose peak of approximately
-400--500\,pg/mL for this dose~\cite{xtpk}.
+The level of 323\,pg/mL is consistent with a 4\,mg EV dose rising toward
+its peak once the endogenous baseline is accounted for. The exogenous
+contribution alone at 24\,h is 194\,pg/mL, and a newly-started user still
+carries most of the model's intact estradiol baseline---92\,pg/mL at week
+1 under the default 4-week suppression timescale---for a total near
+286\,pg/mL, rising to a modeled single-dose peak of 238 + baseline at
+$t_{\max}$.
+
+\textbf{Correction.} An earlier revision of this section stated EV's
+published single-dose peak as ``approximately 400--500\,pg/mL for this
+dose'' and cited the companion PK paper for it. That citation does not
+support the figure. The PK paper reports a single-dose $C_{\max}$ of
+119\,pg/mL for 2\,mg EV, validated against transfemscience Table 9 to
+within 1\%~\cite{xtpk}; linearity puts 4\,mg at 238\,pg/mL, not 400--500.
+The companion paper is explicit that its steady-state anchoring choice
+makes single-dose peaks \emph{lower} than some published figures, so the
+higher range contradicted the source it was attributed to.
 
 The \code{slightlyBelow} status warrants examination. Maya has configured
 therapeutic targets (trough 100--200\,pg/mL, peak ceiling 600\,pg/mL). At
@@ -265,25 +286,40 @@ near-peak with a level of 323\,pg/mL, she is well within both bounds---above
 the trough minimum (100) and below the peak ceiling (600). Why is the status
 \code{slightlyBelow}?
 
-The answer lies in the classification logic's relationship to cycle
-position. The \code{LevelStatus} is computed relative to the therapeutic
-targets, but the comparison is against the \emph{trough} range---the
-trough minimum and maximum. At near-peak, the level is compared to the peak
-ceiling; a value of 323\,pg/mL is below 600, so it is classified as
-\code{slightlyBelow} the peak ceiling. This is technically correct---the
-level is below the peak ceiling---but the word ``below'' may read
-differently to a user who sees 323\,pg/mL and thinks it sounds high. The
-companion UX paper's principle of honest presentation
-(Section~2.1 of~\cite{xtux}) calls for reporting the estimate without
-judgment when comparisons might mislead; the current classification may be
-too coarse for the near-peak context.
+The answer is not the peak ceiling. Reading
+\code{contextualRange(for:at:doseIntensity:)} directly: at
+\code{.nearPeak} the function returns the pair
+$(\texttt{scaledPeakMin},\ \texttt{peakCeiling})$, and \code{LevelStatus}
+is assigned by comparing the level against the \emph{lower} bound first---
+\code{slightlyBelow} fires when \code{actual < minTarget}. Maya is not
+being compared to 600. She is being compared to
+\code{scaledPeakMin}, which is the base peak floor for estradiol
+(200\,pg/mL) multiplied by her relative dose intensity.
 
-\textbf{Finding:} The model output is numerically correct, but the
-\code{slightlyBelow} classification at near-peak may produce user-facing
-text that reads as a concern when the level is actually appropriate for the
-cycle position. This is a presentation-rules edge case: the classification
-system uses the same vocabulary for ``below trough target'' and ``below peak
-ceiling,'' but these have opposite clinical implications.
+Her dose intensity is $4\,\text{mg} / 2\,\text{mg} = 2.0$ against the
+population reference dose, so \code{scaledPeakMin} is 400\,pg/mL. At
+323\,pg/mL she is below 400, and above $0.8 \times 400 = 320$ by three
+pg/mL---which is the only reason the status reads \code{slightlyBelow}
+rather than \code{veryLow}.
+
+The deeper problem is that 400\,pg/mL is not a level the model can produce
+for her regimen. A 4\,mg EV dose peaks at 238\,pg/mL exogenous; even with
+the full untapered baseline she tops out near 338. The comparison band's
+\emph{floor} sits above the model's own \emph{ceiling}, so
+\code{inRange} is unreachable at near-peak for this persona regardless of
+what she does.
+
+\textbf{Finding:} The \code{slightlyBelow} classification is not a
+vocabulary problem and not a near-peak edge case. It is the first of three
+instances in this study of a comparison band whose lower bound exceeds the
+maximum the pharmacokinetic model predicts for the same regimen. The cause
+is that peak targets scale linearly with milligrams per \emph{dose} while
+predicted concentration scales with milligrams per \emph{day};
+Section~\ref{sec:unreachable} treats the mechanism in full. An earlier
+revision of this section attributed the classification to a comparison
+against the 600\,pg/mL peak ceiling. That was incorrect: no branch of
+\code{contextualRange} compares a level to the peak ceiling as a lower
+bound.
 
 % ----------------------------------------------------------------------
 \subsection{Devon: Regimen Change---Interval Doubling}
@@ -312,33 +348,61 @@ the dose and the interval. He has two blood tests: a 3-month trough draw at
 
 \subsubsection{Analysis}
 
-Devon's level of 317\,ng/dL at mid-cycle is flagged \code{criticallyLow}
-against his trough minimum of 300\,ng/dL. The companion UX
-paper~\cite{xtux} states that after the regimen change, ``$C_{\mathrm{avg}}$
-is preserved, trough falls, peak rises, peak/trough widens from
-$1.74\times$ to $3.51\times$.'' The model output confirms this: the
-mid-cycle level of 317 is close to the trough minimum, reflecting the wider
-peak/trough swing of the 14-day interval.
+The companion UX paper~\cite{xtux} states that after the regimen change,
+``$C_{\mathrm{avg}}$ is preserved, trough falls, peak rises, peak/trough
+widens from $1.74\times$ to $3.51\times$.'' The model output confirms this
+exactly: recomputing the superposition from the shipped constants gives a
+steady-state exogenous $C_{\mathrm{avg}}$ of 549.5\,ng/dL at both q7d and
+q14d, with $C_{\max}$ rising from 736 to 1099 and $C_{\min}$ falling from
+321 to 142.
 
-The \code{criticallyLow} classification is technically accurate---317 is
-only 17\,ng/dL above the trough minimum---but the user-facing implication
-requires care. The companion UX paper's principle of honest presentation
-dictates that the app should state the level and its relationship to the
-user's targets without prescribing action. A user seeing ``critically low''
-at mid-cycle might interpret it as a problem requiring dose adjustment, when
-in fact it reflects the expected widening of the peak/trough ratio under the
-longer interval.
+The \code{criticallyLow} classification, however, has nothing to do with his
+trough minimum of 300. An earlier revision of this section stated that 317
+was ``only 17\,ng/dL above the trough minimum'' and called the
+classification ``technically accurate.'' Both statements are wrong, and
+the second is wrong in a way that hides a real defect:
+\code{criticallyLow} fires when
+$\texttt{actual} < 0.5 \times \texttt{minTarget}$, so a level 17\,ng/dL
+\emph{above} its bound could not produce it. The bound is not 300.
 
-\textbf{Finding:} The model correctly reflects the pharmacokinetic
-consequence of interval doubling, but the classification vocabulary may be
-alarmist in this context. The companion paper notes that the app ``does not
-advise''---it states facts. A mid-cycle level of 317\,ng/dL with a status of
-\code{criticallyLow} is a fact, but the word ``critically'' carries clinical
-weight that the model's population estimate may not justify. This is a
-presentation-rules edge case: the \code{criticallyLow} classification exists
-to flag levels far below the therapeutic range, but a user whose trough
-minimum is 300 and whose level is 317 is not ``far below''---they are
-borderline.
+Tracing \code{contextualRange} at \code{.midCycle} gives
+\[
+\texttt{midMin} = \frac{\texttt{troughMin} + \texttt{scaledPeakMin}}{2},
+\qquad
+\texttt{midMax} = \frac{\texttt{troughMax} + \texttt{peakCeiling}}{2}
+\]
+Devon's average dose over the trailing three months is 200\,mg against a
+50\,mg population reference, so his dose intensity is 4.0 and
+\code{scaledPeakMin} is $600 \times 4.0 = 2400$\,ng/dL. His bounds are
+therefore
+\[
+\texttt{midMin} = \frac{300 + 2400}{2} = 1350,
+\qquad
+\texttt{midMax} = \frac{1000 + 1500}{2} = 1250
+\]
+and 317 is below half of 1350. That is where \code{criticallyLow} comes
+from.
+
+\textbf{The band is inverted.} $\texttt{midMin} = 1350 >
+\texttt{midMax} = 1250$. Because \code{inRange} requires
+$\texttt{minTarget} \le \texttt{actual} \le \texttt{maxTarget}$, no value
+whatsoever satisfies it. Devon cannot be shown as in range at mid-cycle at
+any level. The same inversion occurs at \code{.nearPeak}, where the returned
+pair is $(2400,\ 1500)$---the floor 900\,ng/dL above the ceiling, and both
+above the model's own predicted peak of 1099. The condition for inversion is
+$600 \cdot \texttt{scale} > \texttt{troughMax} + \texttt{peakCeiling} -
+\texttt{troughMin}$, which for Devon's targets means any average dose above
+183\,mg.
+
+\textbf{Finding:} Devon does not expose a vocabulary problem. He exposes
+three compounding defects in \code{contextualRange}: dose intensity is
+computed per dose rather than per unit time, so doubling the interval
+alongside the dose doubles the intensity even though milligrams per day are
+unchanged; the peak floor scales without bound while the ceiling does not,
+so the band inverts; and the resulting bounds are never checked against what
+the pharmacokinetic model can actually produce. Section~\ref{sec:unreachable}
+develops all three. The model's PK output is correct throughout; it is the
+comparison band that fails.
 
 % ----------------------------------------------------------------------
 \subsection{Priya: Route Switch---Oral to Injectable}
@@ -578,38 +642,74 @@ calibration envelope'' and assigns her journey a verdict of \good{Pass, with
 caveat.} The model output confirms why the caveat is necessary.
 
 \textbf{Level trajectory.} At day~5 of a 10-day cycle, Nadia's level is
-135\,pg/mL---\code{criticallyLow} against her trough minimum of
-100\,pg/mL. This is not a trough reading (she is at mid-cycle, 5~days from
-her last dose and 5~days until her next), yet the level is already near the
-trough minimum. This reflects the pharmacokinetic reality of the 10-day
+135\,pg/mL and classified \code{criticallyLow}. As with Devon
+(Section~\ref{sec:devon}), the bound is not her trough minimum: her dose
+intensity is $5/2 = 2.5$, giving $\texttt{scaledPeakMin} = 500$\,pg/mL and
+a mid-cycle band of $((100+500)/2,\ (200+600)/2) = (300, 400)$. She is below
+half of 300. And the model's own steady-state $C_{\max}$ at 5\,mg q10d is
+256\,pg/mL, so the floor of that band is 44\,pg/mL above the highest level
+the model will ever predict for her---the third instance of the unreachable
+band (Section~\ref{sec:unreachable}). This is not a trough reading (she is
+at mid-cycle, 5~days from her last dose and 5~days until her next). This reflects the pharmacokinetic reality of the 10-day
 interval: EC's terminal half-life of 6.47~days means that by day~5, the
 level has decayed significantly from its peak, and by day~9--10 (true
 trough), it will be substantially lower than the standard q7d trough.
 
 \textbf{Calibration factor trend.} The $\alpha$ factors trend downward over
 12~months: 0.669 $\rightarrow$ 0.587 $\rightarrow$ 0.554. An $\alpha < 1.0$
-means the model over-predicts relative to the measured value. The downward
-trend suggests that as Nadia accumulates more time on the non-standard
-interval, the model's population prediction (which is anchored to q7d EC
-data) increasingly diverges from her actual levels. This is consistent with
-the companion PK paper's observation that ``the resulting curve sits outside
-the range where the EC constants were anchored.''
+means the model over-predicts relative to the measured value.
 
-\textbf{Clinical context.} Nadia's doctor is monitoring the trend. The
-12-month draw at 140\,pg/mL with $\alpha = 0.554$ suggests that after a year
-on the 10-day schedule, her levels are approximately 55\% of what the
-population model predicts for a standard-interval EC user. The model is not
-wrong---it is computing the correct biexponential superposition for the
-given inputs---but the EC constants were fit to q7d data, and their
-application to a q10d schedule inherits every assumption of that fit.
+An earlier revision of this section read the downward trend as evidence that
+``as Nadia accumulates more time on the non-standard interval, the model's
+population prediction increasingly diverges from her actual levels.'' That
+reading does not survive arithmetic. Recomputing the superposition for
+5\,mg EC at a 10-day interval, the predicted trough is 157.4\,pg/mL
+exogenous at the ninth dose (month~3), at the eighteenth (month~6), and at
+the thirty-sixth (month~12)---identical to four significant figures. EC
+accumulation is complete within three months at that interval; after it,
+the model's prediction is a constant. Nothing diverges, because nothing
+moves.
+
+Since $\alpha = C_{\text{measured}} / C_{\text{predicted}}$ and the
+denominator is fixed at 170.2\,pg/mL (157.4 exogenous plus the 12.8\,pg/mL
+tapered baseline), the declining $\alpha$ can only mean a declining
+numerator. Back-solving, Nadia's measured troughs were approximately
+113.9, 99.9, and 94.3\,pg/mL---a 17\% fall over nine months on an unchanged
+regimen.
+
+That is not a model artifact. It is a signal about Nadia: increasing hepatic
+clearance, a change in injection technique or site, a change in body
+composition, a shift in SHBG, an adherence drift, or a lot-to-lot difference
+in compounded product. The application cannot distinguish among these, and
+should not try. But it should not have been read as noise in the
+calibration, either.
+
+\textbf{Revised finding on calibration.} A monotone $\alpha$ drift on a
+\emph{fixed} regimen, after the model has reached steady state, is the
+single most informative datum the calibration engine can produce, precisely
+because the population prediction it divides by is constant. It is the one
+case where $\alpha$ is measuring the user rather than absorbing the model's
+error. The interface currently surfaces only the most recent $\alpha$ and
+discards the trend.
+
+\textbf{Clinical context.} Nadia's doctor is monitoring the trend. Her
+levels sit at roughly 55\% of what the population model predicts. The model
+is not wrong---it is computing the correct biexponential superposition for
+the given inputs---but the EC constants were fit to q7d data, and their
+application to a q10d schedule inherits every assumption of that fit. What
+the q10d interval does change, and change correctly, is the shape: the
+model's own steady-state trough at q10d (157\,pg/mL) is 40\% below the same
+dose at q7d (262\,pg/mL), which is the real pharmacokinetic cost of the
+longer interval and is independent of $\alpha$ entirely.
 
 \textbf{Finding:} The model correctly computes the PK curve for the
-unconventional interval, but the results expose the limits of the
-single-scalar calibration. The downward-trending $\alpha$ suggests that
-Nadia's individual kinetics (clearance, volume of distribution) interact
-with the longer interval in ways that a single multiplicative factor cannot
-fully absorb. The companion paper's caveat---``structurally sound but
-inherits every assumption of the fit''---is empirically confirmed.
+unconventional interval. The single-scalar calibration is genuinely limited
+in the way the companion PK paper describes---it cannot represent
+parameter-specific variability---but Nadia's $\alpha$ trend is not the
+evidence for that limitation, because the quantity it divides by does not
+change over the period in question. The correct reading of her data is that
+a stable regimen produced a falling measurement, and the app noticed
+without saying so.
 
 The \code{criticallyLow} classification at mid-cycle is technically correct
 but may be alarming. A user seeing ``critically low'' at day~5 of a 10-day
@@ -651,48 +751,136 @@ paper does not address this question directly, but the principle of
 progressive disclosure suggests that if the information is not meaningful
 for a given route, it should not be shown.
 
-\subsection{Classification Vocabulary: Precision vs. Alarm}
+\subsection{The Unreachable Comparison Band}
+\label{sec:unreachable}
 
-Three personas receive classifications that, while technically correct, may
-read as more alarming than the clinical context warrants:
+Three of the seven personas receive a low classification, and an earlier
+revision of this study treated all three as a vocabulary problem---correct
+numbers, alarming words. Re-deriving each classification from
+\code{contextualRange(for:at:doseIntensity:)} and
+\code{getCurrentHormoneLevel()} shows that they are not correct numbers. In
+all three cases the level is being compared against a bound the
+pharmacokinetic model cannot reach.
 
-\begin{itemize}[nosep,leftmargin=1.4em]
-\item \textbf{Maya} (323\,pg/mL, \code{slightlyBelow}): The level is below
-  the peak ceiling of 600, which is not a concern, but ``below'' may read as
-  a negative judgment.
-\item \textbf{Devon} (317\,ng/dL, \code{criticallyLow}): The level is only
-  17\,ng/dL above the trough minimum, and the low reading is the expected
-  consequence of the 14-day interval, but ``critically low'' carries
-  clinical weight.
-\item \textbf{Nadia} (135\,pg/mL, \code{criticallyLow}): The level is near
-  the trough minimum at mid-cycle, which reflects the unconventional
-  interval, but the classification does not communicate \emph{why} the level
-  is low.
-\end{itemize}
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{@{}lrrrrl@{}}
+\toprule
+\textbf{Persona} & \textbf{Intensity} & \textbf{Band floor} &
+\textbf{Model $C_{\max}$} & \textbf{Level} & \textbf{Status} \\
+\midrule
+Maya (EV 4\,mg q7d)   & 2.0 & 400 & 338 & 323 & \code{slightlyBelow} \\
+Devon (TC 200\,mg q14d) & 4.0 & 1350 & 1162 & 317 & \code{criticallyLow} \\
+Nadia (EC 5\,mg q10d) & 2.5 & 300 & 256 & 135 & \code{criticallyLow} \\
+\bottomrule
+\end{tabular}
+\caption{In each case the lower bound of the comparison band exceeds the
+maximum the model predicts for that persona's own regimen, so
+\code{inRange} is unreachable. Estradiol in pg/mL, testosterone in ng/dL.
+Model $C_{\max}$ includes the tapered endogenous baseline. Devon's figure is
+his mid-cycle band; his near-peak band is $(2400, 1500)$ and is inverted.}
+\label{tab:unreachable}
+\end{table}
 
-This is not a bug---the classifications are correct for the numeric
-values---but it is a presentation-rules design question. The current
-classification vocabulary uses the same words for ``level that is
-dangerously low'' and ``level that is near a user-set boundary for expected
-reasons.'' The companion paper's principle of honest presentation
-(Section~2.1 of~\cite{xtux}) might be better served by distinguishing these
-cases: a level that is low \emph{because of the dosing schedule} is
-different from a level that is low \emph{despite it.}
+Three distinct defects produce this, and they compound.
+
+\subsubsection{Dose intensity ignores the dosing interval}
+
+\code{relativeDoseIntensity} is the mean dose amount over the trailing three
+months divided by a fixed population reference dose. It has no term for how
+often that dose is taken. Devon's change from 100\,mg q7d to 200\,mg q14d
+leaves his exposure identical---14.3\,mg/day either way, and the model
+agrees, holding $C_{\mathrm{avg}}$ at 549.5\,ng/dL across the change---but
+his intensity reads 2.0 before and 4.0 after. Every target derived from
+intensity therefore doubles because he changed his \emph{calendar}.
+
+The reference constants are themselves rates in disguise:
+\code{referenceTestosteroneDoseMg} of 50\,mg is a weekly dose, and
+\code{referenceEstrogenDoseMg} of 2\,mg is a weekly dose. Comparing a
+per-administration amount to a per-week reference is a units error that
+happens to cancel only when the user's interval equals the reference
+interval. The correction is to compare rates:
+\[
+\text{intensity} = \frac{\bar{D} / \tau_{\text{user}}}
+                        {D_{\text{ref}} / \tau_{\text{ref}}}
+\]
+which returns 2.0 for Devon on both sides of his regimen change.
+
+\subsubsection{The peak floor scales without bound; the ceiling does not}
+
+At \code{.nearPeak} the returned band is
+$(\texttt{scaledPeakMin},\ \texttt{peakCeiling})$, where the floor is
+$600 \cdot \texttt{scale}$ (estradiol: $200 \cdot \texttt{scale}$) and the
+ceiling, when the user has set targets, is a fixed number they typed. The
+floor grows linearly and the ceiling does not, so above
+$\texttt{scale} = \texttt{peakCeiling}/600$ the band inverts. Devon crosses
+that at an average dose of 125\,mg; he is at 200. The mid-cycle band
+inverts at 183\,mg by the analogous condition. Once inverted,
+\code{inRange} is unsatisfiable for every possible level, and the
+classification collapses to ``low'' or ``slightly above'' with nothing in
+between.
+
+Trough is the only position immune, because it is the only branch that
+returns a user-set pair unmodified.
+
+\subsubsection{Bounds are never reconciled with the model}
+
+The comparison band and the pharmacokinetic prediction are computed
+independently and never checked against each other. Nothing prevents the
+band from asserting a therapeutic floor that the app's own model, on the
+app's own dose history, says is impossible. Maya is 62\,pg/mL short of a
+floor she could not have reached at any point in her cycle; Nadia is
+44\,pg/mL short of hers at her own peak.
+
+A clamp of the model-derived portion of the band to the predicted
+$[C_{\min}, C_{\max}]$ envelope for the user's current regimen would
+eliminate all three rows of Table~\ref{tab:unreachable} without changing the
+pharmacokinetics, and would make the inversion in the previous subsection
+unreachable as a side effect.
+
+\subsubsection{What this changes about the earlier finding}
+
+The vocabulary question is real and worth addressing separately---``critically
+low'' does carry clinical weight that a population estimate may not
+justify. But it was not what these three personas were demonstrating. A user
+told they are critically low against a threshold their regimen cannot
+produce is not receiving alarming language about a true fact; they are
+receiving a false comparison. The presentation layer was faithfully
+rendering a defective bound.
 
 \subsection{Calibration: Single-Scalar Limits}
 
-Nadia's downward-trending $\alpha$ factors (0.669 $\rightarrow$ 0.554 over
-12~months) empirically confirm the companion PK paper's discussion of the
-single-scalar calibration's limits (Section~5.5 of~\cite{xtpk}). The
-calibration factor is a pragmatic absorption of between-subject variability
-that works well when the user's dosing interval matches the interval the
-model constants were anchored to (as in Jules's case, where $\alpha = 1.326$
-for standard q7d TE). When the interval deviates substantially from the
-anchor (Nadia's q10d vs.\ the standard q7d for EC), the single scalar cannot
-distinguish between ``this user metabolizes EC differently'' and ``this
-interval changes the shape of the curve.'' The companion paper notes that
-$\alpha$ ``cannot represent parameter-specific variability''; Nadia's data
-shows the consequence of that limitation in practice.
+The companion PK paper's discussion of the single-scalar calibration's
+limits (Section~5.5 of~\cite{xtpk}) is sound on its own terms: $\alpha$
+cannot represent parameter-specific variability, and a user with fast
+clearance but normal volume is not representable by any scalar. Nadia's
+data, however, is not the demonstration of it that this study previously
+claimed. Her predicted trough is constant from month~3 onward
+(Section~\ref{sec:nadia}), so her falling $\alpha$ measures a falling
+\emph{measurement}, not a growing model error.
+
+Two consequences follow for the calibration engine, and they point in
+opposite directions from the earlier reading.
+
+\textbf{The trend is signal, not noise.} Once the model has reached steady
+state on a fixed regimen, $C_{\text{predicted}}$ is constant, so successive
+$\alpha$ values are the user's own measurements up to a fixed scale factor.
+A monotone drift is then a statement about the user. The engine retains only
+the most recent $\alpha$ (\code{calibrationFactor} returns the latest
+calibrated record for the selected hormone) and discards the sequence.
+Jules's single $\alpha = 1.326$ and Nadia's three-point decline are stored
+identically and presented identically.
+
+\textbf{$\alpha$ does not round-trip.} Independently of the above, the
+engine derives $\alpha$ as
+$C_{\text{measured}} / (C_{\text{base}} + C_{\text{exo}})$ but applies it as
+$C_{\text{base}} + \alpha C_{\text{exo}}$, so re-evaluating the model at the
+draw instant does not return the measured value; it returns it plus
+$(1-\alpha) C_{\text{base}}$. For Nadia's fully-tapered 12.8\,pg/mL baseline
+this is under 6\,pg/mL and immaterial. For a persona early in therapy, where
+the modeled baseline is largest, it reaches 20\%. The companion PK paper now
+treats this in its calibration section and states the corrected derivation.
 
 \subsection{Dose History Scale}
 
@@ -709,6 +897,42 @@ performance degradation was observed at any history size.
 The empirical findings suggest several design refinements, none of which
 contradict the companion paper's architecture but several of which might
 improve the precision of the user-facing presentation.
+
+\subsection{Rate-Based Dose Intensity}
+\label{sec:impl_intensity}
+
+The highest-value change identified by this study is also the smallest:
+divide by time. \code{relativeDoseIntensity} should compare
+$\bar{D}/\tau_{\text{user}}$ against $D_{\text{ref}}/\tau_{\text{ref}}$
+rather than $\bar{D}$ against $D_{\text{ref}}$, since both reference doses
+are weekly figures. This alone returns Devon's intensity to 2.0 on both
+sides of his regimen change, drops his mid-cycle floor from 1350 to 750,
+and un-inverts both of his bands. It also removes a class of defect that
+will recur for every user who splits or consolidates doses---twice-weekly
+estradiol, ten-weekly undecanoate---which is a substantial fraction of the
+regimens the application is designed to support.
+
+\subsection{Clamp Model-Derived Bounds to the Model}
+\label{sec:impl_clamp}
+
+Where \code{contextualRange} returns \code{.modelDerived} bounds, those
+bounds should be intersected with the $[C_{\min}, C_{\max}]$ envelope the PK
+model predicts for the user's current regimen. A therapeutic floor the
+model says is unreachable is not a target; it is a defect surfaced as a
+judgment. This is a guard rather than a redesign, and it makes band
+inversion structurally impossible rather than merely unlikely.
+
+\subsection{Surface the Calibration Trend, Not Just the Latest Value}
+\label{sec:impl_trend}
+
+Once the model is at steady state on a fixed regimen, successive $\alpha$
+values differ only by the user's own measurements. A monotone drift across
+three or more draws---Nadia's 0.669, 0.587, 0.554---is the clearest signal
+the application can produce that something has changed in the user rather
+than in the model, and it is currently reduced to a single number. Plotting
+the sequence, or flagging a sustained direction, would cost nothing in
+model complexity. It should be presented as an observation and not as
+advice, consistent with the application's stated refusal to recommend.
 
 \subsection{Cycle-Position-Aware Classification}
 
@@ -792,7 +1016,7 @@ subsequent commits.
 \label{sec:conclusion}
 
 We implemented seven personas from the companion UX paper~\cite{xtux} as
-runnable test profiles within the xT application and interrogated the live
+runnable test profiles within the Isocline application and interrogated the live
 pharmacokinetic model output for each. The empirical results broadly confirm
 the paper's design claims:
 
@@ -865,12 +1089,12 @@ confirmation.}
 \bibitem{xtpk}
 Cortes S.\ (2026). ``Superposed Bateman Biexponentials with
 Clearance-Constrained Scaling and Per-User Calibration: A Pharmacokinetic
-Framework for Hormone Replacement Therapy Monitoring in the xT Mobile
+Framework for Hormone Replacement Therapy Monitoring in the Isocline Mobile
 Application.'' August 2026.
 
 \bibitem{xtux}
 Cortes S.\ (2026). ``Progressive Clarity with Honest Constraint: A Design
-Framework for Hormone Replacement Therapy Tracking in the xT Mobile
+Framework for Hormone Replacement Therapy Tracking in the Isocline Mobile
 Application.'' August 2026.
 
 \bibitem{hembree2017}

@@ -16,14 +16,14 @@ extension OnboardingView {
         VStack(spacing: 0) {
             Spacer()
             Text("Where did you take it?")
-                .font(.title2)
+                .font(Theme.Fonts.title2)
                 .fontWeight(.regular)
                 .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
 
             Text("Tap on the body model to mark your injection site.\nYou can rotate the model with the arrows below.")
-                .font(.caption)
+                .font(Theme.Fonts.caption)
                 .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.55))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
@@ -64,14 +64,14 @@ extension OnboardingView {
                     Image(systemName: "mappin.circle.fill")
                         .foregroundStyle(Theme.Colors.accentSecondary)
                     Text(zone)
-                        .font(.subheadline)
+                        .font(Theme.Fonts.subheadline)
                         .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                     Button {
                         selectedSiteLabels3D.removeAll()
                         tapPositions.removeAll()
                     } label: {
                         Image(systemName: "xmark.circle.fill")
-                            .font(.caption)
+                            .font(Theme.Fonts.caption)
                             .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.4))
                     }
                 }
@@ -84,7 +84,7 @@ extension OnboardingView {
                 .padding(.top, 12)
             } else {
                 Text("Tap the model to mark your site")
-                    .font(.subheadline)
+                    .font(Theme.Fonts.subheadline)
                     .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.4))
                     .padding(.top, 12)
             }
@@ -119,7 +119,7 @@ extension OnboardingView {
                 bodySnapNonce += 1
             } label: {
                 Image(systemName: "arrow.backward.circle.fill")
-                    .font(.title2)
+                    .font(Theme.Fonts.title2)
                     .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.5))
             }
 
@@ -132,7 +132,7 @@ extension OnboardingView {
                         bodySnapNonce += 1
                     } label: {
                         Text(angle.label)
-                            .font(.subheadline.weight(bodySnapAngle == angle ? .semibold : .regular))
+                            .font(Theme.Fonts.subheadline.weight(bodySnapAngle == angle ? .semibold : .regular))
                             .foregroundStyle(bodySnapAngle == angle
                                              ? Theme.Colors.accent
                                              : Theme.Colors.OnAccent.primary.opacity(0.6))
@@ -158,7 +158,7 @@ extension OnboardingView {
                 bodySnapNonce += 1
             } label: {
                 Image(systemName: "arrow.forward.circle.fill")
-                    .font(.title2)
+                    .font(Theme.Fonts.title2)
                     .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.5))
             }
         }
@@ -202,7 +202,7 @@ extension OnboardingView {
         VStack(spacing: 28) {
             Spacer()
             Text("Are you taking any other medications?")
-                .font(.title2)
+                .font(Theme.Fonts.title2)
                 .fontWeight(.regular)
                 .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                 .multilineTextAlignment(.center)
@@ -231,14 +231,14 @@ extension OnboardingView {
         VStack(spacing: 28) {
             Spacer()
             Text("Choose a body silhouette")
-                .font(.title2)
+                .font(Theme.Fonts.title2)
                 .fontWeight(.regular)
                 .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
 
             Text("This changes the 3D injection-site picker. You can update this anytime in Settings.")
-                .font(.callout)
+                .font(Theme.Fonts.callout)
                 .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.6))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
@@ -273,7 +273,7 @@ extension OnboardingView {
         VStack(spacing: 28) {
             Spacer()
             Text("Personalize your space")
-                .font(.title2)
+                .font(Theme.Fonts.title2)
                 .fontWeight(.regular)
                 .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                 .padding(.bottom, 8)
@@ -286,16 +286,15 @@ extension OnboardingView {
                     .frame(width: 100, height: 100)
                     .clipShape(Circle())
                     .overlay(Circle().stroke(Theme.Colors.OnAccent.primary.opacity(0.6), lineWidth: 2))
-                    .themeShadow(Theme.Shadows.floating)
                     .id(profilePhotoNonce)
             }
             Text("Tap to add photo")
-                .font(.caption)
+                .font(Theme.Fonts.caption)
                 .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.6))
 
             // Name
             TextField("Your name", text: $profileName)
-                .font(.body)
+                .font(Theme.Fonts.body)
                 .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                 .padding(.vertical, 12)
                 .padding(.horizontal, 16)
@@ -331,12 +330,12 @@ extension OnboardingView {
         VStack(spacing: 28) {
             Spacer()
             Text("Make it yours")
-                .font(.title2)
+                .font(Theme.Fonts.title2)
                 .fontWeight(.regular)
                 .foregroundStyle(Theme.Colors.OnAccent.secondary)
                 .padding(.bottom, 4)
             Text("Drag to pick a color for the whole app. You can always change this later in Settings.")
-                .font(.caption)
+                .font(Theme.Fonts.caption)
                 .foregroundStyle(Theme.Colors.OnAccent.tertiary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
@@ -360,7 +359,7 @@ extension OnboardingView {
         ScrollView {
             VStack(spacing: 24) {
                 Text("Here's your setup")
-                    .font(.title2)
+                    .font(Theme.Fonts.title2)
                     .fontWeight(.regular)
                     .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                     .padding(.top, 32)

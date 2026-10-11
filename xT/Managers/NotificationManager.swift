@@ -67,6 +67,11 @@ final class NotificationManager: NSObject {
 
     var isDoseNotificationsAuthorized = false
     var isJournalNotificationsAuthorized = false
+    /// True when the system notification permission is `.denied` — the app can
+    /// no longer prompt, and reminders will not fire until the user re-enables
+    /// notifications in System Settings. Observed by the Settings screen to
+    /// show its "Notifications disabled" alert.
+    private(set) var isAuthorizationDenied = false
     var doseReminderEnabled = false
     var doseReminderHour = Defaults.doseHour
     var doseReminderMinute = Defaults.doseMinute
@@ -121,9 +126,11 @@ final class NotificationManager: NSObject {
         let status = settings.authorizationStatus
         switch status {
         case .authorized, .provisional:
+            isAuthorizationDenied = false
             isDoseNotificationsAuthorized = doseReminderEnabled
             isJournalNotificationsAuthorized = journalReminderEnabled
         case .denied:
+            isAuthorizationDenied = true
             isDoseNotificationsAuthorized = false
             isJournalNotificationsAuthorized = false
         case .notDetermined:
@@ -392,8 +399,17 @@ final class NotificationManager: NSObject {
             defaults.set(minute, forKey: Keys.journalReminderMinute)
         }
 
-        // Reschedule
-        Task { await scheduleAllReminders() }
+        // Reschedule. When enabling, request authorization first: a fresh
+        // install, a device set up via iCloud restore, or a post-reset state
+        // starts `.notDetermined`, and nothing else in the app ever prompts.
+        // `scheduleAllReminders()` skips while not authorized, so without this
+        // the toggles persisted flags but no reminder ever fired.
+        // `requestAuthorization()` ends with its own `scheduleAllReminders()`.
+        if enabled {
+            Task { await requestAuthorization() }
+        } else {
+            Task { await scheduleAllReminders() }
+        }
 
         let name = kind == .dose ? "Dose" : "Journal"
         let label = enabled ? "\(name) reminder enabled" : "\(name) reminder disabled"

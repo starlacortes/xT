@@ -19,24 +19,21 @@
 \usepackage{enumitem}
 \usepackage{fancyhdr}
 \usepackage{ragged2e}
+\makeatletter\def\input@path{{../}{../../design/brand/}}\makeatother
+\usepackage{isocline}   % docs/research/isocline.sty — Isocline Research template
 \usepackage[hidelinks]{hyperref}
 
-\definecolor{warn}{RGB}{160,60,0}
-\definecolor{ok}{RGB}{20,110,60}
 \definecolor{mid}{RGB}{120,95,0}
-\newcommand{\bad}[1]{\textcolor{warn}{#1}}
-\newcommand{\good}[1]{\textcolor{ok}{#1}}
+% Legacy markup, now neutral: Isocline reports observations, not verdicts.
+\newcommand{\bad}[1]{\obs{#1}}
+\newcommand{\good}[1]{#1}
 \newcommand{\mixed}[1]{\textcolor{mid}{#1}}
 \newcommand{\code}[1]{\texttt{\small #1}}
 \newcommand{\name}[1]{\textsc{#1}}
 
 \newcolumntype{L}[1]{>{\RaggedRight\arraybackslash}p{#1}}
 
-\pagestyle{fancy}
-\fancyhf{}
-\lhead{\small xT Market Positioning}
-\rhead{\small\thepage}
-\renewcommand{\headrulewidth}{0.4pt}
+\isoclineshorttitle{Market Positioning}
 
 \title{\textbf{Positioning a Pharmacokinetic Instrument in a\\
 Hostile and Under-Served Market:}\\[0.3em]
@@ -1303,6 +1300,16 @@ Trademark & Valve Corporation. No further analysis required. \\
 
 \subsection{Wordmark and visual direction}
 \label{sec:wordmark}
+
+\begin{quote}
+\note{\textbf{Superseded (October 2026).} The identity recommendations in this
+section --- a grotesque lowercase wordmark, the ``parallel slopes'' mark, and
+the palette discussion --- are retained as the record of this study but no
+longer describe the brand. The settled identity is the outlined ISOCLINE
+wordmark in IBM Plex Serif with the ``I.'' small mark, rendered in ink, engraved
+hairline, or inkless emboss; see \code{docs/design/ISOCLINE\_DESIGN\_SYSTEM.html}.
+The discretion test argued for here is kept as a core brand principle.}
+\end{quote}
 
 Naming solves three of the four discretion tests. The
 over-the-shoulder test is solved by the mark, and the current identity

@@ -102,6 +102,9 @@ struct SettingsView: View {
             .onChange(of: journalRemindersEnabled) { _, newValue in onJournalReminderToggle(newValue) }
             .onChange(of: journalReminderHour) { _, _ in onJournalTimeChange() }
             .onChange(of: journalReminderMinute) { _, _ in onJournalTimeChange() }
+            .onChange(of: notificationManager.isAuthorizationDenied) { _, denied in
+                if denied { showingAuthRequest = true }
+            }
             .alert("Notifications disabled", isPresented: $showingAuthRequest) {
                 Button("OK", role: .cancel) {}
             } message: {

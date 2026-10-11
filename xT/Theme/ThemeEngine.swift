@@ -292,11 +292,16 @@ enum ThemeEngine {
             let lightness: Double
             let chroma: Double
             let hueOffset: Double
+            /// When true, `hueOffset` is read as an *absolute* hue in degrees and the
+            /// dial is ignored — day paper is cream at every position (86.4°) and the
+            /// safety red is never themed (27°). Decision X4/X10.
+            let absoluteHue: Bool
 
-            init(lightness: Double, chroma: Double, hueOffset: Double = 0) {
+            init(lightness: Double, chroma: Double, hueOffset: Double = 0, absoluteHue: Bool = false) {
                 self.lightness = lightness
                 self.chroma = chroma
                 self.hueOffset = hueOffset
+                self.absoluteHue = absoluteHue
             }
         }
         let light: Appearance
@@ -304,9 +309,12 @@ enum ThemeEngine {
     }
 
     static func resolve(_ recipe: ColorRecipe, seedHue: Double) -> (light: OKLCH, dark: OKLCH) {
-        (
-            light: clampToGamut(OKLCH(L: recipe.light.lightness, C: recipe.light.chroma, H: seedHue + recipe.light.hueOffset)),
-            dark: clampToGamut(OKLCH(L: recipe.dark.lightness, C: recipe.dark.chroma, H: seedHue + recipe.dark.hueOffset))
+        func hue(_ a: ColorRecipe.Appearance) -> Double {
+            a.absoluteHue ? a.hueOffset : seedHue + a.hueOffset
+        }
+        return (
+            light: clampToGamut(OKLCH(L: recipe.light.lightness, C: recipe.light.chroma, H: hue(recipe.light))),
+            dark: clampToGamut(OKLCH(L: recipe.dark.lightness, C: recipe.dark.chroma, H: hue(recipe.dark)))
         )
     }
 }

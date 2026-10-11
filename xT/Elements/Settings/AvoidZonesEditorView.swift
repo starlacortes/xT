@@ -60,7 +60,7 @@ struct AvoidZonesEditorView: View {
             VStack(spacing: 16) {
                 // Zone name
                 Text(zone)
-                    .font(.title3)
+                    .font(Theme.Fonts.title3)
                     .fontWeight(.semibold)
 
                 if let info = medicationManager.avoidZones[zone] {
@@ -68,10 +68,10 @@ struct AvoidZonesEditorView: View {
                     if !info.reason.isEmpty {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Reason")
-                                .font(.caption)
+                                .font(Theme.Fonts.caption)
                                 .foregroundStyle(.secondary)
                             Text(info.reason)
-                                .font(.body)
+                                .font(Theme.Fonts.body)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding()
@@ -84,18 +84,18 @@ struct AvoidZonesEditorView: View {
                     // Marked date
                     HStack {
                         Text("Marked")
-                            .font(.caption)
+                            .font(Theme.Fonts.caption)
                             .foregroundStyle(.secondary)
                         Spacer()
                         Text(info.markedAt.formatted(date: .abbreviated, time: .omitted))
-                            .font(.caption)
+                            .font(Theme.Fonts.caption)
                     }
                     .padding(.horizontal)
 
                     // Zone region label
                     if let region = ZoneCentroidStore.shared.region(for: zone) {
                         Text(region.capitalized)
-                            .font(.subheadline)
+                            .font(Theme.Fonts.subheadline)
                             .foregroundStyle(.secondary)
                             .padding(.horizontal)
                     }
@@ -137,18 +137,18 @@ struct AvoidZoneRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(zone)
-                .font(.subheadline)
+                .font(Theme.Fonts.subheadline)
                 .fontWeight(.medium)
 
             if !info.reason.isEmpty {
                 Text(info.reason)
-                    .font(.caption)
+                    .font(Theme.Fonts.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
             }
 
             Text("Marked \(info.markedAt.formatted(date: .abbreviated, time: .omitted))")
-                .font(.caption2)
+                .font(Theme.Fonts.caption2)
                 .foregroundStyle(.tertiary)
         }
         .padding(.vertical, 2)

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-38.38 -706.38 714.75 714.75" role="img" aria-label="Isocline">
+<title>Isocline</title>
+<g>
+<path transform="translate(-8.38 -8.38)" style="fill:#fff;fill-opacity:.85" d="M45 0H327V-60H256V-638H327V-698H45V-638H116V-60H45ZM429 -82A82 82 0 1 0 593 -82A82 82 0 1 0 429 -82Z"/>
+<path transform="translate(8.38 8.38)" style="fill:#251F33;fill-opacity:.16" d="M45 0H327V-60H256V-638H327V-698H45V-638H116V-60H45ZM429 -82A82 82 0 1 0 593 -82A82 82 0 1 0 429 -82Z"/>
+<path style="fill:var(--paper, #F8F3E8)" d="M45 0H327V-60H256V-638H327V-698H45V-638H116V-60H45ZM429 -82A82 82 0 1 0 593 -82A82 82 0 1 0 429 -82Z"/>
+</g>
+</svg>

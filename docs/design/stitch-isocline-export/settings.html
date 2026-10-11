@@ -1,0 +1,157 @@
+<!DOCTYPE html><html class="dark" lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>ESTRADIOL - Settings</title>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=SF+Pro:wght@100..900&amp;display=swap" rel="stylesheet"><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;1,400&amp;family=IBM+Plex+Serif:ital,wght@0,400;0,600;0,700;1,400&amp;display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "deep-lavender": "#534AB7",
+            "on-primary-fixed": "#3f001a",
+            "tertiary-fixed": "#8dfa8f",
+            "on-tertiary-fixed-variant": "#005316",
+            "on-secondary-container": "#beadff",
+            "secondary": "#cbbeff",
+            "on-secondary": "#331d7a",
+            "primary-container": "#e9638e",
+            "on-tertiary-fixed": "#002105",
+            "on-tertiary": "#00390d",
+            "surface-container-high": "#332729",
+            "on-error": "#690005",
+            "surface-container-low": "#24191b",
+            "error": "#ffb4ab",
+            "on-primary-container": "#590028",
+            "secondary-container": "#4d3995",
+            "on-primary-fixed-variant": "#881645",
+            "tertiary": "#71dd76",
+            "surface-bright": "#433639",
+            "surface-dim": "#1b1113",
+            "secondary-fixed": "#e7deff",
+            "inverse-on-surface": "#3a2d30",
+            "on-surface": "#f2dde1",
+            "on-background": "#f2dde1",
+            "surface-container-highest": "#3e3134",
+            "primary-fixed": "#ffd9e1",
+            "on-secondary-fixed-variant": "#4a3792",
+            "surface-container-lowest": "#150b0e",
+            "background": "#1b1113",
+            "primary": "#ffb1c4",
+            "outline": "#a48a8f",
+            "inverse-primary": "#a8315c",
+            "card-surface-dark": "#0A0814",
+            "surface-variant": "#3e3134",
+            "light-background": "#FAEFF2",
+            "outline-variant": "#564146",
+            "on-tertiary-container": "#00320a",
+            "surface": "#1b1113",
+            "surface-container": "#281d1f",
+            "tertiary-container": "#37a546",
+            "on-primary": "#65002f",
+            "level-high": "#8875D4",
+            "secondary-fixed-dim": "#cbbeff",
+            "on-surface-variant": "#dcbfc5",
+            "error-container": "#93000a",
+            "tertiary-fixed-dim": "#71dd76",
+            "on-error-container": "#ffdad6",
+            "dark-background": "#221A1C",
+            "level-low": "#99345A",
+            "surface-tint": "#ffb1c4",
+            "on-secondary-fixed": "#1e0060",
+            "primary-fixed-dim": "#ffb1c4",
+            "inverse-surface": "#f2dde1"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "space-xl": "24px",
+            "space-lg": "16px",
+            "margin": "22px",
+            "space-xs": "4px",
+            "space-md": "12px",
+            "gutter": "22px",
+            "space-sm": "8px"
+          },
+          "fontFamily": {
+            "caption": ["SF Pro"],
+            "numeric-readout": ["SF Pro"],
+            "headline-lg": ["SF Pro"],
+            "headline-hero": ["SF Pro"],
+            "body-md": ["SF Pro"],
+            "eyebrow": ["SF Pro"]
+          },
+          "fontSize": {
+            "caption": ["10px", { "lineHeight": "12px", "fontWeight": "400" }],
+            "numeric-readout": ["52px", { "lineHeight": "58px", "fontWeight": "300" }],
+            "headline-lg": ["24px", { "lineHeight": "28px", "fontWeight": "600" }],
+            "headline-hero": ["34px", { "lineHeight": "40px", "fontWeight": "700" }],
+            "body-md": ["16px", { "lineHeight": "22px", "fontWeight": "400" }],
+            "eyebrow": ["11px", { "lineHeight": "14px", "letterSpacing": "0.05em", "fontWeight": "600" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-background text-on-background font-body-md min-h-screen pb-28 selection:bg-primary-container selection:text-on-primary-container">
+<!-- TopAppBar -->
+<main class="px-5 pt-10 pb-36 max-w-lg mx-auto flex flex-col gap-7" style="font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;">
+<!-- Integrated Flush Header -->
+<header class="flex flex-col gap-1.5 pt-4">
+<div class="flex items-center justify-between"><span class="text-[10px] uppercase tracking-[0.22em] text-[#9b8bb8] font-mono" style="font-family: IBM Plex Mono, monospace;">ISOCLINE</span></div>
+<div class="flex items-center justify-between mt-1">
+<h1 class="text-3xl font-semibold text-[#f5eff4] tracking-tight" style="font-family: 'IBM Plex Serif', serif;">Settings</h1>
+<button aria-label="Profile Options" class="w-9 h-9 rounded-full bg-white/[0.04] border border-white/[0.08] hover:border-white/[0.18] flex items-center justify-center text-[#c2b4d6] transition-colors">
+<span class="material-symbols-outlined text-[19px]">tune</span>
+</button>
+</div>
+</header>
+<!-- Profile Summary Bar Card -->
+<section class="rounded-2xl p-8 bg-white/[0.04] backdrop-blur-2xl border border-white/[0.12] hover:border-white/[0.18] transition-all cursor-pointer group flex flex-col items-center justify-center text-center relative aspect-square max-w-sm mx-auto w-full shadow-[0_8px_32px_rgba(0,0,0,0.25)]"><div class="relative mb-4"><div class="w-28 h-28 rounded-full overflow-hidden p-[3px] bg-gradient-to-tr from-[#d4537e] via-[#8875D4] to-[#cbbeff] shadow-[0_0_24px_rgba(212,83,126,0.3)]"><img alt="Starla Profile" class="w-full h-full rounded-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA9gzi6FQsJZnio-Cl05D59raiqZ7XLrITdKHsI61uBDo-rQ6UG5DUSLYlXNh2bhQEAQlwHKNyHaULGskjzxDjSPdtCQual1jjqgXv965aDAcZpBEYZFQFlPhHJApSqiES4mJxsIyBhSFk15gaL7tmjwKLNH6kl4rw70tUcMypMG_2IAmDaWJf0ojlSfErTJr4nWXpa4FC9lJ6bdj8Sq3Hf14iar2-GAmaR-DhTGzBKquZ1p_bIR0o-Ns0IRtnN6c15ZvJdkBh1xeU"></div></div><div class="flex flex-col items-center gap-1.5"><h2 class="text-2xl font-semibold text-[#f5eff4] tracking-tight" style="font-family: 'IBM Plex Serif', serif;">Starla</h2><span class="text-xs text-[#a99bbd] font-mono tracking-wide">Day 1,102 · 24 Months HRT</span></div><div class="absolute top-4 right-4 text-[#8e7e9e] group-hover:text-[#f5eff4] group-hover:translate-x-0.5 transition-all"><span class="material-symbols-outlined text-[21px]">chevron_right</span></div></section>
+<!-- Subgroup 1: PROTOCOL & REGIMEN -->
+<a href="#" class="rounded-2xl p-4 bg-[#1b1227]/75 hover:bg-white/[0.04] backdrop-blur-xl border border-white/[0.08] hover:border-white/[0.14] transition-all flex items-center justify-between gap-4 cursor-pointer group shadow-sm"><div class="flex items-center gap-3.5"><div class="w-10 h-10 rounded-xl bg-[#d4537e]/12 border border-[#d4537e]/20 flex items-center justify-center text-[#ffb1c4] shrink-0"><span class="material-symbols-outlined text-[21px]">medication</span></div><div class="flex flex-col"><span class="text-base font-medium text-[#f5eff4]">Medication &amp; Dose</span><span class="text-xs font-mono text-[#b09ebf] mt-0.5">Estradiol Valerate · 4.0 mg q5d</span></div></div><span class="material-symbols-outlined text-[#837396] group-hover:text-[#f5eff4] group-hover:translate-x-0.5 transition-all text-[21px]">chevron_right</span></a>
+<!-- Subgroup 2: BIOMETRICS & CLINICAL ARCHIVE -->
+<a href="#" class="rounded-2xl p-4 bg-[#1b1227]/75 hover:bg-white/[0.04] backdrop-blur-xl border border-white/[0.08] hover:border-white/[0.14] transition-all flex items-center justify-between gap-4 cursor-pointer group shadow-sm"><div class="flex items-center gap-3.5"><div class="w-10 h-10 rounded-xl bg-[#8875d4]/12 border border-[#8875d4]/20 flex items-center justify-center text-[#cbbeff] shrink-0"><span class="material-symbols-outlined text-[21px]">bloodtype</span></div><div class="flex flex-col"><span class="text-base font-medium text-[#f5eff4]">Labs &amp; Records</span><span class="text-xs font-mono text-[#b09ebf] mt-0.5">Blood panels, dose history &amp; records</span></div></div><span class="material-symbols-outlined text-[#837396] group-hover:text-[#f5eff4] group-hover:translate-x-0.5 transition-all text-[21px]">chevron_right</span></a>
+<!-- Subgroup 3: INSTRUMENT & SYSTEM PREFERENCES -->
+<a href="#" class="rounded-2xl p-4 bg-[#1b1227]/75 hover:bg-white/[0.04] backdrop-blur-xl border border-white/[0.08] hover:border-white/[0.14] transition-all flex items-center justify-between gap-4 cursor-pointer group shadow-sm"><div class="flex items-center gap-3.5"><div class="w-10 h-10 rounded-xl bg-[#e9638e]/12 border border-[#e9638e]/20 flex items-center justify-center text-[#ffb1c4] shrink-0"><span class="material-symbols-outlined text-[21px]">palette</span></div><div class="flex flex-col"><span class="text-base font-medium text-[#f5eff4]">Appearance &amp; Curve</span><span class="text-xs font-mono text-[#b09ebf] mt-0.5">Theme colors, curve model &amp; display</span></div></div><span class="material-symbols-outlined text-[#837396] group-hover:text-[#f5eff4] group-hover:translate-x-0.5 transition-all text-[21px]">chevron_right</span></a>
+<!-- Subgroup 4: PRIVACY & RESEARCH EXPORT -->
+<a href="#" class="rounded-2xl p-4 bg-[#1b1227]/75 hover:bg-white/[0.04] backdrop-blur-xl border border-white/[0.08] hover:border-white/[0.14] transition-all flex items-center justify-between gap-4 cursor-pointer group shadow-sm"><div class="flex items-center gap-3.5"><div class="w-10 h-10 rounded-xl bg-[#71dd76]/12 border border-[#71dd76]/20 flex items-center justify-center text-[#8dfa8f] shrink-0"><span class="material-symbols-outlined text-[21px]">fingerprint</span></div><div class="flex flex-col"><span class="text-base font-medium text-[#f5eff4]">Privacy &amp; Data</span><span class="text-xs font-mono text-[#b09ebf] mt-0.5">Passcode lock, backup &amp; clinical exports</span></div></div><span class="material-symbols-outlined text-[#837396] group-hover:text-[#f5eff4] group-hover:translate-x-0.5 transition-all text-[21px]">chevron_right</span></a>
+<!-- Bottom App Telemetry Micro-Footer -->
+<div class="flex flex-col items-center justify-center gap-1 pt-2 pb-6 text-center"><span class="text-[10px] font-mono tracking-widest text-[#7a6b8c] uppercase">ISOCLINE · BUILD 2026.10.4</span><span class="inline-flex items-center gap-1 text-[10px] font-mono tracking-wide text-[#7a6b8c]"><span class="material-symbols-outlined text-[13px] text-[#7a6b8c]">check</span>Encrypted</span><span class="text-[10px] font-mono tracking-widest text-[#7a6b8c] uppercase mt-2"><br><br>SHAPED PROTOCOL.</span></div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-sm px-3 py-2 bg-[#171024]/90 backdrop-blur-2xl border border-white/[0.12] rounded-full shadow-[0_12px_40px_rgba(0,0,0,0.65),0_0_24px_rgba(136,117,212,0.15)] flex justify-around items-center">
+<a class="flex flex-col items-center justify-center py-1 px-3 text-[#9a89ad] hover:text-[#f5eff4] active:scale-95 transition-all duration-150" href="#">
+<span class="material-symbols-outlined text-[21px]">home</span>
+<span class="text-[9px] font-mono tracking-widest uppercase mt-0.5 text-[#9a89ad]">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center py-1 px-3 text-[#9a89ad] hover:text-[#f5eff4] active:scale-95 transition-all duration-150" href="#">
+<span class="material-symbols-outlined text-[21px]">book_2</span>
+<span class="text-[9px] font-mono tracking-widest uppercase mt-0.5 text-[#9a89ad]">Journal</span>
+</a>
+<a class="flex flex-col items-center justify-center py-1 px-3 text-[#9a89ad] hover:text-[#f5eff4] active:scale-95 transition-all duration-150" href="#">
+<span class="material-symbols-outlined text-[21px]">schedule</span>
+<span class="text-[9px] font-mono tracking-widest uppercase mt-0.5 text-[#9a89ad]">Time</span>
+</a>
+<a class="flex flex-col items-center justify-center py-1 px-3 text-[#d4537e] font-semibold active:scale-95 transition-all duration-150" href="#">
+<span class="material-symbols-outlined text-[21px]" style="font-variation-settings: 'FILL' 1;">settings</span>
+<span class="text-[9px] font-mono tracking-widest uppercase mt-0.5 text-[#d4537e]">Settings</span>
+</a>
+</nav>
+
+
+</body></html>

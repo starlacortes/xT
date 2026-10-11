@@ -71,7 +71,7 @@ struct BloodTestRow: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text("\(AppNumberFormatters.hormoneLevel.string(test.measuredLevel)) \(BloodTestRecord.unit(for: test.hormoneType))")
-                    .font(.subheadline)
+                    .font(Theme.Fonts.subheadline)
                     .fontWeight(.medium)
                 Spacer()
                 if test.isCalibrated {
@@ -81,21 +81,21 @@ struct BloodTestRow: View {
 
             HStack(spacing: 6) {
                 Text(test.drawDate.formatted(date: .abbreviated, time: .shortened))
-                    .font(.caption)
+                    .font(Theme.Fonts.caption)
                     .foregroundStyle(.secondary)
 
                 if let hrs = test.hoursSinceLastDose {
                     Text("·")
                         .foregroundStyle(.tertiary)
                     Text("\(AppNumberFormatters.hormoneLevel.string(hrs))h post-dose")
-                        .font(.caption)
+                        .font(Theme.Fonts.caption)
                         .foregroundStyle(.secondary)
                 }
             }
 
             if let notes = test.notes, !notes.isEmpty {
                 Text(notes)
-                    .font(.caption2)
+                    .font(Theme.Fonts.caption2)
                     .foregroundStyle(.tertiary)
                     .lineLimit(2)
             }

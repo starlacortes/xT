@@ -27,7 +27,7 @@ struct TimePickerSheet: View {
         NavigationStack {
             VStack(spacing: Theme.Spacing.xxl) {
                 Text(title)
-                    .font(.title2)
+                    .font(Theme.Fonts.title2)
                     .fontWeight(.semibold)
                     .foregroundColor(.primary)
 

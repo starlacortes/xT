@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Isocline — Identity System (Final)</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap">
+<style>
+/* The identity system, final: settled values only — no exploration controls.
+   The page itself wears the brand: Plex Serif headings, Hyperlegible prose,
+   Plex Mono labels, and the same light/dark tokens as the app. The hero lockup
+   draws its curve in once on load (static under reduced motion). */
+:root {
+  --bg: #F7F5FB;
+  --surface: #FFFFFF;
+  --fg: #251F33;
+  --muted: #6A6280;
+  --accent: #7B5FC0;
+  --accent-soft: #EDE7F8;
+  --rose: #C46B86;
+  --line: #E3DDEE;
+  --font-display: 'IBM Plex Serif', Georgia, serif;
+  --font-body: 'Atkinson Hyperlegible', 'Helvetica Neue', sans-serif;
+  --font-mono: 'IBM Plex Mono', 'SF Mono', monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #151022; --surface: #1E1830; --fg: #ECE7F6; --muted: #A79DC2;
+    --accent: #A98FE0; --accent-soft: #2A2344; --rose: #E29AAA; --line: #342B4E;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #151022; --surface: #1E1830; --fg: #ECE7F6; --muted: #A79DC2;
+  --accent: #A98FE0; --accent-soft: #2A2344; --rose: #E29AAA; --line: #342B4E;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.65; margin: 0; }
+.page { max-width: 920px; margin: 0 auto; padding: 48px 20px 80px; }
+.eyebrow { font-family: var(--font-mono); font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(40px, 9vw, 64px); letter-spacing: -.01em; line-height: 1.05; margin: 10px 0 0; text-wrap: balance; }
+.hero-sub { font-size: 17px; max-width: 36em; margin: 14px 0 0; color: var(--muted); }
+h2 { font-family: var(--font-display); font-weight: 600; font-size: 25px; letter-spacing: -.01em; margin: 0 0 14px; text-wrap: balance; }
+h3 { font-family: var(--font-display); font-weight: 600; font-size: 16px; margin: 26px 0 8px; }
+section { margin-top: 60px; }
+p { margin: 0 0 12px; max-width: 66ch; }
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.mono { font-family: var(--font-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+code { font-family: var(--font-mono); font-size: .88em; background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; }
+
+/* page theme toggle */
+.theme-toggle { display: inline-flex; gap: 6px; margin-top: 16px; }
+.pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.pill { font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; padding: 6px 13px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--muted); cursor: pointer; }
+.pill.active { color: var(--fg); border-color: var(--accent); background: var(--accent-soft); }
+
+/* the wordmark lockup: word above its curve; curve starts under the C,
+   rises through L–I, plateaus under N–E, extends past the right edge */
+.lockup { display: inline-block; padding: 4px 4px 38px 4px; }
+.lockup .word { position: relative; font-family: var(--font-display); font-weight: 600; letter-spacing: .07em; line-height: 1; color: var(--fg); }
+.lockup .curve { position: absolute; left: 40%; width: 63%; bottom: -33px; height: 26px; overflow: visible; }
+.c-path { fill: none; stroke: var(--accent); stroke-width: 2.5; vector-effect: non-scaling-stroke; stroke-linecap: round; }
+.c-marker { fill: var(--rose); }
+.hero-stage { text-align: center; padding: 44px 12px 16px; }
+.hero-stage .lockup { font-size: clamp(44px, 10vw, 96px); }
+
+/* mark sizes + family cards */
+.sizes-row { display: flex; gap: 26px; flex-wrap: wrap; align-items: flex-start; }
+.markbox { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.markbox svg { width: 100%; height: 100%; display: block; }
+.family-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-top: 26px; }
+.family { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); padding: 20px 22px 10px; display: flex; gap: 20px; align-items: flex-start; }
+.family-mark { display: flex; flex-direction: column; align-items: center; gap: 10px; flex: none; padding-top: 4px; }
+.family .lockup { font-size: 27px; }
+.family-note { color: var(--muted); font-size: 13px; margin-top: 10px; }
+
+/* icon tiles */
+.tile { border-radius: 22.5%; overflow: hidden; flex: none; display: grid; place-items: center; box-shadow: 0 2px 8px rgba(37,31,51,.14); }
+.tile svg { width: 100%; height: 100%; }
+.icon-pair { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+.icon-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 14px; }
+.icon-cell { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.open-tag { display: inline-block; font-family: var(--font-mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--rose); border: 1px solid var(--rose); border-radius: 999px; padding: 2px 10px; margin-left: 8px; }
+
+/* swatches */
+.swatches { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
+.swatch { border-radius: 10px; overflow: hidden; border: 1px solid var(--line); }
+.swatch .chip { height: 64px; }
+.swatch .meta { background: var(--surface); padding: 8px 10px; font-family: var(--font-mono); font-size: 10.5px; line-height: 1.5; }
+.swatch .meta b { display: block; font-family: var(--font-body); font-size: 12.5px; }
+
+/* typography specimens */
+.specimen { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); padding: 20px 24px; margin-bottom: 14px; }
+.specimen .show { font-size: 30px; line-height: 1.25; margin: 6px 0 10px; }
+.specimen .show.warm { font-family: var(--font-body); }
+.specimen .show.mono { font-family: var(--font-mono); font-weight: 500; font-size: 24px; }
+.specimen .meta-line { color: var(--muted); font-size: 13px; }
+
+/* principles */
+.principle { border-left: 3px solid var(--accent); padding: 4px 0 4px 18px; margin: 16px 0; }
+.headline-preview { font-family: var(--font-display); font-weight: 600; font-size: clamp(30px, 6vw, 44px); letter-spacing: -.01em; margin: 14px 0 6px; }
+
+footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+footer .decisions { columns: 2; column-gap: 40px; font-size: 13.5px; }
+@media (max-width: 640px) { footer .decisions { columns: 1; } }
+.decisions li { margin-bottom: 10px; }
+.decisions strong { color: var(--fg); }
+</style>
+</head>
+<body>
+<div role="note" style="font:13px/1.5 'IBM Plex Mono',ui-monospace,monospace;background:#251F33;color:#F1E8EA;padding:10px 16px;letter-spacing:.02em">ARCHIVED — historical record, not current guidance. This page is the October 4 identity. Its curve-under-the-word lockup, ◉ bullseye family and Rising/Peak/Trough/Steady icon plan were retired on October 10 in favor of the outlined wordmark and the “I.” mark. Current spec: <a href="../ISOCLINE_DESIGN_SYSTEM.html" style="color:#E8709A">ISOCLINE_DESIGN_SYSTEM.html</a></div>
+
+<div class="page">
+
+<p class="eyebrow">Identity system · final · October 2026</p>
+<h1>Isocline</h1>
+<p class="hero-sub">Final identity system — wordmark, mark, and icon set, locked from the <a href="ISOCLINE_IDENTITY_EXPLORER.html">explorer</a> and the <a href="../BRANDING_AND_POSITIONING.html">brand brief</a> §7.</p>
+<div class="theme-toggle pills" id="page-theme">
+  <button class="pill active" data-theme="auto">Auto</button>
+  <button class="pill" data-theme="light">Light</button>
+  <button class="pill" data-theme="dark">Dark</button>
+</div>
+
+<div class="hero-stage" id="hero-stage"></div>
+
+<section id="wordmark">
+  <h2>1 · Wordmark</h2>
+  <p><strong>ISOCLINE</strong>, all-caps, set in IBM Plex Serif Semibold — an engineered serif that shares family DNA with the brand's IBM Plex Mono. The curve sits <em>under</em> the word, not in it.</p>
+  <ul>
+    <li><strong>Face:</strong> IBM Plex Serif, 600, all-caps</li>
+    <li><strong>Tracking:</strong> +0.07em</li>
+    <li><strong>Curve:</strong> starts under the <code>C</code> (40% of word width), rises through <code>L–I</code>, plateaus under <code>N–E</code>, extends ~3% past the right edge</li>
+    <li><strong>Marker:</strong> rose point on the plateau end — the "you are here"</li>
+    <li><strong>Small sizes:</strong> the wordmark is display-only; below ~32px the ◉ mark takes over</li>
+  </ul>
+</section>
+
+<section id="mark">
+  <h2>2 · The ◉ mark</h2>
+  <p>The dot-in-dot bullseye is the standalone brand mark — app icon, letterhead, favicon, lockups. Halo: lavender at <strong>15%</strong> opacity. Inner dot: rose at <strong>51%</strong> of the halo diameter.</p>
+  <div class="sizes-row" id="mark-sizes"></div>
+
+  <h3>The family</h3>
+  <p>One mark family, three lockups. The arms differ by glyph variation — the mark tells the story the word doesn't have room for.</p>
+  <div class="family-grid" id="family"></div>
+</section>
+
+<section id="icon">
+  <h2>3 · App icon</h2>
+  <p>The bullseye on a soft per-theme gradient. The icon is <strong>theme-aware</strong>: named-theme alternates (Rising / Peak / Trough / Steady lavender + sage) swap with the user's in-app theme picker; custom hues map to the nearest theme (or iOS 18 system tinting). Explicit dark variants ship on deep-indigo grounds. 10 themed assets + 1 stealth = ~11 total.</p>
+
+  <h3>Default — Steady · lavender</h3>
+  <div class="icon-pair" id="icon-default"></div>
+
+  <h3>Theme alternates — light grounds</h3>
+  <div class="icon-grid" id="icon-themes-light"></div>
+
+  <h3>Theme alternates — dark grounds</h3>
+  <div class="icon-grid" id="icon-themes-dark"></div>
+
+  <h3>Stealth alternate <span class="open-tag">open pick — one of three</span></h3>
+  <p>Since the default is already the mundane bullseye, the stealth alt has to be <em>more</em> generic than the default. All three candidates ship in this page until one is picked.</p>
+  <div class="icon-pair" id="icon-stealth" style="gap: 26px;"></div>
+</section>
+
+<section id="color">
+  <h2>4 · Color</h2>
+  <p>Rose and lavender lead — no competitor and no clinic portal defaults to this pair. The dark set stays in the violet family.</p>
+  <h3>Light</h3>
+  <div class="swatches" id="swatches-light"></div>
+  <h3>Dark</h3>
+  <div class="swatches" id="swatches-dark"></div>
+</section>
+
+<section id="type">
+  <h2>5 · Typography</h2>
+  <p>Three faces, three jobs: serif for the wordmark and display, mono for values and measurements, a warm humanist sans for prose.</p>
+  <div id="type-specimens"></div>
+</section>
+
+<section id="principles">
+  <h2>6 · Principles &amp; carried forward</h2>
+  <div class="principle">
+    <p><strong>Discretion.</strong> The icon must never out a user as being on HRT at a glance — discretion beats brand presence by default. The name itself is the first discretion asset: nothing about "Isocline" reads as hormone therapy.</p>
+  </div>
+  <h3>Landing headline direction</h3>
+  <p class="headline-preview">Shaped protocol.</p>
+  <p>Carried forward to the landing page build — the current <a href="LANDING_PAGE_SKETCH.html">sketch</a> is still under the old "byTime" name and gets rebuilt against this system.</p>
+  <h3>Umbrella</h3>
+  <p>One mark family serves all three arms: the app, <strong>Isocline Research</strong> (papers), and <strong>Isocline Labs</strong> (company).</p>
+</section>
+
+<footer>
+  <p class="eyebrow" style="margin: 0 0 14px;">Settled decisions — recap</p>
+  <ul class="decisions">
+    <li><strong>Wordmark</strong> — all-caps ISOCLINE in IBM Plex Serif; curve under the word, starting under the C, plateauing under N–E past the right edge with the marker; display-only.</li>
+    <li><strong>Mark</strong> — the ◉ dot-in-dot bullseye is the standalone mark (inner dot 51% of halo, halo at 15% opacity); arms: Research = dot + halo ring, Labs = ring + right-offset dot + plateau line.</li>
+    <li><strong>Icon</strong> — bullseye (dot 51%, halo 15%) on per-theme gradients; named-theme alternates swap with the in-app theme; explicit dark variants; one stealth alt.</li>
+    <li><strong>Principle</strong> — discretion: the icon never outs a user as being on HRT at a glance.</li>
+    <li><strong>Carried forward</strong> — landing headline direction: “Shaped protocol.”</li>
+  </ul>
+  <p style="margin-top: 22px;">Siblings: <a href="../BRANDING_AND_POSITIONING.html">brand brief</a> · <a href="ISOCLINE_IDENTITY_EXPLORER.html">identity explorer</a> · <a href="ISOCLINE_TITLE_ANIMATION.html">title animation</a> · <a href="LANDING_PAGE_SKETCH.html">landing sketch</a></p>
+</footer>
+
+</div>
+
+<script>
+"use strict";
+/* Final-state renderers: the settled values are constants here, not controls. */
+
+const DOT_RATIO = 0.51, HALO_OPACITY = 0.15;
+
+/* per-theme icon palettes: [light gradient, dark gradient], dot color per mode */
+const THEMES = {
+  steady: { label: "Steady · lavender", light: ["#F3EFFB", "#D8CBF0"], dark: ["#2A2344", "#181230"], dot: "#8B72C9", dotDark: "#A98FE0" },
+  sage:   { label: "Steady · sage",     light: ["#F1F4EC", "#D7E2CB"], dark: ["#242B26", "#131A15"], dot: "#8FA382", dotDark: "#A9BC9D" },
+  rising: { label: "Rising · rose",     light: ["#FBEEF1", "#F0D3DD"], dark: ["#2E2230", "#191019"], dot: "#C46B86", dotDark: "#E29AAA" },
+  peak:   { label: "Peak · violet",     light: ["#F2EDFC", "#DFD2F6"], dark: ["#2C2144", "#191130"], dot: "#7C5CD0", dotDark: "#B99AF0" },
+  trough: { label: "Trough · indigo",   light: ["#EBE8F5", "#CBC3E6"], dark: ["#221E36", "#120E22"], dot: "#4A3F66", dotDark: "#8F83B8" },
+};
+
+const STEALTH = [
+  { name: "Plain gradient tile", note: "no glyph — identifies nothing", grounds: ["#F3EFFB", "#D8CBF0"], dot: null },
+  { name: "Bullseye · stock blue", note: "most default-iOS look with the mark", grounds: ["#F4F7FC", "#D9E4F5"], dot: "#0A84FF" },
+  { name: "Bullseye · neutral gray", note: "no color association", grounds: ["#F5F5F7", "#E2E2E8"], dot: "#6E6E73" },
+];
+
+const FAMILY = [
+  { key: "APP", variant: "app", note: "the full bullseye — filled halo + centered dot" },
+  { key: "RESEARCH", variant: "research", note: "dot + halo ring — the stripped measurement" },
+  { key: "LABS", variant: "labs", note: "ring + right-offset dot + plateau line — “you are here”" },
+];
+
+const SWATCHES_LIGHT = [
+  ["Lavender · accent", "#8B72C9"], ["Soft rose · markers", "#C46B86"], ["Deep indigo · trough", "#4A3F66"],
+  ["Quiet lilac white · ground", "#F7F5FB"], ["Near-black violet · text", "#251F33"], ["Muted sage · Steady", "#8FA382"],
+];
+const SWATCHES_DARK = [
+  ["Lavender · accent", "#A98FE0"], ["Soft rose · markers", "#E29AAA"], ["Deep indigo · trough", "#8F83B8"],
+  ["Near-black violet · ground", "#151022"], ["Raised violet · surface", "#1E1830"], ["Muted sage · Steady", "#A9BC9D"],
+];
+
+/* ---------- builders ---------- */
+
+const LOCKUP_INNER = '<div class="word">ISOCLINE' +
+  '<svg class="curve" viewBox="0 0 63 26" aria-hidden="true">' +
+  '<path class="c-path" d="M 0 22 C 12 18.5, 22 10.5, 28 7 C 32 5.4, 36 4.9, 41 4.8 L 61 4.8"/>' +
+  '<circle class="c-marker" cx="60" cy="4.8" r="2.5"/>' +
+  '</svg></div>';
+
+function lockupHTML() {
+  return '<div class="lockup">' + LOCKUP_INNER + '</div>';
+}
+
+/* mark family glyphs — colors via CSS vars so they follow the page theme */
+function markSVG(variant) {
+  const r = 28, dot = r * DOT_RATIO;
+  const halo = "var(--accent)", dotC = "var(--rose)";
+  let base, dotEl, extra = "";
+  if (variant === "research") {
+    base = '<circle r="' + r + '" fill="none" stroke="' + halo + '" stroke-opacity=".6" stroke-width="2.4"/>';
+    dotEl = '<circle r="' + dot.toFixed(2) + '" fill="' + dotC + '"/>';
+  } else if (variant === "labs") {
+    base = '<circle r="' + r + '" fill="none" stroke="' + halo + '" stroke-opacity=".6" stroke-width="2.4"/>';
+    dotEl = '<circle r="' + dot.toFixed(2) + '" fill="' + dotC + '" transform="translate(14 0)"/>';
+    extra = '<line x1="' + (r + 2) + '" y1="0" x2="' + (r + 10.5) + '" y2="0" stroke="' + dotC +
+      '" stroke-opacity=".8" stroke-width="2.4" stroke-linecap="round"/>';
+  } else {
+    base = '<circle r="' + r + '" fill="' + halo + '" opacity="' + HALO_OPACITY + '"/>';
+    dotEl = '<circle r="' + dot.toFixed(2) + '" fill="' + dotC + '"/>';
+  }
+  return '<svg viewBox="-40 -40 80 80" aria-hidden="true">' + base + extra + dotEl + '</svg>';
+}
+
+function iconTile(size, themeKey, dark) {
+  const t = THEMES[themeKey];
+  const g = dark ? t.dark : t.light;
+  const dot = dark ? t.dotDark : t.dot;
+  return '<div class="tile" style="width:' + size + 'px;height:' + size +
+    'px;background:linear-gradient(160deg,' + g[0] + ',' + g[1] + ')">' +
+    '<svg viewBox="-100 -100 200 200" aria-hidden="true">' +
+    '<circle r="58" fill="' + dot + '" opacity="' + HALO_OPACITY + '"/>' +
+    '<circle r="' + (58 * DOT_RATIO).toFixed(1) + '" fill="' + dot + '"/></svg></div>';
+}
+
+function stealthTile(size, s) {
+  return '<div class="tile" style="width:' + size + 'px;height:' + size +
+    'px;background:linear-gradient(160deg,' + s.grounds[0] + ',' + s.grounds[1] + ')">' +
+    (s.dot ? '<svg viewBox="-100 -100 200 200"><circle r="58" fill="' + s.dot +
+      '" opacity="' + HALO_OPACITY + '"/><circle r="' + (58 * DOT_RATIO).toFixed(1) + '" fill="' + s.dot + '"/></svg>' : "") +
+    '</div>';
+}
+
+/* ---------- build ---------- */
+const $ = id => document.getElementById(id);
+
+/* hero + wordmark: the lockup draws its curve in once on load */
+const hero = $("hero-stage");
+hero.innerHTML = lockupHTML();
+if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
+  const path = hero.querySelector(".c-path"), marker = hero.querySelector(".c-marker");
+  const L = path.getTotalLength();
+  path.style.strokeDasharray = L;
+  path.style.strokeDashoffset = L;
+  marker.style.opacity = 0;
+  requestAnimationFrame(() => {
+    path.style.transition = "stroke-dashoffset 1.8s cubic-bezier(.22,.61,.36,1)";
+    path.style.strokeDashoffset = 0;
+  });
+  setTimeout(() => { marker.style.transition = "opacity .7s ease"; marker.style.opacity = 1; }, 1650);
+}
+
+/* mark sizes */
+const sizesBox = $("mark-sizes");
+[16, 24, 32, 48, 64, 128].forEach(s => {
+  const d = document.createElement("div");
+  d.className = "markbox";
+  d.style.width = s + "px"; d.style.height = s + "px";
+  d.innerHTML = markSVG("app");
+  d.insertAdjacentHTML("beforeend", '<span class="mono">' + s + "px</span>");
+  sizesBox.appendChild(d);
+});
+
+/* family cards */
+const familyBox = $("family");
+FAMILY.forEach(a => {
+  const card = document.createElement("div");
+  card.className = "family";
+  card.innerHTML = '<div class="family-mark"><div class="markbox" style="width:48px;height:48px">' +
+    markSVG(a.variant) + '</div><span class="mono">' + a.key + '</span></div>' +
+    '<div class="lockup">' + LOCKUP_INNER + '<p class="family-note">' + a.note + "</p></div>";
+  familyBox.appendChild(card);
+});
+
+/* icons */
+$("icon-default").innerHTML = iconTile(128, "steady", false) + iconTile(128, "steady", true);
+[["icon-themes-light", false], ["icon-themes-dark", true]].forEach(([boxId, dark]) => {
+  const box = $(boxId);
+  box.innerHTML = "";
+  Object.keys(THEMES).forEach(k => {
+    const cell = document.createElement("div");
+    cell.className = "icon-cell";
+    cell.innerHTML = iconTile(64, k, dark) + '<span class="mono">' + THEMES[k].label.split(" · ")[0] + "</span>";
+    box.appendChild(cell);
+  });
+});
+const stealthBox = $("icon-stealth");
+STEALTH.forEach(s => {
+  const cell = document.createElement("div");
+  cell.className = "icon-cell";
+  cell.innerHTML = '<div class="icon-pair" style="gap:12px">' + stealthTile(64, s) + stealthTile(128, s) + '</div>' +
+    '<span class="mono">' + s.name + "</span>" +
+    '<span style="color:var(--muted);font-size:12px;text-align:center">' + s.note + "</span>";
+  stealthBox.appendChild(cell);
+});
+
+/* swatches */
+[["swatches-light", SWATCHES_LIGHT], ["swatches-dark", SWATCHES_DARK]].forEach(([boxId, list]) => {
+  const box = $(boxId);
+  box.innerHTML = "";
+  list.forEach(([name, hex]) => {
+    box.insertAdjacentHTML("beforeend", '<div class="swatch"><div class="chip" style="background:' + hex + '"></div>' +
+      '<div class="meta"><b>' + name + '</b>' + hex + "</div></div>");
+  });
+});
+
+/* typography specimens */
+$("type-specimens").innerHTML =
+  '<div class="specimen"><span class="mono">IBM Plex Serif · wordmark &amp; display</span>' +
+  '<div class="show" style="font-family:var(--font-display);font-weight:600">The curve, not the checklist.</div>' +
+  '<div class="meta-line">AaBbCcDdEe 0123456789 · all-caps tracking +0.07em in the wordmark</div></div>' +
+  '<div class="specimen"><span class="mono">IBM Plex Mono · values &amp; measurements</span>' +
+  '<div class="show mono">estradiol valerate 4 mg · q5d</div>' +
+  '<div class="meta-line">0123456789 · tabular numerals, the instrument-panel voice</div></div>' +
+  '<div class="specimen"><span class="mono">Atkinson Hyperlegible · prose</span>' +
+  '<div class="show warm">Calm, precise, never clinical-cold. The name brings the rigor; the design brings the care.</div>' +
+  '<div class="meta-line">The warm humanist sans for everything people read at length.</div></div>';
+
+/* page theme (auto / light / dark) */
+$("page-theme").addEventListener("click", e => {
+  const b = e.target.closest(".pill");
+  if (!b) return;
+  document.querySelectorAll("#page-theme .pill").forEach(p => p.classList.toggle("active", p === b));
+  if (b.dataset.theme === "auto") delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = b.dataset.theme;
+});
+</script>
+</body>
+</html>

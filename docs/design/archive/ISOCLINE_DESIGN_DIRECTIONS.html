@@ -1,0 +1,738 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Isocline — Design Directions</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap">
+<style>
+/* ───────────────────────────────────────────────────────────────────────────
+   ISOCLINE_DESIGN_DIRECTIONS — October 2026
+
+   A direction board, not a redesign. The §7 identity (wordmark, ◉ mark,
+   palette, type, discretion) is LOCKED; these are three ways to grow that
+   system into the product surfaces, each rooted in a real lineage:
+
+     I  · Halleyan Lines   — the first isoline charts (Halley 1701,
+                             Whiston 1721, Wilcke 1768)
+     II · Chart Paper      — the founding of quantitative PK
+                             (Bateman 1910; Teorell 1937)
+     III· The Settling Arc — the isoclinic instrument tradition: the
+                             dip needle that swings and comes to rest
+
+   Every curve in this file is computed in-page by the same superposition
+   the app runs. All three directions render the SAME dataset, so any
+   difference you see is direction, not data.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+:root {
+  --bg: #F7F5FB;
+  --surface: #FFFFFF;
+  --fg: #251F33;
+  --muted: #6A6280;
+  --accent: #7B5FC0;
+  --accent-soft: #EDE7F8;
+  --rose: #C46B86;
+  --line: #E3DDEE;
+  --font-display: 'IBM Plex Serif', Georgia, serif;
+  --font-body: 'Atkinson Hyperlegible', 'Helvetica Neue', sans-serif;
+  --font-mono: 'IBM Plex Mono', 'SF Mono', monospace;
+
+  /* direction grounds — light */
+  --d1-bg: #F8F3E8;         /* chart cream, warmed from the brand lilac-white */
+  --d1-surface: #FDFBF4;
+  --d1-line: #D9CFBA;
+  --d1-fg: #2E2721;
+  --d1-muted: #7A7160;
+  --d2-bg: #FCFCFD;
+  --grid: rgba(37,31,51,.065);
+  --grid-major: rgba(37,31,51,.13);
+  --grid-fg: rgba(37,31,51,.55);
+
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #151022; --surface: #1E1830; --fg: #ECE7F6; --muted: #A79DC2;
+    --accent: #A98FE0; --accent-soft: #2A2344; --rose: #E29AAA; --line: #342B4E;
+    --d1-bg: #241E2B; --d1-surface: #2C2534; --d1-line: #4A4150; --d1-fg: #EDE6D4; --d1-muted: #A89D86;
+    --d2-bg: #171226;
+    --grid: rgba(236,231,246,.065); --grid-major: rgba(236,231,246,.13); --grid-fg: rgba(236,231,246,.5);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #151022; --surface: #1E1830; --fg: #ECE7F6; --muted: #A79DC2;
+  --accent: #A98FE0; --accent-soft: #2A2344; --rose: #E29AAA; --line: #342B4E;
+  --d1-bg: #241E2B; --d1-surface: #2C2534; --d1-line: #4A4150; --d1-fg: #EDE6D4; --d1-muted: #A89D86;
+  --d2-bg: #171226;
+  --grid: rgba(236,231,246,.065); --grid-major: rgba(236,231,246,.13); --grid-fg: rgba(236,231,246,.5);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.65; margin: 0; }
+.page { max-width: 1060px; margin: 0 auto; padding: 48px 20px 90px; }
+.eyebrow { font-family: var(--font-mono); font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(38px, 7vw, 58px); letter-spacing: -.01em; line-height: 1.05; margin: 10px 0 0; text-wrap: balance; }
+.hero-sub { font-size: 17px; max-width: 44em; margin: 14px 0 0; color: var(--muted); }
+.hero-sub strong { color: var(--fg); }
+h2 { font-family: var(--font-display); font-weight: 600; font-size: 27px; letter-spacing: -.01em; margin: 0 0 12px; text-wrap: balance; }
+h3 { font-family: var(--font-display); font-weight: 600; font-size: 16px; margin: 24px 0 8px; }
+section { margin-top: 64px; }
+p { margin: 0 0 12px; max-width: 68ch; }
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.mono { font-family: var(--font-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+code { font-family: var(--font-mono); font-size: .88em; background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; }
+
+/* theme + section nav */
+.pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.pill { font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; padding: 8px 14px; min-height: 32px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--muted); cursor: pointer; transition: border-color .15s, color .15s; }
+.pill:hover { color: var(--fg); }
+.pill.active { color: var(--fg); border-color: var(--accent); background: var(--accent-soft); }
+.pill:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.topbar { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; margin: 20px 0 0; }
+
+/* the constant strip */
+.constant { border: 1px solid var(--line); border-radius: 16px; background: var(--surface); padding: 22px 24px 16px; }
+.constant .chartbox { margin: 12px 0 4px; }
+.constant ul { margin: 10px 0 0; padding-left: 20px; max-width: 72ch; }
+.constant li { margin-bottom: 6px; }
+svg text { font-family: var(--font-mono); }
+
+/* direction header */
+.dir-head { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+.dir-num { font-family: var(--font-display); font-weight: 400; font-size: 42px; color: var(--muted); opacity: .55; line-height: 1; }
+.dir-when { font-family: var(--font-mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--rose); }
+.lineage { border-left: 3px solid var(--accent); padding: 2px 0 2px 18px; margin: 16px 0 0; }
+.lineage p { color: var(--fg); }
+.lineage p:last-child { margin-bottom: 0; }
+
+/* device lists */
+.devices { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 28px; margin: 14px 0 0; max-width: 72ch; }
+@media (max-width: 700px) { .devices { grid-template-columns: 1fr; } }
+.devices div { font-size: 14px; color: var(--muted); }
+.devices b { color: var(--fg); font-weight: 700; }
+.devices .refuse b { color: var(--rose); }
+
+/* mockup plates */
+.plates { display: grid; grid-template-columns: 380px 1fr; gap: 26px; align-items: start; margin: 22px 0 6px; }
+@media (max-width: 920px) { .plates { grid-template-columns: 1fr; } }
+.platewrap { position: relative; }
+.plate-note { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin: 8px 2px 0; }
+
+/* phone shell */
+.phone { width: 380px; max-width: 100%; height: 740px; border-radius: 46px; position: relative; overflow: hidden; border: 1px solid var(--line); box-shadow: 0 22px 55px rgba(18,12,32,.18); display: flex; flex-direction: column; }
+.p-notch { height: 26px; flex: none; display: flex; justify-content: center; align-items: center; }
+.p-notch span { width: 108px; height: 22px; border-radius: 999px; background: rgba(0,0,0,.28); display: block; }
+.p-top { flex: none; padding: 10px 24px 6px; display: flex; align-items: center; gap: 10px; }
+.p-top .pname { font-family: var(--font-display); font-weight: 600; font-size: 17px; letter-spacing: .05em; }
+.p-top .ptime { margin-left: auto; font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+.p-chart { flex: none; position: relative; }
+.p-chart svg { display: block; width: 100%; height: auto; }
+.p-readout { flex: none; padding: 10px 24px 4px; }
+.p-readout .r-line { font-family: var(--font-mono); font-weight: 500; font-size: 13px; display: flex; align-items: baseline; gap: 10px; }
+.p-readout .r-big { font-family: var(--font-mono); font-weight: 500; font-size: 34px; letter-spacing: -.01em; line-height: 1; }
+.p-readout .r-unit { font-size: 12px; color: var(--muted); letter-spacing: .1em; }
+.p-stack { padding: 12px 20px 0; display: grid; gap: 10px; }
+.p-card { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); padding: 12px 14px; display: flex; gap: 12px; align-items: flex-start; }
+.p-card .c-mark { flex: none; padding-top: 2px; }
+.p-card .c-label { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+.p-card .c-main { font-size: 14px; font-weight: 700; margin-top: 2px; }
+.p-card .c-sub { font-size: 12.5px; color: var(--muted); margin-top: 1px; }
+.p-homebar { margin-top: auto; height: 30px; flex: none; display: flex; align-items: center; justify-content: center; }
+.p-homebar span { width: 120px; height: 5px; border-radius: 999px; background: var(--fg); opacity: .3; display: block; }
+
+/* landing hero card */
+.hero-card { border: 1px solid var(--line); border-radius: 16px; overflow: hidden; position: relative; }
+.hero-inner { padding: 30px 32px 24px; }
+
+/* svg curve classes (shared) */
+.c-path { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linecap: round; }
+.c-path.thin { stroke-width: 1.6; }
+.c-dash { stroke-dasharray: 6 5; }
+.c-dbl { fill: none; stroke: var(--muted); stroke-width: .9; opacity: .75; }
+.c-field { stroke: var(--muted); stroke-width: 1.1; stroke-linecap: round; }
+.axis { stroke: var(--muted); stroke-width: 1; opacity: .5; }
+.tick { stroke: var(--muted); stroke-width: 1.2; }
+.tlab { font-size: 9px; fill: var(--muted); letter-spacing: .08em; }
+.vlab { font-size: 9px; fill: var(--muted); }
+.labring { fill: none; stroke: var(--accent); stroke-width: 1.6; }
+.labdot { fill: var(--accent); }
+.marker-dot { fill: var(--rose); }
+.marker-halo { fill: none; stroke: var(--rose); stroke-width: 1.6; }
+.you-label { font-size: 9.5px; fill: var(--rose); letter-spacing: .1em; }
+.gridline { stroke: var(--grid); stroke-width: 1; }
+.gridline.major { stroke: var(--grid-major); }
+.arcguide { fill: none; stroke: var(--muted); stroke-width: 1.2; opacity: .85; }
+.arctick { stroke: var(--muted); stroke-width: 1.2; }
+.needle-ghost { stroke: var(--rose); stroke-width: 1.6; }
+
+/* per-direction scopes — grounds and hairlines */
+.d1 .phone { background: var(--d1-bg); color: var(--d1-fg); border-color: var(--d1-line); }
+.d1 .phone .p-card { background: var(--d1-surface); border-color: var(--d1-line); }
+.d1 .phone .c-sub, .d1 .phone .r-unit, .d1 .phone .c-label, .d1 .phone .ptime { color: var(--d1-muted); }
+.d1 .phone .tlab, .d1 .phone .vlab { fill: var(--d1-muted); }
+.d1 .phone .c-field { stroke: var(--d1-muted); }
+.d1 .hero-card { background: var(--d1-bg); color: var(--d1-fg); }
+.d1 .hero-card .mono, .d1 .hero-card .sub { color: var(--d1-muted); }
+.d1 .hero-card .plate-frame { border: 1px solid var(--d1-line); border-radius: 4px; padding: 42px 30px 30px; position: relative; }
+.d1 .hero-card .plate-frame::before { content: ""; position: absolute; inset: 5px; border: 1px solid var(--d1-line); border-radius: 2px; }
+.d2 .phone { background: var(--d2-bg); }
+.d2 .p-chart { background-image:
+  repeating-linear-gradient(to right, var(--grid) 0 1px, transparent 1px 9px),
+  repeating-linear-gradient(to bottom, var(--grid) 0 1px, transparent 1px 9px),
+  repeating-linear-gradient(to right, var(--grid-major) 0 1px, transparent 1px 45px),
+  repeating-linear-gradient(to bottom, var(--grid-major) 0 1px, transparent 1px 45px); }
+.d2 .hero-card { background: var(--d2-bg); }
+.d2 .hero-chartwrap { background-image:
+  repeating-linear-gradient(to right, var(--grid) 0 1px, transparent 1px 9px),
+  repeating-linear-gradient(to bottom, var(--grid) 0 1px, transparent 1px 9px),
+  repeating-linear-gradient(to right, var(--grid-major) 0 1px, transparent 1px 45px),
+  repeating-linear-gradient(to bottom, var(--grid-major) 0 1px, transparent 1px 45px); }
+
+/* wordmark lockup (per identity final) */
+.lockup { display: inline-block; padding: 4px 4px 40px 4px; position: relative; }
+.lockup .word { position: relative; font-family: var(--font-display); font-weight: 600; letter-spacing: .07em; line-height: 1; color: inherit; }
+.lockup .curve { position: absolute; left: 40%; width: 63%; bottom: -34px; height: 26px; overflow: visible; }
+.lockup .curve .c-path { stroke-width: 2.2; }
+
+/* risk + verdict */
+.risk { font-size: 14px; color: var(--muted); border-top: 1px dashed var(--line); padding-top: 12px; margin-top: 14px; max-width: 72ch; }
+.risk b { color: var(--fg); }
+.verdict { border-left: 3px solid var(--accent); padding: 4px 0 4px 18px; margin: 14px 0 0; }
+
+/* compare table */
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th { font-family: var(--font-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+td { padding: 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+td:first-child { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.table-wrap { overflow-x: auto; }
+
+footer { margin-top: 68px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+footer p { max-width: 90ch; }
+
+/* motion — one draw-in per plate; static under reduced motion */
+.draw .animpath { stroke-dasharray: var(--len); stroke-dashoffset: var(--len); transition: stroke-dashoffset 1.6s cubic-bezier(.22,.61,.36,1); }
+.draw.drawn .animpath { stroke-dashoffset: 0; }
+.draw .ghost { opacity: 0; transition: opacity .6s ease; }
+.draw.drawn .ghost { opacity: var(--gop); }
+.draw.drawn .ghost.g2 { transition-delay: .5s; }
+.draw.drawn .ghost.g3 { transition-delay: .9s; }
+.draw.drawn .ghost.g4 { transition-delay: 1.3s; }
+@media (prefers-reduced-motion: reduce) {
+  .draw .animpath { stroke-dasharray: none !important; stroke-dashoffset: 0 !important; transition: none !important; }
+  .draw .ghost { opacity: var(--gop) !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div role="note" style="font:13px/1.5 'IBM Plex Mono',ui-monospace,monospace;background:#251F33;color:#F1E8EA;padding:10px 16px;letter-spacing:.02em">ARCHIVED — historical record, not current guidance. This page is the three-direction board; Paper &amp; Instrument was selected and is now specified in the design system. Current spec: <a href="../ISOCLINE_DESIGN_SYSTEM.html" style="color:#E8709A">ISOCLINE_DESIGN_SYSTEM.html</a></div>
+
+<div class="page">
+
+<p class="eyebrow">Design directions · docs/design · October 2026</p>
+<h1>Three directions, three lineages</h1>
+<p class="hero-sub">The §7 identity is locked — wordmark, ◉ mark, palette, type, discretion. What follows grows that system into the product surfaces. <strong>“Rooted in history” is taken literally:</strong> each direction extends the identity from a real lineage behind the name — the first isoline charts (1701–1768), the founding mathematics of pharmacokinetics (1910–1937), and the isoclinic instrument tradition. Every mockup renders the same protocol through the same Bateman superposition the app runs, so what differs is direction, never data.</p>
+
+<div class="topbar">
+  <div class="pills" role="navigation" aria-label="Directions">
+    <a class="pill" href="#constant">The constant</a>
+    <a class="pill" href="#d1">I · Halleyan Lines</a>
+    <a class="pill" href="#d2">II · Chart Paper</a>
+    <a class="pill" href="#d3">III · The Settling Arc</a>
+    <a class="pill" href="#compare">Compare</a>
+  </div>
+  <div class="pills" id="page-theme" role="group" aria-label="Page theme">
+    <button class="pill active" data-theme="auto">Auto</button>
+    <button class="pill" data-theme="light">Light</button>
+    <button class="pill" data-theme="dark">Dark</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════ THE CONSTANT ══════════════════════════ -->
+<section id="constant">
+  <h2>The constant</h2>
+  <p>One protocol, rendered by every direction below. This is the dataset the mockups share — computed live by the page, not drawn by hand:</p>
+  <div class="constant">
+    <p class="mono" style="margin-bottom:4px">Estradiol cypionate · 5 mg IM · every 7 days · one lab draw</p>
+    <div class="chartbox" id="const-chart"></div>
+    <ul>
+      <li><strong>Anchored.</strong> One blood draw at day 10 reads 180&nbsp;pg/mL; the curve is solid up to the draw.</li>
+      <li><strong>Modeled.</strong> Beyond the last observation the curve goes dashed — the brand’s honesty device, made literal in every direction.</li>
+      <li><strong>Today.</strong> Day 24, the rose marker on the dashed projection: wherever the math puts it, not a chosen number.</li>
+      <li><strong>Type, palette, mark, discretion.</strong> Plex Serif / Mono / Hyperlegible, rose + lavender OKLCH, the ◉ bullseye — unchanged across all three directions.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ══════════════════════ I · HALLEYAN LINES ══════════════════════ -->
+<section id="d1" class="d1">
+  <div class="dir-head">
+    <span class="dir-num">I</span>
+    <h2 style="margin:0">Halleyan Lines</h2>
+    <span class="dir-when">Halley 1701 · Whiston 1721 · Wilcke 1768</span>
+  </div>
+  <div class="lineage">
+    <p>Halley’s 1701 Atlantic chart drew “curved lines” through points of equal magnetic variation — the first isolines ever engraved, printed, and published. Navigators called them <em>Halleyan lines</em> for a century. Where the compass stood true, he drew a double line. Whiston charted the first inclination lines for southern England (1719–21); Wilcke’s 1768 <em>Neigungscharte</em> was the first near-global isoclinic chart — equal dip, the word’s first home. This direction keeps the locked identity and extends it with the first charts’ grammar: hairline weights, the value written along the line, and the double rule for steady.</p>
+  </div>
+  <div class="devices">
+    <div><b>Value along the line.</b> Halley numbered his lines with the degrees they carried; the plateau carries its own value.</div>
+    <div><b>Double rule for steady.</b> Where the curve enters its plateau, a second hairline — the “compass stands true” mark.</div>
+    <div><b>Engraved slope field.</b> The brand hero’s dashes, dialed to etching weight.</div>
+    <div><b>Cartouche readout.</b> The level sits in a double-ruled frame, chart-margin style.</div>
+    <div class="refuse"><b>Refuses:</b> parchment stains, compass roses, sepia clichés, “antique” ornament.</div>
+    <div class="refuse"><b>Refuses:</b> any texture that fights the hairlines at small sizes.</div>
+  </div>
+
+  <div class="plates">
+    <div class="platewrap draw" id="d1-plate">
+      <div class="phone">
+        <div class="p-notch"><span></span></div>
+        <div class="p-top">
+          <span class="markslot" style="width:22px;height:22px;display:block"></span>
+          <span class="pname">Isocline</span>
+          <span class="ptime">9:41</span>
+        </div>
+        <div class="p-chart" id="d1-phone-chart"></div>
+        <div class="p-readout">
+          <div class="r-line"><span class="r-big" id="d1-rbig"></span><span class="r-unit">pg/mL · modeled</span><span style="margin-left:auto"></span></div>
+          <div class="r-line" style="margin-top:4px"><span class="r-unit" style="font-size:11px">Thu Oct 8 · day 24 · 1 draw anchored</span></div>
+        </div>
+        <div class="p-stack">
+          <div class="p-card">
+            <span class="c-mark" style="width:18px;height:18px;display:block"></span>
+            <span><span class="c-label">Next dose</span><div class="c-main">EC 5 mg · Mon Oct 12</div><div class="c-sub">ventrogluteal · L — 82 days rested</div></span>
+          </div>
+          <div class="p-card">
+            <span class="c-mark" style="width:18px;height:18px;display:block"></span>
+            <span><span class="c-label">Model</span><div class="c-main">Dashed = modeled</div><div class="c-sub">Add lab results to anchor the curve.</div></span>
+          </div>
+        </div>
+        <div class="p-homebar"><span></span></div>
+      </div>
+      <p class="plate-note">Curve screen · Halleyan</p>
+    </div>
+
+    <div class="platewrap draw" id="d1-hero-wrap">
+      <div class="hero-card">
+        <div class="hero-inner">
+          <div class="plate-frame">
+            <p class="mono" style="position:absolute;top:14px;left:18px;margin:0">Plate I</p>
+            <p class="mono" style="position:absolute;top:14px;right:18px;margin:0">The isocline</p>
+            <div style="text-align:center;padding:26px 8px 4px" id="d1-lockup"></div>
+            <p style="text-align:center;font-family:var(--font-display);font-weight:600;font-size:24px;margin:2px 0 4px">Shaped protocol.</p>
+            <p class="mono" style="text-align:center;margin:0">after Halley, 1701 — where the needle stands true</p>
+          </div>
+        </div>
+      </div>
+      <p class="plate-note">Landing hero · plate framing, generous margins, the wordmark as the exhibit</p>
+    </div>
+  </div>
+  <p class="risk"><b>Risk.</b> Hairlines are the whole costume; at 1× on an old screen they can vanish, so in-app minimums need 2px equivalents. The engraving is texture, not structure — strong for the landing page, must stay quiet inside the app.</p>
+</section>
+
+<!-- ══════════════════════ II · CHART PAPER ══════════════════════ -->
+<section id="d2" class="d2">
+  <div class="dir-head">
+    <span class="dir-num">II</span>
+    <h2 style="margin:0">Chart Paper</h2>
+    <span class="dir-when">Bateman 1910 · Teorell 1937</span>
+  </div>
+  <div class="lineage">
+    <p>The app’s engine is superposed Bateman functions. Bateman solved that exact system for Rutherford’s radioactive chains in 1910 (<em>Proc. Cambridge Phil. Soc.</em> 15:423–427). Twenty-seven years later, Teorell’s two papers — <em>Kinetics of distribution of substances administered to the body</em> (<em>Arch. Int. Pharmacodyn. Thér.</em> 57:205–240) — founded pharmacokinetics as a quantitative science. That founding era worked on graph paper: ruled grids, instrument traces, values in a lettering mono. The brand’s instrument-panel voice (Plex Mono itself descends from the Selectric era) grows here into the whole surface — and the honesty device becomes the signature: <strong>solid where the model is anchored, dashed where it projects.</strong></p>
+  </div>
+  <div class="devices">
+    <div><b>Chart-paper ground.</b> Fine 1 mm rules with major lines, in brand line colors — never behind prose.</div>
+    <div><b>Anchored / modeled split.</b> The last lab draw is the seam; the projection carries the dash.</div>
+    <div><b>Lab annotations.</b> Leader lines and mono callouts, the way a lab notebook records a sample.</div>
+    <div><b>Log-line readout.</b> The level reads like an entry: value, unit, state, day.</div>
+    <div class="refuse"><b>Refuses:</b> skeuomorphic paper, tape, coffee rings, any grunge.</div>
+    <div class="refuse"><b>Refuses:</b> dashboard-generic grids. The grid serves the trace or it goes.</div>
+  </div>
+
+  <div class="plates">
+    <div class="platewrap draw" id="d2-plate">
+      <div class="phone">
+        <div class="p-notch"><span></span></div>
+        <div class="p-top">
+          <span class="markslot" style="width:22px;height:22px;display:block"></span>
+          <span class="pname">Isocline</span>
+          <span class="ptime">9:41</span>
+        </div>
+        <div class="p-chart" id="d2-phone-chart"></div>
+        <div class="p-readout">
+          <div class="r-line"><span class="r-big" id="d2-rbig"></span><span class="r-unit">pg/mL</span><span class="r-unit" style="letter-spacing:.06em">· modeled</span></div>
+          <div class="r-line" style="margin-top:4px"><span class="r-unit" style="font-size:11px">day 24 · draw d10 anchored · next dose in 4 d</span></div>
+        </div>
+        <div class="p-stack">
+          <div class="p-card">
+            <span class="c-mark" style="width:18px;height:18px;display:block"></span>
+            <span><span class="c-label">Next dose</span><div class="c-main">EC 5 mg · Mon Oct 12</div><div class="c-sub">ventrogluteal · L — 82 days rested</div></span>
+          </div>
+          <div class="p-card">
+            <span class="c-mark" style="width:18px;height:18px;display:block"></span>
+            <span><span class="c-label">Calibration</span><div class="c-main">1 draw · α fitted d10</div><div class="c-sub">Dashed beyond the last observation — by design.</div></span>
+          </div>
+        </div>
+        <div class="p-homebar"><span></span></div>
+      </div>
+      <p class="plate-note">Curve screen · Chart Paper — grid, lab annotation, the dash as honesty</p>
+    </div>
+
+    <div class="platewrap draw" id="d2-hero-wrap">
+      <div class="hero-card">
+        <div class="hero-inner">
+          <div id="d2-lockup" style="display:flex;align-items:flex-end;gap:22px;flex-wrap:wrap"></div>
+          <p style="font-family:var(--font-display);font-weight:600;font-size:26px;margin:14px 0 2px">Shaped protocol.</p>
+          <p class="mono" style="margin:0 0 14px">your hormone journey is a curve, not a checklist</p>
+          <div class="hero-chartwrap" style="border:1px solid var(--line);border-radius:10px" id="d2-hero-chart"></div>
+          <p class="mono" style="margin:12px 0 0">after Bateman (1910) · Teorell (1937) — superposed, anchored, honestly dashed</p>
+        </div>
+      </div>
+      <p class="plate-note">Landing hero · doubles as the “Why Isocline?” lore graphic from brand brief §3</p>
+    </div>
+  </div>
+  <p class="risk"><b>Risk.</b> A ruled ground can drift toward generic dashboard. The rule: the grid is below the trace’s contrast, confined to the chart region, and the curve + annotations carry every screenshot.</p>
+</section>
+
+<!-- ══════════════════════ III · THE SETTLING ARC ══════════════════════ -->
+<section id="d3">
+  <div class="dir-head">
+    <span class="dir-num">III</span>
+    <h2 style="margin:0">The Settling Arc</h2>
+    <span class="dir-when">Whiston 1721 · Wilcke 1768 · the dip needle</span>
+  </div>
+  <div class="lineage">
+    <p>An isoclinic chart maps where a needle settles: lines of equal inclination. The instrument is the dip circle — a needle that swings, loses energy, and comes to rest on its line. Whiston’s straight-line inclination charts (1719–21) and Wilcke’s 1768 world chart drew the equilibrium of a moving system — exactly what a zero-growth isocline means in the ODE sense the app’s name borrows. This direction turns the level readout into that instrument: a graduated arc beneath the curve, the needle dipping to today’s reading, its recent swings drawn as fading ghosts — “you are here” is where the needle stops.</p>
+  </div>
+  <div class="devices">
+    <div><b>The dip circle.</b> A horizontal zero and graduated arc beneath today’s point; the rose needle dips to the level.</div>
+    <div><b>Oscillation ghosts.</b> The needle’s last few swings, fading — motion that means “finding equilibrium.”</div>
+    <div><b>Strict scope.</b> An arc only ever means “a level reading.” Never nav, never cards, never decoration.</div>
+    <div><b>“Find your line.”</b> The brief’s shortest tagline, which this direction earns literally.</div>
+    <div class="refuse"><b>Refuses:</b> gauges, dials-for-drama, brass, skeuomorphic compasses.</div>
+    <div class="refuse"><b>Refuses:</b> letting a second motif family compete with the Bateman curve.</div>
+  </div>
+
+  <div class="plates">
+    <div class="platewrap draw" id="d3-plate">
+      <div class="phone">
+        <div class="p-notch"><span></span></div>
+        <div class="p-top">
+          <span class="markslot" style="width:22px;height:22px;display:block"></span>
+          <span class="pname">Isocline</span>
+          <span class="ptime">9:41</span>
+        </div>
+        <div class="p-chart" id="d3-phone-chart"></div>
+        <div class="p-readout">
+          <div class="r-line"><span class="r-big" id="d3-rbig"></span><span class="r-unit">pg/mL · settled</span></div>
+          <div class="r-line" style="margin-top:4px"><span class="r-unit" style="font-size:11px">day 24 · the needle has come to rest · next dose in 4 d</span></div>
+        </div>
+        <div class="p-stack">
+          <div class="p-card">
+            <span class="c-mark" style="width:18px;height:18px;display:block"></span>
+            <span><span class="c-label">Next dose</span><div class="c-main">EC 5 mg · Mon Oct 12</div><div class="c-sub">ventrogluteal · L — 82 days rested</div></span>
+          </div>
+          <div class="p-card">
+            <span class="c-mark" style="width:18px;height:18px;display:block"></span>
+            <span><span class="c-label">Steady state</span><div class="c-main">Approaching the line</div><div class="c-sub">Week-to-week slope still settling.</div></span>
+          </div>
+        </div>
+        <div class="p-homebar"><span></span></div>
+      </div>
+      <p class="plate-note">Curve screen · Settling Arc — the readout as dip instrument</p>
+    </div>
+
+    <div class="platewrap draw" id="d3-hero-wrap">
+      <div class="hero-card">
+        <div class="hero-inner">
+          <div id="d3-lockup" style="padding:6px 0 2px"></div>
+          <p style="font-family:var(--font-display);font-weight:600;font-size:28px;margin:10px 0 2px">Find your line.</p>
+          <p class="mono" style="margin:0 0 14px">the isocline — where the needle stops moving</p>
+          <div id="d3-hero-chart" style="border-top:1px solid var(--line);border-bottom:1px solid var(--line)"></div>
+          <p class="mono" style="margin:12px 0 0">after Whiston (1721) · Wilcke (1768) — lines of equal inclination</p>
+        </div>
+      </div>
+      <p class="plate-note">Landing hero · the curve rises into its scale; the tagline is literal</p>
+    </div>
+  </div>
+  <p class="risk"><b>Risk.</b> Arcs are a second motif family. They earn their place only as the level instrument; the day they show up in navigation or a card border, this direction has failed its own scope rule and the arc goes.</p>
+</section>
+
+<!-- ══════════════════════════ COMPARE ══════════════════════════ -->
+<section id="compare">
+  <h2>Compare</h2>
+  <div class="table-wrap">
+    <table>
+      <tr><th></th><th>I · Halleyan Lines</th><th>II · Chart Paper</th><th>III · The Settling Arc</th></tr>
+      <tr><td>Lineage</td><td>First isoline charts, 1701–1768</td><td>Founding of quantitative PK, 1910–1937</td><td>Isoclinic instrument tradition, 1721–1768</td></tr>
+      <tr><td>Core device</td><td>Value written along the line; double rule for steady</td><td>Anchored-solid / modeled-dashed seam on chart paper</td><td>Graduated arc + needle that settles</td></tr>
+      <tr><td>New motifs</td><td>Hairline texture only — no new shapes</td><td>Grid ground — no new shapes</td><td>Arc family — one new shape, strictly scoped</td></tr>
+      <tr><td>App fit</td><td>Quiet chrome; labels and marks carry it</td><td>The whole home screen already wants this</td><td>Level overlay only</td></tr>
+      <tr><td>Landing fit</td><td>Plate framing; wordmark as exhibit</td><td>Doubles as the “Why Isocline?” lore graphic</td><td>“Find your line.” made literal</td></tr>
+      <tr><td>Risk</td><td>Hairlines vanish at small sizes</td><td>Grid drifts generic without discipline</td><td>Motif proliferation</td></tr>
+      <tr><td>One line</td><td>The archive</td><td>The instrument</td><td>The needle</td></tr>
+    </table>
+  </div>
+
+  <div class="verdict">
+    <p><strong>Recommendation.</strong> Take <strong>II · Chart Paper</strong> as the spine — the app’s soul is honest measurement, and the anchored/modeled seam makes that visible in every screenshot. Steal from <strong>I</strong> the value-along-the-line and the double-rule steady: cheap, on-brand, and no competitor has either. Audition <strong>III</strong>’s settle arc only as the Level overlay instrument; if it reads as a gauge in testing, drop it. The landing page builds on II’s hero — the lore graphic the brief already specifies: one phase plane, one highlighted isocline.</p>
+    <p style="margin-top:10px"><strong>Post-review (Oct 2026).</strong> The client chose differently: <strong>I’s palette and simplicity + III’s chart</strong> — merged as <a href="../ISOCLINE_SELECTED_DIRECTION.html">Paper &amp; Instrument</a>, expressed through the app’s ThemeManager OKLCH recipe system rather than static hexes.</p>
+  </div>
+</section>
+
+<footer>
+  <p class="eyebrow" style="margin:0 0 12px">Method &amp; sources</p>
+  <p>Every curve on this page is computed in-page by the same superposition the app runs: one Bateman term per dose (k<sub>a</sub> 1.2 d⁻¹; k<sub>e</sub> = ln2/8.5 d⁻¹ for cypionate’s 8.5-day half-life), scaled so the day-10 draw reads 180 pg/mL. Today’s value is whatever the math says. Halley’s 1701 chart and the “Halleyan lines” / double-line history: Royal Society presentation, June 1701; the term “isogonic” came a century later (Hansteen, c. 1820). Whiston’s inclination charts: 1719–1721, southern England. Wilcke’s <em>Versuch einer magnetischen Neigungscharte</em>: 1768, first near-global isoclinic chart. Bateman: <em>The solution of a system of differential equations occurring in the theory of radioactive transformations</em>, read 21 Feb 1910. Teorell: two 1937 papers, <em>Archives internationales de pharmacodynamie et de thérapie</em> 57:205–240 — the founding of pharmacokinetics. Type: IBM Plex (Abbink / Bold Monday; Plex Serif from Bodoni + Janson, Mono from the Selectric) — the locked identity is already an artifact of design history.</p>
+  <p style="margin-top: 22px;">Siblings: <a href="../ISOCLINE_SELECTED_DIRECTION.html">selected direction — Paper &amp; Instrument</a> · <a href="../BRANDING_AND_POSITIONING.html">brand brief</a> · <a href="ISOCLINE_IDENTITY_EXPLORER.html">identity explorer</a> · <a href="ISOCLINE_IDENTITY_FINAL.html">identity final</a> · <a href="ISOCLINE_TITLE_ANIMATION.html">title animation</a> · <a href="LANDING_PAGE_SKETCH.html">landing sketch (byTime-era)</a></p>
+</footer>
+
+</div>
+
+<script>
+"use strict";
+/* ══════════════ 1 · the model — the real superposition, shared by all plates ══════════════ */
+
+var KA = 1.2;                          // depot absorption, d⁻¹
+var KE = Math.log(2) / 8.5;           // cypionate elimination, d⁻¹
+var DOSES = [0, 7, 14, 21, 28];        // dose days
+var LAB = { day: 10, value: 180 };     // the anchor draw
+var TODAY = 24;
+var TMAX = 30;
+
+function bateman(t) {
+  var c = 0;
+  for (var i = 0; i < DOSES.length; i++) {
+    if (t >= DOSES[i]) {
+      var dt = t - DOSES[i];
+      c += Math.exp(-KE * dt) - Math.exp(-KA * dt);
+    }
+  }
+  return c;
+}
+var SCALE = LAB.value / bateman(LAB.day);   // the draw anchors the model (the app's α)
+function level(t) { return bateman(t) * SCALE; }
+
+/* ══════════════ 2 · shared builders ══════════════ */
+
+var DOT_RATIO = 0.51, HALO_OPACITY = 0.15;
+
+function markSVG(size, colorVar, dotVar) {
+  var r = 50, dot = r * DOT_RATIO;
+  colorVar = colorVar || "var(--accent)"; dotVar = dotVar || "var(--rose)";
+  return '<svg viewBox="-100 -100 200 200" width="' + size + '" height="' + size + '" aria-hidden="true">' +
+    '<circle r="' + r + '" fill="' + colorVar + '" opacity="' + HALO_OPACITY + '"/>' +
+    '<circle r="' + dot.toFixed(1) + '" fill="' + dotVar + '"/></svg>';
+}
+
+var LOCKUP_INNER = '<div class="word">ISOCLINE' +
+  '<svg class="curve" viewBox="0 0 63 26" aria-hidden="true">' +
+  '<path class="c-path animpath" d="M 0 22 C 12 18.5, 22 10.5, 28 7 C 32 5.4, 36 4.9, 41 4.8 L 61 4.8"/>' +
+  '<circle class="c-marker" cx="60" cy="4.8" r="2.6" fill="var(--rose)"/>' +
+  '</svg></div>';
+function lockupHTML(px) {
+  return '<div class="lockup" style="font-size:' + px + 'px">' + LOCKUP_INNER + '</div>';
+}
+
+/* chartSVG — one geometry, three dressings.
+   o: { w,h, padL,padR,padT,padB, yMax, axis, ygrid, field, arc, along, dbl, annot, curveW, hero } */
+function chartSVG(o) {
+  var W = o.w, H = o.h;
+  var padL = o.padL, padR = o.padR, padT = o.padT, padB = o.padB;
+  function X(t) { return padL + (t / TMAX) * (W - padL - padR); }
+  function Y(v) { return H - padB - (v / o.yMax) * (H - padT - padB); }
+
+  var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Modeled estradiol curve: doses every seven days, anchored by one lab draw at day ten, dashed projection beyond it">';
+
+  /* slope field — dashes converge on the curve (brand hero grammar) */
+  if (o.field) {
+    for (var gx = padL + 10; gx <= W - padR - 8; gx += o.field) {
+      var tHere = (gx - padL) / (W - padL - padR) * TMAX;
+      if (tHere < 0.5) continue;
+      var cv = level(tHere), cy = Y(cv);
+      for (var k = -2; k <= 2; k++) {
+        if (k === 0) continue;
+        var gy = cy + k * 34;
+        if (gy < padT + 4 || gy > H - padB - 8) continue;
+        var d = (gy - cy) / (H - padT - padB);
+        var rot = d > 0 ? -Math.abs(d) * 38 : Math.abs(d) * 38;
+        rot = Math.max(-34, Math.min(34, rot));
+        s += '<line class="c-field" x1="-8" x2="8" transform="translate(' + gx.toFixed(0) + ' ' + gy.toFixed(0) + ') rotate(' + rot.toFixed(0) + ')" opacity="' + (0.34 * o.fieldOn).toFixed(2) + '"/>';
+      }
+    }
+  }
+
+  /* y grid (chart paper) */
+  if (o.ygrid) {
+    for (var gv = 0; gv <= o.yMax; gv += 50) {
+      var major = gv % 100 === 0;
+      s += '<line class="gridline' + (major ? ' major' : '') + '" x1="' + padL + '" x2="' + (W - padR) + '" y1="' + Y(gv).toFixed(1) + '" y2="' + Y(gv).toFixed(1) + '"/>';
+      if (gv > 0) s += '<text class="vlab" x="' + (padL - 6) + '" y="' + (Y(gv) + 3).toFixed(1) + '" text-anchor="end" fill="var(--grid-fg)">' + gv + '</text>';
+    }
+  }
+
+  /* axis + dose ticks */
+  s += '<line class="axis" x1="' + padL + '" x2="' + (W - padR) + '" y1="' + (H - padB) + '" y2="' + (H - padB) + '"/>';
+  for (var i = 0; i < DOSES.length; i++) {
+    var dx = X(DOSES[i]);
+    s += '<line class="tick" x1="' + dx.toFixed(1) + '" x2="' + dx.toFixed(1) + '" y1="' + (H - padB) + '" y2="' + (H - padB + 6) + '"/>';
+    s += '<text class="tlab" x="' + dx.toFixed(1) + '" y="' + (H - padB + 17) + '" text-anchor="middle">d' + DOSES[i] + '</text>';
+  }
+  /* next-dose hollow marker at d28 */
+  var nx = X(28), ny = Y(level(28));
+  s += '<circle cx="' + nx.toFixed(1) + '" cy="' + ny.toFixed(1) + '" r="4" fill="none" stroke="var(--accent)" stroke-width="1.6"/>';
+
+  /* the curve — solid to the draw, dashed beyond */
+  var solidPts = [], dashPts = [];
+  for (var t = 0; t <= TMAX + 0.001; t += 0.25) {
+    var px = X(t).toFixed(1), py = Y(level(t)).toFixed(1);
+    var pt = px + ' ' + py;
+    if (t <= LAB.day) solidPts.push((solidPts.length ? 'L ' : 'M ') + pt);
+    if (t >= LAB.day) dashPts.push((dashPts.length ? 'L ' : 'M ') + pt);
+  }
+  var solid = solidPts.join(' ');
+  var dashed = dashPts.join(' ');
+  s += '<path class="c-path' + (o.anim ? ' animpath' : '') + (o.hero ? '' : ' thin') + '" d="' + solid + '"/>';
+  s += '<path class="c-path c-dash' + (o.hero ? '' : ' thin') + '" d="' + dashed + '" stroke-opacity="0.9"/>';
+
+  /* Halleyan extras: double rule for steady + value along the line */
+  if (o.dbl) {
+    var dblPts = [];
+    for (var t2 = 23.5; t2 <= 29.6; t2 += 0.25) dblPts.push((dblPts.length ? 'L ' : 'M ') + X(t2).toFixed(1) + ' ' + (Y(level(t2)) + 3.5).toFixed(1));
+    s += '<path class="c-dbl" d="' + dblPts.join(' ') + '"/>';
+  }
+  if (o.along) {
+    var ax = X(26.4), ay = Y(level(26.4)) - 7;
+    s += '<text class="vlab" transform="translate(' + ax.toFixed(1) + ' ' + ay.toFixed(1) + ') rotate(-1.6)" text-anchor="middle" style="font-size:10.5px;fill:var(--accent);font-weight:500">' + Math.round(level(26.4)) + ' pg/mL</text>';
+  }
+
+  /* the anchor draw */
+  var lx = X(LAB.day), ly = Y(LAB.value);
+  s += '<circle class="labring" cx="' + lx.toFixed(1) + '" cy="' + ly.toFixed(1) + '" r="5"/>';
+  s += '<circle class="labdot" cx="' + lx.toFixed(1) + '" cy="' + ly.toFixed(1) + '" r="2"/>';
+  if (o.annot) {
+    s += '<line class="tick" x1="' + (lx - 6) + '" y1="' + (ly - 10) + '" x2="' + (lx - 30) + '" y2="' + (ly - 34) + '" opacity=".6"/>';
+    s += '<text class="vlab" x="' + (lx - 34) + '" y="' + (ly - 39) + '" text-anchor="end">d10 · 180 · anchor</text>';
+  }
+
+  /* today — the rose marker */
+  var tx = X(TODAY), ty = Y(level(TODAY));
+  s += '<circle class="marker-halo" cx="' + tx.toFixed(1) + '" cy="' + ty.toFixed(1) + '" r="8"/>';
+  s += '<circle class="marker-dot" cx="' + tx.toFixed(1) + '" cy="' + ty.toFixed(1) + '" r="4"/>';
+  s += '<text class="you-label" x="' + (tx + 12).toFixed(1) + '" y="' + (ty - 12).toFixed(1) + '">you are here</text>';
+
+  /* the settle arc (III) — a dip circle beneath the curve: horizontal zero-dip
+     reference through the pivot, graduated quarter-arc, the needle dips by
+     today's level; ghost swings converge on the rest angle */
+  if (o.arc) {
+    var pxv = X(TODAY), pyv = Y(o.yMax * 0.55);
+    var R = Math.min(44, (W - padL - padR) / 3, (H - padT - padB) / 3);
+    var RAD = Math.PI / 180;
+    /* horizontal zero-dip reference, through the pivot */
+    s += '<line class="axis" x1="' + (pxv - 12) + '" y1="' + pyv.toFixed(1) + '" x2="' + (pxv + R + 14) + '" y2="' + pyv.toFixed(1) + '" opacity=".65"/>';
+    /* the graduated quarter-arc: 0° dip (horizontal) to 90° (full scale) */
+    s += '<path class="arcguide" d="M ' + (pxv + R).toFixed(1) + ' ' + pyv.toFixed(1) + ' A ' + R + ' ' + R + ' 0 0 1 ' + pxv.toFixed(1) + ' ' + (pyv + R).toFixed(1) + '"/>';
+    var vals = [0, 75, 150, 225, 300];
+    for (var vi = 0; vi < vals.length; vi++) {
+      var a2 = 90 * (vals[vi] / o.yMax) * RAD;   /* dip angle below horizontal */
+      var x1 = pxv + R * Math.cos(a2), y1 = pyv + R * Math.sin(a2);
+      var x2 = pxv + (R - 5) * Math.cos(a2), y2 = pyv + (R - 5) * Math.sin(a2);
+      s += '<line class="arctick" x1="' + x1.toFixed(1) + '" y1="' + y1.toFixed(1) + '" x2="' + x2.toFixed(1) + '" y2="' + y2.toFixed(1) + '"/>';
+      s += '<text class="vlab" x="' + (pxv + (R + 9) * Math.cos(a2)).toFixed(1) + '" y="' + (pyv + (R + 9) * Math.sin(a2) + 3).toFixed(1) + '" text-anchor="' + (vals[vi] === 300 ? 'middle' : 'start') + '">' + vals[vi] + '</text>';
+    }
+    /* faint drop line: today's point on the curve drives the needle */
+    s += '<line x1="' + tx.toFixed(1) + '" y1="' + (ty + 9).toFixed(1) + '" x2="' + pxv.toFixed(1) + '" y2="' + (pyv - 7).toFixed(1) + '" stroke="var(--muted)" stroke-width="1" stroke-dasharray="2 3" opacity=".5"/>';
+    /* ghost swings — decaying oscillation converging on today (staggered in CSS) */
+    var wobble = [-34, 13, -6, 2];
+    for (var g = 0; g < wobble.length; g++) {
+      var ga = 90 * (level(TODAY) + wobble[g]) / o.yMax * RAD;
+      var gop = (0.14 + g * 0.11).toFixed(2);
+      s += '<line class="needle-ghost ghost g' + (g + 1) + '" style="--gop:' + gop + '" x1="' + pxv.toFixed(1) + '" y1="' + pyv.toFixed(1) + '" x2="' + (pxv + (R - 7) * Math.cos(ga)).toFixed(1) + '" y2="' + (pyv + (R - 7) * Math.sin(ga)).toFixed(1) + '"/>';
+    }
+    /* the needle at rest, reading today */
+    var na = 90 * level(TODAY) / o.yMax * RAD;
+    s += '<line x1="' + pxv.toFixed(1) + '" y1="' + pyv.toFixed(1) + '" x2="' + (pxv + (R - 3) * Math.cos(na)).toFixed(1) + '" y2="' + (pyv + (R - 3) * Math.sin(na)).toFixed(1) + '" stroke="var(--rose)" stroke-width="2.6" stroke-linecap="round"/>';
+    s += '<circle cx="' + pxv.toFixed(1) + '" cy="' + pyv.toFixed(1) + '" r="3.4" fill="var(--rose)"/>';
+  }
+
+  s += '</svg>';
+  return s;
+}
+
+/* ══════════════ 3 · render the plates ══════════════ */
+
+var $ = function (id) { return document.getElementById(id); };
+
+/* the constant */
+$("const-chart").innerHTML = chartSVG({
+  w: 980, h: 250, padL: 44, padR: 30, padT: 16, padB: 30, yMax: 300,
+  axis: true, annot: true, field: 34, fieldOn: 1
+});
+
+/* I — Halleyan phone */
+$("d1-phone-chart").innerHTML = chartSVG({
+  w: 380, h: 320, padL: 30, padR: 26, padT: 30, padB: 30, yMax: 300,
+  field: 26, fieldOn: 0.85, along: true, dbl: true, annot: false
+});
+$("d1-rbig").textContent = Math.round(level(TODAY));
+$("d1-lockup").innerHTML = lockupHTML(52);
+/* marks */
+document.querySelectorAll("#d1 .markslot").forEach(function (el) { el.innerHTML = markSVG(22); });
+document.querySelectorAll("#d1 .c-mark").forEach(function (el) { el.innerHTML = markSVG(18); });
+
+/* II — Chart Paper phone */
+$("d2-phone-chart").innerHTML = chartSVG({
+  w: 380, h: 320, padL: 44, padR: 26, padT: 26, padB: 30, yMax: 300,
+  ygrid: true, annot: true
+});
+$("d2-rbig").textContent = Math.round(level(TODAY));
+$("d2-lockup").innerHTML = markSVG(44) + lockupHTML(40);
+document.querySelectorAll("#d2 .markslot").forEach(function (el) { el.innerHTML = markSVG(22); });
+document.querySelectorAll("#d2 .c-mark").forEach(function (el) { el.innerHTML = markSVG(18); });
+$("d2-hero-chart").innerHTML = chartSVG({
+  w: 620, h: 300, padL: 54, padR: 70, padT: 22, padB: 34, yMax: 300,
+  ygrid: true, annot: true, field: 34, fieldOn: 0.55, hero: true, anim: true
+});
+
+/* III — Settling Arc phone */
+$("d3-phone-chart").innerHTML = chartSVG({
+  w: 380, h: 320, padL: 30, padR: 46, padT: 30, padB: 30, yMax: 300,
+  arc: true
+});
+$("d3-rbig").textContent = Math.round(level(TODAY));
+$("d3-lockup").innerHTML = lockupHTML(44);
+document.querySelectorAll("#d3 .markslot").forEach(function (el) { el.innerHTML = markSVG(22); });
+document.querySelectorAll("#d3 .c-mark").forEach(function (el) { el.innerHTML = markSVG(18); });
+$("d3-hero-chart").innerHTML = chartSVG({
+  w: 620, h: 280, padL: 40, padR: 60, padT: 24, padB: 30, yMax: 300,
+  arc: true, hero: true, anim: true
+});
+
+/* ══════════════ 4 · draw-in + theme ══════════════ */
+
+/* measure animatable paths once, store lengths as CSS vars */
+document.querySelectorAll(".animpath").forEach(function (p) {
+  try {
+    var L = p.getTotalLength();
+    p.style.setProperty("--len", L + 1);
+  } catch (e) { /* hidden or not yet laid out — leave static */ }
+});
+
+var io = new IntersectionObserver(function (entries) {
+  entries.forEach(function (e) {
+    if (e.isIntersecting) { e.target.classList.add("drawn"); io.unobserve(e.target); }
+  });
+}, { threshold: 0.2 });
+document.querySelectorAll(".draw").forEach(function (el) { io.observe(el); });
+
+$("page-theme").addEventListener("click", function (e) {
+  var b = e.target.closest(".pill");
+  if (!b) return;
+  document.querySelectorAll("#page-theme .pill").forEach(function (p) { p.classList.toggle("active", p === b); });
+  if (b.dataset.theme === "auto") delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = b.dataset.theme;
+});
+</script>
+</body>
+</html>

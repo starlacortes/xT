@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>byTime — hormone therapy, honestly tracked</title>
+<meta name="description" content="byTime estimates your hormone levels with a real pharmacokinetic model, tracks injection site rotation, and calibrates to your bloodwork. Built by and for trans people.">
+
+<meta property="og:title" content="byTime — hormone therapy, honestly tracked">
+<meta property="og:description" content="A hormone therapy tracker built on real pharmacokinetic science. Join the waitlist.">
+<meta property="og:type" content="website">
+
+<style>
+  :root {
+    --accent: #E8709A;
+    --accent-secondary: #7E74D8;
+    --bg-deep: #0A0814;
+    --bg-mid: #150F26;
+    --text-primary: #F5F2FA;
+    --text-secondary: rgba(245, 242, 250, 0.62);
+    --text-tertiary: rgba(245, 242, 250, 0.38);
+    --glass: rgba(255, 255, 255, 0.045);
+    --border: rgba(255, 255, 255, 0.12);
+    --radius: 20px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif;
+    background: var(--bg-deep);
+    color: var(--text-primary);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  /* Ambient hormone-curve background */
+  .backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    background:
+      radial-gradient(ellipse 80% 50% at 20% 0%, rgba(232, 112, 154, 0.16), transparent 60%),
+      radial-gradient(ellipse 70% 60% at 85% 25%, rgba(126, 116, 216, 0.14), transparent 65%),
+      radial-gradient(ellipse 100% 40% at 50% 100%, rgba(126, 116, 216, 0.08), transparent 70%),
+      var(--bg-deep);
+    pointer-events: none;
+  }
+
+  .curve-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  .wrap {
+    position: relative;
+    z-index: 1;
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 0 28px;
+  }
+
+  /* ---- Hero ---- */
+  header {
+    padding: 92px 0 0;
+  }
+
+  .wordmark {
+    font-size: 15px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    color: var(--text-secondary);
+    margin-bottom: 68px;
+  }
+  .wordmark b { color: var(--text-primary); font-weight: 600; }
+
+  h1 {
+    font-size: clamp(38px, 7vw, 62px);
+    font-weight: 500;
+    letter-spacing: -0.028em;
+    line-height: 1.08;
+    margin-bottom: 24px;
+  }
+
+  .gradient-text {
+    background: linear-gradient(105deg, var(--accent) 0%, var(--accent-secondary) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .lede {
+    font-size: clamp(17px, 2.4vw, 20px);
+    color: var(--text-secondary);
+    max-width: 54ch;
+    margin-bottom: 44px;
+  }
+
+  /* ---- Waitlist form ---- */
+  .signup {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    max-width: 480px;
+    margin-bottom: 14px;
+  }
+
+  input[type="email"] {
+    flex: 1 1 240px;
+    padding: 15px 18px;
+    font-size: 16px;
+    font-family: inherit;
+    color: var(--text-primary);
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    outline: none;
+    transition: border-color 0.2s ease, background 0.2s ease;
+  }
+  input[type="email"]::placeholder { color: var(--text-tertiary); }
+  input[type="email"]:focus {
+    border-color: rgba(232, 112, 154, 0.55);
+    background: rgba(255, 255, 255, 0.07);
+  }
+
+  button {
+    padding: 15px 26px;
+    font-size: 16px;
+    font-weight: 550;
+    font-family: inherit;
+    color: #fff;
+    background: linear-gradient(100deg, var(--accent), var(--accent-secondary));
+    border: none;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: transform 0.16s ease, opacity 0.16s ease;
+  }
+  button:hover { opacity: 0.92; }
+  button:active { transform: scale(0.975); }
+
+  .fineprint {
+    font-size: 13.5px;
+    color: var(--text-tertiary);
+    margin-bottom: 96px;
+  }
+
+  .success {
+    display: none;
+    padding: 15px 18px;
+    background: rgba(100, 220, 158, 0.09);
+    border: 1px solid rgba(100, 220, 158, 0.28);
+    border-radius: 14px;
+    color: #64DC9E;
+    font-size: 15px;
+    max-width: 480px;
+    margin-bottom: 14px;
+  }
+
+  /* ---- Feature cards ---- */
+  .cards {
+    display: grid;
+    gap: 14px;
+    margin-bottom: 96px;
+  }
+
+  .card {
+    padding: 26px 26px 28px;
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    backdrop-filter: blur(28px);
+    -webkit-backdrop-filter: blur(28px);
+  }
+
+  .card h3 {
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .dot-rose { background: var(--accent); }
+  .dot-violet { background: var(--accent-secondary); }
+  .dot-green { background: #64DC9E; }
+
+  .card p {
+    font-size: 15.5px;
+    color: var(--text-secondary);
+    margin: 0;
+  }
+
+  /* ---- Sections ---- */
+  section { margin-bottom: 90px; }
+
+  h2 {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    margin-bottom: 22px;
+  }
+
+  .prose p {
+    font-size: 16.5px;
+    color: var(--text-secondary);
+    margin-bottom: 16px;
+    max-width: 62ch;
+  }
+  .prose p:last-child { margin-bottom: 0; }
+  .prose strong { color: var(--text-primary); font-weight: 550; }
+
+  /* ---- Footer ---- */
+  footer {
+    padding: 40px 0 60px;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+    font-size: 13.5px;
+    color: var(--text-tertiary);
+  }
+  footer p { margin-bottom: 8px; max-width: 62ch; }
+  footer a { color: var(--text-secondary); text-decoration: none; border-bottom: 1px solid var(--border); }
+  footer a:hover { color: var(--text-primary); }
+
+  @media (max-width: 640px) {
+    header { padding-top: 60px; }
+    .wordmark { margin-bottom: 44px; }
+    .fineprint { margin-bottom: 68px; }
+    .cards, section { margin-bottom: 68px; }
+  }
+</style>
+</head>
+<body>
+<div role="note" style="font:13px/1.5 'IBM Plex Mono',ui-monospace,monospace;background:#251F33;color:#F1E8EA;padding:10px 16px;letter-spacing:.02em">ARCHIVED — historical record, not current guidance. This page is a pre-rename landing page under the old “byTime” name and palette. The landing page will be rebuilt on tokens/isocline.css. Current spec: <a href="../ISOCLINE_DESIGN_SYSTEM.html" style="color:#E8709A">ISOCLINE_DESIGN_SYSTEM.html</a></div>
+
+
+<div class="backdrop"></div>
+<svg class="curve-layer" viewBox="0 0 1200 800" preserveAspectRatio="none" aria-hidden="true">
+  <defs>
+    <linearGradient id="curveStroke" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#E8709A" stop-opacity="0.34"/>
+      <stop offset="100%" stop-color="#7E74D8" stop-opacity="0.34"/>
+    </linearGradient>
+    <linearGradient id="curveFill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#E8709A" stop-opacity="0.11"/>
+      <stop offset="100%" stop-color="#7E74D8" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <!-- Superposed dose curve, evocative of the PK model -->
+  <path d="M0,600 C90,600 130,392 210,392 C290,392 300,540 390,540 C470,540 490,352 580,352 C665,352 675,510 765,510 C845,510 860,330 950,330 C1035,330 1050,486 1140,486 C1175,486 1190,470 1200,464 L1200,800 L0,800 Z" fill="url(#curveFill)"/>
+  <path d="M0,600 C90,600 130,392 210,392 C290,392 300,540 390,540 C470,540 490,352 580,352 C665,352 675,510 765,510 C845,510 860,330 950,330 C1035,330 1050,486 1140,486 C1175,486 1190,470 1200,464" fill="none" stroke="url(#curveStroke)" stroke-width="2"/>
+</svg>
+
+<div class="wrap">
+
+  <header>
+    <div class="wordmark">by<b>Time</b></div>
+
+    <h1>Hormone therapy,<br><span class="gradient-text">honestly tracked.</span></h1>
+
+    <p class="lede">
+      Most tracking apps are a log book with reminders bolted on. byTime models what's
+      actually happening in your body — then tells you honestly how sure it is.
+    </p>
+
+    <form class="signup" id="waitlist">
+      <input type="email" id="email" placeholder="you@email.com" required aria-label="Email address">
+      <button type="submit">Join the waitlist</button>
+    </form>
+    <div class="success" id="success">You're on the list. I'll email you when the beta opens.</div>
+    <p class="fineprint">One email when the beta opens. Nothing else, ever. No tracking on this page.</p>
+  </header>
+
+  <div class="cards">
+    <div class="card">
+      <h3><span class="dot dot-rose"></span>A real pharmacokinetic model</h3>
+      <p>
+        Ester-specific absorption and elimination curves fit against published clinical
+        literature — not a straight line between injections. Cypionate, enanthate,
+        undecanoate, and transdermal routes each behave the way the research says they do.
+      </p>
+    </div>
+
+    <div class="card">
+      <h3><span class="dot dot-violet"></span>Injection sites that actually rotate</h3>
+      <p>
+        An anatomical body map that remembers every site, shows you how long each one has
+        been resting, and steers you toward the ones that are ready. Scar tissue is a real
+        problem; guessing is not a plan.
+      </p>
+    </div>
+
+    <div class="card">
+      <h3><span class="dot dot-green"></span>Calibrated to your bloodwork</h3>
+      <p>
+        Enter a lab result and the model adjusts to <em>you</em> — because the published
+        averages were never going to be your numbers. Labs and doses live on one timeline,
+        so you can see what your protocol change actually did.
+      </p>
+    </div>
+  </div>
+
+  <section class="prose">
+    <h2>Why I'm building this</h2>
+    <p>
+      I built byTime because I needed it and the thing I needed didn't exist. I wanted to know
+      what my levels were doing between blood draws, whether the dip at day six was real or in my
+      head, and whether I was quietly wrecking the same two injection sites over and over.
+    </p>
+    <p>
+      So I read the pharmacokinetics literature and built the model properly. Where the research
+      is solid, byTime is precise. Where it isn't — propionate, for one — <strong>the app says
+      so instead of inventing a number.</strong> That's the whole design principle: you deserve
+      an honest instrument, not a confident-sounding one.
+    </p>
+  </section>
+
+  <section class="prose">
+    <h2>On your data</h2>
+    <p>
+      Your hormone levels, your labs, and your journal are some of the most sensitive data you
+      have, and trans people have every reason to be careful about where it lives. byTime is
+      built to keep your data on your device. It is never sold, never used for advertising, and
+      never shared with anyone.
+    </p>
+    <p>
+      A full plain-language privacy policy will be published here before the beta opens — not
+      buried in a wall of legalese after you've already signed up.
+    </p>
+  </section>
+
+  <footer>
+    <p>
+      <strong>byTime is not a medical device.</strong> It estimates hormone levels from a
+      pharmacokinetic model. It does not diagnose, does not replace bloodwork, and does not
+      tell you how to dose. Talk to your prescriber.
+    </p>
+    <p>Built in Columbus, Ohio. Questions: <a href="mailto:starlacortes@gmail.com">starlacortes@gmail.com</a></p>
+  </footer>
+
+</div>
+
+<script>
+  // Waitlist form — currently a front-end stub.
+  // TO GO LIVE: replace the action below with a real endpoint.
+  //   Easiest options: Formspree, Buttondown, ConvertKit, or Tally.
+  //   e.g. set FORM_ENDPOINT = "https://formspree.io/f/xxxxxxx"
+  const FORM_ENDPOINT = null;
+
+  const form = document.getElementById('waitlist');
+  const success = document.getElementById('success');
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    const email = document.getElementById('email').value;
+
+    if (FORM_ENDPOINT) {
+      try {
+        await fetch(FORM_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify({ email: email })
+        });
+      } catch (err) {
+        console.error('Signup failed', err);
+      }
+    } else {
+      console.log('Waitlist signup (no endpoint configured yet):', email);
+    }
+
+    form.style.display = 'none';
+    success.style.display = 'block';
+  });
+</script>
+
+</body>
+</html>

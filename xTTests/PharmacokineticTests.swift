@@ -1478,26 +1478,27 @@ struct CalibrationFactorTests {
         )
         mgr.doseHistory = [record]
 
-        // Test minimum clamp: measured very low, predicted normal → alpha should clamp at 0.2
+        // Suppressed baseline is 5 pg/mL. A draw just above it yields
+        // α ≈ (6 − 5) / exog, which is far below 0.2 → the factor must clamp to the
+        // 0.2 floor. (A draw *at or below* the floor now declines to calibrate — see
+        // `drawBelowFloorDeclinesToCalibrate` — so the low-clamp case uses a value
+        // strictly above baseline.)
         let lowRecord = BloodTestRecord(
             drawDate: now.addingTimeInterval(3 * 86400),
-            measuredLevel: 1.0,    // very low
+            measuredLevel: 6.0,    // just above the 5 pg/mL endogenous floor
             hormoneType: "Estrogen",
             hoursSinceLastDose: 72
         )
-        mgr.bloodTestHistory = [lowRecord]
-        mgr.selectedMedication = "Estrogen"
-        mgr.selectedAdministrationMethod = "Injectable"
         mgr.computeCalibrationFactor(for: lowRecord)
 
+        #expect(lowRecord.calibrationFactor != nil,
+                "A draw above baseline should produce a calibration factor")
         if let alpha = lowRecord.calibrationFactor {
-            #expect(alpha >= 0.2 - 0.001,
-                    "Alpha should clamp at ≥0.2, got \(alpha)")
-            #expect(alpha <= 5.0 + 0.001,
-                    "Alpha should clamp at ≤5.0, got \(alpha)")
+            #expect(abs(alpha - 0.2) < 0.0001,
+                    "Low α should clamp to 0.2, got \(alpha)")
         }
 
-        // Test maximum clamp: measured very high, predicted normal → alpha should clamp at 5.0
+        // A draw far above the floor yields α ≫ 5 → the factor must clamp at 5.0.
         let highRecord = BloodTestRecord(
             drawDate: now.addingTimeInterval(3 * 86400),
             measuredLevel: 9999.0,  // very high
@@ -1506,11 +1507,11 @@ struct CalibrationFactorTests {
         )
         mgr.computeCalibrationFactor(for: highRecord)
 
+        #expect(highRecord.calibrationFactor != nil,
+                "A high draw should produce a calibration factor")
         if let alpha = highRecord.calibrationFactor {
-            #expect(alpha >= 0.2 - 0.001,
-                    "Alpha should clamp at ≥0.2, got \(alpha)")
-            #expect(alpha <= 5.0 + 0.001,
-                    "Alpha should clamp at ≤5.0, got \(alpha)")
+            #expect(abs(alpha - 5.0) < 0.0001,
+                    "High α should clamp to 5.0, got \(alpha)")
         }
     }
 

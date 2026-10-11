@@ -18,23 +18,20 @@
 \usepackage{xcolor}
 \usepackage{enumitem}
 \usepackage{fancyhdr}
+\makeatletter\def\input@path{{../}{../../design/brand/}}\makeatother
+\usepackage{isocline}   % docs/research/isocline.sty — Isocline Research template
 \usepackage[hidelinks]{hyperref}
 
-\definecolor{warn}{RGB}{160,60,0}
-\definecolor{ok}{RGB}{20,110,60}
-\newcommand{\bad}[1]{\textcolor{warn}{#1}}
-\newcommand{\good}[1]{\textcolor{ok}{#1}}
+% Legacy markup, now neutral: Isocline reports observations, not verdicts.
+\newcommand{\bad}[1]{\obs{#1}}
+\newcommand{\good}[1]{#1}
 \newcommand{\code}[1]{\texttt{\small #1}}
 
-\pagestyle{fancy}
-\fancyhf{}
-\lhead{\small xT User Experience Design}
-\rhead{\small\thepage}
-\renewcommand{\headrulewidth}{0.4pt}
+\isoclineshorttitle{User Experience Design}
 
 \title{\textbf{Progressive Clarity with Honest Constraint:}\\[0.3em]
 \large A Design Framework for Hormone Replacement Therapy\\
-Tracking in the xT Mobile Application}
+Tracking in the Isocline Mobile Application}
 \author{Starla Cortes}
 \date{August 2026}
 
@@ -43,7 +40,7 @@ Tracking in the xT Mobile Application}
 
 \begin{abstract}
 \noindent
-We present the user experience architecture of xT, a mobile application
+We present the user experience architecture of Isocline, a mobile application
 that predicts serum hormone concentration over time from a user's logged
 dose history for gender-affirming hormone replacement therapy (HRT). The
 application translates a pharmacokinetic (PK) model spanning ten
@@ -93,7 +90,7 @@ tools to anticipate where their levels are heading, when a peak or trough
 is expected, or how a missed dose or regimen change will affect the
 trajectory.
 
-xT addresses this gap with a pharmacokinetic model that predicts serum
+Isocline addresses this gap with a pharmacokinetic model that predicts serum
 hormone concentration over time from the user's logged dose history. The
 model itself is described in a companion paper~\cite{xtpk}; this paper
 concerns the \emph{interface} that delivers that model to its users. The
@@ -122,7 +119,7 @@ sits. Clinical reference materials, at the other extreme, present PK
 curves and population tables without translation---accurate but
 illegible to someone who has never seen a biexponential.
 
-xT occupies the space between: it computes a full pharmacokinetic
+Isocline occupies the space between: it computes a full pharmacokinetic
 prediction but presents it as a single number, a single curve, and a
 single status. The complexity is present but gated; detail is available
 on demand but never imposed.
@@ -130,7 +127,7 @@ on demand but never imposed.
 \subsection{The Design Response}
 \label{sec:design_response}
 
-xT's interface is organized around three principles that operate at every
+Isocline's interface is organized around three principles that operate at every
 level of the application, from the 11-step onboarding wizard to the
 ambient constellation visualizations on the Time tab.
 
@@ -192,7 +189,7 @@ fit.
 \label{sec:principles}
 
 This section describes the five principles that govern every design
-decision in xT. They are the UX analog of the PK model's governing
+decision in Isocline. They are the UX analog of the PK model's governing
 equation (Equation~1 in~\cite{xtpk}): every screen, every animation, and
 every string of user-facing text is answerable to at least one of them.
 
@@ -200,7 +197,7 @@ every string of user-facing text is answerable to at least one of them.
 \label{sec:state_facts}
 
 The central tension in any health-tracking application is the line
-between \emph{informing} and \emph{advising}. xT's position is that the
+between \emph{informing} and \emph{advising}. Isocline's position is that the
 line exists, that crossing it requires clinical authority the app does
 not possess, and that the interface must be designed to stay on the
 correct side of it.
@@ -248,7 +245,7 @@ follows three rules:
 
 This principle has a cost: it makes the interface less directive than
 some users might prefer. A user who wants the app to say ``take your dose
-now'' or ``your levels are too high---skip today'' will find xT
+now'' or ``your levels are too high---skip today'' will find Isocline
 reticent. That reticence is intentional. The companion PK
 paper~\cite{xtpk} notes that the model's predictions ``are population
 estimates that should not be used to make dosing decisions without
@@ -259,7 +256,7 @@ instructions.
 \subsection{Progressive Disclosure}
 \label{sec:progressive}
 
-xT practices progressive disclosure on three timescales simultaneously.
+Isocline practices progressive disclosure on three timescales simultaneously.
 
 \textbf{Onboarding (minutes).} The 11-step onboarding wizard
 (Section~\ref{sec:onboarding}) introduces exactly one concept per screen:
@@ -392,7 +389,7 @@ not restrictive.
 \subsection{Accessibility as First Principle}
 \label{sec:accessibility}
 
-xT's motion and typography systems are designed with accessibility
+Isocline's motion and typography systems are designed with accessibility
 constraints as defaults, not as overrides to be applied later.
 
 \textbf{Reduce Motion.} Every animation in the app is gated on
@@ -443,7 +440,7 @@ does, followed by the design rationale.
 \label{sec:onboarding}
 
 The onboarding wizard (\code{OnboardingView.swift}, approximately 1,600
-lines) is the user's first interaction with xT. It is a linear,
+lines) is the user's first interaction with Isocline. It is a linear,
 non-branching sequence of 11 screens (10 for oral routes, which skip the
 injection-site step), each asking exactly one question. A progress bar at
 the top shows position within the sequence. Steps fade in and out with a
@@ -458,7 +455,7 @@ mechanism for the PK engine, and the app cannot function without it.
 
 \subsubsection{Step 0: Welcome}
 
-A single screen with the word ``xT'' in 64pt light weight and the
+A single screen with the word ``Isocline'' in 64pt light weight and the
 subtitle ``Hormone therapy tracking.'' A single button reads ``Begin.''
 There is no account creation, no email collection, no permission request.
 The user is not asked to trust the app before they have seen what it
@@ -1293,7 +1290,7 @@ structural limitations rather than hiding them.
 
 The 11-step onboarding is long relative to consumer app norms. Many
 health apps complete setup in 3--5 screens, accepting that additional
-configuration will happen later in Settings. xT's position is that later
+configuration will happen later in Settings. Isocline's position is that later
 configuration does not happen---users who skip a setting at onboarding
 rarely discover it in Settings, and the app's predictions silently degrade
 as a result.
@@ -1330,13 +1327,13 @@ future iteration might introduce a mode that favors the experienced user.
 Section~\ref{sec:state_facts} describes the principle. This section
 describes its cost. The app's refusal to advise means that a user who
 \emph{wants} directive guidance---``your levels are too high, skip your
-next dose''---will find xT unsatisfying. The app will tell them their
+next dose''---will find Isocline unsatisfying. The app will tell them their
 level, tell them it exceeds a clinical threshold, and state the
 association. It will not tell them what to do about it.
 
 This is the correct design for a consumer health application operating
 without clinical oversight, but it creates a gap between what some users
-expect from a ``health app'' (directive, prescriptive) and what xT
+expect from a ``health app'' (directive, prescriptive) and what Isocline
 provides (informative, associative). Bridging that gap without crossing
 the line into advice is an unsolved design problem; the current interface
 acknowledges it by erring on the side of reticence.
@@ -1407,12 +1404,12 @@ design is simpler but excludes combination therapy users.
 
 \textbf{No Apple Health integration.} The app does not read from or write
 to HealthKit. Blood test results, dose records, and journal entries live
-only within xT. Integration with Apple Health would allow the app to
+only within Isocline. Integration with Apple Health would allow the app to
 pull lab results entered in other apps and push dose records for use by
 other health tools. The barrier is not technical but design-level: Apple
 Health's data model does not have native types for ``intramuscular
 injection of estradiol valerate at 40\,mg/mL concentration,'' so mapping
-xT's rich dose records to HealthKit's simpler types would lose
+Isocline's rich dose records to HealthKit's simpler types would lose
 information.
 
 \textbf{No social or community features.} The app is intentionally
@@ -1452,7 +1449,7 @@ iOS accessibility; the app inherits that limitation.
 \label{sec:confidence}
 
 Analogous to the PK paper's source quality hierarchy (Section~5.3
-of~\cite{xtpk}), design decisions in xT rest on a hierarchy of
+of~\cite{xtpk}), design decisions in Isocline rest on a hierarchy of
 confidence:
 
 \begin{enumerate}[nosep,leftmargin=1.4em]
@@ -1482,7 +1479,7 @@ confidence:
 \subsection{Limitation Surfacing}
 \label{sec:limitation_surfacing}
 
-A recurring question in the design of xT is: \emph{which} of the app's
+A recurring question in the design of Isocline is: \emph{which} of the app's
 known limitations should be surfaced to the user, and \emph{how}? The PK
 paper documents structural limitations in detail (Sections~5.1--5.5
 of~\cite{xtpk}), but the consumer interface does not present these
@@ -1516,7 +1513,7 @@ does not should not have caveats forced into their daily experience.
 \section{Conclusion}
 \label{sec:conclusion}
 
-We have presented the user experience architecture of xT, a mobile
+We have presented the user experience architecture of Isocline, a mobile
 application for hormone replacement therapy monitoring. The interface
 rests on three principles---progressive disclosure, honest presentation,
 and per-user personalization---that operate at every level of the
@@ -1570,7 +1567,7 @@ model, localization, and graph accessibility---is stated plainly.
 
 The most important property of a health-tracking interface, in our view,
 is the same as the most important property of the pharmacokinetic model
-that drives it: \textbf{honesty about what it can and cannot say.} xT's
+that drives it: \textbf{honesty about what it can and cannot say.} Isocline's
 interface is designed to be honest. It reports estimates as estimates,
 not as facts. It compares only against user-set targets, not against its
 own population defaults. It states clinical associations without
@@ -1596,7 +1593,7 @@ confirmation.}
 \bibitem{xtpk}
 Cortes S.\ (2026). ``Superposed Bateman Biexponentials with
 Clearance-Constrained Scaling and Per-User Calibration: A Pharmacokinetic
-Framework for Hormone Replacement Therapy Monitoring in the xT Mobile
+Framework for Hormone Replacement Therapy Monitoring in the Isocline Mobile
 Application.'' August 2026.
 
 \bibitem{hembree2017}

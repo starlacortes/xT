@@ -140,7 +140,6 @@ struct ThemePickerView: View {
             Circle()
                 .fill(.white)
                 .frame(width: thumbSize, height: thumbSize)
-                .themeShadow(Theme.Shadows.floating)
             Circle()
                 .fill(Theme.Colors.accent)
                 .frame(width: thumbSize - 10, height: thumbSize - 10)

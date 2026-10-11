@@ -15,11 +15,14 @@ struct JournalComposerView: View {
     @State private var text: String = ""
     @State private var selectedMood: Mood = .neutral
     @State private var selectedSymptoms: [Symptom] = []
+    @State private var showingDiscardDialog = false
     @FocusState private var textFocused: Bool
 
     private var canSave: Bool {
         !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
+
+    private var hasEnteredText: Bool { canSave }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -145,9 +148,15 @@ struct JournalComposerView: View {
 
             // Liquid glass buttons above keyboard
             HStack(spacing: 16) {
-                Button { dismiss() } label: {
+                Button {
+                    if hasEnteredText {
+                        showingDiscardDialog = true
+                    } else {
+                        dismiss()
+                    }
+                } label: {
                     Image(systemName: "xmark")
-                        .font(.title3.weight(.semibold))
+                        .font(Theme.Fonts.title3.weight(.semibold))
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
@@ -157,7 +166,7 @@ struct JournalComposerView: View {
 
                 Button { saveAndDismiss() } label: {
                     Image(systemName: "checkmark")
-                        .font(.title3.weight(.semibold))
+                        .font(Theme.Fonts.title3.weight(.semibold))
                         .foregroundStyle(canSave ? .white : .secondary)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
@@ -176,6 +185,20 @@ struct JournalComposerView: View {
         .onAppear {
             textFocused = true
         }
+        .confirmationDialog(
+            "Discard entry?",
+            isPresented: $showingDiscardDialog,
+            titleVisibility: .visible
+        ) {
+            Button("Yes", role: .destructive) { dismiss() }
+            Button("No", role: .cancel) {}
+        } message: {
+            Text("Your entry will not be saved.")
+        }
+        .interactiveDismissDisabled(hasEnteredText)
+        .background(SheetDismissAttemptObserver {
+            showingDiscardDialog = true
+        })
     }
 
     private var edgeFadeGradient: some View {
@@ -196,10 +219,10 @@ struct JournalComposerView: View {
                 .font(.system(size: 14))
                 .foregroundStyle(Theme.Colors.Time.mind.base)
             Text("\(AppNumberFormatters.hormoneLevel.string(level)) \(unit)")
-                .font(.subheadline.weight(.medium))
+                .font(Theme.Fonts.subheadline.weight(.medium))
                 .foregroundStyle(Color(lightHex: "#3C3489", darkHex: "#ABA7F0"))
             Text(name)
-                .font(.caption2.weight(.medium))
+                .font(Theme.Fonts.caption2.weight(.medium))
                 .foregroundStyle(rangeColor(for: name))
                 .padding(.horizontal, 8)
                 .padding(.vertical, 3)
@@ -236,6 +259,57 @@ struct JournalComposerView: View {
         )
         journalManager.addEntry(entry)
         dismiss()
+    }
+}
+
+// MARK: - Sheet Dismiss Attempt Observer
+
+/// Bridges UIKit's "swipe attempt on a non-dismissable sheet" into SwiftUI.
+///
+/// SwiftUI's `interactiveDismissDisabled(_:)` has no attempt callback. When it
+/// blocks a swipe, UIKit instead calls `presentationControllerDidAttemptToDismiss`
+/// on the sheet's presentation delegate. This invisible controller view takes
+/// over as delegate to catch that call, forwarding every other delegate method
+/// to SwiftUI's original delegate so the sheet machinery is unaffected.
+private struct SheetDismissAttemptObserver: UIViewControllerRepresentable {
+    let onAttempt: () -> Void
+
+    func makeUIViewController(context: Context) -> ObserverViewController {
+        ObserverViewController()
+    }
+
+    func updateUIViewController(_ viewController: ObserverViewController, context: Context) {
+        viewController.onAttempt = onAttempt
+    }
+
+    final class ObserverViewController: UIViewController, UIAdaptivePresentationControllerDelegate {
+        var onAttempt: (() -> Void)?
+        private weak var originalDelegate: NSObject?
+
+        override func viewDidAppear(_ animated: Bool) {
+            super.viewDidAppear(animated)
+            guard let presentationController else { return }
+            originalDelegate = presentationController.delegate as? NSObject
+            presentationController.delegate = self
+        }
+
+        func presentationControllerDidAttemptToDismiss(_ presentationController: UIPresentationController) {
+            onAttempt?()
+        }
+
+        // MARK: Forwarding to SwiftUI's original delegate
+
+        override func responds(to aSelector: Selector!) -> Bool {
+            super.responds(to: aSelector)
+                || originalDelegate?.responds(to: aSelector) == true
+        }
+
+        override func forwardingTarget(for aSelector: Selector!) -> Any? {
+            if let originalDelegate, originalDelegate.responds(to: aSelector) {
+                return originalDelegate
+            }
+            return super.forwardingTarget(for: aSelector)
+        }
     }
 }
 

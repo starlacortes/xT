@@ -5,6 +5,15 @@ Status: **Draft**
 Owner: starla
 Last updated: 2026-08-19
 
+> **Update 2026-10-11: calibration display gating superseded.** The Isocline redesign decided to
+> **always show the curve**, calibrated or not (decision X8 in
+> [`isocline-app-transition.md`](isocline-app-transition.md)). Honesty is carried by a mono
+> provenance line under the readout (`MODELED · NO LABS YET` / `MODELED · CALIBRATED TO YOUR LAB
+> OF 4 MAR`) instead of by hiding output. So §3.1's `isCalibrationAnchored` is no longer a
+> display gate, and the §6.1 suppressions and §7.1 State 1 card don't apply. The "log a blood
+> test" prompt can still exist as an invitation. The entitlement axis (§3.2 onward) and the
+> safety exemption (§6.3) are unaffected.
+
 ## 1. Background & motivation
 
 Two intertwined problems this plan addresses:

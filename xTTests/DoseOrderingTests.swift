@@ -257,8 +257,11 @@ final class DoseOrderingTests: XCTestCase {
 
         let last = daysAgo(3)
         let next = manager.calculateNextDoseDate(from: last)
-        let gapDays = next.timeIntervalSince(last) / 86400.0
-        XCTAssertEqual(gapDays, 70, accuracy: 0.01,
+        // Measured in calendar days, not elapsed time: a 70-day window that crosses a
+        // DST boundary is 70 days ± 1 hour of absolute time, and the calendar-day
+        // reading is the user-facing contract ("same local time, 10 weeks later").
+        let gapDays = Calendar.current.dateComponents([.day], from: last, to: next).day
+        XCTAssertEqual(gapDays, 70,
                        "the TU due date should be 10 weeks after the last dose")
     }
 

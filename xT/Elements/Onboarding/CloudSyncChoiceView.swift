@@ -30,7 +30,7 @@ struct CloudSyncChoiceView: View {
                         .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.95))
 
                     Text("Keep your doses, journal, and settings in sync across all your devices using iCloud, or store everything locally on this device only.")
-                        .font(.body)
+                        .font(Theme.Fonts.body)
                         .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.7))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 40)
@@ -44,7 +44,7 @@ struct CloudSyncChoiceView: View {
                         onChoice(true)
                     } label: {
                         Text("Sync with iCloud")
-                            .font(.headline)
+                            .font(Theme.Fonts.headline)
                             .fontWeight(.medium)
                             .foregroundStyle(Theme.Colors.OnAccent.primary)
                             .frame(maxWidth: .infinity)
@@ -60,7 +60,7 @@ struct CloudSyncChoiceView: View {
                         onChoice(false)
                     } label: {
                         Text("Keep on device only")
-                            .font(.body)
+                            .font(Theme.Fonts.body)
                             .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.7))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 16)

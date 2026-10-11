@@ -18,24 +18,21 @@
 \usepackage{xcolor}
 \usepackage{enumitem}
 \usepackage{fancyhdr}
+\makeatletter\def\input@path{{../}{../../design/brand/}}\makeatother
+\usepackage{isocline}   % docs/research/isocline.sty — Isocline Research template
 \usepackage[hidelinks]{hyperref}
 
-\definecolor{warn}{RGB}{160,60,0}
-\definecolor{ok}{RGB}{20,110,60}
-\newcommand{\bad}[1]{\textcolor{warn}{#1}}
-\newcommand{\good}[1]{\textcolor{ok}{#1}}
+% Legacy markup, now neutral: Isocline reports observations, not verdicts.
+\newcommand{\bad}[1]{\obs{#1}}
+\newcommand{\good}[1]{#1}
 \newcommand{\code}[1]{\texttt{\small #1}}
 
-\pagestyle{fancy}
-\fancyhf{}
-\lhead{\small xT Pharmacokinetic Model}
-\rhead{\small\thepage}
-\renewcommand{\headrulewidth}{0.4pt}
+\isoclineshorttitle{Pharmacokinetic Model}
 
 \title{\textbf{Superposed Bateman Biexponentials with Clearance-Constrained\\
 Scaling and Per-User Calibration:}\\[0.3em]
 \large A Pharmacokinetic Framework for Hormone Replacement\\
-Therapy Monitoring in the xT Mobile Application}
+Therapy Monitoring in the Isocline Mobile Application}
 \author{Starla Cortes}
 \date{August 2026}
 
@@ -44,7 +41,7 @@ Therapy Monitoring in the xT Mobile Application}
 
 \begin{abstract}
 \noindent
-We present the pharmacokinetic (PK) model underlying xT, a mobile
+We present the pharmacokinetic (PK) model underlying Isocline, a mobile
 application that predicts serum hormone concentration over time from a
 user's logged dose history for gender-affirming hormone replacement
 therapy (HRT). The model employs a one-compartment Bateman
@@ -75,9 +72,22 @@ quantify structural limitations: testosterone undecanoate's peak/trough
 ratio (8.1$\times$ modeled vs.\ 1.8$\times$ observed, a source conflict
 rather than a structural deficiency), transdermal intraday ripple
 ($C_{\max}/C_{\min} \approx 1.05$ vs.\ 2.24 observed), and oral
-testosterone peak fluctuation under-prediction. The model is
-honest about where its constants are primary-sourced, where they are
-secondary, and where they remain uncalibrated.
+testosterone peak fluctuation under-prediction.
+
+This revision additionally reports three defects found by re-deriving the
+model from its sources rather than from its own prior statements. The
+endogenous baseline is keyed to the hormone being tracked rather than to the
+user's gonads, over-stating a transmasculine user's endogenous testosterone
+by more than an order of magnitude at treatment onset. The per-user
+calibration factor is derived against total predicted level but applied to
+the exogenous term alone, so it fails to reproduce the measurement that
+produced it---by up to 20\% in exactly the regime where the baseline is
+largest, and where the two defects compound. And the spironolactone
+clearance adjustment has no supporting human pharmacokinetic study and is
+applied to the absorption exponential rather than the disposition one. All
+three are stated with their magnitudes rather than repaired in the figures.
+The model is honest about where its constants are primary-sourced, where
+they are secondary, and where they remain uncalibrated.
 
 \textbf{Keywords:} pharmacokinetics, Bateman function, hormone
 replacement therapy, testosterone cypionate, estradiol valerate,
@@ -101,7 +111,7 @@ providers have limited tools to anticipate where levels are heading,
 when a peak or trough is expected, or how a missed dose or regimen
 change will affect the trajectory.
 
-xT is a mobile application that addresses this gap by predicting serum
+Isocline is a mobile application that addresses this gap by predicting serum
 hormone concentration over time from the user's logged dose history. It
 implements a pharmacokinetic model that computes, for any point in time,
 the superposed contribution of every dose the user has taken, plus a
@@ -157,7 +167,7 @@ every derivation is given in enough detail to reproduce.
 \subsection{System overview}
 \label{sec:overview}
 
-xT predicts serum hormone concentration over time from a user's logged
+Isocline predicts serum hormone concentration over time from a user's logged
 dose history. Two medication classes are supported, each across three
 administration routes, yielding ten medication/route/form combinations
 (Table~\ref{tab:scope}).
@@ -285,7 +295,7 @@ governs the entire inter-dose peak-to-trough decay, while the parameter
 controlling the fast exponential sets $k_e$ and primarily determines
 where the peak falls.
 
-In xT's parameterization, the field \code{halfLifeDays} sets $k_a = \ln
+In Isocline's parameterization, the field \code{halfLifeDays} sets $k_a = \ln
 2 / t_{1/2,\text{term}}$ (the slow rate), and
 \code{eliminationHalfLifeHours} sets $k_e = \ln 2 / (t_{1/2,\text{elim}}
 / 24)$ (the fast rate). The naming is historical; the doc comments in
@@ -395,7 +405,7 @@ The commonly quoted TC half-life is around a week. Bi et al.\ address
 this discrepancy directly: noncompartmental analysis of their own data
 yields 6.9\,d, and their model yields 6.87\,d \emph{when endogenous
 secretion is assumed to be zero}---but 4.05\,d once endogenous production
-is accounted for. Because xT models endogenous production separately as
+is accounted for. Because Isocline models endogenous production separately as
 $C_{\text{base}}(t)$, the exogenous-only figure is the one that belongs
 in the ester constant. Bi's own median post-hoc estimate of 4.05\,d
 agrees with the encoded 3.839\,d to 5.2\%.
@@ -502,13 +512,18 @@ $F = 1.0$ for all.}
 \midrule
 TC & 100\,mg q7d   & 550 & 736 & 321 \\
 TE & 100\,mg q7d   & 566 & 703 & 405 \\
-TP & 50\,mg q2d    & 1151 & 1743 & 760 \\
+TP & 50\,mg q2d    & 1151 & 1743 & 580 \\
 TU & 1000\,mg q70d & 496 & 1045 & 129 \\
 \bottomrule
 \end{tabular}
 \caption{Steady-state predictions (exogenous only, ng/dL) at typical
 regimens. $C_{\max}$ and $C_{\min}$ are the peak and trough of the
-steady-state oscillation.}
+steady-state oscillation. Each row was recomputed for this revision both by
+forward simulation to steady state and, independently, by summing the
+analytic tail $\sum_{k\ge 1} C_i(k\tau)$; the two agree to four significant
+figures. The TP trough previously printed here (760\,ng/dL) did not
+reproduce under either method and has been corrected to 580, which moves
+TP's steady-state peak/trough ratio from $2.29\times$ to $3.00\times$.}
 \label{tab:steady_state}
 \end{table}
 
@@ -531,6 +546,30 @@ $1.7 \pm 0.9$\,d (all subjects peaked within 3 days). The $t_{\max}$
 and the $k_a$ values were estimated in different subsets (Tmax in all
 10, $k_a$ in the 4 where it was estimable), so this is a genuine
 cross-check rather than a round trip.
+
+\paragraph{The mean of the estimable four is a censored mean.} Ichihara's
+six remaining subjects were not missing at random: their absorption rate
+constants were reported as exceeding 10\,day$^{-1}$, which is precisely why
+they could not be estimated from the available sampling and were instead
+analysed under an intravenous model. Averaging only the four estimable
+values---all of which fall below 3.2\,day$^{-1}$---selects the slow tail of
+the distribution and biases the mean downward by an amount the paper does
+not let us quantify. Had the censored subjects been included at anything
+near their reported lower bound, the population mean would be several times
+1.96\,day$^{-1}$.
+
+We keep 1.9625\,day$^{-1}$ anyway, for a reason worth stating rather than
+burying: a $k_a$ of 10\,day$^{-1}$ paired with the reported 6.6\,d terminal
+half-life puts $t_{\max}$ at 0.46\,d, and no subject in the study peaked
+that early---the observed mean was $1.7 \pm 0.9$\,d across all ten. The
+censored subjects' fitted rates and the cohort's own observed $t_{\max}$
+cannot both be right. This is a source-internal conflict of the same species
+as the TU one (Section~\ref{sec:tu_limitation}), and the constant is chosen
+to match the observable ($t_{\max}$) rather than the fitted parameter. Note
+also that $S$ is pinned to $k_e$ by the clearance identity, so a future
+revision of $k_a$ must move $S$ with it; total exposure
+($\mathrm{AUC} = D^{\text{eff}} S / k_e$) is invariant under that pair, and
+only the curve's shape is at stake.
 
 \paragraph{Magnitude discrepancy.} A single 250\,mg dose gives 881\,ng/dL
 exogenous here against Ichihara's observed $C_{\max}$ of $2940 \pm
@@ -667,6 +706,29 @@ close as the model permits to the reported 2.06. The resulting constants
 are $k_a = 7.702$\,day$^{-1}$ ($t_{1/2} = 0.09$\,d) and $k_e =
 8.305$\,day$^{-1}$ ($t_{1/2} = 2.003$\,h), with $S = 13.57$.
 
+\subsection{The basal offset used in the testosterone comparisons}
+\label{sec:basal_offset}
+
+Several testosterone rows in Sections~\ref{sec:results} and
+\ref{sec:personas} report a total level rather than an exogenous one, formed
+by adding a flat 240\,ng/dL basal to the model's exogenous output. That
+figure deserves a name, because it is not something the model computes.
+
+It is the residual endogenous testosterone of Bi et al.'s cohort: healthy
+eugonadal men whose own gonadal production is partially, not completely,
+suppressed by exogenous cypionate. It is the right offset for comparing
+model output against Bi's \emph{total}-testosterone observations, which is
+the only place it is load-bearing (Table~\ref{tab:out_of_sample}).
+
+It is \emph{not} what the app's own baseline model
+(Section~\ref{sec:baseline}) produces for any user at any time. That model
+runs from 600\,ng/dL to a suppressed floor and passes through 240 only
+transiently, roughly 1.5 weeks into the taper. Where the persona table
+(Section~\ref{sec:personas}) carries the same 240 offset, it should be read
+as ``the Bi-cohort comparison basis,'' not as the level the application
+would display for that persona. Section~\ref{sec:baseline_limitation} takes
+up the more serious problem this exposes.
+
 \subsection{Dynamic endogenous baseline}
 \label{sec:baseline}
 
@@ -686,6 +748,19 @@ suppressed baseline (5\,pg/mL for estradiol, 15\,ng/dL for
 testosterone). The factor 2.5 in the exponent ensures the suppression
 reaches $\sim$92\% at $p = 1$. After 104 weeks (2 years), the baseline
 is treated as fully suppressed.
+
+\paragraph{The 92\% plateau is a discontinuity, not an asymptote.} Because
+$p(t)$ is clamped at 1, Equation~\ref{eq:baseline} stops decaying once
+$t_{\text{scale}}$ is reached and holds at $1 - e^{-2.5} = 91.8\%$ of the
+way down---63\,ng/dL for testosterone, 12.8\,pg/mL for estradiol---for the
+remainder of the first two years. The 104-week rule then drops it to the
+suppressed value in a single step. A user therefore carries a fixed
+48\,ng/dL (or 7.8\,pg/mL) of modeled endogenous hormone for two years and
+loses it overnight on the anniversary. Nothing physiological corresponds to
+that step. Removing the clamp on $p(t)$---letting the exponential continue
+to converge---makes the taper continuous and renders the 104-week rule a
+no-op, since $e^{-2.5 \cdot 26} \approx 0$. This is a defect in the
+implementation, recorded here rather than silently smoothed in the figures.
 
 \paragraph{Anti-androgen override.} When the user reports taking an
 anti-androgen (spironolactone, cyproterone, or a GnRH agonist), the
@@ -711,10 +786,50 @@ The factor is clamped to $[0.2, 5.0]$ to exclude clinically implausible
 values. When multiple calibrated blood tests exist, the most recent one
 for the currently selected hormone type is used.
 
-\subsubsection{Application}
+\subsubsection{Application, and a round-trip defect}
 
-$\alpha$ is applied as a multiplicative scalar to the entire model
-output (Equation~\ref{eq:superposition}). This is a pragmatic per-user
+Equation~\ref{eq:superposition} as written applies $\alpha$ to the entire
+model output, baseline included. The implementation does not: it computes
+\code{baseLevel + cumulativeSpike * alpha}, scaling only the exogenous
+sum. The two disagree, and the disagreement breaks the definition of
+$\alpha$ in Equation~\ref{eq:alpha}.
+
+$\alpha$ is derived as $C_{\text{measured}} / C_{\text{predicted}}$ where
+$C_{\text{predicted}} = C_{\text{base}} + C_{\text{exo}}$, but is then
+applied to $C_{\text{exo}}$ alone. Re-evaluating the model at the draw
+instant therefore returns
+\[
+C_{\text{base}} + \alpha\, C_{\text{exo}}
+= C_{\text{measured}} + (1-\alpha)\,C_{\text{base}}
+\]
+rather than $C_{\text{measured}}$. The residual $(1-\alpha) C_{\text{base}}$
+is zero only when $\alpha = 1$ or the baseline is negligible. It is
+negligible for a fully suppressed user ($C_{\text{base}} = 5$\,pg/mL or
+15\,ng/dL, giving well under 1\%), and it is not negligible early in
+therapy, where the baseline is largest: at $C_{\text{base}} = 328$\,ng/dL
+and $C_{\text{exo}} = 400$\,ng/dL, a measured 500\,ng/dL yields
+$\alpha = 0.687$ and a post-calibration prediction of 603\,ng/dL---a
+$+20.5\%$ error at the very point the calibration was supposed to pin down.
+The error is always in the direction that resists the correction: a user
+whose true levels run below the population model stays over-predicted.
+
+Of the two readings, scaling $C_{\text{exo}}$ alone is the physiologically
+defensible one---$\alpha$ corrects the drug model, and the user's adrenal
+and gonadal output is not a function of their injection technique or
+depot absorption. The fix is therefore to the derivation rather than to the
+application:
+\begin{equation}
+\alpha = \mathrm{clamp}\!\left(\frac{C_{\text{measured}} - C_{\text{base}}(t_{\text{draw}})}{C_{\text{exo}}(t_{\text{draw}})},\; 0.2,\; 5.0\right)
+\label{eq:alpha_corrected}
+\end{equation}
+which round-trips exactly, and which requires a guard for
+$C_{\text{measured}} \le C_{\text{base}}$---a draw at or below the modeled
+endogenous floor, where no positive $\alpha$ can reconcile the two and the
+honest response is to decline to calibrate rather than to clamp to 0.2.
+Equation~\ref{eq:superposition} is retained above as the intended
+semantics; Equation~\ref{eq:alpha_corrected} is what makes it true.
+
+Subject to that correction, $\alpha$ is a pragmatic per-user
 analog of the inter-individual variability (IIV) terms in a formal
 mixed-effects population-PK model. The published literature reports
 substantial between-subject variability: Ichihara et al.~\cite{ichihara2020}
@@ -733,22 +848,56 @@ would occur if the filter were absent.
 \subsection{Drug interactions: spironolactone}
 \label{sec:spiro}
 
-Spironolactone is a known CYP3A4 inducer that can modestly increase
-estradiol clearance. When the user has opted in to the spironolactone
-clearance adjustment, the elimination rate $k_e$ for estrogen doses is
-scaled by a factor of 1.15 (15\% faster clearance):
+The application offers an opt-in adjustment, off by default, that scales
+$k_e$ for estradiol doses by 1.15 when the user reports taking
+spironolactone. It was introduced on the reasoning that spironolactone
+induces CYP3A4 and thereby modestly accelerates estradiol clearance. That
+reasoning does not survive review, and this section is rewritten to say so
+plainly.
 \begin{equation}
 k_e' = k_e \cdot 1.15
 \label{eq:spiro}
 \end{equation}
 This adjustment is applied at the PK parameter resolution level, before
 the Bateman function is evaluated. It is not applied to testosterone
-doses, as the interaction is specific to estradiol metabolism.
+doses. Because $t_{\max}$ depends on $k_e$ (Equation~\ref{eq:tmax}), it also
+shifts the modeled peak slightly earlier. The ester-level $t_{\max}$ values
+in Table~\ref{tab:tmax} are computed without it.
 
-Note that because $t_{\max}$ depends on $k_e$
-(Equation~\ref{eq:tmax}), this adjustment also shifts the peak time
-slightly earlier. The ester-level $t_{\max}$ values reported in
-Table~\ref{tab:tmax} are computed without the spironolactone adjustment.
+\paragraph{The magnitude is unsourced.} No primary human study establishes a
+15\% increase in estradiol clearance under spironolactone. The 1.15 is a
+round number chosen from the midpoint of an informal ``10--20\%'' range that
+this paper previously attributed to ``typical estimates'' without a
+citation, and none can be supplied. The one published study that measured
+estradiol pharmacokinetics directly in transfeminine people taking
+spironolactone---Cattani et al.~\cite{cattani2023}, in Brazilian transgender
+women---reports estradiol exposure unchanged by the concomitant medication
+it was testing (AUC geometric mean ratio 0.89, 90\% CI 0.76--1.04; trough
+ratio 1.06, 90\% CI 0.94--1.20) and identifies no spironolactone-driven
+effect on estradiol. The best available evidence is therefore consistent
+with no interaction of the modeled size.
+
+\paragraph{The mechanism is applied to the wrong exponential.} Under the
+flip-flop convention this model adopts (Section~\ref{sec:flipflop}), $k_e$
+for a depot ester is the \emph{fast} rate, which for an oil depot is
+absorption from the vehicle---not hepatic clearance. Clearance governs the
+slow exponential, which the app stores in \code{halfLifeDays}. Scaling
+$k_e$ does reduce exposure in roughly the right direction, because
+$\mathrm{AUC}/\text{dose} = D^{\text{eff}} S / k_e$ and $S$ is held fixed,
+but it does so by making the depot release faster while leaving the terminal
+slope untouched. A genuine clearance increase would steepen the terminal
+decay and deepen the trough; this adjustment does neither. The effect on the
+curve's \emph{shape} is therefore wrong even where its effect on total
+exposure is arguably right, and the two cannot be separated in the current
+parameterization.
+
+\paragraph{Disposition.} The adjustment is retained, because removing a
+user-facing toggle is a product decision rather than a modelling one, but it
+is demoted to the bottom tier of the source hierarchy
+(Section~\ref{sec:source_quality}) alongside testosterone propionate, and it
+should not be presented in the interface as a fact about spironolactone. It
+is an opt-in sensitivity knob whose default---off---is the position the
+evidence supports.
 
 \subsection{Aromatization estimation}
 \label{sec:aromatization}
@@ -757,13 +906,34 @@ For trans men on testosterone therapy, a small fraction of circulating
 testosterone is converted to estradiol via aromatase. The model
 estimates this conversion as:
 \begin{equation}
-E_2^{\text{arom}} = 0.002 \times T_{\text{ng/dL}} \quad \text{(pg/mL)}
+E_2^{\text{arom}} = f_{\text{arom}} \cdot 10 \cdot T_{\text{ng/dL}}
+                  = 0.02 \times T_{\text{ng/dL}} \quad \text{(pg/mL)}
 \label{eq:aromatization}
 \end{equation}
-i.e., a 0.2\% conversion rate. This helps trans men monitor whether
-their estradiol is within the male reference range (10--40\,pg/mL). The
-conversion factor is a population average; individual aromatase activity
-varies with body composition, age, and genetic factors.
+where $f_{\text{arom}} = 0.002$ is the modeled mass fraction of circulating
+testosterone converted to estradiol, and the factor of 10 is the unit
+conversion $1\,\text{ng/dL} = 10\,\text{pg/mL}$. Both hormones are expressed
+in mass-per-volume, so the fraction applies to concentrations directly; the
+factor of 10 carries ng/dL into pg/mL and is not optional.
+
+\paragraph{Correction.} Earlier revisions of this paper stated
+Equation~\ref{eq:aromatization} as $E_2 = 0.002 \times T_{\text{ng/dL}}$,
+omitting the unit conversion and understating the implemented estimate by a
+factor of ten. The implementation
+(\code{estimatedE2FromTestosterone}) has always carried the $\times 10$; the
+paper was wrong, not the code.
+
+\paragraph{Sanity check.} At a mid-cycle $T$ of 600\,ng/dL the estimate is
+12\,pg/mL, at the low end of the quoted male reference range
+(10--40\,pg/mL); at 900\,ng/dL it is 18\,pg/mL. The serum $E_2/T$ ratio in
+eugonadal men is nearer 0.5\% on a mass basis, so $f_{\text{arom}} = 0.002$
+is conservative by roughly a factor of two. It is retained rather than
+retuned because no primary source in this model's hierarchy fixes it, and
+because a low estimate fails safe for the use it is put to---telling a trans
+man whether his estradiol is running \emph{high}. The conversion factor is a
+population average; individual aromatase activity varies with body
+composition, age, and genetic factors, and it is not a substitute for a
+measured $E_2$.
 
 \subsection{Chart window and sampling resolution}
 \label{sec:chart_window}
@@ -983,6 +1153,14 @@ Nadia, 35 & 5\,mg EC q10d --- an interval nobody studied
 \bottomrule
 \end{longtable}
 
+\paragraph{Basal offset.} The testosterone personas above quote totals
+formed by adding the 240\,ng/dL Bi-cohort basal
+(Section~\ref{sec:basal_offset}) to exogenous output. That offset is a
+comparison basis, not a level the application would display for a
+transmasculine user; see Section~\ref{sec:baseline_limitation}. The
+estradiol personas quote exogenous figures without an offset. Reading the
+two columns as like-for-like would be a mistake.
+
 All eight land inside their clinical reference bands. The persona suite
 tests properties that section-level accuracy tables cannot: linear
 scaling (Maya), superposition across regimen changes (Devon), route
@@ -1077,6 +1255,88 @@ is wrong. The best available source is a textbook chapter~\cite{behre2004}
 showing a simulated curve, not fitted rate constants. A fabricated fit
 would be worse than the honest flag.
 
+\subsubsection{The endogenous baseline is keyed to the wrong variable}
+\label{sec:baseline_limitation}
+
+This is the most consequential defect identified in this review, and unlike
+the others it is not a source conflict or an anchoring trade-off. It is a
+modelling error.
+
+Equation~\ref{eq:baseline} needs two numbers per hormone: the intact gonadal
+baseline $C_{\text{full}}$ and the suppressed floor $C_{\text{supp}}$. The
+implementation supplies one pair per \emph{hormone}---100 and 5\,pg/mL for
+estradiol, 600 and 15\,ng/dL for testosterone---and selects between them by
+asking which hormone is currently being tracked. But the intact gonadal
+baseline is not a property of the hormone being tracked. It is a property of
+the gonads the user has.
+
+The two constants do not even describe the same person. A testosterone
+baseline of 600\,ng/dL is the intact eugonadal male value; an estradiol
+baseline of 100\,pg/mL is a mid-follicular value from an ovulatory cycle.
+One is an AMAB starting point, the other an AFAB one, and the model applies
+whichever the tracked hormone selects:
+
+\begin{itemize}[nosep,leftmargin=1.4em]
+\item A transfeminine user tracking estradiol is given 100\,pg/mL of modeled
+  endogenous estradiol at week 0. Her actual pre-HRT estradiol is on the
+  order of 20--30\,pg/mL. The model over-states her endogenous contribution
+  by roughly fourfold.
+\item A transmasculine user tracking testosterone is given 600\,ng/dL of
+  modeled endogenous testosterone at week 0. His actual pre-T testosterone
+  is on the order of 15--50\,ng/dL. The model over-states it by more than an
+  order of magnitude---and narrates the ensuing decay as ``gonadal
+  suppression,'' which is not what testosterone therapy does to him.
+\item A transfeminine user tracking \emph{testosterone} to confirm
+  suppression is served correctly: 600 decaying to 15 is exactly her case.
+\end{itemize}
+
+The mapping is therefore right for one of the three and wrong for the other
+two, and nothing in the data model distinguishes them.
+
+\paragraph{Magnitude.} At the default 4-week suppression timescale, the
+phantom testosterone baseline is 328\,ng/dL at week 1, 183 at week 2, and
+63 from week 4 onward (Section~\ref{sec:baseline}'s plateau). Against a
+TC 100\,mg q7d regimen whose exogenous contribution is still accumulating
+over that same fortnight, this roughly doubles the predicted level during
+the first two weeks of therapy---the period in which a new user is most
+likely to be checking the number and least likely to have a blood test to
+contradict it. The estradiol error is smaller in ratio but lands on a
+smaller quantity: 92\,pg/mL of phantom baseline at week 1, against a
+4\,mg EV dose whose own peak is 238\,pg/mL.
+
+\paragraph{And the baseline is flat in time.} A third, smaller problem sits
+underneath both. \code{estimatedLevels} evaluates
+Equation~\ref{eq:baseline} \emph{once}, as of the moment the series is
+built, and adds that single value to every point in it---including points
+months in the past. The endogenous floor drawn beneath a six-month chart is
+therefore a horizontal line at today's suppressed value, not the decaying
+curve Equation~\ref{eq:baseline} describes. A user's first months are drawn
+as though they were already suppressed. The same flattening reaches the
+calibration engine, which compares a lab drawn in month~1 against a
+prediction that assumes month-1 suppression equalled today's. Evaluating the
+baseline per sample point resolves it, at the cost of re-scaling every
+stored $\alpha$---a migration, not an edit.
+
+\paragraph{It compounds with the calibration defect.} A blood test is the
+mechanism by which a user is supposed to correct exactly this kind of
+population-level error. But $\alpha$ is derived against
+$C_{\text{base}} + C_{\text{exo}}$ and applied to $C_{\text{exo}}$ alone
+(Section~\ref{sec:calibration}), so an inflated baseline both raises the
+prediction and blocks the correction from reaching it. The two defects are
+worst in the same regime---early therapy, large baseline---and they push the
+same direction.
+
+\paragraph{What a fix requires.} It requires a signal the model does not
+currently carry: the user's gonadal starting point, or equivalently the
+direction of therapy. The tracked hormone is not a proxy for it, as the
+third case above shows. Adding an explicit therapy-direction field and
+keying $C_{\text{full}}$ to \emph{that} would resolve all three cases with
+no change to Equation~\ref{eq:baseline} itself; it is a data-model change,
+not a pharmacokinetic one. Until it exists, this paper's testosterone
+comparisons quote exogenous-only figures with the basal offset stated
+explicitly (Section~\ref{sec:basal_offset}), which is the most honest
+presentation available.
+
 \subsubsection{Model-wide simplifications}
 \label{sec:simplifications}
 
@@ -1144,9 +1404,15 @@ The model's constants rest on a hierarchy of source quality:
   al.~\cite{zhang1998} and Wang et al.~\cite{wang2010} supply
   terminal half-life and steady-state peak/trough, respectively. These
   two sources are in conflict (Section~\ref{sec:tu_limitation}).
-\item \textbf{Nothing} (TP): beyond the clearance identity that ties
+\item \textbf{Nothing} (TP; the spironolactone adjustment; the
+  aromatization fraction): beyond the clearance identity that ties
   TP's magnitude to TC, there is no primary source for TP's absorption
-  rate. The placeholder is flagged.
+  rate. The spironolactone clearance factor has no supporting human PK
+  study and is mechanically misapplied (Section~\ref{sec:spiro}). The
+  aromatization mass fraction $f_{\text{arom}} = 0.002$ is a round number,
+  conservative against the observed male $E_2/T$ ratio. All three are
+  flagged, all three are off or advisory by default, and none is presented
+  to users as a fact about the drug.
 \end{enumerate}
 
 \subsection{The per-user calibration factor as a pragmatic IIV analog}
@@ -1159,7 +1425,7 @@ IIV terms on clearance and volume. A formal mixed-effects model would
 represent this variability with $\eta$ terms on each parameter, drawn
 from a population distribution.
 
-xT's calibration factor $\alpha$ is a simpler approach: a single scalar
+Isocline's calibration factor $\alpha$ is a simpler approach: a single scalar
 multiplier on the entire model output, derived from the user's own blood
 test. It cannot represent parameter-specific variability (e.g., a user
 with fast clearance but normal volume), and it cannot provide
@@ -1178,7 +1444,7 @@ particular---$\alpha$ is more important than on any other route.
 \section{Conclusion}
 \label{sec:conclusion}
 
-We have presented the pharmacokinetic model underlying xT, a mobile
+We have presented the pharmacokinetic model underlying Isocline, a mobile
 application for hormone replacement therapy monitoring. The model
 employs a one-compartment Bateman biexponential with linear
 superposition of dose contributions, a dynamic endogenous baseline, and
@@ -1202,6 +1468,14 @@ The model's key structural features are:
   contributions.
 \end{itemize}
 
+Every numerical claim in Tables~\ref{tab:steady_state},
+\ref{tab:accuracy}, \ref{tab:out_of_sample}, \ref{tab:tmax} and the persona
+suite was recomputed for this revision from the shipped constants, by
+forward simulation and---where a closed form exists---independently by the
+analytic steady-state sum. All but one reproduced; testosterone propionate's
+steady-state trough is corrected from 760 to 580\,ng/dL. The aromatization
+equation is corrected by the factor of ten it had dropped in transcription.
+
 The model achieves 0.0--0.1\% accuracy against its anchors and 1--15\%
 on out-of-sample checks. Seven of eight forms with a $t_{\max}$ are
 calibrated against primary or label sources; one (TP) is honestly
@@ -1210,6 +1484,19 @@ than hidden: TU's peak/trough ratio is a source conflict, not a
 structural deficiency; transdermal intraday ripple is under-modeled by
 construction; and oral peak fluctuation is under-predicted by an
 anchoring choice that prioritizes $C_{\mathrm{avg}}$.
+
+Three defects identified in this revision are of a different character, in
+that they admit repair rather than only disclosure. The endogenous baseline
+(Section~\ref{sec:baseline_limitation}) is keyed to the tracked hormone
+instead of the user's gonadal starting point, and is wrong for two of the
+three populations the application serves; the fix is a data-model field, not
+a pharmacokinetic one. The calibration factor
+(Section~\ref{sec:calibration}) does not round-trip, and
+Equation~\ref{eq:alpha_corrected} states the derivation that would make it.
+The baseline taper's 92\% plateau (Section~\ref{sec:baseline}) introduces a
+two-year discontinuity that removing one clamp would eliminate. Each is
+recorded here with its magnitude so that the correction can be checked
+against the claim.
 
 The model is honest about where its constants are primary-sourced, where
 they are secondary, and where they remain uncalibrated. This honesty---
@@ -1271,6 +1558,13 @@ AndroGel 1\% (testosterone gel) prescribing information. FDA label,
 transfemscience.org compiled tables (9 and 10). Estradiol ester
 pharmacokinetics. Secondary compilation of published single-dose and
 steady-state data.
+
+\bibitem{cattani2023}
+Cattani V.B., et al.\ (2023). ``Estradiol and Spironolactone Plasma
+Pharmacokinetics Among Brazilian Transgender Women Using HIV Pre-Exposure
+Prophylaxis: Analysis of Potential Interactions.''
+\emph{Clinical Pharmacokinetics} 62:1031--1041.
+\texttt{doi:10.1007/s40262-023-01248-0}. PMID: 37261664.
 
 \bibitem{behre2004}
 Behre H.M., Wang C., Handelsman D.J., Nieschlag E.\ (2004).

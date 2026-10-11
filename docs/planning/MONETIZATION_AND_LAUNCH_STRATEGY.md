@@ -1,5 +1,7 @@
 # byTime — Monetization, Rename & Beta Strategy
 
+> **Superseded naming (October 2026):** the byTime rename proposed here was dropped. The product is **Isocline**; see `docs/design/BRANDING_AND_POSITIONING.html` and `docs/design/ISOCLINE_DESIGN_SYSTEM.html`. Read "byTime" below as "Isocline". The subscription, nonprofit and TestFlight guidance still stands. The byTime landing page is archived at `docs/design/archive/LANDING_PAGE_SKETCH.html`.
+
 **Prepared for:** Starla Cortes
 **Date:** August 2026
 **Companion to:** `BUSINESS_AND_LAUNCH_PLAN.md`
@@ -124,7 +126,7 @@ Sources: [TestFlight — Apple Developer](https://developer.apple.com/testflight
 
 ## 5. The landing page
 
-There's a working single-file landing page at `web/index.html` in your project. It's built in xT's existing design language — the rose/lavender palette, glass cards, and a background SVG of a superposed multi-dose hormone curve pulled straight from your own model's shape.
+There's a working single-file landing page at `docs/design/LANDING_PAGE_SKETCH.html` in your project. It's built in xT's existing design language — the rose/lavender palette, glass cards, and a background SVG of a superposed multi-dose hormone curve pulled straight from your own model's shape.
 
 **To take it live, two steps:**
 

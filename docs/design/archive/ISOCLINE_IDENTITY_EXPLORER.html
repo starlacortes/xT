@@ -1,0 +1,521 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Isocline — Identity Explorer</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&family=Jost:ital,wght@0,400;0,600;0,700&family=Archivo:wght@400;600;700&family=Poppins:wght@400;600;700&family=Montserrat:wght@400;600;700&family=Josefin+Sans:wght@400;600;700&family=IBM+Plex+Serif:wght@400;600;700&family=Spectral:wght@400;600;700&family=Newsreader:opsz,wght@72,400;72,600;72,700&family=Fraunces:opsz,wght@144,400;144,600;144,700&display=swap">
+<style>
+/* Live exploration of the settled identity system from the brand brief §7:
+   wordmark lockup (word above curve), the ◉ mark, the icon system, and the
+   arm variations. Every control re-renders instantly; nothing here is static
+   mockup theater. Palette and page chrome match BRANDING_AND_POSITIONING.html. */
+:root {
+  --bg: #F7F5FB;
+  --surface: #FFFFFF;
+  --fg: #251F33;
+  --muted: #6A6280;
+  --accent: #7B5FC0;
+  --accent-soft: #EDE7F8;
+  --rose: #C46B86;
+  --line: #E3DDEE;
+  --font-display: 'Sora', 'Avenir Next', sans-serif;
+  --font-body: 'Atkinson Hyperlegible', 'Helvetica Neue', sans-serif;
+  --font-mono: 'IBM Plex Mono', 'SF Mono', monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #151022; --surface: #1E1830; --fg: #ECE7F6; --muted: #A79DC2;
+    --accent: #A98FE0; --accent-soft: #2A2344; --rose: #E29AAA; --line: #342B4E;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #151022; --surface: #1E1830; --fg: #ECE7F6; --muted: #A79DC2;
+  --accent: #A98FE0; --accent-soft: #2A2344; --rose: #E29AAA; --line: #342B4E;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.6; margin: 0; }
+.page { max-width: 920px; margin: 0 auto; padding: 48px 20px 80px; }
+.eyebrow { font-family: var(--font-mono); font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(38px, 8vw, 58px); letter-spacing: -.02em; line-height: 1.05; margin: 10px 0 0; text-wrap: balance; }
+.hero-sub { font-size: 17px; max-width: 36em; margin: 14px 0 0; color: var(--muted); }
+h2 { font-family: var(--font-display); font-weight: 600; font-size: 23px; letter-spacing: -.01em; margin: 0 0 14px; text-wrap: balance; }
+section { margin-top: 60px; }
+p { margin: 0 0 12px; max-width: 66ch; }
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.mono { font-family: var(--font-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+code { font-family: var(--font-mono); font-size: .88em; background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; }
+
+/* page theme toggle in the hero */
+.theme-toggle { display: inline-flex; gap: 6px; margin-top: 16px; }
+
+/* shared controls */
+.controls { display: flex; flex-wrap: wrap; gap: 12px 28px; align-items: center; margin: 0 0 22px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.ctl { display: flex; flex-direction: column; gap: 6px; }
+.ctl-label { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); display: flex; gap: 8px; align-items: baseline; }
+.ctl-label output { color: var(--fg); font-size: 12px; }
+.pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.pill { font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; padding: 6px 13px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--muted); cursor: pointer; transition: border-color .15s, color .15s, background .15s; }
+.pill:hover { color: var(--fg); }
+.pill.active { color: var(--fg); border-color: var(--accent); background: var(--accent-soft); }
+.pill-group { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.pill-group-label { font-family: var(--font-mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-right: 2px; }
+input[type="range"] { accent-color: var(--accent); width: 190px; }
+input[type="checkbox"] { accent-color: var(--accent); }
+.chk { display: inline-flex; gap: 8px; align-items: center; cursor: pointer; }
+
+/* the wordmark lockup: word above its curve; curve starts under the C,
+   rises through L–I, plateaus under N–E, extends past the right edge */
+.lockup { display: inline-block; padding: 4px 4px 38px 4px; }
+.lockup .word { position: relative; font-weight: 600; line-height: 1; color: var(--fg); }
+.lockup .curve { position: absolute; left: 40%; width: 63%; bottom: -33px; height: 26px; overflow: visible; }
+.c-path { fill: none; stroke: var(--accent); stroke-width: 2.5; vector-effect: non-scaling-stroke; stroke-linecap: round; }
+.c-marker { fill: var(--rose); }
+.no-marker .c-marker { display: none; }
+
+.playground { text-align: center; padding: 36px 12px 12px; overflow: visible; }
+.playground .word { font-size: clamp(40px, 9vw, 78px); }
+
+/* typeface specimens */
+.specimen-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; }
+.specimen { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); padding: 18px 20px 14px; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+.specimen:hover { border-color: var(--muted); }
+.specimen.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.spec-meta { display: flex; flex-direction: column; gap: 2px; margin-bottom: 14px; }
+.spec-meta b { font-family: var(--font-display); font-weight: 600; font-size: 15px; }
+.spec-lockup .word { font-size: 23px; }
+.alpha { margin-top: 14px; color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.spec-group { grid-column: 1 / -1; margin: 20px 0 -6px; font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+.spec-group:first-child { margin-top: 0; }
+
+/* the ◉ mark */
+.construction-row { display: flex; gap: 28px; flex-wrap: wrap; margin: 0 0 8px; }
+.construction { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
+.construction .mono { text-align: center; }
+.construction.chosen svg { outline: 2px solid var(--accent); outline-offset: 6px; border-radius: 50%; }
+.markbox { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.markbox svg { width: 100%; height: 100%; display: block; }
+.sizes-row { display: flex; gap: 26px; flex-wrap: wrap; align-items: flex-start; margin-top: 18px; }
+
+/* icon tiles */
+.tile { border-radius: 22.5%; overflow: hidden; flex: none; display: grid; place-items: center; box-shadow: 0 2px 8px rgba(37,31,51,.14); }
+.tile svg { width: 100%; height: 100%; }
+.icon-stage { display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; }
+.homescreen { display: flex; gap: 16px; align-items: center; padding: 18px; border-radius: 18px; border: 1px solid var(--line); background: linear-gradient(150deg, var(--surface), var(--accent-soft)); }
+.stealth-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; }
+.stealth { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); padding: 18px; }
+.stealth .tiles { display: flex; gap: 12px; align-items: center; margin-top: 12px; }
+
+/* arm cards: mark variation + lockup */
+.arm-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+.arm { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); padding: 20px 22px 10px; display: flex; gap: 20px; align-items: flex-start; }
+.arm-mark { display: flex; flex-direction: column; align-items: center; gap: 10px; flex: none; padding-top: 4px; }
+.arm-lockup .word { font-size: 27px; }
+.arm-note { color: var(--muted); font-size: 13px; margin-top: 10px; }
+
+/* decisions footer */
+.decisions { columns: 2; column-gap: 40px; font-size: 13.5px; color: var(--muted); }
+@media (max-width: 640px) { .decisions { columns: 1; } }
+.decisions li { margin-bottom: 10px; }
+.decisions strong { color: var(--fg); }
+footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<div role="note" style="font:13px/1.5 'IBM Plex Mono',ui-monospace,monospace;background:#251F33;color:#F1E8EA;padding:10px 16px;letter-spacing:.02em">ARCHIVED — historical record, not current guidance. This page is the font and mark tuner used to reach the October 4 identity. Current spec: <a href="../ISOCLINE_DESIGN_SYSTEM.html" style="color:#E8709A">ISOCLINE_DESIGN_SYSTEM.html</a></div>
+
+<div class="page">
+
+<p class="eyebrow">Identity explorer · docs/design · October 2026</p>
+<h1>Identity explorer</h1>
+<p class="hero-sub">Tune the wordmark, the ◉ mark, and the icon system live. Everything here follows the settled decisions in the <a href="../BRANDING_AND_POSITIONING.html">brand brief</a> §7 — this page is for seeing them, comparing options, and picking the final details.</p>
+<div class="theme-toggle pills" id="page-theme">
+  <button class="pill active" data-theme="auto">Auto</button>
+  <button class="pill" data-theme="light">Light</button>
+  <button class="pill" data-theme="dark">Dark</button>
+</div>
+
+<!-- ────────────────────────── A · wordmark ────────────────────────── -->
+<section>
+  <h2>A · Wordmark &amp; typefaces</h2>
+  <p>The lockup: <strong>ISOCLINE</strong> above its curve — the curve starts under the <code>C</code>, rises through <code>L–I</code>, plateaus under <code>N–E</code>, and extends past the right edge with the point marker on the plateau. Pick a face, then tune tracking and the marker. IBM Plex Serif is the pick — an engineered serif that shares family DNA with the brand's mono; the sans and serif sets stay for comparison.</p>
+
+  <div class="controls">
+    <div class="ctl"><span class="ctl-label">Face</span><div class="pills" id="face-pills"></div></div>
+    <div class="ctl">
+      <span class="ctl-label">Tracking <output id="track-val"></output></span>
+      <input type="range" id="track" min="0" max="0.25" step="0.005" value="0.07">
+    </div>
+    <label class="chk"><input type="checkbox" id="marker" checked> marker on the plateau</label>
+  </div>
+
+  <div class="playground" id="playground"></div>
+
+  <h3 style="margin-top: 34px;">Shortlist — click to load into the playground</h3>
+  <div class="specimen-grid" id="specimens"></div>
+</section>
+
+<!-- ─────────────────────────── B · the mark ─────────────────────────── -->
+<section>
+  <h2>B · The ◉ mark</h2>
+  <p>The dot-in-dot bullseye is the standalone brand mark (icon, letterhead, favicon, lockups). Tune its proportions — the strip below is the family's grammar: the dot+ring is the Research mark, and the eccentric dot is the reference the Labs glyph grew from.</p>
+
+  <div class="construction-row" id="constructions"></div>
+
+  <div class="controls" style="margin-top: 24px;">
+    <div class="ctl">
+      <span class="ctl-label">Inner dot <output id="ratio-val"></output></span>
+      <input type="range" id="ratio" min="0.18" max="0.55" step="0.01" value="0.51">
+    </div>
+    <div class="ctl">
+      <span class="ctl-label">Halo opacity <output id="opacity-val"></output></span>
+      <input type="range" id="opacity" min="0.10" max="0.65" step="0.01" value="0.15">
+    </div>
+  </div>
+
+  <div class="sizes-row">
+    <div class="markbox" id="mark-big"></div>
+    <div class="sizes-row" id="mark-sizes" style="margin-top: 0;"></div>
+  </div>
+</section>
+
+<!-- ─────────────────────────── C · app icon ─────────────────────────── -->
+<section>
+  <h2>C · App icon</h2>
+  <p>The bullseye on per-theme soft gradients; named-theme alternates swap with the user's in-app theme, dark variants use deep-indigo grounds. The dot and halo here follow the §B sliders.</p>
+
+  <div class="controls">
+    <div class="ctl"><span class="ctl-label">Theme</span><div class="pills" id="icon-theme-pills"></div></div>
+    <label class="chk"><input type="checkbox" id="icon-dark"> dark grounds</label>
+    <div class="ctl"><span class="ctl-label">Size</span><div class="pills" id="icon-size-pills"></div></div>
+  </div>
+
+  <div class="icon-stage" id="icon-stage"></div>
+
+  <h3 style="margin-top: 34px;">Context check — does it blend?</h3>
+  <p>The current icon at home-screen size (56px) among generic tiles. The whole point of the discretion principle: nobody reads HRT from a glance.</p>
+  <div class="homescreen" id="homescreen"></div>
+
+  <h3 style="margin-top: 34px;">Stealth alternate — candidates to pick from</h3>
+  <p>Since the default is already the mundane bullseye, the stealth alt has to be <em>more</em> generic than the default. All three candidates, at 64 and 128.</p>
+  <div class="stealth-grid" id="stealth"></div>
+</section>
+
+<!-- ─────────────────────── D · mark family ─────────────────────── -->
+<section>
+  <h2>D · Mark family &amp; lockups</h2>
+  <p>One mark family, three lockups. The arms differ by glyph variation: the app is the full bullseye; <em>Research</em> strips to the dot with the halo ring; <em>Labs</em> offsets the dot right onto the plateau line — the “you are here” moment.</p>
+  <div class="arm-grid" id="arms"></div>
+</section>
+
+<footer>
+  <p class="eyebrow" style="margin: 0 0 14px;">Settled decisions — recap</p>
+  <ul class="decisions">
+    <li><strong>Wordmark</strong> — all-caps ISOCLINE in IBM Plex Serif; curve under the word, starting under the C, plateauing under N–E past the right edge with the marker; display-only.</li>
+    <li><strong>Mark</strong> — the ◉ dot-in-dot bullseye is the standalone mark (inner dot 51% of halo, halo at 15% opacity); arms: Research = dot + halo ring, Labs = ring + right-offset dot + plateau line.</li>
+    <li><strong>Icon</strong> — bullseye (dot 51%, halo 15%) on per-theme gradients; named-theme alternates (Rising / Peak / Trough / Steady lavender + sage) swap with the in-app theme, custom hues map to the nearest theme; explicit dark variants; one stealth alt.</li>
+    <li><strong>Principle</strong> — discretion: the icon never outs a user as being on HRT at a glance. The name itself is the first discretion asset.</li>
+    <li><strong>Carried forward</strong> — landing headline direction: “Shaped protocol.” (sketch still under the old byTime name).</li>
+  </ul>
+  <p style="margin-top: 22px;">Siblings: <a href="ISOCLINE_IDENTITY_FINAL.html">identity final</a> · <a href="../BRANDING_AND_POSITIONING.html">brand brief</a> · <a href="ISOCLINE_TITLE_ANIMATION.html">title animation</a> · <a href="LANDING_PAGE_SKETCH.html">landing sketch</a></p>
+</footer>
+
+</div>
+
+<script>
+"use strict";
+/* All rendering is pure state → DOM. The five candidate faces are OFL and load
+   from Google Fonts; lockups re-render instantly on any control change. */
+
+/* ---------- state ---------- */
+const state = {
+  face: "IBM Plex Serif", tracking: 0.07, marker: true,
+  dotRatio: 0.51, haloOpacity: 0.15,
+  iconTheme: "steady", iconDark: false, iconSize: 128,
+};
+
+const FACES = [
+  { name: "Jost", tag: "Futura-like · purest monoline", kind: "sans" },
+  { name: "Archivo", tag: "grotesque-leaning · sturdy", kind: "sans" },
+  { name: "Poppins", tag: "pure geometry · round & friendly", kind: "sans" },
+  { name: "Montserrat", tag: "wide & confident", kind: "sans" },
+  { name: "Josefin Sans", tag: "elegant · vintage flavor", kind: "sans" },
+  { name: "IBM Plex Serif", tag: "engineered serif · family DNA with the brand mono", kind: "serif" },
+  { name: "Spectral", tag: "production-grade · elegant & precise", kind: "serif" },
+  { name: "Newsreader", tag: "editorial calm · contemporary old-style", kind: "serif" },
+  { name: "Fraunces", tag: "warm & characterful · design brings care", kind: "serif" },
+];
+
+/* per-theme icon palettes: [light gradient, dark gradient], dot color per mode */
+const THEMES = {
+  steady: { label: "Steady · lavender", light: ["#F3EFFB", "#D8CBF0"], dark: ["#2A2344", "#181230"], dot: "#8B72C9", dotDark: "#A98FE0" },
+  sage:   { label: "Steady · sage",     light: ["#F1F4EC", "#D7E2CB"], dark: ["#242B26", "#131A15"], dot: "#8FA382", dotDark: "#A9BC9D" },
+  rising: { label: "Rising · rose",     light: ["#FBEEF1", "#F0D3DD"], dark: ["#2E2230", "#191019"], dot: "#C46B86", dotDark: "#E29AAA" },
+  peak:   { label: "Peak · violet",     light: ["#F2EDFC", "#DFD2F6"], dark: ["#2C2144", "#191130"], dot: "#7C5CD0", dotDark: "#B99AF0" },
+  trough: { label: "Trough · indigo",   light: ["#EBE8F5", "#CBC3E6"], dark: ["#221E36", "#120E22"], dot: "#4A3F66", dotDark: "#8F83B8" },
+};
+
+/* ---------- builders ---------- */
+
+/* word + curve lockup; the curve svg lives inside .word so percentages
+   resolve against the word's own width (the C sits at ~40%). */
+/* fallback stack follows the face kind (serif faces fall back to serif) */
+function faceStack(name) {
+  const f = FACES.find(x => x.name === name);
+  return "'" + name + "'," + (f && f.kind === "serif" ? "serif" : "sans-serif");
+}
+
+function lockupHTML(face, tracking, marker) {
+  const ls = tracking.toFixed(3) + "em";
+  return '<div class="lockup"><div class="word" style="font-family:' + faceStack(face) +
+    ';letter-spacing:' + ls + '">ISOCLINE' +
+    '<svg class="curve ' + (marker ? "" : "no-marker") + '" viewBox="0 0 63 26" aria-hidden="true">' +
+    '<path class="c-path" d="M 0 22 C 12 18.5, 22 10.5, 28 7 C 32 5.4, 36 4.9, 41 4.8 L 61 4.8"/>' +
+    '<circle class="c-marker" cx="60" cy="4.8" r="2.5"/>' +
+    '</svg></div></div>';
+}
+
+/* mark family: app = bullseye (filled halo + centered dot), research = dot + halo ring
+   (no fill), labs = ring + right-offset dot + plateau line, eccentric = the old
+   reference idea. Colors: halo/accent, dot/rose. */
+function markSVG(ratio, opacity, opts) {
+  opts = opts || {};
+  const r = 28, dot = r * ratio;
+  const halo = opts.halo || "var(--accent)", dotC = opts.dot || "var(--rose)";
+  const variant = opts.variant || "app";
+  let base, dotEl, extra = "";
+  if (variant === "research") {
+    base = '<circle r="' + r + '" fill="none" stroke="' + halo + '" stroke-opacity=".6" stroke-width="2.4"/>';
+    dotEl = '<circle r="' + dot.toFixed(2) + '" fill="' + dotC + '"/>';
+  } else if (variant === "labs") {
+    base = '<circle r="' + r + '" fill="none" stroke="' + halo + '" stroke-opacity=".6" stroke-width="2.4"/>';
+    dotEl = '<circle r="' + dot.toFixed(2) + '" fill="' + dotC + '" transform="translate(14 0)"/>';
+    extra = '<line x1="' + (r + 2) + '" y1="0" x2="' + (r + 10.5) + '" y2="0" stroke="' + dotC +
+      '" stroke-opacity=".8" stroke-width="2.4" stroke-linecap="round"/>';
+  } else if (variant === "eccentric") {
+    base = '<circle r="' + r + '" fill="' + halo + '" opacity="' + opacity + '"/>';
+    dotEl = '<circle r="' + dot.toFixed(2) + '" fill="' + dotC + '" transform="translate(7 -7)"/>';
+  } else {
+    base = '<circle r="' + r + '" fill="' + halo + '" opacity="' + opacity + '"/>';
+    dotEl = '<circle r="' + dot.toFixed(2) + '" fill="' + dotC + '"/>';
+  }
+  return '<svg viewBox="-40 -40 80 80" aria-hidden="true">' + base + extra + dotEl + '</svg>';
+}
+
+/* app-icon tile: per-theme gradient ground, bullseye glyph */
+function iconHTML(size, themeKey, dark, ratio, opacity) {
+  const t = THEMES[themeKey];
+  const g = dark ? t.dark : t.light;
+  const dot = dark ? t.dotDark : t.dot;
+  const dotR = (58 * ratio).toFixed(1);
+  return '<div class="tile" style="width:' + size + 'px;height:' + size +
+    'px;background:linear-gradient(160deg,' + g[0] + ',' + g[1] + ')">' +
+    '<svg viewBox="-100 -100 200 200" aria-hidden="true">' +
+    '<circle r="58" fill="' + dot + '" opacity="' + opacity + '"/>' +
+    '<circle r="' + dotR + '" fill="' + dot + '"/></svg></div>';
+}
+
+/* generic neighbor tiles for the home-screen context check */
+function genericTileHTML(colorPair) {
+  return '<div class="tile" style="width:56px;height:56px;background:linear-gradient(160deg,' +
+    colorPair[0] + ',' + colorPair[1] + ')">' +
+    '<svg viewBox="-100 -100 200 200" aria-hidden="true">' +
+    '<circle r="32" fill="rgba(255,255,255,.88)"/></svg></div>';
+}
+const GENERIC = [["#5B9BEA", "#3B7FD4"], ["#6BCE8F", "#3FAE66"], ["#F5A95C", "#E8903A"], ["#9D7BD8", "#7E5BC2"]];
+
+const STEALTH = [
+  { name: "Plain gradient tile", note: "no glyph at all — identifies nothing", grounds: ["#F3EFFB", "#D8CBF0"], dot: null },
+  { name: "Bullseye · stock blue", note: "the most default-iOS look that keeps the mark", grounds: ["#F4F7FC", "#D9E4F5"], dot: "#0A84FF" },
+  { name: "Bullseye · neutral gray", note: "understated, no color association", grounds: ["#F5F5F7", "#E2E2E8"], dot: "#6E6E73" },
+];
+
+/* construction reference strip: the family's grammar, live with the sliders */
+const CONSTRUCTIONS = [
+  { name: "dot-in-dot · app", chosen: true, build: (r, o) => markSVG(r, o) },
+  { name: "dot + halo ring · research", chosen: false, build: (r) => markSVG(r, 0, { variant: "research" }) },
+  { name: "eccentric dot · reference", chosen: false, build: (r, o) => markSVG(r, o, { variant: "eccentric" }) },
+];
+
+const ARMS = [
+  { key: "APP", variant: "app", note: "the full bullseye — filled halo + centered dot" },
+  { key: "RESEARCH", variant: "research", note: "dot + halo ring — the stripped measurement" },
+  { key: "LABS", variant: "labs", note: "ring + right-offset dot + plateau line — “you are here”" },
+];
+
+/* ---------- render ---------- */
+const $ = id => document.getElementById(id);
+
+function render() {
+  /* A — wordmark playground + specimen active states */
+  $("playground").innerHTML = lockupHTML(state.face, state.tracking, state.marker);
+  $("track-val").textContent = state.tracking.toFixed(3) + "em";
+  $("track").value = state.tracking;
+  document.querySelectorAll(".specimen").forEach(s =>
+    s.classList.toggle("active", s.dataset.face === state.face));
+  document.querySelectorAll("#face-pills .pill").forEach(b =>
+    b.classList.toggle("active", b.textContent === state.face));
+
+  /* B — marks + construction strip */
+  const cRow = $("constructions");
+  cRow.innerHTML = "";
+  CONSTRUCTIONS.forEach(c => {
+    const d = document.createElement("div");
+    d.className = "construction" + (c.chosen ? " chosen" : "");
+    d.innerHTML = '<div class="markbox" style="width:64px;height:64px">' + c.build(state.dotRatio, state.haloOpacity) +
+      '</div><span class="mono">' + c.name + "</span>";
+    cRow.appendChild(d);
+  });
+  $("mark-big").innerHTML = markSVG(state.dotRatio, state.haloOpacity);
+  $("mark-big").style.width = "160px"; $("mark-big").style.height = "160px";
+  const sizesBox = $("mark-sizes");
+  sizesBox.innerHTML = "";
+  [16, 24, 32, 48, 64, 128].forEach(s => {
+    const d = document.createElement("div");
+    d.className = "markbox";
+    d.style.width = s + "px"; d.style.height = s + "px";
+    d.innerHTML = markSVG(state.dotRatio, state.haloOpacity);
+    d.insertAdjacentHTML("beforeend", '<span class="mono">' + s + "px</span>");
+    sizesBox.appendChild(d);
+  });
+  $("ratio-val").textContent = Math.round(state.dotRatio * 100) + "%";
+  $("opacity-val").textContent = Math.round(state.haloOpacity * 100) + "%";
+  $("ratio").value = state.dotRatio; $("opacity").value = state.haloOpacity;
+
+  /* C — icon */
+  const stage = $("icon-stage");
+  stage.innerHTML = iconHTML(state.iconSize, state.iconTheme, state.iconDark, state.dotRatio, state.haloOpacity);
+  document.querySelectorAll("#icon-theme-pills .pill").forEach(b =>
+    b.classList.toggle("active", b.dataset.key === state.iconTheme));
+  document.querySelectorAll("#icon-size-pills .pill").forEach(b =>
+    b.classList.toggle("active", Number(b.textContent) === state.iconSize));
+  $("icon-dark").checked = state.iconDark;
+
+  const home = $("homescreen");
+  home.innerHTML = iconHTML(56, state.iconTheme, state.iconDark, state.dotRatio, state.haloOpacity);
+  GENERIC.forEach(g => { home.insertAdjacentHTML("beforeend", genericTileHTML(g)); });
+
+  const stealthBox = $("stealth");
+  stealthBox.innerHTML = "";
+  STEALTH.forEach(s => {
+    const card = document.createElement("div");
+    card.className = "stealth";
+    let tiles = '<div class="tile" style="width:64px;height:64px;background:linear-gradient(160deg,' +
+      s.grounds[0] + "," + s.grounds[1] + ')">';
+    if (s.dot) tiles += '<svg viewBox="-100 -100 200 200"><circle r="58" fill="' + s.dot +
+      '" opacity="' + state.haloOpacity + '"/><circle r="' + (58 * state.dotRatio).toFixed(1) + '" fill="' + s.dot + '"/></svg>';
+    tiles += '</div>';
+    tiles += '<div class="tile" style="width:128px;height:128px;background:linear-gradient(160deg,' +
+      s.grounds[0] + "," + s.grounds[1] + ')">';
+    if (s.dot) tiles += '<svg viewBox="-100 -100 200 200"><circle r="58" fill="' + s.dot +
+      '" opacity="' + state.haloOpacity + '"/><circle r="' + (58 * state.dotRatio).toFixed(1) + '" fill="' + s.dot + '"/></svg>';
+    tiles += '</div>';
+    card.innerHTML = '<b style="font-family:var(--font-display);font-size:15px">' + s.name + '</b>' +
+      '<p style="margin:6px 0 0;color:var(--muted);font-size:13px">' + s.note + '</p>' +
+      '<div class="tiles">' + tiles + '</div>';
+    stealthBox.appendChild(card);
+  });
+
+  /* D — arm marks follow the bullseye sliders; lockups follow the wordmark controls */
+  document.querySelectorAll(".arm").forEach(card => {
+    card.querySelector(".arm-mark .markbox").innerHTML =
+      markSVG(state.dotRatio, state.haloOpacity, { variant: card.dataset.variant });
+    card.querySelector(".arm-lockup").innerHTML = lockupHTML(state.face, state.tracking, state.marker);
+  });
+}
+
+/* ---------- static skeleton ---------- */
+function buildStatic() {
+  /* A — face pills + specimens, grouped sans / serif */
+  const GROUPS = [["sans", FACES.filter(f => f.kind !== "serif")], ["serif", FACES.filter(f => f.kind === "serif")]];
+
+  const faceBox = $("face-pills");
+  GROUPS.forEach(g => {
+    const group = document.createElement("div");
+    group.className = "pill-group";
+    group.insertAdjacentHTML("beforeend", '<span class="pill-group-label">' + g[0] + "</span>");
+    g[1].forEach(f => {
+      const b = document.createElement("button");
+      b.className = "pill" + (f.name === state.face ? " active" : "");
+      b.textContent = f.name;
+      b.addEventListener("click", () => { state.face = f.name; render(); });
+      group.appendChild(b);
+    });
+    faceBox.appendChild(group);
+  });
+
+  const specBox = $("specimens");
+  GROUPS.forEach(g => {
+    const h = document.createElement("div");
+    h.className = "spec-group";
+    h.textContent = g[0];
+    specBox.appendChild(h);
+    g[1].forEach(f => {
+      const card = document.createElement("div");
+      card.className = "specimen";
+      card.dataset.face = f.name;
+      card.innerHTML = '<div class="spec-meta"><b>' + f.name + '</b><span class="mono" style="font-size:10px">' + f.tag +
+        '</span></div><div class="lockup spec-lockup">' + lockupHTML(f.name, state.tracking, true) +
+        '</div><div class="alpha" style="font-family:' + faceStack(f.name) + '">AaBbCcDdEe 0123456789</div>';
+      card.addEventListener("click", () => { state.face = f.name; render(); });
+      specBox.appendChild(card);
+    });
+  });
+
+  /* B — construction strip renders live in render() */
+
+  /* C — icon theme + size pills */
+  const themeItems = Object.keys(THEMES).map(k => ({ key: k, label: THEMES[k].label }));
+  const themeBox = $("icon-theme-pills");
+  themeItems.forEach(it => {
+    const b = document.createElement("button");
+    b.className = "pill"; b.dataset.key = it.key; b.textContent = it.label;
+    b.addEventListener("click", () => { state.iconTheme = it.key; render(); });
+    themeBox.appendChild(b);
+  });
+  const sizeBox = $("icon-size-pills");
+  [16, 32, 64, 128, 256].forEach(s => {
+    const b = document.createElement("button");
+    b.className = "pill"; b.textContent = s;
+    b.addEventListener("click", () => { state.iconSize = s; render(); });
+    sizeBox.appendChild(b);
+  });
+
+  /* D — arm cards (mark svg static; lockup follows wordmark controls) */
+  const armBox = $("arms");
+  ARMS.forEach(a => {
+    const card = document.createElement("div");
+    card.className = "arm";
+    card.dataset.variant = a.variant;
+    card.innerHTML = '<div class="arm-mark"><div class="markbox" style="width:48px;height:48px">' +
+      markSVG(state.dotRatio, state.haloOpacity, { variant: a.variant }) +
+      '</div><span class="mono">' + a.key + '</span></div>' +
+      '<div><div class="arm-lockup"></div><p class="arm-note">' + a.note + "</p></div>";
+    armBox.appendChild(card);
+  });
+}
+
+/* ---------- page theme (auto / light / dark) ---------- */
+document.getElementById("page-theme").addEventListener("click", e => {
+  const b = e.target.closest(".pill");
+  if (!b) return;
+  document.querySelectorAll("#page-theme .pill").forEach(p => p.classList.toggle("active", p === b));
+  if (b.dataset.theme === "auto") delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = b.dataset.theme;
+});
+
+/* ---------- controls ---------- */
+$("track").addEventListener("input", e => { state.tracking = Number(e.target.value); render(); });
+$("marker").addEventListener("change", e => { state.marker = e.target.checked; render(); });
+$("ratio").addEventListener("input", e => { state.dotRatio = Number(e.target.value); render(); });
+$("opacity").addEventListener("input", e => { state.haloOpacity = Number(e.target.value); render(); });
+$("icon-dark").addEventListener("change", e => { state.iconDark = e.target.checked; render(); });
+
+buildStatic();
+render();
+</script>
+</body>
+</html>
