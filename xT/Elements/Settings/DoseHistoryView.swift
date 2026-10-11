@@ -103,23 +103,23 @@ struct DoseHistoryRow: View {
             HStack {
                 Image(systemName: routeIcon)
                     .foregroundStyle(routeIconColor)
-                    .font(.caption)
+                    .font(Theme.Fonts.caption)
                 Text("\(dose.medicationType) — \(AppNumberFormatters.dose.string(dose.doseAmount)) mg")
-                    .font(.subheadline)
+                    .font(Theme.Fonts.subheadline)
                     .fontWeight(.medium)
                 Spacer()
             }
 
             HStack(spacing: 6) {
                 Text(dose.doseDate.formatted(date: .abbreviated, time: .shortened))
-                    .font(.caption)
+                    .font(Theme.Fonts.caption)
                     .foregroundStyle(.secondary)
 
                 Text("·")
                     .foregroundStyle(.tertiary)
 
                 siteDisplay
-                    .font(.caption)
+                    .font(Theme.Fonts.caption)
                     .foregroundStyle(dose.injectionSites.isEmpty ? .tertiary : .primary)
 
                 if dose.isUserCorrected {
@@ -128,7 +128,7 @@ struct DoseHistoryRow: View {
                             .font(.system(size: 8))
                         Text("Corrected")
                     }
-                    .font(.caption2)
+                    .font(Theme.Fonts.caption2)
                     .foregroundStyle(Theme.Colors.accentSecondary)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
@@ -144,10 +144,10 @@ struct DoseHistoryRow: View {
                     Image(systemName: "clock.arrow.circlepath")
                         .font(.system(size: 8))
                     Text("Originally: ")
-                        .font(.caption2)
+                        .font(Theme.Fonts.caption2)
                         .foregroundStyle(.tertiary)
                     Text(dose.originalSites.map { $0.zoneLabel }.joined(separator: ", "))
-                        .font(.caption2)
+                        .font(Theme.Fonts.caption2)
                         .foregroundStyle(.secondary)
                 }
                 .padding(.top, 1)

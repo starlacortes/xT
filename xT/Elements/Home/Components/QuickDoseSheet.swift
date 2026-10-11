@@ -143,14 +143,14 @@ struct QuickDoseSheet: View {
     private var doseSummaryView: some View {
         VStack(spacing: 16) {
             Text("Record Dose")
-                .font(.headline)
+                .font(Theme.Fonts.headline)
                 .padding(.top, 8)
 
             HStack {
                 Image(systemName: "pills.fill")
                     .foregroundStyle(Theme.Colors.accent)
                 Text(medicationManager.medicationDisplayInfo)
-                    .font(.subheadline)
+                    .font(Theme.Fonts.subheadline)
                 Spacer()
             }
             .padding(.horizontal, 20)
@@ -180,7 +180,7 @@ struct QuickDoseSheet: View {
                 }
             } label: {
                 Text("Customize Regimen")
-                    .font(.subheadline.weight(.medium))
+                    .font(Theme.Fonts.subheadline.weight(.medium))
             }
 
             Spacer()
@@ -193,7 +193,7 @@ struct QuickDoseSheet: View {
                         Image(systemName: "mappin.and.ellipse")
                         Text(siteSelectionLabel)
                     }
-                    .font(.headline)
+                    .font(Theme.Fonts.headline)
                     .foregroundStyle(Theme.Colors.accent)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
@@ -216,11 +216,11 @@ struct QuickDoseSheet: View {
     private func summaryRow(label: String, value: String) -> some View {
         HStack {
             Text(label)
-                .font(.subheadline)
+                .font(Theme.Fonts.subheadline)
                 .foregroundStyle(.secondary)
             Spacer()
             Text(value)
-                .font(.subheadline.weight(.medium))
+                .font(Theme.Fonts.subheadline.weight(.medium))
         }
     }
 
@@ -239,12 +239,12 @@ struct QuickDoseSheet: View {
                         HStack(spacing: 4) {
                             Image(systemName: "chevron.left")
                             Text("Back")
-                        }.font(.subheadline)
+                        }.font(Theme.Fonts.subheadline)
                     }
                     Spacer()
                 }
                 Text(isCorrectionMode ? "Correct Site" : "Customize Regimen")
-                    .font(.headline)
+                    .font(Theme.Fonts.headline)
                 if isCustomizing {
                     Spacer().frame(width: 60)
                 }
@@ -256,7 +256,7 @@ struct QuickDoseSheet: View {
                 Image(systemName: "pills.fill")
                     .foregroundStyle(Theme.Colors.accent)
                 Text(medicationManager.medicationDisplayInfo)
-                    .font(.subheadline)
+                    .font(Theme.Fonts.subheadline)
                 Spacer()
             }
             .padding(.horizontal, 20)
@@ -291,7 +291,7 @@ struct QuickDoseSheet: View {
                             if !focused { commitMgText() }
                         }
                     Text("mg")
-                        .font(.title3)
+                        .font(Theme.Fonts.title3)
                         .foregroundStyle(.secondary)
                 }
                 .padding(.horizontal, 20)
@@ -299,7 +299,7 @@ struct QuickDoseSheet: View {
 
                 let volume = MedicationManager.computedVolume(doseMg: mgAmount, concentrationMgPerMl: concentration)
                 Text("= \(AppNumberFormatters.volume.string(volume)) mL (@ \(AppNumberFormatters.concentration.string(concentration)) mg/mL)")
-                    .font(.caption)
+                    .font(Theme.Fonts.caption)
                     .foregroundStyle(.secondary)
 
                 if let warning = MedicationManager.volumeNote(for: volume, ester: medicationManager.lastLoggedDose?.ester) {
@@ -323,7 +323,7 @@ struct QuickDoseSheet: View {
                             if !focused { commitMlText() }
                         }
                     Text("mL")
-                        .font(.title3)
+                        .font(Theme.Fonts.title3)
                         .foregroundStyle(.secondary)
                 }
                 .padding(.horizontal, 20)
@@ -331,7 +331,7 @@ struct QuickDoseSheet: View {
 
                 let computedMg = mlAmount * concentration
                 Text("= \(AppNumberFormatters.dose.string(computedMg)) mg (@ \(AppNumberFormatters.concentration.string(concentration)) mg/mL)")
-                    .font(.caption)
+                    .font(Theme.Fonts.caption)
                     .foregroundStyle(.secondary)
 
                 if let warning = MedicationManager.volumeNote(for: mlAmount, ester: medicationManager.lastLoggedDose?.ester) {
@@ -342,7 +342,7 @@ struct QuickDoseSheet: View {
             if !isCorrectionMode {
                 VStack(spacing: 6) {
                     Text("Vial concentration")
-                        .font(.caption)
+                        .font(Theme.Fonts.caption)
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 20)
@@ -358,7 +358,7 @@ struct QuickDoseSheet: View {
                                     withAnimation { concentration = conc; showCustomConcentration = false }
                                 } label: {
                                     Text(verbatim: AppNumberFormatters.concentration.string(conc))
-                                        .font(.caption)
+                                        .font(Theme.Fonts.caption)
                                         .fontWeight(.medium)
                                         .padding(.horizontal, 12)
                                         .padding(.vertical, 6)
@@ -374,7 +374,7 @@ struct QuickDoseSheet: View {
                                 withAnimation { showCustomConcentration = true }
                             } label: {
                                 Text("Custom")
-                                    .font(.caption)
+                                    .font(Theme.Fonts.caption)
                                     .fontWeight(.medium)
                                     .padding(.horizontal, 12)
                                     .padding(.vertical, 6)
@@ -402,10 +402,10 @@ struct QuickDoseSheet: View {
             } else {
                 HStack {
                     Image(systemName: "lock.fill")
-                        .font(.caption)
+                        .font(Theme.Fonts.caption)
                         .foregroundStyle(.secondary)
                     Text(doseDate.formatted(date: .abbreviated, time: .shortened))
-                        .font(.subheadline)
+                        .font(Theme.Fonts.subheadline)
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 4)
@@ -439,7 +439,7 @@ struct QuickDoseSheet: View {
                     mlFieldFocused = false
                 } label: {
                     Text("Done")
-                        .font(.subheadline.weight(.semibold))
+                        .font(Theme.Fonts.subheadline.weight(.semibold))
                         .padding(.horizontal, 16)
                         .padding(.vertical, 8)
                         .asGlassCard(tintOpacity: 0.5, cornerRadius: Theme.Radius.md)
@@ -481,7 +481,7 @@ struct QuickDoseSheet: View {
                     HStack(spacing: 4) {
                         Image(systemName: "chevron.left")
                         Text("Back")
-                    }.font(.subheadline)
+                    }.font(Theme.Fonts.subheadline)
                 }
                 Spacer()
             }
@@ -541,7 +541,7 @@ struct QuickDoseSheet: View {
                     ForEach(selectedZoneLabels3D, id: \.self) { zone in
                         HStack {
                             Image(systemName: "mappin.circle.fill").foregroundStyle(Theme.Colors.accent)
-                            Text(zone).font(.subheadline)
+                            Text(zone).font(Theme.Fonts.subheadline)
                             Spacer()
                             Button {
                                 selectedZoneLabels3D.removeAll { $0 == zone }
@@ -557,14 +557,14 @@ struct QuickDoseSheet: View {
 
                     if showOverlapDisclaimer {
                         Text("Site close to previous site.")
-                            .font(.caption2)
+                            .font(Theme.Fonts.caption2)
                             .foregroundStyle(.secondary)
                             .padding(.top, 2)
                             .transition(.opacity.combined(with: .move(edge: .bottom)))
                     }
                 } else {
                     Text("Tap the model to set site")
-                        .font(.subheadline)
+                        .font(Theme.Fonts.subheadline)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -651,7 +651,7 @@ struct QuickDoseSheet: View {
                 bodySnapNonce += 1
             } label: {
                 Image(systemName: "arrow.backward.circle.fill")
-                    .font(.title2)
+                    .font(Theme.Fonts.title2)
                     .foregroundStyle(Color(.tertiaryLabel))
             }
 
@@ -665,7 +665,7 @@ struct QuickDoseSheet: View {
                         bodySnapNonce += 1
                     } label: {
                         Text(angle.label)
-                            .font(.subheadline.weight(bodySnapAngle == angle ? .semibold : .regular))
+                            .font(Theme.Fonts.subheadline.weight(bodySnapAngle == angle ? .semibold : .regular))
                             .foregroundStyle(bodySnapAngle == angle
                                              ? Theme.Colors.accent
                                              : Color(.secondaryLabel))
@@ -689,7 +689,7 @@ struct QuickDoseSheet: View {
                 showInfoPanel.toggle()
             } label: {
                 Image(systemName: "info.circle")
-                    .font(.title2)
+                    .font(Theme.Fonts.title2)
                     .foregroundStyle(Color(.tertiaryLabel))
             }
             .popover(isPresented: $showInfoPanel, arrowEdge: .bottom) {
@@ -704,7 +704,7 @@ struct QuickDoseSheet: View {
                 bodySnapNonce += 1
             } label: {
                 Image(systemName: "arrow.forward.circle.fill")
-                    .font(.title2)
+                    .font(Theme.Fonts.title2)
                     .foregroundStyle(Color(.tertiaryLabel))
             }
         }
@@ -715,7 +715,7 @@ struct QuickDoseSheet: View {
         VStack(spacing: 0) {
             Toggle(isOn: $multiSiteEnabled) {
                 Text("Multi-Site")
-                    .font(.subheadline.weight(.medium))
+                    .font(Theme.Fonts.subheadline.weight(.medium))
             }
             .toggleStyle(.switch)
             .padding(.horizontal, 16).padding(.vertical, 14)
@@ -754,7 +754,7 @@ struct QuickDoseSheet: View {
                 showInfoPanel = false
             } label: {
                 Text("Done")
-                    .font(.subheadline.weight(.medium))
+                    .font(Theme.Fonts.subheadline.weight(.medium))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
             }
@@ -807,9 +807,9 @@ struct QuickDoseSheet: View {
         HStack(spacing: 10) {
             Image(systemName: "lock.fill")
                 .foregroundStyle(.secondary)
-                .font(.caption)
+                .font(Theme.Fonts.caption)
             Text("Previously: \(site.zoneLabel) (\(site.viewContext))")
-                .font(.subheadline)
+                .font(Theme.Fonts.subheadline)
             Spacer()
         }
         .padding(.horizontal, 12)
@@ -975,10 +975,10 @@ struct QuickDoseSheet: View {
     private func quickDoseWarning(_ message: String) -> some View {
         HStack(spacing: 6) {
             Image(systemName: "exclamationmark.triangle.fill")
-                .font(.caption2)
+                .font(Theme.Fonts.caption2)
                 .foregroundStyle(.yellow)
             Text(message)
-                .font(.caption2)
+                .font(Theme.Fonts.caption2)
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
         }

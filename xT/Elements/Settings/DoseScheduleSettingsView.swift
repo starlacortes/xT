@@ -502,7 +502,7 @@ struct DoseScheduleSettingsView: View {
     private func rotationPickerRow(routeClass: RouteClass, displayName: String, value: Binding<Int>, options: [Int]) -> some View {
         HStack(spacing: 12) {
             Image(systemName: routeClass.iconName)
-                .font(.title3)
+                .font(Theme.Fonts.title3)
                 .foregroundStyle(routeClass.tintColor)
                 .frame(width: 28)
 
@@ -532,7 +532,7 @@ struct DoseScheduleSettingsView: View {
             NavigationLink(destination: AvoidZonesEditorView()) {
                 HStack(spacing: 12) {
                     Image(systemName: "exclamationmark.shield")
-                        .font(.title3)
+                        .font(Theme.Fonts.title3)
                         .foregroundStyle(Theme.Colors.warning)
                         .frame(width: 28)
 
@@ -548,7 +548,7 @@ struct DoseScheduleSettingsView: View {
                     Spacer()
 
                     Image(systemName: "chevron.right")
-                        .font(.caption)
+                        .font(Theme.Fonts.caption)
                         .foregroundStyle(.tertiary)
                 }
                 .padding(12)
@@ -578,7 +578,7 @@ struct DoseScheduleSettingsView: View {
             NavigationLink(destination: PreferredZonesListView()) {
                 HStack(spacing: 12) {
                     Image(systemName: "star")
-                        .font(.title3)
+                        .font(Theme.Fonts.title3)
                         .foregroundStyle(Theme.Colors.accent)
                         .frame(width: 28)
 
@@ -594,7 +594,7 @@ struct DoseScheduleSettingsView: View {
                     Spacer()
 
                     Image(systemName: "chevron.right")
-                        .font(.caption)
+                        .font(Theme.Fonts.caption)
                         .foregroundStyle(.tertiary)
                 }
                 .padding(12)

@@ -35,12 +35,12 @@ struct UnifiedScheduleView: View {
 
                     VStack(alignment: .leading) {
                         Text("Hello, \(profileManager.profileDisplayName)")
-                            .font(.title2)
+                            .font(Theme.Fonts.title2)
                             .bold()
 
                         if medicationManager.isFullyConfigured {
                             Text("Taking \(medicationManager.medicationDisplayInfo)")
-                                .font(.subheadline)
+                                .font(Theme.Fonts.subheadline)
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -52,7 +52,7 @@ struct UnifiedScheduleView: View {
                         recordCurrentDose()
                     }) {
                         Image(systemName: "plus.circle.fill")
-                            .font(.title)
+                            .font(Theme.Fonts.title)
                             .foregroundStyle(Theme.Colors.accent)
                     }
                 }
@@ -94,7 +94,7 @@ struct UnifiedScheduleView: View {
     private var statusCard: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Medication Status")
-                .font(.headline)
+                .font(Theme.Fonts.headline)
 
             if medicationManager.isFullyConfigured {
                 HStack {
@@ -102,7 +102,7 @@ struct UnifiedScheduleView: View {
                         .foregroundStyle(.green)
 
                     Text(medicationManager.getConfigurationSummary())
-                        .font(.body)
+                        .font(Theme.Fonts.body)
                 }
             } else if medicationManager.isPartiallyConfigured {
                 HStack {
@@ -110,7 +110,7 @@ struct UnifiedScheduleView: View {
                         .foregroundStyle(.orange)
 
                     Text(medicationManager.getConfigurationSummary())
-                        .font(.body)
+                        .font(Theme.Fonts.body)
                 }
             } else {
                 HStack {
@@ -118,7 +118,7 @@ struct UnifiedScheduleView: View {
                         .foregroundStyle(.red)
 
                     Text("Not configured")
-                        .font(.body)
+                        .font(Theme.Fonts.body)
                 }
             }
         }
@@ -173,19 +173,19 @@ struct UnifiedScheduleView: View {
     private var doseManagementSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Manage Doses")
-                .font(.headline)
+                .font(Theme.Fonts.headline)
 
             // Date picker for dose recording
             VStack(spacing: 12) {
                 Text("Select dose date:")
-                    .font(.subheadline)
+                    .font(Theme.Fonts.subheadline)
 
                 DatePicker("", selection: $selectedDoseDate, displayedComponents: .date)
                     .datePickerStyle(GraphicalDatePickerStyle())
                     .padding(.vertical, 8)
 
                 Text("Next dose will be: \(medicationManager.calculateNextDoseDate(from: selectedDoseDate), style: .date)")
-                    .font(.caption)
+                    .font(Theme.Fonts.caption)
                     .foregroundStyle(.secondary)
 
                 // Optional site location disclosure (Phase 12) — only for injection routes
@@ -233,7 +233,7 @@ struct UnifiedScheduleView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(title)
-                    .font(.subheadline)
+                    .font(Theme.Fonts.subheadline)
                     .foregroundStyle(.secondary)
 
                 Spacer()
@@ -243,7 +243,7 @@ struct UnifiedScheduleView: View {
             }
 
             Text(value)
-                .font(.body)
+                .font(Theme.Fonts.body)
                 .bold()
                 .foregroundStyle(color)
         }
@@ -290,7 +290,7 @@ struct UnifiedScheduleView: View {
         NavigationStack {
             VStack(spacing: 16) {
                 Text("Site picker has moved to the Quick Dose sheet.")
-                    .font(.subheadline)
+                    .font(Theme.Fonts.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 20)
@@ -299,7 +299,7 @@ struct UnifiedScheduleView: View {
                     showFullBodyPicker = false
                 } label: {
                     Text("Dismiss")
-                        .font(.headline)
+                        .font(Theme.Fonts.headline)
                 }
             }
             .padding()

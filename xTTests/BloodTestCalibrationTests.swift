@@ -224,4 +224,159 @@ struct BloodTestCalibrationTests {
         #expect(points.allSatisfy { $0.isCalibrated },
                 "Computed records should be marked calibrated")
     }
+
+    @MainActor
+    @Test("α round-trips: re-predicting at the draw returns the measured level")
+    func alphaRoundTrip() {
+        let mgr = makeEstrogenManager()
+        let now = Date()
+        let drawDate = now.addingTimeInterval(3 * 86400)
+
+        guard let raw = mgr.predictedLevel(at: drawDate, hormoneType: "Estrogen") else {
+            Issue.record("predictedLevel returned nil for a configured hormone")
+            return
+        }
+        let base = mgr.dynamicBaseline(for: .estrogen)
+        let exogenous = raw - base
+        #expect(exogenous > 0.01, "EV 2 mg should have a real drug contribution at day 3")
+
+        // Force α to exactly 0.5 (inside the clamp), so the round-trip is exact
+        // arithmetic rather than a clamp boundary.
+        let measured = base + 0.5 * exogenous
+        let record = BloodTestRecord(
+            drawDate: drawDate,
+            measuredLevel: measured,
+            hormoneType: "Estrogen",
+            hoursSinceLastDose: 72
+        )
+        // `predictedLevel(applyCalibration: true)` reads α through the manager's
+        // `calibrationFactor`, which scans `bloodTestHistory` — so the record must be
+        // registered there for the round-trip re-prediction to see the new α.
+        mgr.bloodTestHistory = [record]
+        mgr.computeCalibrationFactor(for: record)
+
+        #expect(record.calibrationFactor != nil, "Draw above baseline should calibrate")
+        if let alpha = record.calibrationFactor {
+            #expect(abs(alpha - 0.5) < 0.0001, "α should be 0.5, got \(alpha)")
+        }
+
+        guard let calibrated = mgr.predictedLevel(at: drawDate, hormoneType: "Estrogen",
+                                                  applyCalibration: true) else {
+            Issue.record("calibrated predictedLevel returned nil")
+            return
+        }
+        #expect(abs(calibrated - measured) < 0.01,
+                "round-trip should reproduce the measurement: predicted \(calibrated) vs measured \(measured)")
+    }
+
+    @MainActor
+    @Test("clamped α is bounded by the clamp, not by the measurement")
+    func clampedAlphaDoesNotRoundTrip() {
+        let mgr = makeEstrogenManager()
+        let now = Date()
+        let drawDate = now.addingTimeInterval(3 * 86400)
+
+        guard let raw = mgr.predictedLevel(at: drawDate, hormoneType: "Estrogen") else {
+            Issue.record("predictedLevel returned nil for a configured hormone")
+            return
+        }
+        let base = mgr.dynamicBaseline(for: .estrogen)
+        let exogenous = raw - base
+        #expect(exogenous > 0.01, "EV 2 mg should have a real drug contribution at day 3")
+
+        // Floor clamp: raw α = 0.05 (< 0.2) → stored 0.2. The calibrated curve then
+        // over-predicts the measurement — round-trip is intentionally NOT exact when
+        // the raw α would have been outside the clamp.
+        let lowMeasured = base + 0.05 * exogenous
+        let lowRecord = BloodTestRecord(drawDate: drawDate, measuredLevel: lowMeasured,
+                                        hormoneType: "Estrogen", hoursSinceLastDose: 72)
+        mgr.bloodTestHistory = [lowRecord]
+        mgr.computeCalibrationFactor(for: lowRecord)
+        #expect(lowRecord.calibrationFactor != nil, "above-floor draw should calibrate")
+        if let alpha = lowRecord.calibrationFactor {
+            #expect(abs(alpha - 0.2) < 0.0001, "raw α 0.05 should clamp to 0.2, got \(alpha)")
+        }
+        if let calibrated = mgr.predictedLevel(at: drawDate, hormoneType: "Estrogen",
+                                               applyCalibration: true) {
+            #expect(calibrated > lowMeasured,
+                    "floor-clamped α should over-predict: \(calibrated) vs measured \(lowMeasured)")
+        }
+
+        // Ceiling clamp: raw α = 100 (> 5.0) → stored 5.0. The calibrated curve then
+        // under-predicts the measurement.
+        let highMeasured = base + 100.0 * exogenous
+        let highRecord = BloodTestRecord(drawDate: drawDate, measuredLevel: highMeasured,
+                                         hormoneType: "Estrogen", hoursSinceLastDose: 72)
+        mgr.bloodTestHistory = [highRecord]
+        mgr.computeCalibrationFactor(for: highRecord)
+        #expect(highRecord.calibrationFactor != nil, "high draw should calibrate")
+        if let alpha = highRecord.calibrationFactor {
+            #expect(abs(alpha - 5.0) < 0.0001, "raw α 100 should clamp to 5.0, got \(alpha)")
+        }
+        if let calibrated = mgr.predictedLevel(at: drawDate, hormoneType: "Estrogen",
+                                               applyCalibration: true) {
+            #expect(calibrated < highMeasured,
+                    "ceiling-clamped α should under-predict: \(calibrated) vs measured \(highMeasured)")
+        }
+    }
+
+    @MainActor
+    @Test("a draw at or below the endogenous floor declines to calibrate")
+    func drawBelowFloorDeclinesToCalibrate() {
+        let mgr = makeEstrogenManager()
+        let now = Date()
+        let drawDate = now.addingTimeInterval(3 * 86400)
+
+        let base = mgr.dynamicBaseline(for: .estrogen)  // suppressed → 5 pg/mL
+        let record = BloodTestRecord(
+            drawDate: drawDate,
+            measuredLevel: base - 1.0,   // below the endogenous floor
+            hormoneType: "Estrogen",
+            hoursSinceLastDose: 72
+        )
+        mgr.computeCalibrationFactor(for: record)
+        #expect(record.calibrationFactor == nil,
+                "a measured level at/below baseline must not fabricate a calibration factor")
+    }
+}
+
+// MARK: - Calibration Alpha (pure derivation)
+
+@Suite("Calibration Alpha — exogenous-only derivation")
+struct CalibrationAlphaTests {
+
+    @Test("known-value algebra: α = (measured − base) / exogenous")
+    func knownValue() {
+        // base = 100, exogenous = 400, measured = 300 → α = (300 − 100) / 400 = 0.5
+        let alpha = MedicationManager.calibrationAlpha(measured: 300, base: 100, exogenous: 400)
+        #expect(alpha != nil, "positive drug signal should yield an α")
+        if let alpha {
+            #expect(abs(alpha - 0.5) < 0.0001, "α should be 0.5, got \(alpha)")
+            let reconstructed = 100.0 + 400.0 * alpha
+            #expect(abs(reconstructed - 300.0) < 0.0001,
+                    "base + exogenous·α should reconstruct the measurement")
+        }
+    }
+
+    @Test("measured at or below base yields nil, not a fabricated 0.2")
+    func belowFloorYieldsNil() {
+        #expect(MedicationManager.calibrationAlpha(measured: 100, base: 100, exogenous: 400) == nil,
+                "measured == base must not calibrate")
+        #expect(MedicationManager.calibrationAlpha(measured: 99, base: 100, exogenous: 400) == nil,
+                "measured < base must not calibrate")
+    }
+
+    @Test("negligible exogenous yields nil")
+    func negligibleExogenousYieldsNil() {
+        #expect(MedicationManager.calibrationAlpha(measured: 300, base: 100, exogenous: 0.001) == nil,
+                "no meaningful drug signal to divide by")
+    }
+
+    @Test("result is clamped to [0.2, 5.0]")
+    func clamping() {
+        #expect(abs((MedicationManager.calibrationAlpha(measured: 100.001, base: 100, exogenous: 400) ?? 0) - 0.2) < 0.0001,
+                "just-above-floor draw clamps to 0.2")
+        #expect(abs((MedicationManager.calibrationAlpha(measured: 100_000, base: 100, exogenous: 400) ?? 0) - 5.0) < 0.0001,
+                "very-high draw clamps to 5.0")
+    }
 }

@@ -1,0 +1,234 @@
+% !TeX program = pdflatex
+%
+% trademark-application.tex
+%
+% Build:  pdflatex trademark-application.tex
+%
+
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=2.4cm]{geometry}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{ragged2e}
+\usepackage[hidelinks]{hyperref}
+
+\definecolor{warn}{RGB}{160,60,0}
+\definecolor{ok}{RGB}{20,110,60}
+\definecolor{mid}{RGB}{120,95,0}
+\newcommand{\bad}[1]{\textcolor{warn}{#1}}
+\newcommand{\good}[1]{\textcolor{ok}{#1}}
+\newcommand{\mixed}[1]{\textcolor{mid}{#1}}
+\newcommand{\code}[1]{\texttt{\small #1}}
+\newcommand{\name}[1]{\textsc{#1}}
+
+\newcolumntype{L}[1]{>{\RaggedRight\arraybackslash}p{#1}}
+
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\small Isocline Trademark Application}
+\rhead{\small\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\title{\textbf{US Trademark Application Worksheet}\\[0.3em]
+\large \name{Isocline} --- Standard Character Mark, Class 9, \S1(b)}
+\author{Prepared for Starla Cortes}
+\date{October 2026}
+
+\begin{document}
+\maketitle
+
+\noindent
+Draft only --- not legal advice. Have a trademark attorney review before
+filing; the project's own market-positioning paper requires a clearance search
+in class~9 before anything is printed or filed.
+
+\section{Scope of this application}
+
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Mark}     & \code{ISOCLINE} (standard character / word mark, no logo or stylization) \\
+\textbf{Classes}  & 9 only (downloadable software) \\
+\textbf{Basis}    & \S1(b) --- bona fide intention to use in commerce (not yet used) \\
+\textbf{Filing}   & TEAS Plus (cheapest path; this application qualifies) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Do these before filing (in order)}
+
+\begin{enumerate}[leftmargin=1.6em,itemsep=0.2em]
+\item \textbf{Form the Ohio LLC.} The applicant must be the entity that owns
+      and will use the mark. You cannot file in the name of an LLC that does
+      not exist yet. Ohio SOS filing is \textasciitilde\$99, same-day online.
+\item \textbf{Get the LLC's EIN} from the IRS (free, online, instant). Not
+      needed on the trademark form itself, but the entity must be real and
+      correctly named.
+\item \textbf{Decide the LLC's exact registered name.} This exact string goes
+      in the ``Owner of Mark'' field. Do not guess or abbreviate. Example
+      choices and how they interact with the mark:
+      \begin{itemize}[leftmargin=1.4em,itemsep=0.1em]
+      \item \code{Isocline Labs LLC} --- cleanest brand-to-entity match.
+      \item \code{Isocline Research LLC} --- matches the paper's research-arm
+            idea, but reads more nonprofit-adjacent than a subscription app.
+      \item A neutral name (\code{Cortes Software LLC}) also works; the entity
+            name does not have to contain the mark.
+      \end{itemize}
+\item \textbf{Have a trademark attorney run a real clearance search} in
+      class~9 (and ideally 42/44 as a courtesy) before filing. The Justia-only
+      screen in \code{market-positioning-paper} found nothing in class~9, but
+      it is explicitly \emph{not} clearance.
+\end{enumerate}
+
+\section{Mark information}
+
+\begin{center}
+\begin{tabular}{@{}L{4.4cm}L{11.6cm}@{}}
+\toprule
+\textbf{Field} & \textbf{Entry} \\
+\midrule
+Mark text & \code{ISOCLINE} \\
+Mark drawing type & Standard character mark \\
+Design/logo & None \\
+Transliteration & None (mark is already Latin characters) \\
+Translation / meaning & ``A curve along which a quantity (or slope) holds
+constant.'' Do \textbf{not} claim a foreign meaning --- it is an English
+technical term. \\
+Disclaimer & None \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent
+A standard-character registration protects the name in any typeface, style, or
+color. Do not file a logo version in this same application; a logo mark is a
+separate filing. Keep this one clean.
+
+\section{Owner of mark (applicant)}
+
+\begin{center}
+\begin{tabular}{@{}L{4.4cm}L{11.6cm}@{}}
+\toprule
+\textbf{Field} & \textbf{Entry} \\
+\midrule
+Name & \code{Isocline Labs LLC} (exact Ohio registered name) \\
+Entity type & Limited Liability Company \\
+State of organization & Ohio \\
+Country of organization & United States \\
+Citizenship statement & ``The applicant is a limited liability company
+organized under the laws of Ohio.'' \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Goods and services --- Class 9}
+
+TEAS Plus requires the identification to track the USPTO ID Manual. Use this
+wording --- functional, non-medical, and on the correct side of the
+device-vs-model claim boundary:
+
+\begin{quote}\small
+\textbf{Class 9:} Downloadable computer application software for mobile devices
+and tablet computers, namely, software for tracking hormone replacement therapy
+injections and dosing schedules, generating medication reminders, and modeling
+predicted hormone levels over time.
+\end{quote}
+
+\noindent
+Alternate, more conservative ID (minimizes examiner pushback on ``hormone
+replacement therapy''):
+
+\begin{quote}\small
+\textbf{Class 9:} Downloadable software in the nature of a mobile application
+for tracking medication injections, scheduling medication reminders, and
+generating predictions of medication levels over time.
+\end{quote}
+
+\noindent
+What this application does \textbf{not} cover (do not add here):
+\begin{itemize}[leftmargin=1.4em,itemsep=0.1em]
+\item \textbf{Class 42} --- hosted/cloud software services (SaaS), data
+      analytics. Add only if you later ship a web service or data offering.
+\item \textbf{Class 44} --- medical/health services. A self-tracking app is
+      \emph{not} a medical service; adding class~44 now would be rejected or
+      invite an ``inaccurate identification'' objection.
+\end{itemize}
+
+\section{Filing basis --- \S1(b)}
+
+\begin{itemize}[leftmargin=1.4em,itemsep=0.1em]
+\item \textbf{Basis:} bona fide intention to use the mark in commerce on or in
+      connection with the identified goods.
+\item \textbf{No specimen required now.} A specimen (App Store listing
+      screenshot showing the name plus a download/purchase flow) is filed with
+      the Statement of Use.
+\item \textbf{Deadlines:} after the Notice of Allowance you have \textbf{6
+      months} to file a Statement of Use or an extension request (\S1(d)).
+      Extensions run in 6-month increments up to \textasciitilde3 years (five
+      extension requests). Each extension carries a filing fee.
+\end{itemize}
+
+\section{Correspondence and attorney}
+
+\begin{center}
+\begin{tabular}{@{}L{4.4cm}L{11.6cm}@{}}
+\toprule
+\textbf{Field} & \textbf{Entry} \\
+\midrule
+Attorney & Leave blank if filing \emph{pro se} (yourself) \\
+Correspondence email & The LLC's email --- all USPTO mail goes here \\
+Authorized to communicate & Yes (check the box permitting USPTO to email) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Fees (verify current amounts at uspto.gov)}
+
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Item} & \textbf{Approximate} \\
+\midrule
+TEAS Plus application, one class & \textasciitilde\$350/class \\
+TEAS Standard application, one class & \textasciitilde\$450/class \\
+Statement of Use / extension, per class & \textasciitilde\$125/class \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent
+TEAS Plus is the right choice: standard character mark, ID-Manual-compatible
+goods, no specimen yet --- all Plus requirements are met.
+
+\section{Post-filing timeline}
+
+\begin{enumerate}[leftmargin=1.6em,itemsep=0.1em]
+\item \textbf{2--4 weeks:} serial number assigned; formality review.
+\item \textbf{8--12 months:} substantive examination; expect a possible Office
+      Action asking to refine the goods description.
+\item \textbf{Publication:} mark published for opposition (\textasciitilde30 days).
+\item \textbf{Notice of Allowance:} the 6-month statement-of-use clock starts.
+\item \textbf{Statement of Use + specimen} once the app is live under the name.
+\item \textbf{Registration} (\textasciitilde1 year after filing, give or take).
+\end{enumerate}
+
+\section{Open decisions}
+
+\begin{itemize}[leftmargin=1.4em,itemsep=0.2em]
+\item[$\square$] Exact Ohio LLC registered name (goes verbatim into
+      ``Owner of Mark'') --- resolved: \code{Isocline Labs LLC}.
+\item[$\square$] Goods description: specific (``hormone replacement therapy'')
+      vs.\ general (``medication injections'') wording.
+\item[$\square$] Attorney review of the class~9 clearance before filing.
+\end{itemize}
+
+\end{document}

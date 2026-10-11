@@ -1,24 +1,46 @@
-# Project Goal: xT - Advancing HRT Research & Care Platform
+# Isocline: HRT tracking, research and care
 
-## Vision Statement
-To revolutionize the understanding and management of Hormone Replacement Therapy (HRT) by building a technologically advanced, community-driven platform that empowers users and supports scientific inquiry.
+**Isocline** is the umbrella brand. It has three arms:
 
-## Core Pillars
-1.  **User Empowerment (The App MVP):** Provide users with a reliable, private mobile application to track injections, receive timely reminders, and learn about their individual journeys.
-2.  **Research Advancement (The Science):** Aggregate anonymized, aggregated data insights to drive research into optimal HRT protocols, benefiting the entire scientific community.
-3.  **Business Foundation (The Scale):** Establish a legal and operational entity (LLC/Non-Profit) based in Central Ohio to manage grants, partnerships, and scale the research efforts.
+| Arm | What it is | Notes |
+|---|---|---|
+| **Isocline** (the app) | The private, on-device HRT tracker. | Its code target is still named `xT`, which is why `xT/`, `xTTests/` and the Xcode project keep that name. |
+| **Isocline Research** | The published papers in `research/`, built on the shared LaTeX template `research/isocline.sty`. | |
+| **Isocline Labs** | The company: legal and operational entity. | Documents are in `legal/`. |
 
-## Current Focus (MVP)
-**Phase 1: Build the core tracking functionality.** The immediate goal is a functional prototype that lets users:
-*   Record injection details (Date, Type, Dosage, etc.).
-*   Set recurring, customizable reminders.
-*   View a historical log/timeline of their journey.
+## Vision
 
-## Key Considerations & Risks
-*   **Data Privacy:** Handling sensitive health data requires an absolute commitment to HIPAA/GDPR compliance from Day 1. This must guide every technical decision.
-*   **Scope Creep:** The vision is huge. We must fiercely protect the MVP scope to ensure we ship *something* usable quickly.
-*   **Business Development:** The legal structure (LLC vs. Non-Profit) must be aligned with the funding goal (grants vs. profit).
+Change how people understand and manage hormone replacement therapy, with an instrument that shows the curve:
+- privately,
+- honestly about what is modeled versus measured,
+- and without judgment.
 
-## Next Steps (Immediate Action)
-1.  **Tech Deep Dive:** Analyze the existing codebase structure within the xT directory to map out the required features.
-2.  **UX/Flow Mapping:** Map out the precise, minimal user journeys for the MVP.
+## Core pillars
+
+1. **User empowerment (the app).** A reliable, private, local-first tracker: doses, reminders, labs, journal, and a pharmacokinetic model of where your levels are.
+2. **Research advancement (Isocline Research).** Open methodology papers on the PK model, its validation, and the product's design.
+3. **Business foundation (Isocline Labs).** The legal and operational entity, based in Central Ohio, that carries grants, partnerships and scale.
+
+## Key considerations
+
+- **Privacy and discretion.** Sensitive health data stays on-device and in the user's iCloud. Consumer health-privacy rules shape every technical decision: the FTC Health Breach Notification Rule, state consumer-health-data laws, and GDPR for EU users. HIPAA generally doesn't apply to a direct-to-consumer app (see `planning/BUSINESS_AND_LAUNCH_PLAN.md`). Nothing in the product may out a user as being on HRT at a glance.
+- **Honesty.** Modeled values are labeled as modeled. Copy describes observations, never verdicts.
+- **Scope.** Protect the core so it ships.
+
+## Doc map
+
+| Folder | Contents |
+|---|---|
+| `design/` | **[ISOCLINE_DESIGN_SYSTEM.html](design/ISOCLINE_DESIGN_SYSTEM.html), the canonical brand and design system.** Also: brand positioning, the reference plate, logo masters (`brand/`), tokens (`tokens/`), and archived directions (`archive/`) |
+| `app-design/` | Feature design for the Time tab, stage system and copy |
+| `planning/` | Business, launch, monetization, implementation plans |
+| `research/` | Isocline Research papers (LaTeX + PDF) and research memos |
+| `legal/` | Isocline Labs policies |
+| `notes/` | Dated codebase reviews |
+
+## Generators
+
+| Command | Writes |
+|---|---|
+| `python3 -I tools/scripts/gen_isocline_tokens.py` | Resolves `design/tokens/isocline.tokens.json` into the CSS, the LaTeX template, the docs' JS, and the app parity-test expectations. |
+| `tools/scripts/build_isocline_marks.py` | Rebuilds the wordmark and "I." mark from IBM Plex Serif. Needs fontTools in a venv; see the script header. |

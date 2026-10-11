@@ -1,0 +1,84 @@
+<!DOCTYPE html><html class="dark" lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Isocline — Observation Journal</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&amp;family=IBM+Plex+Mono:wght@300;400;500;600&amp;family=IBM+Plex+Serif:ital,wght@0,400;0,500;0,600;1,400&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "chassis-base": "#140f1a",
+            "chassis-card": "#1c1524",
+            "chassis-card-inset": "#130d1a",
+            "chassis-elevated": "#231b2e",
+            "gauge-border": "#2e243d",
+            "gauge-border-light": "#3d3052",
+            "gauge-hairline": "rgba(220, 191, 197, 0.12)",
+            "lamp-rose": "#d46b88",
+            "lamp-lavender": "#9b85db",
+            "lamp-cyan": "#68b5a8",
+            "on-chassis": "#ede3e7",
+            "on-chassis-sub": "#bda6af",
+            "on-chassis-dim": "#7e6b75",
+            "primary": "#ffb1c4",
+            "secondary": "#cbbeff",
+            "outline-variant": "#342b4e"
+          },
+          fontFamily: {
+            "mono": ["IBM Plex Mono", "monospace"],
+            "serif": ["IBM Plex Serif", "Georgia", "serif"],
+            "sans": ["Atkinson Hyperlegible", "sans-serif"]
+          },
+          boxShadow: {
+            "bezel": "inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 8px rgba(0, 0, 0, 0.5)",
+            "lamp-rose": "0 0 8px rgba(212, 107, 136, 0.55)",
+            "lamp-lavender": "0 0 8px rgba(155, 133, 219, 0.55)"
+          }
+        }
+      }
+    }
+</script>
+<style>
+  body {
+    min-height: max(884px, 100dvh);
+    background-color: #140f1a;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  /* Engineering hairline rules */
+  .border-hairline {
+    border-width: 0.5px;
+  }
+</style>
+</head>
+<body class="bg-chassis-base text-on-chassis font-sans min-h-screen pb-28 selection:bg-lamp-rose/30">
+<!-- Instrument Top Console Bar -->
+<header class="w-full max-w-md mx-auto pt-8 pb-3 px-4 flex items-center justify-between"><h1 class="font-serif font-semibold text-[34px] tracking-tight text-on-chassis">Journal</h1></header>
+<!-- Main Laboratory Canvas -->
+<main class="px-4 max-w-md mx-auto flex flex-col gap-4 pt-2">
+<!-- Timeline Calibrator / Scrubber -->
+<section class="mt-2 px-1 py-1"><div class="flex justify-between items-baseline mb-2 pb-1 font-mono text-[10px]"><span class="tracking-wider uppercase text-[10px] text-on-chassis-sub font-medium">October</span></div><div class="flex items-center justify-between gap-1 py-1 no-scrollbar overflow-x-auto"><div class="flex flex-col items-center gap-1 px-1 opacity-35"><span class="font-mono text-[9px] text-on-chassis-dim uppercase">M</span><div class="w-7 h-7 rounded-full flex items-center justify-center font-mono text-[11px] text-on-chassis-dim">14</div><span class="w-1 h-1 rounded-full bg-transparent"></span></div><div class="flex flex-col items-center gap-1 px-1 opacity-50"><span class="font-mono text-[9px] text-on-chassis-dim uppercase">T</span><div class="w-7 h-7 rounded-full flex items-center justify-center font-mono text-[11px] text-on-chassis-sub">15</div><span class="w-1 h-1 rounded-full bg-lamp-rose/60"></span></div><div class="flex flex-col items-center gap-1 px-1 opacity-50"><span class="font-mono text-[9px] text-on-chassis-dim uppercase">W</span><div class="w-7 h-7 rounded-full flex items-center justify-center font-mono text-[11px] text-on-chassis-sub">16</div><span class="w-1 h-1 rounded-full bg-transparent"></span></div><div class="flex flex-col items-center gap-1 px-1 opacity-65"><span class="font-mono text-[9px] text-on-chassis-dim uppercase">T</span><div class="w-7 h-7 rounded-full flex items-center justify-center font-mono text-[11px] text-on-chassis-sub">17</div><span class="w-1 h-1 rounded-full bg-lamp-lavender/80"></span></div><div class="flex flex-col items-center gap-1 px-1 opacity-65"><span class="font-mono text-[9px] text-on-chassis-dim uppercase">F</span><div class="w-7 h-7 rounded-full flex items-center justify-center font-mono text-[11px] text-on-chassis-sub">18</div><span class="w-1 h-1 rounded-full bg-lamp-rose/80"></span></div><div class="flex flex-col items-center gap-1 px-1 opacity-75"><span class="font-mono text-[9px] text-on-chassis-dim uppercase">S</span><div class="w-7 h-7 rounded-full flex items-center justify-center font-mono text-[11px] text-on-chassis-sub">19</div><div class="flex gap-0.5"><span class="w-1 h-1 rounded-full bg-lamp-rose/80"></span><span class="w-1 h-1 rounded-full bg-lamp-lavender/80"></span></div></div><div class="flex flex-col items-center gap-1 px-1"><span class="font-mono text-[9px] text-lamp-rose uppercase font-medium">S</span><div class="w-7 h-7 rounded-full flex items-center justify-center font-mono text-[11px] font-semibold text-lamp-rose bg-lamp-rose/15 border border-lamp-rose/40">20</div><div class="flex gap-0.5"><span class="w-1 h-1 rounded-full bg-lamp-rose shadow-lamp-rose"></span><span class="w-1 h-1 rounded-full bg-lamp-lavender shadow-lamp-lavender"></span></div></div></div></section>
+<!-- Observations Container -->
+<div class="flex flex-col gap-6"><div class="flex flex-col gap-3"><article class="bg-chassis-card border border-gauge-border/70 rounded-lg p-3.5 shadow-bezel relative overflow-hidden group"><div class="flex justify-between items-start mb-2 pl-1"><div class="flex items-center gap-2.5"><span class="material-symbols-outlined text-[17px] text-lamp-rose">wb_twilight</span><div class="flex flex-col"><h2 class="font-serif text-[15px] text-on-chassis leading-snug"><span class="font-semibold">Sunday</span> <span class="font-normal opacity-75">morning</span></h2><span class="font-mono text-[10px] text-on-chassis-dim">08:30 · ESTRADIOL VALERATE 2.0 MG · SL</span></div></div><div class="flex items-center gap-1.5 pt-0.5"><span class="w-1.5 h-1.5 rounded-full bg-lamp-rose shadow-lamp-rose" title="Hormone Administered"></span><span class="w-1.5 h-1.5 rounded-full bg-lamp-lavender shadow-lamp-lavender" title="Somatic Log"></span></div></div><p class="font-sans text-[14px] leading-relaxed text-on-chassis pl-1 my-2">"Felt genuinely calm today — good sleep, steady mood. The morning dose feels balanced without any sudden fatigue spikes."</p><div class="flex items-center justify-between pt-2.5 mt-2 border-t border-gauge-border/50 pl-1"><div class="flex items-center gap-2"><span class="font-mono text-[9px] px-2 py-0.5 rounded-full border border-gauge-border bg-chassis-card-inset text-on-chassis-sub">CALM</span><span class="font-mono text-[9px] px-2 py-0.5 rounded-full border border-gauge-border bg-chassis-card-inset text-on-chassis-sub">SLEEPY</span></div></div></article><article class="bg-chassis-card border border-gauge-border/60 rounded-lg p-3 flex items-center justify-between hover:border-gauge-border-light transition-colors"><div class="flex items-center gap-3"><span class="material-symbols-outlined text-[17px] text-lamp-lavender">bedtime</span><div class="flex flex-col"><div class="flex items-center gap-1.5"><h3 class="font-serif text-[13.5px] text-on-chassis leading-snug"><span class="font-semibold">Sunday</span> <span class="font-normal opacity-75">evening</span></h3><span class="font-mono text-[9px] text-on-chassis-dim">· ROUTINE LOG</span></div><p class="font-sans text-[12px] text-on-chassis-sub italic mt-0.5">"Skin texture feels noticeably softer..."</p></div></div><div class="flex flex-col items-end gap-1"><span class="font-mono text-[10px] text-on-chassis-dim">21:15</span><span class="w-1.5 h-1.5 rounded-full bg-lamp-lavender"></span></div></article></div><div class="flex flex-col gap-3"><article class="bg-chassis-card border border-gauge-border/60 rounded-lg p-3 flex items-center justify-between hover:border-gauge-border-light transition-colors"><div class="flex items-center gap-3"><span class="material-symbols-outlined text-[17px] text-lamp-lavender">spa</span><div class="flex flex-col"><div class="flex items-center gap-1.5"><h3 class="font-serif text-[13.5px] text-on-chassis leading-snug"><span class="font-semibold">Saturday</span> <span class="font-normal opacity-75">afternoon</span></h3><span class="font-mono text-[9px] text-on-chassis-dim">· SOMATIC</span></div><p class="font-sans text-[12px] text-on-chassis-sub italic mt-0.5">"Deeply present, connected to process..."</p></div></div><div class="flex flex-col items-end gap-1"><span class="font-mono text-[10px] text-on-chassis-dim">15:40</span><div class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-lamp-rose"></span><span class="w-1.5 h-1.5 rounded-full bg-lamp-lavender"></span></div></div></article><article class="bg-chassis-card border border-gauge-border/60 rounded-lg p-3 flex items-center justify-between hover:border-gauge-border-light transition-colors"><div class="flex items-center gap-3"><span class="material-symbols-outlined text-[17px] text-lamp-rose">wb_sunny</span><div class="flex flex-col"><div class="flex items-center gap-1.5"><h3 class="font-serif text-[13.5px] text-on-chassis leading-snug"><span class="font-semibold">Saturday</span> <span class="font-normal opacity-75">morning</span></h3><span class="font-mono text-[9px] text-on-chassis-dim">· PROTOCOL COMPLIANT</span></div><p class="font-sans text-[12px] text-on-chassis-sub italic mt-0.5">"Energy steady, good workout..."</p></div></div><div class="flex flex-col items-end gap-1"><span class="font-mono text-[10px] text-on-chassis-dim">09:15</span><span class="w-1.5 h-1.5 rounded-full bg-lamp-rose"></span></div></article></div><div class="flex flex-col gap-3"><article class="bg-chassis-card border border-gauge-border/60 rounded-lg p-3 flex items-center justify-between hover:border-gauge-border-light transition-colors"><div class="flex items-center gap-3"><span class="material-symbols-outlined text-[17px] text-lamp-rose">vaccines</span><div class="flex flex-col"><div class="flex items-center gap-1.5"><h3 class="font-serif text-[13.5px] text-on-chassis leading-snug"><span class="font-semibold">Friday</span> <span class="font-normal opacity-75">evening</span></h3><span class="font-mono text-[9px] text-on-chassis-dim">· SC DELTOID 4MG</span></div><p class="font-sans text-[12px] text-on-chassis-sub italic mt-0.5">"Injected right deltoid, no local soreness observed..."</p></div></div><div class="flex flex-col items-end gap-1"><span class="font-mono text-[10px] text-on-chassis-dim">19:45</span><div class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-lamp-rose"></span><span class="w-1.5 h-1.5 rounded-full bg-lamp-lavender"></span></div></div></article></div><div class="flex flex-col gap-3"><article class="bg-chassis-card border border-gauge-border/60 rounded-lg p-3 flex items-center justify-between hover:border-gauge-border-light transition-colors"><div class="flex items-center gap-3"><span class="material-symbols-outlined text-[17px] text-lamp-lavender">bedtime</span><div class="flex flex-col"><div class="flex items-center gap-1.5"><h3 class="font-serif text-[13.5px] text-on-chassis leading-snug"><span class="font-semibold">Thursday</span> <span class="font-normal opacity-75">evening</span></h3><span class="font-mono text-[9px] text-on-chassis-dim">· SLEEP 8.1H</span></div><p class="font-sans text-[12px] text-on-chassis-sub italic mt-0.5">"Deep restful sleep, clear focus..."</p></div></div><div class="flex flex-col items-end gap-1"><span class="font-mono text-[10px] text-on-chassis-dim">22:20</span><span class="w-1.5 h-1.5 rounded-full bg-lamp-lavender"></span></div></article><article class="bg-chassis-card border border-gauge-border/60 rounded-lg p-3 flex items-center justify-between hover:border-gauge-border-light transition-colors"><div class="flex items-center gap-3"><span class="material-symbols-outlined text-[17px] text-lamp-rose">wb_sunny</span><div class="flex flex-col"><div class="flex items-center gap-1.5"><h3 class="font-serif text-[13.5px] text-on-chassis leading-snug"><span class="font-semibold">Thursday</span> <span class="font-normal opacity-75">morning</span></h3><span class="font-mono text-[9px] text-on-chassis-dim">· BASELINE LOG</span></div><p class="font-sans text-[12px] text-on-chassis-sub italic mt-0.5">"Woke up alert, resting HR stabilized..."</p></div></div><div class="flex flex-col items-end gap-1"><span class="font-mono text-[10px] text-on-chassis-dim">08:10</span><span class="w-1.5 h-1.5 rounded-full bg-lamp-rose"></span></div></article></div></div>
+</main>
+<!-- Floating Instrument Log Actuator -->
+<div class="fixed bottom-24 left-0 right-0 mx-auto max-w-md flex justify-center z-50 pointer-events-auto"><div class="relative"><div class="absolute inset-0 rounded-full bg-lamp-rose/25 blur-md"></div><button aria-label="New Log Entry" class="relative flex items-center gap-2 px-4 py-2.5 rounded-full bg-lamp-rose text-chassis-base border border-lamp-rose/60 shadow-bezel active:scale-95 transition-all"><span class="material-symbols-outlined text-[18px]">edit_note</span><span class="font-sans text-[13px] font-semibold tracking-wide whitespace-nowrap">New entry</span></button></div></div>
+<!-- Persistent 4-Tab Instrument Navigation Bar -->
+<div class="fixed bottom-0 left-0 right-0 h-28 pointer-events-none bg-gradient-to-t from-[#140f1a]/90 via-[#140f1a]/50 to-transparent z-30"></div><nav class="fixed bottom-5 left-4 right-4 max-w-md mx-auto z-50 flex justify-around items-center py-2 px-3 rounded-full bg-[#1c1524]/80 backdrop-blur-md border border-gauge-border/70 shadow-bezel"><a class="flex flex-col items-center justify-center text-on-chassis-dim hover:text-on-chassis gap-0.5 py-1 px-3 transition-colors active:scale-95 whitespace-nowrap" href="#"><span class="material-symbols-outlined text-[20px]">grid_view</span><span class="font-mono text-[9px] uppercase tracking-wider">Home</span></a><a class="flex flex-col items-center justify-center text-lamp-rose gap-0.5 py-1 px-3 transition-colors active:scale-95 whitespace-nowrap" href="#"><span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">menu_book</span><span class="font-mono text-[9px] uppercase tracking-wider font-semibold">Journal</span></a><a class="flex flex-col items-center justify-center text-on-chassis-dim hover:text-on-chassis gap-0.5 py-1 px-3 transition-colors active:scale-95 whitespace-nowrap" href="#"><span class="material-symbols-outlined text-[20px]">show_chart</span><span class="font-mono text-[9px] uppercase tracking-wider">Time</span></a><a class="flex flex-col items-center justify-center text-on-chassis-dim hover:text-on-chassis gap-0.5 py-1 px-3 transition-colors active:scale-95 whitespace-nowrap" href="#"><span class="material-symbols-outlined text-[20px]">tune</span><span class="font-mono text-[9px] uppercase tracking-wider">Settings</span></a></nav>
+
+
+
+
+
+
+</body></html>

@@ -19,7 +19,7 @@ extension OnboardingView {
                     .font(.system(size: 64, weight: .light))
                     .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.95))
                 Text("Hormone therapy tracking")
-                    .font(.title3)
+                    .font(Theme.Fonts.title3)
                     .fontWeight(.regular)
                     .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.85))
                     .multilineTextAlignment(.center)
@@ -43,7 +43,7 @@ extension OnboardingView {
                             .tint(Theme.Colors.accent)
                             .scaleEffect(1.2)
                         Text("Restoring from iCloud…")
-                            .font(.body)
+                            .font(Theme.Fonts.body)
                             .foregroundStyle(.primary)
                     }
                     .padding(.horizontal, 32)
@@ -90,7 +90,7 @@ extension OnboardingView {
             }
         } label: {
             Text("Restore from iCloud")
-                .font(.subheadline)
+                .font(Theme.Fonts.subheadline)
                 .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.8))
                 .underline()
         }
@@ -125,7 +125,7 @@ extension OnboardingView {
         VStack(spacing: 28) {
             Spacer()
             Text("What hormone are you taking?")
-                .font(.title2)
+                .font(Theme.Fonts.title2)
                 .fontWeight(.regular)
                 .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                 .multilineTextAlignment(.center)
@@ -161,7 +161,7 @@ extension OnboardingView {
         VStack(spacing: 28) {
             Spacer()
             Text("How long have you been on HRT?")
-                .font(.title2)
+                .font(Theme.Fonts.title2)
                 .fontWeight(.regular)
                 .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                 .multilineTextAlignment(.center)

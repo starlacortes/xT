@@ -1,0 +1,591 @@
+{
+  "meta": {
+    "name": "Isocline — Paper & Instrument",
+    "version": "2026.10.10",
+    "spec": "docs/design/ISOCLINE_DESIGN_SYSTEM.html",
+    "notes": [
+      "Canonical design tokens for every Isocline surface that is NOT the live app engine: web pages, docs, and Isocline Research print.",
+      "Recipes mirror ThemePalette.resolve (xT/Managers/ThemeManager.swift). Each appearance is [L, C, hueOffset]; hue = seedHue + hueOffset, gamut-clamped by chroma reduction (ThemeEngine.clampToGamut).",
+      "Edit this file, then run: python3 -I tools/scripts/gen_isocline_tokens.py — it rewrites the 'resolved' block plus tokens/isocline.css, docs/research/isocline.sty, and xTTests/IsoclineTokenExpectations.swift.",
+      "Recipes tagged with an 'app' field exist in ThemePalette today and are parity-tested; 'paper' and 'card' are new and land in the app in roadmap phase 1."
+    ]
+  },
+  "seed": {
+    "defaultHex": "#D4537E",
+    "source": "ThemeManager.defaultSeedHue = oklch(#D4537E).H",
+    "stops": {
+      "from": "default",
+      "count": 8,
+      "stepDegrees": 45,
+      "role": "Quick swatches in the hue picker and the alternate-icon set (I2/I4) use the same stops; resolved.seedStops lists them."
+    }
+  },
+  "recipes": {
+    "paper": {
+      "light": [
+        0.965,
+        0.0155,
+        86.4
+      ],
+      "dark": [
+        0.18,
+        0.03,
+        0
+      ],
+      "role": "Screen canvas. Day paper is cream at every dial position (absolute hue 86.4°, the OKLCH of #F8F3E8); night paper keeps the seed's hue, with L/C from the Stitch night reference (#151022). Decision X4, 2026-10-11.",
+      "app": "appBackground",
+      "hue": {
+        "light": "absolute",
+        "dark": "seed"
+      }
+    },
+    "card": {
+      "light": [
+        0.985,
+        0.009,
+        86.4
+      ],
+      "dark": [
+        0.225,
+        0.036,
+        0
+      ],
+      "role": "Raised paper card, read by its hairline, never a shadow. Cream by day like the paper; seed-tinted by night.",
+      "app": "cardSurface",
+      "hue": {
+        "light": "absolute",
+        "dark": "seed"
+      }
+    },
+    "ink": {
+      "light": [
+        0.1,
+        0.01,
+        0
+      ],
+      "dark": [
+        0.94,
+        0.01,
+        0
+      ],
+      "repair": {
+        "against": "paper",
+        "floor": "bodyText"
+      },
+      "app": "textPrimary",
+      "role": "All text and engraving. Muted/faint/line/grid are this ink at fixed alpha."
+    },
+    "accent": {
+      "light": [
+        0.6225,
+        0.1666,
+        0
+      ],
+      "dark": [
+        0.6974,
+        0.1543,
+        -2.7412
+      ],
+      "app": "accent",
+      "role": "The seed itself. Links, the active tab, the needle pivot."
+    },
+    "accent2": {
+      "light": [
+        0.4806,
+        0.1663,
+        279.3403
+      ],
+      "dark": [
+        0.6139,
+        0.1477,
+        283.2229
+      ],
+      "app": "accentSecondary",
+      "role": "Secondary structure (the lavender of the old brand, now seed-relative)."
+    },
+    "onAccent": {
+      "light": [
+        0.97,
+        0.008,
+        0
+      ],
+      "dark": [
+        0.97,
+        0.008,
+        0
+      ],
+      "repair": {
+        "against": "accent",
+        "floor": "largeTextOrGraphic",
+        "direction": "light"
+      },
+      "role": "Ink on accent fills (action pills, the icon ground). Repaired toward light against the accent. The app's OnAccentPalette repairs against several brand stops, so this is not parity-tested."
+    },
+    "levelLow": {
+      "light": [
+        0.4818,
+        0.139,
+        -1.9539
+      ],
+      "dark": [
+        0.5986,
+        0.1456,
+        -3.669
+      ],
+      "app": "levelLow",
+      "role": "Bottom of the level ramp; levelTint lerps levelLow→levelHigh by level/ceiling."
+    },
+    "levelHigh": {
+      "light": [
+        0.6218,
+        0.1403,
+        288.4203
+      ],
+      "dark": [
+        0.7545,
+        0.1,
+        289.156
+      ],
+      "app": "levelHigh",
+      "role": "Top of the level ramp."
+    },
+    "safety": {
+      "light": [
+        0.53,
+        0.17,
+        27.0
+      ],
+      "dark": [
+        0.72,
+        0.15,
+        27.0
+      ],
+      "hue": {
+        "light": "absolute",
+        "dark": "absolute"
+      },
+      "repair": {
+        "against": "paper",
+        "floor": "bodyText"
+      },
+      "app": "safety",
+      "role": "The single exception to 'no red in data display' (decision X10): documented clinical thresholds only — the SafetyFlag cases in code are the source of truth. Outline + text + glyph on the safety pill; never a fill, never on the curve. Never themed."
+    }
+  },
+  "inkAlpha": {
+    "muted": [
+      0.62,
+      0.62
+    ],
+    "faint": [
+      0.38,
+      0.38
+    ],
+    "line": [
+      0.14,
+      0.14
+    ],
+    "grid": [
+      0.05,
+      0.035
+    ],
+    "ylab": [
+      0.1,
+      0.15
+    ]
+  },
+  "fixed": {
+    "success": {
+      "hex": "#3B8C6E",
+      "role": "Legacy: the old dashed trough lines on the Home chart. Retired from the chart (the range band is accent); delete with the Home pass (transition plan H5) if nothing else uses it."
+    },
+    "sage": {
+      "hex": "#8FA382",
+      "role": "A data-series color for secondary measurements. Never a status color."
+    },
+    "print": {
+      "ink": "#1A1622",
+      "paper": "#FFFFFF",
+      "role": "Isocline Research print: near-black ink on white stock; one accent (resolved light accent), no status colors."
+    }
+  },
+  "type": {
+    "families": {
+      "display": {
+        "name": "IBM Plex Serif",
+        "weights": [
+          600,
+          700
+        ],
+        "license": "SIL OFL 1.1"
+      },
+      "mono": {
+        "name": "IBM Plex Mono",
+        "weights": [
+          400,
+          500
+        ],
+        "license": "SIL OFL 1.1"
+      },
+      "prose": {
+        "name": "Atkinson Hyperlegible Next",
+        "weights": [
+          400,
+          700
+        ],
+        "license": "SIL OFL 1.1 (Google Fonts release, googlefonts/atkinson-hyperlegible-next)"
+      }
+    },
+    "roles": {
+      "display": {
+        "family": "display",
+        "weight": 700,
+        "size": 64,
+        "relativeTo": "largeTitle",
+        "theme": "Theme.Fonts.display"
+      },
+      "readout": {
+        "family": "mono",
+        "weight": 500,
+        "size": 52,
+        "relativeTo": "largeTitle",
+        "theme": "Theme.Fonts.readout"
+      },
+      "largeNumber": {
+        "family": "mono",
+        "weight": 500,
+        "size": 48,
+        "relativeTo": "largeTitle",
+        "theme": "Theme.Fonts.largeNumber"
+      },
+      "hero": {
+        "family": "display",
+        "weight": 700,
+        "size": 34,
+        "relativeTo": "largeTitle",
+        "theme": "Theme.Fonts.hero"
+      },
+      "numeric": {
+        "family": "mono",
+        "weight": 500,
+        "size": 32,
+        "relativeTo": "title",
+        "theme": "Theme.Fonts.numeric"
+      },
+      "serifTitle": {
+        "family": "display",
+        "weight": 600,
+        "size": 22,
+        "relativeTo": "title2",
+        "theme": "Theme.Fonts.serifTitle"
+      },
+      "body": {
+        "family": "prose",
+        "weight": 400,
+        "size": 17,
+        "relativeTo": "body",
+        "theme": "Theme.Fonts.body"
+      },
+      "serifBody": {
+        "family": "display",
+        "weight": 600,
+        "size": 17,
+        "relativeTo": "body",
+        "theme": "Theme.Fonts.serifBody"
+      },
+      "detail": {
+        "family": "prose",
+        "weight": 400,
+        "size": 13,
+        "relativeTo": "footnote",
+        "theme": "Theme.Fonts.detail"
+      },
+      "label": {
+        "family": "mono",
+        "weight": 500,
+        "size": 12,
+        "relativeTo": "caption",
+        "theme": "Theme.Fonts.label"
+      },
+      "eyebrow": {
+        "family": "mono",
+        "weight": 500,
+        "size": 11,
+        "relativeTo": "caption2",
+        "tracking": 0.18,
+        "case": "upper",
+        "theme": "Theme.Fonts.eyebrow"
+      },
+      "pill": {
+        "family": "mono",
+        "weight": 500,
+        "size": 11,
+        "relativeTo": "caption2",
+        "tracking": 0.08,
+        "theme": "Theme.Fonts.pill"
+      },
+      "statLabel": {
+        "family": "mono",
+        "weight": 400,
+        "size": 9,
+        "relativeTo": "caption2",
+        "tracking": 0.14,
+        "case": "upper",
+        "theme": "Theme.Fonts.statLabel"
+      },
+      "micro": {
+        "family": "mono",
+        "weight": 400,
+        "size": 10,
+        "relativeTo": "caption2",
+        "theme": "Theme.Fonts.micro"
+      },
+      "statValue": {
+        "family": "mono",
+        "weight": 500,
+        "size": 18,
+        "relativeTo": "headline",
+        "theme": "Theme.Fonts.statValue"
+      }
+    },
+    "rules": [
+      "Mono labels never wrap mid-word: lineLimit(1) + minimumScaleFactor(0.8), or shorten the copy.",
+      "Every role scales with Dynamic Type via Font.custom(_:size:relativeTo:)."
+    ],
+    "aliases": {
+      "largeTitle": {
+        "family": "display",
+        "weight": 600,
+        "size": 34
+      },
+      "title": {
+        "family": "display",
+        "weight": 600,
+        "size": 28
+      },
+      "title2": {
+        "family": "display",
+        "weight": 600,
+        "size": 22
+      },
+      "title3": {
+        "family": "display",
+        "weight": 600,
+        "size": 20
+      },
+      "headline": {
+        "family": "prose",
+        "weight": 700,
+        "size": 17
+      },
+      "body": {
+        "family": "prose",
+        "weight": 400,
+        "size": 17
+      },
+      "callout": {
+        "family": "prose",
+        "weight": 400,
+        "size": 16
+      },
+      "subheadline": {
+        "family": "prose",
+        "weight": 400,
+        "size": 15
+      },
+      "footnote": {
+        "family": "prose",
+        "weight": 400,
+        "size": 13
+      },
+      "caption": {
+        "family": "prose",
+        "weight": 400,
+        "size": 12
+      },
+      "caption2": {
+        "family": "prose",
+        "weight": 400,
+        "size": 11
+      },
+      "role": "Each alias is relativeTo its own text style. Theme.Fonts.icon stays a system font (SF Symbols sizing)."
+    }
+  },
+  "radius": {
+    "hairline": 2,
+    "xs": 4,
+    "chip": 6,
+    "control": 8,
+    "tile": 10,
+    "sm": 12,
+    "md": 16,
+    "lg": 20,
+    "xl": 24,
+    "specimen": 28
+  },
+  "spacing": {
+    "xxs": 2,
+    "xs": 4,
+    "s6": 6,
+    "sm": 8,
+    "s10": 10,
+    "md": 12,
+    "card": 14,
+    "lg": 16,
+    "xl": 20,
+    "xxl": 24,
+    "s28": 28,
+    "xxxl": 32,
+    "gutter": 22
+  },
+  "line": {
+    "hairline": 1,
+    "engrave": 0.75,
+    "curve": 1.8,
+    "curveHero": 2.5,
+    "labRing": 1.3
+  },
+  "logo": {
+    "masters": "docs/design/brand/",
+    "source": "IBM Plex Serif SemiBold, outlined; tracking +0.07em; never live text",
+    "renderings": [
+      "ink",
+      "hairline",
+      "emboss"
+    ],
+    "clearSpace": "the cap height of O on every side",
+    "minWordmarkWidthPx": 96,
+    "minMarkPx": 16,
+    "smallMark": "I. — the wordmark's I and a perfect-circle point",
+    "emboss": {
+      "light": "#FFFFFF",
+      "lightOpacity": 0.85,
+      "shadow": "#251F33",
+      "shadowOpacity": 0.16,
+      "depthRatio": 0.012,
+      "largeDepthRatio": 0.004,
+      "largeThreshold": 2000,
+      "role": "Relief offsets as a fraction of drawing width; drawings wider than largeThreshold use largeDepthRatio."
+    }
+  },
+  "curve": {
+    "fill": {
+      "color": "levelTint",
+      "topOpacity": 0.3,
+      "bottomOpacity": 0.0,
+      "direction": "vertical"
+    },
+    "stroke": {
+      "from": "levelLow",
+      "to": "levelHigh",
+      "direction": "along the curve"
+    },
+    "nowPoint": {
+      "haloOpacity": 0.15,
+      "haloColor": "accent",
+      "dotColor": "levelTint",
+      "dotDiameter": 10,
+      "haloDiameter": 26
+    },
+    "labPoint": {
+      "style": "hollow ring",
+      "stroke": "ink",
+      "fill": "paper",
+      "diameter": 9
+    },
+    "rangeBand": {
+      "color": "accent",
+      "opacity": 0.05,
+      "label": "YOUR RANGE {low}–{high}",
+      "maxSpanRatio": 2.5,
+      "bounds": "troughMin…peakCeiling (decision X9); no band when the user has no range set"
+    },
+    "glow": {
+      "appearance": "dark",
+      "opacity": 0.35,
+      "radius": 6,
+      "role": "Night paper only, on the stroke; off under Reduce Transparency."
+    },
+    "notes": "No dashed segment: labs are rare, so the curve is almost always modeled. Provenance is carried by the mono line under the readout and by hollow lab rings."
+  },
+  "inkAlphaIncreasedContrast": {
+    "line": [
+      0.28,
+      0.28
+    ],
+    "grid": [
+      0.1,
+      0.07
+    ],
+    "role": "Replaces inkAlpha entries under Increase Contrast (app) and prefers-contrast: more (web)."
+  },
+  "components": {
+    "tile": {
+      "size": 32,
+      "fillOpacity": 0.13,
+      "radius": "control"
+    },
+    "avatar": {
+      "row": 56,
+      "header": 72,
+      "editor": 112,
+      "ring": "hairline"
+    },
+    "actionPill": {
+      "minHeight": 44
+    },
+    "floatingFade": {
+      "height": 48
+    },
+    "specimen": {
+      "radius": "specimen",
+      "aspect": 1.08,
+      "role": "Hue-picker preview: a near-square window of sample UI (ST8)."
+    }
+  },
+  "resolved": {
+    "seedHue": 2.5217,
+    "light": {
+      "paper": "#F8F3E8",
+      "card": "#FDFAF3",
+      "ink": "#050303",
+      "accent": "#D4537E",
+      "accent2": "#534AB7",
+      "onAccent": "#FAF3F4",
+      "levelLow": "#99345A",
+      "levelHigh": "#8875D4",
+      "safety": "#BA3630",
+      "muted": "rgba(5, 3, 3, 0.62)",
+      "faint": "rgba(5, 3, 3, 0.38)",
+      "line": "rgba(5, 3, 3, 0.14)",
+      "grid": "rgba(5, 3, 3, 0.05)",
+      "ylab": "rgba(5, 3, 3, 0.1)"
+    },
+    "dark": {
+      "paper": "#1C0C10",
+      "card": "#2A141A",
+      "ink": "#F1E8EA",
+      "accent": "#E8709A",
+      "accent2": "#7E74D8",
+      "onAccent": "#FFFFFF",
+      "levelLow": "#C2557E",
+      "levelHigh": "#B0A4EA",
+      "safety": "#F47C70",
+      "muted": "rgba(241, 232, 234, 0.62)",
+      "faint": "rgba(241, 232, 234, 0.38)",
+      "line": "rgba(241, 232, 234, 0.14)",
+      "grid": "rgba(241, 232, 234, 0.035)",
+      "ylab": "rgba(241, 232, 234, 0.15)"
+    },
+    "seedStops": [
+      2.52,
+      47.52,
+      92.52,
+      137.52,
+      182.52,
+      227.52,
+      272.52,
+      317.52
+    ]
+  }
+}

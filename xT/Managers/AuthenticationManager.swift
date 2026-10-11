@@ -300,7 +300,7 @@ struct AuthenticationView: View {
                     if authManager.biometricType() != .none {
                         Button(action: { Task { await authenticate() } }) {
                             Text("Unlock with \(authManager.biometricType().description)")
-                                .font(.headline)
+                                .font(Theme.Fonts.headline)
                                 .fontWeight(.medium)
                                 .foregroundStyle(.white)
                                 .frame(maxWidth: .infinity)
@@ -319,7 +319,7 @@ struct AuthenticationView: View {
                             Task { await authenticateWithPasscode() }
                         } label: {
                             Text(authManager.biometricType() == .none ? "Use Passcode" : "Use passcode instead")
-                                .font(.subheadline)
+                                .font(Theme.Fonts.subheadline)
                                 .foregroundStyle(.white.opacity(0.7))
                         }
                         

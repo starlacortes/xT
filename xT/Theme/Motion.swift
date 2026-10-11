@@ -89,15 +89,29 @@ struct PressableButtonStyle: ButtonStyle {
     var scale: CGFloat = 0.95
 
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? scale : 1)
-            .opacity(configuration.isPressed ? 0.92 : 1)
-            .animation(Theme.Motion.snappy, value: configuration.isPressed)
-            .onChange(of: configuration.isPressed) { _, pressed in
-                if pressed {
-                    UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+        PressableLabel(configuration: configuration, scale: scale)
+    }
+
+    /// Nested view so the style can react to `accessibilityReduceMotion`
+    /// (a `ButtonStyle` struct can't observe `@Environment` directly).
+    private struct PressableLabel: View {
+        let configuration: ButtonStyleConfiguration
+        let scale: CGFloat
+        @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+        var body: some View {
+            let pressed = configuration.isPressed
+            // Reduce Motion: drop the scale choreography, keep only the opacity dim.
+            configuration.label
+                .scaleEffect(reduceMotion ? 1 : (pressed ? scale : 1))
+                .opacity(pressed ? 0.92 : 1)
+                .animation(reduceMotion ? nil : Theme.Motion.snappy, value: pressed)
+                .onChange(of: pressed) { _, isPressed in
+                    if isPressed {
+                        UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+                    }
                 }
-            }
+        }
     }
 }
 
@@ -163,21 +177,27 @@ private struct CountingText: View, Animatable {
 struct CelebrationGlowModifier: ViewModifier {
     let trigger: Int
     let color: Color
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func body(content: Content) -> some View {
-        content
-            .phaseAnimator(CelebrationPhase.allCases, trigger: trigger) { content, phase in
-                content
-                    .scaleEffect(phase.scale)
-                    .shadow(color: color.opacity(phase.glowOpacity),
-                            radius: phase.glowRadius)
-            } animation: { phase in
-                switch phase {
-                case .idle:    Theme.Motion.instant
-                case .bloom:   Animation.spring(duration: 0.35, bounce: 0.2)
-                case .settle:  Theme.Motion.settle
+        // Reduce Motion: no bloom choreography at all — the celebration is off.
+        if reduceMotion {
+            content
+        } else {
+            content
+                .phaseAnimator(CelebrationPhase.allCases, trigger: trigger) { content, phase in
+                    content
+                        .scaleEffect(phase.scale)
+                        .shadow(color: color.opacity(phase.glowOpacity),
+                                radius: phase.glowRadius)
+                } animation: { phase in
+                    switch phase {
+                    case .idle:    Theme.Motion.instant
+                    case .bloom:   Animation.spring(duration: 0.35, bounce: 0.2)
+                    case .settle:  Theme.Motion.settle
+                    }
                 }
-            }
+        }
     }
 }
 

@@ -19,17 +19,13 @@ struct MoodRowView: View {
         return last
     }
     
-    private var moodEmoji: String {
-        guard let mood = todayEntry?.mood else { return "🌸" }
-        switch mood {
-        case .happy:    return "😊"
-        case .calm:     return "😌"
-        case .neutral:  return "😐"
-        case .tired:    return "😴"
-        case .anxious:  return "😰"
-        case .sad:      return "😢"
-        case .energetic: return "⚡️"
-        }
+    private var moodGlyphName: String {
+        todayEntry?.mood.icon ?? "square.and.pencil"
+    }
+
+    private var moodGlyphColor: Color {
+        guard let mood = todayEntry?.mood else { return .secondary }
+        return JournalTheme.palette(for: mood).accent
     }
     
     var body: some View {
@@ -37,8 +33,9 @@ struct MoodRowView: View {
             showingJournalComposer = true
         } label: {
             HStack(spacing: 10) {
-                Text(moodEmoji)
+                Image(systemName: moodGlyphName)
                     .font(.system(size: 18))
+                    .foregroundStyle(moodGlyphColor)
                 
                 VStack(alignment: .leading, spacing: 1) {
                     Text(todayEntry?.mood.rawValue.capitalized ?? "Add mood")

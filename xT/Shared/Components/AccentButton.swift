@@ -27,7 +27,7 @@ struct AccentActionButton: View {
                 }
                 Text(title)
             }
-            .font(.headline.weight(.medium))
+            .font(Theme.Fonts.headline.weight(.medium))
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)

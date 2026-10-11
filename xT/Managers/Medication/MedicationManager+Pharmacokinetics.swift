@@ -238,9 +238,24 @@ extension MedicationManager {
         }
     }
     
-    /// Computes α = measured / predicted for a single blood test record.
-    /// Runs the PK model at the draw date to get the predicted value,
-    /// then stores the ratio.  If predicted ≈ 0, clamps to a sane range.
+    /// Derives the calibration factor α from the exogenous (drug) contribution alone.
+    ///
+    /// Application is `C = base + exogenous · α` (see `estimatedLevels`), so the
+    /// derivation must invert that: `α = (measured − base) / exogenous`. The previous
+    /// implementation divided by the *total* predicted level — baseline included — so
+    /// re-evaluating the model at the draw instant returned `measured + (1 − α)·base`
+    /// instead of `measured`. Returns nil when no positive α reconciles the draw:
+    /// `exogenous ≤ 0.01` (nothing meaningful to divide by) or `measured ≤ base`
+    /// (a draw at/below the endogenous floor; clamping to 0.2 would fabricate a
+    /// correction that does not exist). Otherwise the result is clamped to 0.2–5.0.
+    nonisolated static func calibrationAlpha(measured: Double, base: Double, exogenous: Double) -> Double? {
+        guard exogenous > 0.01, measured > base else { return nil }
+        return max(0.2, min(5.0, (measured - base) / exogenous))
+    }
+
+    /// Computes α for a single blood test record and stores it on the record.
+    /// Runs the PK model at the draw date (uncalibrated) to get the predicted value,
+    /// then derives α against the exogenous part of that prediction.
     func computeCalibrationFactor(for record: BloodTestRecord) {
         guard let medication = selectedMedication,
               let _ = selectedAdministrationMethod,
@@ -262,9 +277,22 @@ extension MedicationManager {
             return
         }
         
-        let alpha = record.measuredLevel / predicted
-        // Clamp to clinically plausible range (0.2 – 5.0×)
-        record.calibrationFactor = max(0.2, min(5.0, alpha))
+        // α is applied to the exogenous term alone, so it is derived against the
+        // exogenous term alone. `predictedLevel` evaluates `dynamicBaseline` once,
+        // as of now, and applies that single value to every point in the series —
+        // including historical draw dates — so the baseline subtracted here must be
+        // the SAME as-of-now baseline `predictedLevel` added. (Evaluating the baseline
+        // per-point fixes the flat baseline but re-scales every stored α; that is a
+        // separate change, not part of this fix.)
+        guard let type = MedicationType(rawValue: record.hormoneType) else {
+            record.calibrationFactor = nil
+            return
+        }
+        let base = dynamicBaseline(for: type)
+        let exogenous = predicted - base
+        record.calibrationFactor = Self.calibrationAlpha(measured: record.measuredLevel,
+                                                         base: base,
+                                                         exogenous: exogenous)
     }
     
     /// Recomputes calibration factors for all blood test records.

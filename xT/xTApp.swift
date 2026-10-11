@@ -87,11 +87,11 @@ struct xTApp: App {
             "requireAuthentication": false,
             "autoLockTimeout": AutoLockTimeout.fallback.rawValue,
             "doseReminderEnabled": false,
-            "doseReminderHour": 9,
-            "doseReminderMinute": 0,
+            "doseReminderHour": NotificationManager.Defaults.doseHour,
+            "doseReminderMinute": NotificationManager.Defaults.doseMinute,
             "journalReminderEnabled": false,
-            "journalReminderHour": 20,
-            "journalReminderMinute": 0,
+            "journalReminderHour": NotificationManager.Defaults.journalHour,
+            "journalReminderMinute": NotificationManager.Defaults.journalMinute,
         ])
 
         // A "local only" reset queues a store-file wipe for the next launch —

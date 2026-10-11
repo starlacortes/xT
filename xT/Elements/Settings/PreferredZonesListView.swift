@@ -52,7 +52,7 @@ struct PreferredZonesListView: View {
                 )) {
                     HStack(spacing: 12) {
                         Image(systemName: combo.routeClass.iconName)
-                            .font(.title3)
+                            .font(Theme.Fonts.title3)
                             .foregroundStyle(combo.routeClass.tintColor)
                             .frame(width: 28)
 

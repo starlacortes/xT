@@ -1,0 +1,752 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Isocline — Paper &amp; Instrument</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap">
+<style>
+/* ───────────────────────────────────────────────────────────────────────────
+   ISOCLINE_SELECTED_DIRECTION — October 2026
+
+   The merge chosen post-review: Direction I's palette and simplicity
+   (Halleyan paper, hairlines, value-along-the-line, double-rule steady)
+   + Direction III's chart (the dip-circle instrument), expressed through
+   the app's actual coloring system:
+
+     · ONE seed hue drives every color (ThemeManager), OKLCH recipes with
+       hue offsets relative to the seed — spin the dial below; nothing here
+       is a static hex except the brand wordmark and the fixed semantic
+       greens, exactly as in the app.
+     · levelTint (lerp levelLow→levelHigh by level/ceiling) is the curve,
+       the today dot, and the needle — the app's existing semantic.
+     · ink-based hairlines at the app's own opacities (gridLine .05/.035,
+       yAxisLabel .10/.15) carry the engraving.
+     · successBrand stays FIXED (not theme-driven) for the trough band,
+       per Theme.swift's deliberate rule.
+     · The paper is a RECIPE, not a color: appBackground's structure with
+       chroma lifted (.008 → .020) — warm at every dial position.
+
+   Same dataset as the direction board: EC 5 mg q7d, one draw anchoring
+   at day 10, today = day 24. The math is unchanged; only the direction
+   and its color plumbing are new.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* static fallbacks — replaced live by the palette engine below */
+  --paper: #F8F3E8;
+  --card: #FDFBF4;
+  --ink: #251F33;
+  --muted: rgba(37,31,51,.62);
+  --faint: rgba(37,31,51,.38);
+  --line: rgba(37,31,51,.14);
+  --grid: rgba(37,31,51,.05);
+  --ylab: rgba(37,31,51,.10);
+  --accent: #D4537E;
+  --accent-2: #534AB7;
+  --level-low: #C24B76;
+  --level-high: #9C7BD8;
+  --level-tint: #CE5F92;
+  --success: #3B8C6E;
+  --brand-accent: #7B5FC0;
+  --brand-rose: #C46B86;
+  --font-display: 'IBM Plex Serif', Georgia, serif;
+  --font-body: 'Atkinson Hyperlegible', 'Helvetica Neue', sans-serif;
+  --font-mono: 'IBM Plex Mono', 'SF Mono', monospace;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--paper); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.65; margin: 0; }
+.page { max-width: 1060px; margin: 0 auto; padding: 48px 20px 90px; }
+.eyebrow { font-family: var(--font-mono); font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(38px, 7vw, 58px); letter-spacing: -.01em; line-height: 1.05; margin: 10px 0 0; text-wrap: balance; }
+.hero-sub { font-size: 17px; max-width: 46em; margin: 14px 0 0; color: var(--muted); }
+.hero-sub strong { color: var(--ink); }
+h2 { font-family: var(--font-display); font-weight: 600; font-size: 27px; letter-spacing: -.01em; margin: 0 0 12px; text-wrap: balance; }
+h3 { font-family: var(--font-display); font-weight: 600; font-size: 16px; margin: 24px 0 8px; }
+section { margin-top: 64px; }
+p { margin: 0 0 12px; max-width: 68ch; }
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.mono { font-family: var(--font-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+code { font-family: var(--font-mono); font-size: .88em; background: var(--card); border: 1px solid var(--line); padding: 1px 5px; border-radius: 4px; }
+svg text { font-family: var(--font-mono); }
+
+/* the dial — the ThemePicker control, verbatim in spirit */
+.dial { border: 1px solid var(--line); border-radius: 16px; background: var(--card); padding: 20px 22px 18px; margin-top: 22px; }
+.dial .row { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; }
+.dial label.ctl { display: flex; flex-direction: column; gap: 8px; flex: 1 1 300px; }
+.dial input[type="range"] { width: 100%; accent-color: var(--accent); }
+.dial .readout { font-family: var(--font-mono); font-size: 11.5px; letter-spacing: .06em; color: var(--muted); }
+.dial .readout b { color: var(--ink); font-weight: 500; }
+.pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.pill { font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; padding: 8px 14px; min-height: 32px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); color: var(--muted); cursor: pointer; transition: border-color .15s, color .15s; }
+.pill:hover { color: var(--ink); }
+.pill.active { color: var(--ink); border-color: var(--accent); }
+.pill:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.topbar { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; margin: 20px 0 0; }
+
+/* lineage + notes */
+.lineage { border-left: 3px solid var(--accent); padding: 2px 0 2px 18px; margin: 16px 0 0; }
+.notes { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 22px; margin: 18px 0 0; }
+@media (max-width: 860px) { .notes { grid-template-columns: 1fr; } }
+.notes h4 { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; }
+.notes ul { margin: 0; padding-left: 18px; }
+.notes li { font-size: 14px; margin-bottom: 7px; color: var(--muted); }
+.notes li b { color: var(--ink); }
+
+/* plates */
+.plates { display: grid; grid-template-columns: 380px 1fr; gap: 26px; align-items: start; margin: 22px 0 6px; }
+@media (max-width: 920px) { .plates { grid-template-columns: 1fr; } }
+.platewrap { position: relative; }
+.plate-note { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin: 8px 2px 0; }
+
+/* phone shell — on paper, like a plate */
+.phone { width: 380px; max-width: 100%; height: 740px; border-radius: 46px; position: relative; overflow: hidden; border: 1px solid var(--line); box-shadow: 0 22px 55px rgba(18,12,32,.16); display: flex; flex-direction: column; background: var(--paper); }
+.p-notch { height: 26px; flex: none; display: flex; justify-content: center; align-items: center; }
+.p-notch span { width: 108px; height: 22px; border-radius: 999px; background: rgba(0,0,0,.28); display: block; }
+.p-top { flex: none; padding: 10px 24px 6px; display: flex; align-items: center; gap: 10px; }
+.p-top .pname { font-family: var(--font-display); font-weight: 600; font-size: 17px; letter-spacing: .05em; }
+.p-top .ptime { margin-left: auto; font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+.p-chart { flex: none; position: relative; }
+.p-chart svg { display: block; width: 100%; height: auto; }
+.p-readout { flex: none; padding: 10px 24px 4px; }
+.p-readout .r-line { font-family: var(--font-mono); font-weight: 500; font-size: 13px; display: flex; align-items: baseline; gap: 10px; }
+.p-readout .r-big { font-family: var(--font-mono); font-weight: 500; font-size: 34px; letter-spacing: -.01em; line-height: 1; }
+.p-readout .r-unit { font-size: 12px; color: var(--muted); letter-spacing: .1em; }
+.p-stack { padding: 12px 20px 0; display: grid; gap: 10px; }
+.p-card { border: 1px solid var(--line); border-radius: 14px; background: var(--card); padding: 12px 14px; display: flex; gap: 12px; align-items: flex-start; }
+.p-card .c-mark { flex: none; padding-top: 2px; }
+.p-card .c-label { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+.p-card .c-main { font-size: 14px; font-weight: 700; margin-top: 2px; }
+.p-card .c-sub { font-size: 12.5px; color: var(--muted); margin-top: 1px; }
+.p-homebar { margin-top: auto; height: 30px; flex: none; display: flex; align-items: center; justify-content: center; }
+.p-homebar span { width: 120px; height: 5px; border-radius: 999px; background: var(--ink); opacity: .3; display: block; }
+
+/* landing plate — the Halleyan double-ruled frame on paper */
+.hero-card { border: 1px solid var(--line); border-radius: 16px; overflow: hidden; background: var(--paper); }
+.hero-inner { padding: 26px 28px 22px; }
+.plate-frame { border: 1px solid var(--line); border-radius: 4px; padding: 42px 30px 30px; position: relative; }
+.plate-frame::before { content: ""; position: absolute; inset: 5px; border: 1px solid var(--line); border-radius: 2px; }
+
+/* svg token classes — every stroke/fill is a Theme token */
+.c-path { fill: none; stroke: var(--level-tint); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.c-path.hero { stroke-width: 2.5; }
+.c-dash { stroke-dasharray: 6 5; stroke-opacity: .82; }
+.c-dbl { fill: none; stroke: var(--ink); stroke-width: .9; opacity: .24; }
+.c-field { stroke: var(--ink); stroke-width: 1.1; stroke-linecap: round; }
+.axis { stroke: var(--ink); stroke-width: 1; opacity: .38; }
+.tick { stroke: var(--ink); stroke-width: 1.2; opacity: .5; }
+.tlab { font-size: 9px; fill: var(--muted); letter-spacing: .08em; }
+.vlab { font-size: 9px; fill: var(--muted); }
+.gridline { stroke: var(--grid); stroke-width: 1; }
+.gridlabel { font-size: 8.5px; fill: var(--ylab); }
+.value-along { font-size: 10px; fill: var(--muted); font-weight: 500; letter-spacing: .04em; }
+.today-halo { fill: none; stroke: var(--level-tint); stroke-width: 1.4; opacity: .5; }
+.today-dot { fill: var(--level-tint); }
+.dose-halo { fill: var(--accent-2); opacity: .22; }
+.dose-dot { fill: var(--accent-2); }
+.dose-label { font-size: 7.5px; font-weight: 600; fill: var(--faint); letter-spacing: .08em; }
+.next-ring { fill: none; stroke: var(--level-tint); stroke-width: 1; opacity: .5; }
+.next-ring2 { fill: none; stroke: var(--level-tint); stroke-width: 1.6; }
+.ther-line { stroke: var(--success); stroke-width: 0.5; stroke-dasharray: 3 5; opacity: .30; }
+.ther-label { font-size: 8px; fill: var(--success); opacity: .75; }
+.labring { fill: none; stroke: var(--accent); stroke-width: 1.6; }
+.labdot { fill: var(--accent); }
+.annot-line { stroke: var(--ink); stroke-width: 1; opacity: .35; }
+.annot-text { font-size: 9px; fill: var(--muted); }
+.arcguide { fill: none; stroke: var(--ink); stroke-width: 1.1; opacity: .5; }
+.arctick { stroke: var(--ink); stroke-width: 1.1; opacity: .6; }
+.arczero { stroke: var(--ink); stroke-width: 1; opacity: .45; }
+.drop { stroke: var(--ink); stroke-width: 1; stroke-dasharray: 2 3; opacity: .4; }
+.needle { stroke: var(--level-tint); stroke-width: 2.6; stroke-linecap: round; }
+.needle-ghost { stroke: var(--level-tint); stroke-width: 1.6; }
+.pivot { fill: var(--accent); }
+
+/* wordmark lockup — brand constants, display-only (identity final §1) */
+.lockup { display: inline-block; padding: 4px 4px 40px 4px; position: relative; }
+.lockup .word { position: relative; font-family: var(--font-display); font-weight: 600; letter-spacing: .07em; line-height: 1; color: inherit; }
+.lockup .curve { position: absolute; left: 40%; width: 63%; bottom: -34px; height: 26px; overflow: visible; }
+.lockup .curve path { fill: none; stroke: var(--brand-accent); stroke-width: 2.2; stroke-linecap: round; }
+.lockup .curve circle { fill: var(--brand-rose); }
+
+/* token mapping table */
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+td.el { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+td .new { color: var(--accent); font-weight: 700; }
+.table-wrap { overflow-x: auto; }
+
+.risk { font-size: 14px; color: var(--muted); border-top: 1px dashed var(--line); padding-top: 12px; margin-top: 14px; max-width: 72ch; }
+.risk b { color: var(--ink); }
+
+footer { margin-top: 68px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+footer p { max-width: 92ch; }
+
+/* draw-in; static under reduced motion */
+.draw .animpath { stroke-dasharray: var(--len); stroke-dashoffset: var(--len); transition: stroke-dashoffset 1.6s cubic-bezier(.22,.61,.36,1); }
+.draw.drawn .animpath { stroke-dashoffset: 0; }
+.draw .ghost { opacity: 0; transition: opacity .6s ease; }
+.draw.drawn .ghost { opacity: var(--gop); }
+.draw.drawn .ghost.g2 { transition-delay: .5s; }
+.draw.drawn .ghost.g3 { transition-delay: .9s; }
+.draw.drawn .ghost.g4 { transition-delay: 1.3s; }
+@media (prefers-reduced-motion: reduce) {
+  .draw .animpath { stroke-dasharray: none !important; stroke-dashoffset: 0 !important; transition: none !important; }
+  .draw .ghost { opacity: var(--gop) !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div role="note" style="font:13px/1.5 'IBM Plex Mono',ui-monospace,monospace;background:#251F33;color:#F1E8EA;padding:10px 16px">REFERENCE PLATE — this direction was selected and is now specified in <a href="ISOCLINE_DESIGN_SYSTEM.html" style="color:#E8709A">ISOCLINE_DESIGN_SYSTEM.html</a> (canonical). Kept as history. Its dashed modeled segment, double rule and value-along-the-line were replaced by the Stitch-derived filled curve, provenance line and lab rings (design system §06), and its ◉ marks are retired; the small mark is now “I.”.</div>
+<div class="page">
+
+<p class="eyebrow">Selected direction · docs/design · October 2026</p>
+<h1>Paper &amp; Instrument</h1>
+<p class="hero-sub">The merge chosen from the <a href="archive/ISOCLINE_DESIGN_DIRECTIONS.html">direction board</a>: <strong>Direction I's palette and simplicity</strong> — warm paper, hairline engraving, the value written along the line, the double rule for steady — and <strong>Direction III's chart</strong> — the dip-circle instrument beneath today's point. Both expressed through the app's coloring system: one seed hue, OKLCH recipes, contrast repair. <strong>Spin the dial below</strong> — every color on this page re-derives exactly the way <code>ThemeManager</code> does it in the app.</p>
+
+<div class="topbar">
+  <div class="pills" id="page-theme" role="group" aria-label="Page theme">
+    <button class="pill active" data-theme="auto">Auto</button>
+    <button class="pill" data-theme="light">Light</button>
+    <button class="pill" data-theme="dark">Dark</button>
+  </div>
+</div>
+
+<!-- ──────────────────────────── THE DIAL ──────────────────────────── -->
+<section style="margin-top:36px">
+  <div class="dial">
+    <div class="row">
+      <label class="ctl">
+        <span class="eyebrow" style="margin:0">Seed hue — the app's theme dial</span>
+        <input type="range" id="seed" min="-180" max="180" step="1" value="0" aria-label="Seed hue offset in degrees">
+        <span class="readout" id="seed-readout"></span>
+      </label>
+      <div>
+        <span class="eyebrow" style="display:block;margin-bottom:8px">Presets — the named themes</span>
+        <div class="pills" id="presets"></div>
+      </div>
+    </div>
+    <p class="mono" style="margin:14px 0 0">Recipes: ThemeManager.swift · L/C held, hue rotates · ink &amp; curve repaired in-app for WCAG</p>
+  </div>
+</section>
+
+<!-- ──────────────────────────── THE CONSTANT ──────────────────────────── -->
+<section>
+  <h2>The constant</h2>
+  <p>Same dataset as the board — EC 5 mg IM q7d, one draw at day 10 reading 180 pg/mL, today = day 24 — so the numbers here are directly comparable across pages:</p>
+  <div style="border:1px solid var(--line);border-radius:16px;background:var(--card);padding:20px 22px 12px">
+    <p class="mono" style="margin:0 0 6px">anchored solid to the draw · modeled dashed beyond · green = trough band (fixed, non-theme)</p>
+    <div id="const-chart"></div>
+  </div>
+</section>
+
+<!-- ──────────────────────────── THE MERGE ──────────────────────────── -->
+<section>
+  <div style="display:flex;align-items:baseline;gap:16px;flex-wrap:wrap">
+    <span style="font-family:var(--font-display);font-size:42px;color:var(--muted);opacity:.55;line-height:1">I+III</span>
+    <h2 style="margin:0">Halleyan paper, isoclinic instrument</h2>
+    <span class="mono" style="color:var(--accent)">one seed hue · every color derived</span>
+  </div>
+  <div class="lineage">
+    <p>I keeps the first isoline charts' grammar — hairline weights, values written along the line, the double rule where the compass stands true — but the parchment is no longer a static cream: it is the app's own ground recipe with its chroma lifted, so the paper is <em>warm at every position of the dial</em>. III keeps the dip circle — horizontal zero, graduated arc, the needle settling to today's reading — but the needle now wears <code>levelTint</code>, the app's rose→lavender ramp, because in this system the level's color <em>is</em> its meaning.</p>
+  </div>
+
+  <div class="notes">
+    <div>
+      <h4>Kept from I · the paper</h4>
+      <ul>
+        <li><b>Seed-tinted paper ground</b> — recipe, not hex; rose-blush at default, sage at Steady.</li>
+        <li><b>Hairline grid</b> at the app's own <code>gridLine</code> opacities — more lines, never louder.</li>
+        <li><b>Value along the line</b> — the plateau carries its number, at secondary weight: it is a modeled number.</li>
+        <li><b>Double rule for steady</b> — Halley's "stands true" mark under the plateau.</li>
+        <li><b>Plate framing</b> on the landing hero, double-ruled.</li>
+      </ul>
+    </div>
+    <div>
+      <h4>Kept from III · the instrument</h4>
+      <ul>
+        <li><b>The dip circle</b> — zero-dip reference, graduated quarter-arc, needle reading today.</li>
+        <li><b>Ghost swings</b> — the settle, drawn as fading oscillation.</li>
+        <li><b>Strict scope</b> — an arc only ever means a level reading; never nav, never cards.</li>
+      </ul>
+    </div>
+    <div>
+      <h4>Reconciled to the system</h4>
+      <ul>
+        <li><b>Today's marker</b> follows the app's <code>levelTint</code>, not fixed rose — level color = level meaning.</li>
+        <li><b>Needle = levelTint</b>; pivot = accent; arc and ticks = ink.</li>
+        <li><b>Trough band stays green</b> — semantic colors are deliberately non-theme in the app.</li>
+        <li><b>Curve stroke 1.8pt</b>, right-edge y labels, dose dots — FlatGraphView's actual furniture.</li>
+        <li><b>Slope field</b> reserved to the landing hero; the app chart stays quiet.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="plates">
+    <div class="platewrap draw" id="phone-plate">
+      <div class="phone">
+        <div class="p-notch"><span></span></div>
+        <div class="p-top">
+          <span class="markslot" style="width:22px;height:22px;display:block"></span>
+          <span class="pname">Isocline</span>
+          <span class="ptime">9:41</span>
+        </div>
+        <div class="p-chart" id="phone-chart"></div>
+        <div class="p-readout">
+          <div class="r-line"><span class="r-big" id="phone-rbig"></span><span class="r-unit">pg/mL · modeled</span></div>
+          <div class="r-line" style="margin-top:4px"><span class="r-unit" style="font-size:11px">Thu Oct 8 · day 24 · 1 draw anchored · next dose in 4 d</span></div>
+        </div>
+        <div class="p-stack">
+          <div class="p-card">
+            <span class="c-mark" style="width:18px;height:18px;display:block"></span>
+            <span><span class="c-label">Next dose</span><div class="c-main">EC 5 mg · Mon Oct 12</div><div class="c-sub">ventrogluteal · L — 82 days rested</div></span>
+          </div>
+          <div class="p-card">
+            <span class="c-mark" style="width:18px;height:18px;display:block"></span>
+            <span><span class="c-label">Model</span><div class="c-main">Dashed = modeled</div><div class="c-sub">Add lab results to anchor the curve.</div></span>
+          </div>
+        </div>
+        <div class="p-homebar"><span></span></div>
+      </div>
+      <p class="plate-note">Curve screen · I's paper + III's instrument, all ThemeEngine tokens</p>
+    </div>
+
+    <div class="platewrap draw" id="hero-plate">
+      <div class="hero-card">
+        <div class="hero-inner">
+          <div class="plate-frame">
+            <p class="mono" style="position:absolute;top:14px;left:18px;margin:0">Plate I</p>
+            <p class="mono" style="position:absolute;top:14px;right:18px;margin:0">The isocline</p>
+            <div style="text-align:center;padding:26px 8px 4px" id="hero-lockup"></div>
+            <p style="text-align:center;font-family:var(--font-display);font-weight:600;font-size:24px;margin:2px 0 4px">Shaped protocol.</p>
+            <p class="mono" style="text-align:center;margin:0 0 14px">after Halley 1701 · Whiston 1721 · Wilcke 1768</p>
+            <div id="hero-chart"></div>
+          </div>
+        </div>
+      </div>
+      <p class="plate-note">Landing hero · engraved slope field, the seam, the instrument — brand wordmark in identity constants</p>
+    </div>
+  </div>
+
+  <p class="risk"><b>Risk.</b> The paper's chroma (.020 vs the app's .008) is this direction's one real commitment. If it sings too loud at extreme seeds in device testing, drop it to .012 and the direction still holds — the structure was never chroma-dependent. The ink and curve recipes already carry WCAG repair in-app (<code>ThemeEngine.repairContrast</code>); this page shows the raw recipes, gamut-clamped only.</p>
+</section>
+
+<!-- ──────────────────────────── TOKEN MAPPING ──────────────────────────── -->
+<section>
+  <h2>Token mapping — the implementation bridge</h2>
+  <p>Every element above, named against the tokens that already exist in <code>Theme.swift</code> / <code>ThemeManager.swift</code>. The direction needs <strong>one new recipe</strong> (the paper) and one new drawing rule (the seam); everything else is an existing token doing its existing job.</p>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Element</th><th>Token / recipe</th><th>Status</th></tr>
+      <tr><td class="el">Paper ground</td><td><span class="new">NEW</span> — <code>appBackground</code> recipe, chroma .008 → .020 (light L .966 · dark L .160), hue tracks seed</td><td>one new recipe — a variant, not a fork</td></tr>
+      <tr><td class="el">Card surface</td><td><code>cardSurface</code> recipe unchanged (L .985 light) — reads as plate-on-paper</td><td>existing</td></tr>
+      <tr><td class="el">Hairline grid · arc · ticks</td><td><code>gridLine</code> (ink .05/.035) · <code>yAxisLabel</code> (ink .10/.15) — ink family, app opacities</td><td>existing</td></tr>
+      <tr><td class="el">Curve — anchored</td><td><code>levelTint</code> = lerp(<code>levelLow</code>, <code>levelHigh</code>, level/ceiling), stroke 1.8pt</td><td>existing (FlatGraphView)</td></tr>
+      <tr><td class="el">Curve — modeled</td><td><span class="new">NEW RULE</span> — same <code>levelTint</code>, dash 6-5 at .82 opacity from the last observation</td><td>the honesty device, formalized</td></tr>
+      <tr><td class="el">Today dot + halo</td><td><code>levelTint</code> fill, halo at .22 — <code>currentDot</code>'s exact pattern</td><td>existing</td></tr>
+      <tr><td class="el">Last-dose dot</td><td><code>accentSecondary</code> + halo .22 + "dose" label</td><td>existing (lastDoseDot)</td></tr>
+      <tr><td class="el">Next-dose ring</td><td><code>levelTint</code> double ring — <code>nextDoseDot</code>'s pattern</td><td>existing</td></tr>
+      <tr><td class="el">Trough band</td><td><code>successBrand</code> dashed at .30, labels .75 — <em>fixed, non-theme by design</em></td><td>existing (therapeuticReferenceLines)</td></tr>
+      <tr><td class="el">Dip circle arc · zero · ticks</td><td>ink family at <code>yAxisLabel</code> weights</td><td>existing ink</td></tr>
+      <tr><td class="el">Needle + ghosts</td><td><code>levelTint</code> — the level's second representation; ghosts fade .14→.47</td><td>new element, existing token</td></tr>
+      <tr><td class="el">Pivot dot</td><td><code>accent</code> — the brand-mark family</td><td>existing</td></tr>
+      <tr><td class="el">Value along line</td><td><code>levelTextSecondary</code> — the plateau number is a modeled value, labeled at secondary weight</td><td>existing</td></tr>
+      <tr><td class="el">Double rule steady</td><td>ink hairline at .24 beneath the plateau</td><td>gridLine family</td></tr>
+      <tr><td class="el">◉ marks (in-app)</td><td><code>accent</code> halo + <code>levelLow</code> dot — the identity mark, engine-tinted</td><td>engine variant of §7 mark</td></tr>
+      <tr><td class="el">Wordmark · lockup</td><td>identity constants (#7B5FC0 / #C46B86, dark #A98FE0 / #E29AAA) — brand, display-only</td><td>identity final §1, unchanged</td></tr>
+      <tr><td class="el">Semantic colors</td><td>success / warning / error — untouched, never theme-driven</td><td>existing rule</td></tr>
+    </table>
+  </div>
+</section>
+
+<footer>
+  <p class="eyebrow" style="margin:0 0 12px">Method</p>
+  <p>Color derivation mirrors <code>ThemeManager.resolve</code>: every token is an OKLCH recipe (lightness, chroma, hue offset from the seed) computed from the values in the app's recipe table — accent L .6225/C .1666, ink L .10/.94, levelLow −1.95°, levelHigh +288.42°, and so on — gamut-clamped by bisection like <code>ThemeEngine.clampToGamut</code>. The default seed is computed from <code>#D4537E</code> exactly as <code>ThemeManager.defaultSeedHue</code> does. The app's WCAG <code>repairContrast</code> pass is noted, not simulated. Curves are the same in-page Bateman superposition as the direction board: k<sub>a</sub> 1.2 d⁻¹, k<sub>e</sub> = ln2/8.5 d⁻¹, scaled so the day-10 draw reads 180 pg/mL; today's readout is whatever the math says. Trough band 100–200 pg/mL per the documented E2 reference ranges.</p>
+  <p style="margin-top:14px">Siblings: <a href="archive/ISOCLINE_DESIGN_DIRECTIONS.html">direction board</a> · <a href="archive/ISOCLINE_IDENTITY_FINAL.html">identity final</a> · <a href="BRANDING_AND_POSITIONING.html">brand brief</a> · <a href="archive/ISOCLINE_IDENTITY_EXPLORER.html">identity explorer</a></p>
+</footer>
+
+</div>
+
+<script>
+"use strict";
+/* ══════════════ 1 · the model — unchanged from the direction board ══════════════ */
+
+var KA = 1.2;
+var KE = Math.log(2) / 8.5;
+var DOSES = [0, 7, 14, 21, 28];
+var LAB = { day: 10, value: 180 };
+var TODAY = 24;
+var TMAX = 30;
+
+function bateman(t) {
+  var c = 0;
+  for (var i = 0; i < DOSES.length; i++) {
+    if (t >= DOSES[i]) c += Math.exp(-KE * (t - DOSES[i])) - Math.exp(-KA * (t - DOSES[i]));
+  }
+  return c;
+}
+var SCALE = LAB.value / bateman(LAB.day);
+function level(t) { return bateman(t) * SCALE; }
+
+/* ══════════════ 2 · the OKLCH engine — ThemeEngine, ported ══════════════ */
+
+function srgbToOklch(hex) {
+  var m = hex.match(/^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+  if (!m) return { L: 0.6, C: 0.1, h: 300 };
+  var lin = function (x) { x = parseInt(x, 16) / 255; return x <= 0.04045 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); };
+  var r = lin(m[1]), g = lin(m[2]), b = lin(m[3]);
+  var l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b),
+      m2 = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b),
+      s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+  return {
+    L: 0.2104542553 * l + 0.7936177850 * m2 - 0.0040720468 * s,
+    C: Math.hypot(1.9779984951 * l - 2.4285922050 * m2 + 0.4505937099 * s,
+                  0.0259040371 * l + 0.7827717662 * m2 - 0.8086757660 * s),
+    h: Math.atan2(0.0259040371 * l + 0.7827717662 * m2 - 0.8086757660 * s,
+                  1.9779984951 * l - 2.4285922050 * m2 + 0.4505937099 * s) * 180 / Math.PI
+  };
+}
+
+function oklchToRgb01(L, C, h) {
+  var a = C * Math.cos(h * Math.PI / 180), b = C * Math.sin(h * Math.PI / 180);
+  var l = L + 0.3963377774 * a + 0.2158037573 * b,
+      m = L - 0.1055613458 * a - 0.0638541728 * b,
+      s = L - 0.0894841775 * a - 1.2914855480 * b;
+  l = l * l * l; m = m * m * m; s = s * s * s;
+  var R = 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+      G = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+      B = -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s;
+  var f = function (x) { return x <= 0.0031308 ? 12.92 * x : 1.055 * Math.pow(Math.max(0, x), 1 / 2.4) - 0.055; };
+  return { r: f(R), g: f(G), b: f(B) };
+}
+function inGamut01(rgb) {
+  var e = 1e-4;
+  return rgb.r >= -e && rgb.r <= 1 + e && rgb.g >= -e && rgb.g <= 1 + e && rgb.b >= -e && rgb.b <= 1 + e;
+}
+/* clampToGamut by bisection, like ThemeEngine's — hold L and H, walk C down */
+function oklchClamped(L, C, h) {
+  var c = { r: 0, g: 0, b: 0 };
+  if (inGamut01(c = oklchToRgb01(L, C, h))) return c;
+  var lo = 0, hi = C;
+  for (var i = 0; i < 12; i++) {
+    var mid = (lo + hi) / 2;
+    if (inGamut01(oklchToRgb01(L, mid, h))) lo = mid; else hi = mid;
+  }
+  return oklchToRgb01(L, lo, h);
+}
+function hex2(x) { return ("0" + Math.round(Math.min(255, Math.max(0, x * 255))).toString(16)).slice(-2); }
+function oklchHex(L, C, h) {
+  var c = oklchClamped(L, C, h);
+  return "#" + hex2(c.r) + hex2(c.g) + hex2(c.b);
+}
+function rgba(rgb01, a) { return "rgba(" + Math.round(rgb01.r * 255) + "," + Math.round(rgb01.g * 255) + "," + Math.round(rgb01.b * 255) + "," + a + ")"; }
+
+/* ── the recipe table — values from ThemeManager.swift ──
+   Each: lightL, lightC, lightHue(offset), darkL, darkC, darkHue(offset) */
+var RECIPES = {
+  /* one NEW recipe — the paper. appBackground's structure, chroma lifted */
+  paper:   { lL: 0.966, lC: 0.020, lH: 0,     dL: 0.160, dC: 0.015, dH: 0 },
+  card:    { lL: 0.985, lC: 0.012, lH: 0,     dL: 0.215, dC: 0.016, dH: 0 },
+  ink:     { lL: 0.10,  lC: 0.010, lH: 0,     dL: 0.94,  dC: 0.010, dH: 0 },
+  accent:  { lL: 0.6225, lC: 0.1666, lH: 0,    dL: 0.6974, dC: 0.1543, dH: -2.7412 },
+  accent2: { lL: 0.4806, lC: 0.1663, lH: 279.3403, dL: 0.6139, dC: 0.1477, dH: 283.2229 },
+  levelLow:  { lL: 0.4818, lC: 0.1390, lH: -1.9539, dL: 0.5986, dC: 0.1456, dH: -3.6690 },
+  levelHigh: { lL: 0.6218, lC: 0.1403, lH: 288.4203, dL: 0.7545, dC: 0.1000, dH: 289.1560 }
+};
+
+var DEFAULT_SEED = srgbToOklch("#D4537E").h;   /* ThemeManager.defaultSeedHue */
+var CEILING = 600;                              /* E2 level ramp ceiling (FlatGraphView) */
+var T_LEVEL = level(TODAY) / CEILING;           /* levelTint's lerp fraction */
+
+function resolve(r, seed, dark) {
+  return {
+    L: dark ? r.dL : r.lL,
+    C: dark ? r.dC : r.lC,
+    h: seed + (dark ? r.dH : r.lH)
+  };
+}
+function hexOf(r, seed, dark) { var o = resolve(r, seed, dark); return oklchHex(o.L, o.C, o.h); }
+function rgb01Of(r, seed, dark) { var o = resolve(r, seed, dark); return oklchClamped(o.L, o.C, o.h); }
+
+/* lerp levelLow→levelHigh in OKLCH, like Color.lerp's role in levelTint */
+function lerpOklch(r1, r2, t, seed, dark) {
+  var a = resolve(r1, seed, dark), b = resolve(r2, seed, dark);
+  var dh = b.h - a.h; if (dh > 180) dh -= 360; if (dh < -180) dh += 360;
+  return oklchClamped(a.L + (b.L - a.L) * t, a.C + (b.C - a.C) * t, a.h + dh * t);
+}
+
+var PRESETS = [
+  { name: "Default · rose", off: 0 },
+  { name: "Rising · warm", off: 35 },
+  { name: "Peak · violet", off: -65 },
+  { name: "Trough · indigo", off: -125 },
+  { name: "Steady · sage", off: 155 }
+];
+
+var seedOffset = 0;
+
+function applyPalette() {
+  var seed = DEFAULT_SEED + seedOffset;
+  var dark = document.documentElement.dataset.theme === "dark" ||
+    (document.documentElement.dataset.theme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
+
+  var ink01 = rgb01Of(RECIPES.ink, seed, dark);
+  var inkHex = hexOf(RECIPES.ink, seed, dark);
+  var tint01 = lerpOklch(RECIPES.levelLow, RECIPES.levelHigh, T_LEVEL, seed, dark);
+
+  var s = document.documentElement.style;
+  s.setProperty("--paper", hexOf(RECIPES.paper, seed, dark));
+  s.setProperty("--card", hexOf(RECIPES.card, seed, dark));
+  s.setProperty("--ink", inkHex);
+  s.setProperty("--muted", rgba(ink01, 0.62));
+  s.setProperty("--faint", rgba(ink01, 0.38));
+  s.setProperty("--line", rgba(ink01, 0.14));
+  s.setProperty("--grid", rgba(ink01, dark ? 0.035 : 0.05));
+  s.setProperty("--ylab", rgba(ink01, dark ? 0.15 : 0.10));
+  s.setProperty("--accent", hexOf(RECIPES.accent, seed, dark));
+  s.setProperty("--accent-2", hexOf(RECIPES.accent2, seed, dark));
+  s.setProperty("--level-low", hexOf(RECIPES.levelLow, seed, dark));
+  s.setProperty("--level-high", hexOf(RECIPES.levelHigh, seed, dark));
+  s.setProperty("--level-tint", rgba(tint01, 1));
+  s.setProperty("--success", dark ? "#64DC9E" : "#3B8C6E");
+  /* brand constants for the lockup only (identity final) */
+  s.setProperty("--brand-accent", dark ? "#A98FE0" : "#7B5FC0");
+  s.setProperty("--brand-rose", dark ? "#E29AAA" : "#C46B86");
+  s.setProperty("color-scheme", dark ? "dark" : "light");
+
+  var rd = document.getElementById("seed-readout");
+  var p = PRESETS.find(function (x) { return x.off === seedOffset; });
+  rd.innerHTML = "seed hue <b>" + ((seed + 360) % 360).toFixed(1) + "°</b>" +
+    (seedOffset === 0 ? " · default, from #D4537E" : " · Δ " + (seedOffset > 0 ? "+" : "") + seedOffset + "°") +
+    (p ? " · " + p.name.split(" · ")[1] : "") +
+    " · levelTint t = " + T_LEVEL.toFixed(2);
+}
+
+/* ══════════════ 3 · builders ══════════════ */
+
+var DOT_RATIO = 0.51, HALO_OPACITY = 0.15;
+
+function markSVG(size) {
+  var r = 50, dot = r * DOT_RATIO;
+  return '<svg viewBox="-100 -100 200 200" width="' + size + '" height="' + size + '" aria-hidden="true">' +
+    '<circle r="' + r + '" fill="var(--accent)" opacity="' + HALO_OPACITY + '"/>' +
+    '<circle r="' + dot.toFixed(1) + '" fill="var(--level-low)"/></svg>';
+}
+
+var LOCKUP_INNER = '<div class="word">ISOCLINE' +
+  '<svg class="curve" viewBox="0 0 63 26" aria-hidden="true">' +
+  '<path d="M 0 22 C 12 18.5, 22 10.5, 28 7 C 32 5.4, 36 4.9, 41 4.8 L 61 4.8"/>' +
+  '<circle cx="60" cy="4.8" r="2.6"/>' +
+  '</svg></div>';
+function lockupHTML(px) {
+  return '<div class="lockup" style="font-size:' + px + 'px">' + LOCKUP_INNER + '</div>';
+}
+
+/* chartSVG — the merged chart. Features are flags; all colors are tokens.
+   o: { w,h, padL,R,T,B, yMax, axisX, ygridR, field, fieldOn, along, dbl,
+        arc, annot, hero, anim, doseDots, therap } */
+function chartSVG(o) {
+  var W = o.w, H = o.h;
+  var padL = o.padL, padR = o.padR, padT = o.padT, padB = o.padB;
+  function X(t) { return padL + (t / TMAX) * (W - padL - padR); }
+  function Y(v) { return H - padB - (v / o.yMax) * (H - padT - padB); }
+
+  var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Modeled estradiol curve: doses every seven days, solid where anchored by a day-10 lab draw, dashed beyond it; a dip-circle instrument beneath today shows the level as a settled needle">';
+
+  /* y grid, right-edge labels — the app's gridLayer placement */
+  if (o.ygridR) {
+    for (var gv = 100; gv <= o.yMax; gv += 100) {
+      s += '<line class="gridline" x1="' + padL + '" x2="' + (W - 4) + '" y1="' + Y(gv).toFixed(1) + '" y2="' + Y(gv).toFixed(1) + '"/>';
+      s += '<text class="gridlabel" x="' + (W - 4) + '" y="' + (Y(gv) - 3).toFixed(1) + '" text-anchor="end">' + gv + '</text>';
+    }
+  }
+
+  /* therapeutic trough band — fixed green, dashed (therapeuticReferenceLines) */
+  if (o.therap) {
+    [100, 200].forEach(function (v) {
+      s += '<line class="ther-line" x1="' + padL + '" x2="' + (W - 4) + '" y1="' + Y(v).toFixed(1) + '" y2="' + Y(v).toFixed(1) + '"/>';
+    });
+    s += '<text class="ther-label" x="' + (padL + 2) + '" y="' + (Y(200) + 10).toFixed(1) + '">trough 100–200</text>';
+  }
+
+  /* engraved slope field — landing hero only */
+  if (o.field) {
+    for (var gx = padL + 12; gx <= W - padR - 10; gx += o.field) {
+      var tH = (gx - padL) / (W - padL - padR) * TMAX;
+      if (tH < 0.5) continue;
+      var cy = Y(level(tH));
+      for (var k = -2; k <= 2; k++) {
+        if (k === 0) continue;
+        var gy = cy + k * 34;
+        if (gy < padT + 4 || gy > H - padB - 8) continue;
+        var d = (gy - cy) / (H - padT - padB);
+        var rot = d > 0 ? -Math.abs(d) * 38 : Math.abs(d) * 38;
+        rot = Math.max(-34, Math.min(34, rot));
+        s += '<line class="c-field" x1="-8" x2="8" transform="translate(' + gx.toFixed(0) + ' ' + gy.toFixed(0) + ') rotate(' + rot.toFixed(0) + ')" opacity="' + (0.30 * (o.fieldOn || 1)).toFixed(2) + '"/>';
+      }
+    }
+  }
+
+  /* x axis — explainer charts only (the app chart carries no time axis) */
+  if (o.axisX) {
+    s += '<line class="axis" x1="' + padL + '" x2="' + (W - padR) + '" y1="' + (H - padB) + '" y2="' + (H - padB) + '"/>';
+    for (var i = 0; i < DOSES.length; i++) {
+      var dx = X(DOSES[i]);
+      s += '<line class="tick" x1="' + dx.toFixed(1) + '" x2="' + dx.toFixed(1) + '" y1="' + (H - padB) + '" y2="' + (H - padB + 6) + '"/>';
+      s += '<text class="tlab" x="' + dx.toFixed(1) + '" y="' + (H - padB + 17) + '" text-anchor="middle">d' + DOSES[i] + '</text>';
+    }
+  }
+
+  /* the curve — solid to the draw (levelTint), dashed beyond (the seam) */
+  var solidPts = [], dashPts = [];
+  for (var t = 0; t <= TMAX + 0.001; t += 0.25) {
+    var pt = X(t).toFixed(1) + ' ' + Y(level(t)).toFixed(1);
+    if (t <= LAB.day) solidPts.push((solidPts.length ? 'L ' : 'M ') + pt);
+    if (t >= LAB.day) dashPts.push((dashPts.length ? 'L ' : 'M ') + pt);
+  }
+  s += '<path class="c-path' + (o.hero ? ' hero' : '') + (o.anim ? ' animpath' : '') + '" d="' + solidPts.join(' ') + '"/>';
+  s += '<path class="c-path c-dash' + (o.hero ? ' hero' : '') + '" d="' + dashPts.join(' ') + '"/>';
+
+  /* double rule for steady — beneath the plateau (Halley's stands-true line) */
+  if (o.dbl) {
+    var dbl = [];
+    for (var t2 = 23.5; t2 <= 29.6; t2 += 0.25) dbl.push((dbl.length ? 'L ' : 'M ') + X(t2).toFixed(1) + ' ' + (Y(level(t2)) + 3.5).toFixed(1));
+    s += '<path class="c-dbl" d="' + dbl.join(' ') + '"/>';
+  }
+  /* value along the line — the plateau carries its number, in ink */
+  if (o.along) {
+    var ax = X(26.4), ay = Y(level(26.4)) - 7;
+    s += '<text class="value-along" transform="translate(' + ax.toFixed(1) + ' ' + ay.toFixed(1) + ') rotate(-1.6)" text-anchor="middle">' + Math.round(level(26.4)) + ' pg/mL</text>';
+  }
+
+  /* the anchor draw */
+  var lx = X(LAB.day), ly = Y(LAB.value);
+  if (o.annot) {
+    s += '<line class="annot-line" x1="' + (lx - 6) + '" y1="' + (ly - 10) + '" x2="' + (lx - 30) + '" y2="' + (ly - 34) + '"/>';
+    s += '<text class="annot-text" x="' + (lx - 34) + '" y="' + (ly - 39) + '" text-anchor="end">d10 · 180 · anchor</text>';
+  }
+  s += '<circle class="labring" cx="' + lx.toFixed(1) + '" cy="' + ly.toFixed(1) + '" r="5"/>';
+  s += '<circle class="labdot" cx="' + lx.toFixed(1) + '" cy="' + ly.toFixed(1) + '" r="2"/>';
+
+  /* dose furniture — the app's lastDoseDot / nextDoseDot */
+  if (o.doseDots) {
+    var ddx = X(21), ddy = Y(level(21));
+    s += '<circle class="dose-halo" cx="' + ddx.toFixed(1) + '" cy="' + ddy.toFixed(1) + '" r="6"/>';
+    s += '<circle class="dose-dot" cx="' + ddx.toFixed(1) + '" cy="' + ddy.toFixed(1) + '" r="2.5"/>';
+    s += '<text class="dose-label" x="' + ddx.toFixed(1) + '" y="' + (ddy + 15).toFixed(1) + '" text-anchor="middle">DOSE</text>';
+    var ndx = X(28), ndy = Y(level(28));
+    s += '<circle class="next-ring" cx="' + ndx.toFixed(1) + '" cy="' + ndy.toFixed(1) + '" r="6.5"/>';
+    s += '<circle class="next-ring2" cx="' + ndx.toFixed(1) + '" cy="' + ndy.toFixed(1) + '" r="3.4"/>';
+    s += '<text class="dose-label" x="' + ndx.toFixed(1) + '" y="' + (ndy + 17).toFixed(1) + '" text-anchor="middle">NEXT DOSE</text>';
+  }
+
+  /* today — levelTint dot + halo (currentDot's pattern) */
+  var tx = X(TODAY), ty = Y(level(TODAY));
+  s += '<circle class="today-halo" cx="' + tx.toFixed(1) + '" cy="' + ty.toFixed(1) + '" r="8"/>';
+  s += '<circle class="today-dot" cx="' + tx.toFixed(1) + '" cy="' + ty.toFixed(1) + '" r="4"/>';
+
+  /* the dip circle — III's instrument: zero reference, graduated arc,
+     needle at rest in levelTint, ghosts of the settle, pivot in accent */
+  if (o.arc) {
+    var pxv = X(TODAY), pyv = Y(o.yMax * 0.22);
+    var R = Math.min(44, (W - padL - padR) / 3, (H - padT - padB) / 3);
+    var RAD = Math.PI / 180;
+    s += '<line class="arczero" x1="' + (pxv - 12) + '" y1="' + pyv.toFixed(1) + '" x2="' + (pxv + R + 14) + '" y2="' + pyv.toFixed(1) + '"/>';
+    s += '<path class="arcguide" d="M ' + (pxv + R).toFixed(1) + ' ' + pyv.toFixed(1) + ' A ' + R + ' ' + R + ' 0 0 1 ' + pxv.toFixed(1) + ' ' + (pyv + R).toFixed(1) + '"/>';
+    var vals = [0, Math.round(o.yMax / 4), Math.round(o.yMax / 2), Math.round(o.yMax * 3 / 4), o.yMax];
+    for (var vi = 0; vi < vals.length; vi++) {
+      var a2 = 90 * (vals[vi] / o.yMax) * RAD;
+      var x1 = pxv + R * Math.cos(a2), y1 = pyv + R * Math.sin(a2);
+      var x2 = pxv + (R - 5) * Math.cos(a2), y2 = pyv + (R - 5) * Math.sin(a2);
+      s += '<line class="arctick" x1="' + x1.toFixed(1) + '" y1="' + y1.toFixed(1) + '" x2="' + x2.toFixed(1) + '" y2="' + y2.toFixed(1) + '"/>';
+      s += '<text class="vlab" x="' + (pxv + (R + 8) * Math.cos(a2)).toFixed(1) + '" y="' + (pyv + (R + 8) * Math.sin(a2) + 3).toFixed(1) + '" text-anchor="' + (vals[vi] === o.yMax ? "middle" : "start") + '">' + vals[vi] + '</text>';
+    }
+    s += '<line class="drop" x1="' + tx.toFixed(1) + '" y1="' + (ty + 10).toFixed(1) + '" x2="' + pxv.toFixed(1) + '" y2="' + (pyv - 7).toFixed(1) + '"/>';
+    var wobble = [-34, 13, -6, 2];
+    for (var g = 0; g < wobble.length; g++) {
+      var ga = 90 * (level(TODAY) + wobble[g]) / o.yMax * RAD;
+      var gop = (0.14 + g * 0.11).toFixed(2);
+      s += '<line class="needle-ghost ghost g' + (g + 1) + '" style="--gop:' + gop + '" x1="' + pxv.toFixed(1) + '" y1="' + pyv.toFixed(1) + '" x2="' + (pxv + (R - 7) * Math.cos(ga)).toFixed(1) + '" y2="' + (pyv + (R - 7) * Math.sin(ga)).toFixed(1) + '"/>';
+    }
+    var na = 90 * level(TODAY) / o.yMax * RAD;
+    s += '<line class="needle" x1="' + pxv.toFixed(1) + '" y1="' + pyv.toFixed(1) + '" x2="' + (pxv + (R - 3) * Math.cos(na)).toFixed(1) + '" y2="' + (pyv + (R - 3) * Math.sin(na)).toFixed(1) + '"/>';
+    s += '<circle class="pivot" cx="' + pxv.toFixed(1) + '" cy="' + pyv.toFixed(1) + '" r="3.4"/>';
+  }
+
+  s += '</svg>';
+  return s;
+}
+
+/* ══════════════ 4 · render ══════════════ */
+
+var $ = function (id) { return document.getElementById(id); };
+
+$("const-chart").innerHTML = chartSVG({
+  w: 980, h: 250, padL: 20, padR: 34, padT: 16, padB: 30, yMax: 300,
+  axisX: true, ygridR: true, annot: true, along: true, dbl: true, doseDots: true, therap: true
+});
+
+$("phone-chart").innerHTML = chartSVG({
+  w: 380, h: 320, padL: 16, padR: 20, padT: 30, padB: 30, yMax: 300,
+  ygridR: true, along: true, dbl: true, arc: true, doseDots: true, therap: true
+});
+$("phone-rbig").textContent = Math.round(level(TODAY));
+document.querySelectorAll(".markslot").forEach(function (el) { el.innerHTML = markSVG(22); });
+document.querySelectorAll(".c-mark").forEach(function (el) { el.innerHTML = markSVG(18); });
+
+$("hero-lockup").innerHTML = lockupHTML(48);
+$("hero-chart").innerHTML = chartSVG({
+  w: 560, h: 290, padL: 20, padR: 40, padT: 22, padB: 26, yMax: 300,
+  field: 34, fieldOn: 1, along: true, dbl: true, arc: true, hero: true, anim: true
+});
+
+/* ══════════════ 5 · wiring — dial, theme, draw-in ══════════════ */
+
+var presetBox = $("presets");
+PRESETS.forEach(function (p) {
+  var b = document.createElement("button");
+  b.className = "pill" + (p.off === 0 ? " active" : "");
+  b.textContent = p.name.split(" · ")[0];
+  b.addEventListener("click", function () {
+    seedOffset = p.off;
+    $("seed").value = p.off;
+    document.querySelectorAll("#presets .pill").forEach(function (x) { x.classList.toggle("active", x === b); });
+    applyPalette();
+  });
+  presetBox.appendChild(b);
+});
+
+$("seed").addEventListener("input", function (e) {
+  seedOffset = Number(e.target.value);
+  document.querySelectorAll("#presets .pill").forEach(function (x) { x.classList.remove("active"); });
+  applyPalette();
+});
+
+$("page-theme").addEventListener("click", function (e) {
+  var b = e.target.closest(".pill");
+  if (!b) return;
+  document.querySelectorAll("#page-theme .pill").forEach(function (p) { p.classList.toggle("active", p === b); });
+  if (b.dataset.theme === "auto") delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = b.dataset.theme;
+  applyPalette();
+});
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyPalette);
+
+/* measure animatable paths, store lengths as CSS vars */
+document.querySelectorAll(".animpath").forEach(function (p) {
+  try { p.style.setProperty("--len", p.getTotalLength() + 1); } catch (e) {}
+});
+
+var io = new IntersectionObserver(function (entries) {
+  entries.forEach(function (e) {
+    if (e.isIntersecting) { e.target.classList.add("drawn"); io.unobserve(e.target); }
+  });
+}, { threshold: 0.2 });
+document.querySelectorAll(".draw").forEach(function (el) { io.observe(el); });
+
+applyPalette();
+</script>
+</body>
+</html>

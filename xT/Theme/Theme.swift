@@ -39,13 +39,16 @@ struct Theme {
         // Glass tint — deep purple-black in dark mode, subtle white in light mode
         static var glassTint: Color { ThemeManager.shared.palette.glassTint }
 
-        // Semantic — deliberately NOT theme-driven. These carry meaning (red =
-        // error, green = success) independent of brand styling; letting them
-        // rotate with the theme risks a "missed dose" warning drifting toward
-        // green at some hues, which is a safety concern, not just an aesthetic one.
+        // Semantic — deliberately NOT theme-driven. These carry meaning
+        // independent of brand styling. `error`/`safety` is the documented clinical
+        // red (decision X10): a fixed, never-themed hue (absolute 27°), contrast-
+        // repaired against paper. The accessor name is kept so existing callers
+        // (`HormoneLevelPresentation.statusTint`, `PharmacokineticTests`) still hold.
         static let success          = Color.green
         static let warning          = Color.orange
-        static let error            = Color.red
+        static var error: Color     { ThemeManager.shared.palette.safety }
+        /// Alias for `error` — the Isocline name for the clinical-safety red.
+        static var safety: Color    { ThemeManager.shared.palette.safety }
         static let successBrand     = Color(lightHex: "#3B8C6E", darkHex: "#64DC9E")
 
         // Graph level ramp — deep rose (low) → light lavender (high)
@@ -120,54 +123,67 @@ struct Theme {
     // MARK: Fonts
 
     struct Fonts {
-        // Non-standard sizes
-        static let display      = Font.system(size: 64, weight: .bold)
-        static let largeNumber  = Font.system(size: 48, weight: .bold)
-        static let micro        = Font.system(size: 10, weight: .regular)
+        // Isocline Paper & Instrument type (element F2). Every role is built from a
+        // bundled OFL face via `Theme.FontFace.sized(_:relativeTo:)`, so it scales with
+        // Dynamic Type. Family/weight/size/relativeTo mirror tokens' type.roles & aliases.
+        // `Theme.FontFace` and the .eyebrow()/.monoLabel()/.statLabel() modifiers live
+        // in Theme+IsoclineType.swift.
+        private typealias Face = Theme.FontFace
 
-        // Standard Dynamic Type scale
-        static let largeTitle   = Font.largeTitle
-        static let title        = Font.title
-        static let title2       = Font.title2
-        static let title3       = Font.title3
-        static let headline     = Font.headline
-        static let body         = Font.body
-        static let callout      = Font.callout
-        static let subheadline  = Font.subheadline
-        static let footnote     = Font.footnote
-        static let caption      = Font.caption
-        static let caption2     = Font.caption2
+        // MARK: Role scale (tokens: type.roles)
 
-        // Journal serif flourishes
-        static let serifTitle   = Font.system(.title2, design: .serif)
-        static let serifBody    = Font.system(.body, design: .serif)
+        /// Reserved display serif. (serif 700 · 64)
+        static let display      = Face.serifBold.sized(64, relativeTo: .largeTitle)
+        /// Home level readout. (mono 500 · 52)
+        static let readout      = Face.monoMedium.sized(52, relativeTo: .largeTitle)
+        /// Record figures. (mono 500 · 48)
+        static let largeNumber  = Face.monoMedium.sized(48, relativeTo: .largeTitle)
+        /// Screen titles — Journal, Settings, Time hero. (serif 700 · 34)
+        static let hero         = Face.serifBold.sized(34, relativeTo: .largeTitle)
+        /// Secondary figures. (mono 500 · 32)
+        static let numeric      = Face.monoMedium.sized(32, relativeTo: .title)
+        /// Section titles, profile name, sheet titles. (serif 600 · 22)
+        static let serifTitle   = Face.serifSemibold.sized(22, relativeTo: .title2)
+        /// Journal prose, body copy. (prose 400 · 17)
+        static let body         = Face.prose.sized(17, relativeTo: .body)
+        /// Journal day labels, dose-section time. (serif 600 · 17)
+        static let serifBody    = Face.serifSemibold.sized(17, relativeTo: .body)
+        /// Subtitles, captions. (prose 400 · 13)
+        static let detail       = Face.prose.sized(13, relativeTo: .footnote)
+        /// Meta lines, provenance, countdown chips. (mono 500 · 12)
+        static let label        = Face.monoMedium.sized(12, relativeTo: .caption)
+        /// Section-header eyebrow. Use the `.eyebrow()` modifier for tracking+case+muted.
+        /// (mono 500 · 11)
+        static let eyebrow      = Face.monoMedium.sized(11, relativeTo: .caption2)
+        /// Chip label. (mono 500 · 11)
+        static let pill         = Face.monoMedium.sized(11, relativeTo: .caption2)
+        /// Gridline values, fine-print stat labels. Use `.statLabel()` for tracking+case.
+        /// (mono 400 · 9)
+        static let statLabel    = Face.mono.sized(9, relativeTo: .caption2)
+        /// Small print. (mono 400 · 10)
+        static let micro        = Face.mono.sized(10, relativeTo: .caption2)
+        /// Stat values. (mono 500 · 18)
+        static let statValue    = Face.monoMedium.sized(18, relativeTo: .headline)
 
-        // MARK: Role tokens
+        /// Leading SF Symbol in a list row — stays a system font for symbol sizing.
+        static let icon         = Font.system(size: 18)
+
+        // MARK: Text-style aliases (tokens: type.aliases)
         //
-        // These name the fixed sizes that recur across the app. Each was derived from a
-        // frequency count of raw `.system(size:)` literals — the number in the comment is
-        // how many hand-written sites the token replaces.
+        // The 11 standard text-style names, re-pointed at the Isocline families so the
+        // existing `.font(.<style>)` call sites shift all at once as they migrate to
+        // `Theme.Fonts.<style>` (element F2 / X2). Each is relativeTo its own style.
 
-        /// Uppercase section eyebrow — "TIME · BODY SYSTEMS", card captions. (23 sites)
-        static let eyebrow    = Font.system(size: 11, weight: .semibold)
-        /// Pill / chip label. (part of the 23 at size 11)
-        static let pill       = Font.system(size: 11, weight: .medium)
-        /// Row detail text and disclosure chevrons. (23 sites)
-        static let detail     = Font.system(size: 13)
-        /// Dense secondary label. (16 sites)
-        static let label      = Font.system(size: 12)
-        /// Caption under a floating stat. (10 sites)
-        static let statLabel  = Font.system(size: 9, weight: .medium)
-        /// Leading icon in a list row. (10 sites)
-        static let icon       = Font.system(size: 18)
-        /// Value of a floating stat. (MoodMind / BodyArchitecture overlays)
-        static let statValue  = Font.system(size: 18, weight: .bold, design: .rounded)
-        /// Detail-screen title. (3 sites)
-        static let hero       = Font.system(size: 34, weight: .bold)
-        /// Dose steppers and other editable numerics. (6 sites)
-        static let numeric    = Font.system(size: 32, weight: .medium, design: .rounded)
-        /// Large single-value readout — level overlay, journal streak. (2 sites)
-        static let readout    = Font.system(size: 52, weight: .regular)
+        static let largeTitle   = Face.serifSemibold.sized(34, relativeTo: .largeTitle)
+        static let title        = Face.serifSemibold.sized(28, relativeTo: .title)
+        static let title2       = Face.serifSemibold.sized(22, relativeTo: .title2)
+        static let title3       = Face.serifSemibold.sized(20, relativeTo: .title3)
+        static let headline     = Face.proseBold.sized(17, relativeTo: .headline)
+        static let callout      = Face.prose.sized(16, relativeTo: .callout)
+        static let subheadline  = Face.prose.sized(15, relativeTo: .subheadline)
+        static let footnote     = Face.prose.sized(13, relativeTo: .footnote)
+        static let caption      = Face.prose.sized(12, relativeTo: .caption)
+        static let caption2     = Face.prose.sized(11, relativeTo: .caption2)
     }
 
     // MARK: Spacing
@@ -283,29 +299,6 @@ struct Theme {
         static let burst  = Animation.spring(duration: 0.6, bounce: 0.28)
     }
 
-    // MARK: Shadows
-
-    /// Named elevation styles. Previously 16 hand-written `.shadow(...)` calls with no
-    /// shared vocabulary, several of which were byte-identical across files.
-    @MainActor
-    struct Shadows {
-        struct Style {
-            let color: Color
-            let radius: CGFloat
-            let x: CGFloat
-            let y: CGFloat
-        }
-
-        /// Neutral lift for a floating control over content.
-        static let floating = Style(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
-        /// Accent-tinted glow under a primary floating action button.
-        static var accentFab: Style { Style(color: Colors.accent.opacity(0.35), radius: 12, x: 0, y: 6) }
-        /// Soft tinted halo under a constellation node or body marker.
-        static func nodeGlow(_ tint: Color, selected: Bool) -> Style {
-            Style(color: tint.opacity(selected ? 0.5 : 0.25),
-                  radius: selected ? 6 : 3, x: 0, y: 1)
-        }
-    }
 }
 
 // MARK: - View Modifiers
@@ -379,10 +372,5 @@ extension View {
     /// Style as a full-width rose accent button.
     func asAccentButton() -> some View {
         modifier(AccentButtonModifier())
-    }
-
-    /// Apply a named elevation style from `Theme.Shadows`.
-    func themeShadow(_ style: Theme.Shadows.Style) -> some View {
-        shadow(color: style.color, radius: style.radius, x: style.x, y: style.y)
     }
 }

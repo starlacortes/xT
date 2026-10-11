@@ -15,7 +15,7 @@ extension OnboardingView {
         ScrollView {
             VStack(spacing: 24) {
                 Text("How do you take it?")
-                    .font(.title2)
+                    .font(Theme.Fonts.title2)
                     .fontWeight(.regular)
                     .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                     .multilineTextAlignment(.center)
@@ -34,7 +34,7 @@ extension OnboardingView {
                 if selectedMethod == "Injectable" {
                     VStack(spacing: 12) {
                         Text("Which ester?")
-                            .font(.subheadline)
+                            .font(Theme.Fonts.subheadline)
                             .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.7))
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.horizontal, 40)
@@ -50,7 +50,7 @@ extension OnboardingView {
                 if !selectedMethod.isEmpty {
                     VStack(spacing: 8) {
                         Text("Dosing frequency")
-                            .font(.subheadline)
+                            .font(Theme.Fonts.subheadline)
                             .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.7))
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.horizontal, 40)
@@ -86,14 +86,14 @@ extension OnboardingView {
         VStack(spacing: 24) {
             Spacer()
             Text("What's your vial concentration?")
-                .font(.title2)
+                .font(Theme.Fonts.title2)
                 .fontWeight(.regular)
                 .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
 
             Text("Look for a number followed by 'mg/mL' on your vial or box.\nFor example, a 200 mg/5 mL vial is 40 mg/mL.")
-                .font(.caption)
+                .font(Theme.Fonts.caption)
                 .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.55))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
@@ -134,11 +134,11 @@ extension OnboardingView {
         } label: {
             HStack {
                 Text("\(String(format: "%.0f", conc)) mg/mL")
-                    .font(.body)
+                    .font(Theme.Fonts.body)
                     .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                 if isMostCommonConcentration(conc) {
                     Text("· most common")
-                        .font(.caption)
+                        .font(Theme.Fonts.caption)
                         .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.4))
                 }
                 Spacer()
@@ -169,7 +169,7 @@ extension OnboardingView {
         } label: {
             HStack {
                 Text("Custom")
-                    .font(.body)
+                    .font(Theme.Fonts.body)
                     .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                 Spacer()
                 if showCustomConcentration {
@@ -208,7 +208,7 @@ extension OnboardingView {
                     }
                 }
             Text("mg/mL")
-                .font(.body)
+                .font(Theme.Fonts.body)
                 .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.6))
         }
     }
@@ -227,7 +227,7 @@ extension OnboardingView {
         VStack(spacing: 20) {
             Spacer()
             Text("What's your dose?")
-                .font(.title2)
+                .font(Theme.Fonts.title2)
                 .fontWeight(.regular)
                 .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                 .padding(.horizontal, 40)
@@ -277,7 +277,7 @@ extension OnboardingView {
                             .keyboardDoneToolbar { doseFieldFocused = false }
 
                         Text("mg")
-                            .font(.title3)
+                            .font(Theme.Fonts.title3)
                             .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.6))
                     }
                     .padding(.horizontal, 40)
@@ -285,7 +285,7 @@ extension OnboardingView {
                     // Computed volume display
                     let volume = MedicationManager.computedVolume(doseMg: doseDecimal, concentrationMgPerMl: selectedConcentration)
                     Text("= \(String(format: "%.3f", volume)) mL (@ \(String(format: "%.0f", selectedConcentration)) mg/mL)")
-                        .font(.caption)
+                        .font(Theme.Fonts.caption)
                         .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.5))
                         .padding(.horizontal, 40)
 
@@ -335,7 +335,7 @@ extension OnboardingView {
                             .keyboardDoneToolbar { doseFieldFocused = false }
 
                         Text("mL")
-                            .font(.title3)
+                            .font(Theme.Fonts.title3)
                             .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.6))
                     }
                     .padding(.horizontal, 40)
@@ -343,7 +343,7 @@ extension OnboardingView {
                     // Computed mg display
                     let computedMg = mlAmount * selectedConcentration
                     Text("= \(String(format: "%.1f", computedMg)) mg (@ \(String(format: "%.0f", selectedConcentration)) mg/mL)")
-                        .font(.caption)
+                        .font(Theme.Fonts.caption)
                         .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.5))
                         .padding(.horizontal, 40)
 
@@ -363,7 +363,7 @@ extension OnboardingView {
             // Concentration adjustment (inline)
             VStack(spacing: 6) {
                 Text("Vial concentration")
-                    .font(.caption)
+                    .font(Theme.Fonts.caption)
                     .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.5))
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 40)
@@ -375,7 +375,7 @@ extension OnboardingView {
             // Last dose date
             VStack(spacing: 8) {
                 Text("When was your last dose?")
-                    .font(.subheadline)
+                    .font(Theme.Fonts.subheadline)
                     .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.7))
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 40)
@@ -416,7 +416,7 @@ extension OnboardingView {
                         }
                     } label: {
                         Text("\(String(format: "%.0f", conc))")
-                            .font(.caption2)
+                            .font(Theme.Fonts.caption2)
                             .fontWeight(.medium)
                             .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                             .padding(.horizontal, 10)
@@ -438,7 +438,7 @@ extension OnboardingView {
                     }
                 } label: {
                     Text("Custom")
-                        .font(.caption2)
+                        .font(Theme.Fonts.caption2)
                         .fontWeight(.medium)
                         .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                         .padding(.horizontal, 10)
@@ -459,10 +459,10 @@ extension OnboardingView {
     func volumeWarningBanner(_ message: String) -> some View {
         HStack(spacing: 8) {
             Image(systemName: "exclamationmark.triangle.fill")
-                .font(.caption)
+                .font(Theme.Fonts.caption)
                 .foregroundStyle(.yellow)
             Text(message)
-                .font(.caption2)
+                .font(Theme.Fonts.caption2)
                 .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.8))
                 .lineLimit(3)
             Spacer()
@@ -515,7 +515,7 @@ extension OnboardingView {
             }
         } label: {
             Text(label)
-                .font(.caption)
+                .font(Theme.Fonts.caption)
                 .fontWeight(.medium)
                 .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                 .padding(.horizontal, 14)
@@ -551,10 +551,10 @@ extension OnboardingView {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(method.rawValue)
-                        .font(.body)
+                        .font(Theme.Fonts.body)
                         .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                     Text(frequencyHint(for: method))
-                        .font(.caption)
+                        .font(Theme.Fonts.caption)
                         .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.5))
                 }
                 Spacer()
@@ -602,10 +602,10 @@ extension OnboardingView {
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(item.name)
-                                .font(.body)
+                                .font(Theme.Fonts.body)
                                 .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                             Text(esterSubtitle(tHalf: item.tHalf, tPeak: item.tPeak, calibrated: item.calibrated))
-                                .font(.caption)
+                                .font(Theme.Fonts.caption)
                                 .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.5))
                         }
                         Spacer()

@@ -23,17 +23,17 @@ struct ProfileNamePromptView: View {
         NavigationStack {
             VStack(spacing: Theme.Spacing.xxl) {
                 Text("Set your name")
-                    .font(.title2)
+                    .font(Theme.Fonts.title2)
                     .fontWeight(.semibold)
 
                 Text("Your data is restored, but your profile name couldn't be carried over for privacy. Set it again below.")
-                    .font(.body)
+                    .font(Theme.Fonts.body)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, Theme.Spacing.xxl)
 
                 TextField("Your name", text: $name)
-                    .font(.body)
+                    .font(Theme.Fonts.body)
                     .padding(.vertical, 12)
                     .padding(.horizontal, 16)
                     .background(RoundedRectangle(cornerRadius: Theme.Radius.sm)
@@ -50,7 +50,7 @@ struct ProfileNamePromptView: View {
                         .disabled(trimmedName.isEmpty)
                     Button("Later") { isPresented = false }
                         .buttonStyle(.plain)
-                        .font(.subheadline)
+                        .font(Theme.Fonts.subheadline)
                         .foregroundColor(.secondary)
                 }
                 .padding(.horizontal, Theme.Spacing.xxl)

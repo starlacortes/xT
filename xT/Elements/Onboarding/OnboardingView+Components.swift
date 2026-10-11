@@ -16,7 +16,7 @@ extension OnboardingView {
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Text(title)
-                        .font(.headline)
+                        .font(Theme.Fonts.headline)
                         .fontWeight(.medium)
                         .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                     Spacer()
@@ -26,7 +26,7 @@ extension OnboardingView {
                     }
                 }
                 Text(subtitle)
-                    .font(.caption)
+                    .font(Theme.Fonts.caption)
                     .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.55))
             }
             .padding(.horizontal, 16)
@@ -47,7 +47,7 @@ extension OnboardingView {
         Button(action: action) {
             HStack {
                 Text(title)
-                    .font(.body)
+                    .font(Theme.Fonts.body)
                     .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                 Spacer()
                 if isSelected {
@@ -75,7 +75,7 @@ extension OnboardingView {
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Text(title)
-                        .font(.body)
+                        .font(Theme.Fonts.body)
                         .fontWeight(.medium)
                         .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
                     Spacer()
@@ -85,7 +85,7 @@ extension OnboardingView {
                     }
                 }
                 Text(subtitle)
-                    .font(.caption)
+                    .font(Theme.Fonts.caption)
                     .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.5))
             }
             .padding(.horizontal, 16)
@@ -106,11 +106,11 @@ extension OnboardingView {
         Group {
             HStack {
                 Text(label)
-                    .font(.subheadline)
+                    .font(Theme.Fonts.subheadline)
                     .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.55))
                 Spacer()
                 Text(value)
-                    .font(.subheadline)
+                    .font(Theme.Fonts.subheadline)
                     .fontWeight(.medium)
                     .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
             }
@@ -126,7 +126,7 @@ extension OnboardingView {
     func primaryButton(_ title: String, disabled: Bool = false, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title)
-                .font(.headline)
+                .font(Theme.Fonts.headline)
                 .fontWeight(.medium)
                 .foregroundStyle(Theme.Colors.OnAccent.primary)
                 .frame(maxWidth: .infinity)
@@ -143,7 +143,7 @@ extension OnboardingView {
     func secondaryButton(_ title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title)
-                .font(.body)
+                .font(Theme.Fonts.body)
                 .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.7))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
@@ -172,10 +172,10 @@ extension OnboardingView {
         Button(action: action) {
             VStack(spacing: 8) {
                 Image(systemName: icon)
-                    .font(.title2)
+                    .font(Theme.Fonts.title2)
                     .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.8))
                 Text(label)
-                    .font(.caption)
+                    .font(Theme.Fonts.caption)
                     .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.7))
             }
             .frame(width: 70, height: 70)

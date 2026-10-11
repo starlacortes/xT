@@ -200,7 +200,7 @@ struct ProfileEditorView: View {
 
                 if showsChevron {
                     Image(systemName: "chevron.right")
-                        .font(.caption)
+                        .font(Theme.Fonts.caption)
                         .foregroundStyle(Theme.Colors.textTertiary)
                 }
             }

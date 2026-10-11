@@ -1,0 +1,177 @@
+% !TeX program = pdflatex
+%
+% ohio-llc-formation.tex
+%
+% Build:  pdflatex ohio-llc-formation.tex
+%
+
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=2.4cm]{geometry}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{ragged2e}
+\usepackage[hidelinks]{hyperref}
+
+\definecolor{warn}{RGB}{160,60,0}
+\definecolor{ok}{RGB}{20,110,60}
+\definecolor{mid}{RGB}{120,95,0}
+\newcommand{\bad}[1]{\textcolor{warn}{#1}}
+\newcommand{\good}[1]{\textcolor{ok}{#1}}
+\newcommand{\mixed}[1]{\textcolor{mid}{#1}}
+\newcommand{\code}[1]{\texttt{\small #1}}
+\newcommand{\name}[1]{\textsc{#1}}
+
+\newcolumntype{L}[1]{>{\RaggedRight\arraybackslash}p{#1}}
+
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\small Isocline Labs LLC Formation}
+\rhead{\small\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\title{\textbf{Ohio LLC Formation Guide}\\[0.3em]
+\large \name{Isocline Labs LLC} --- Single-Member, Member-Managed}
+\author{Prepared for Starla Cortes}
+\date{October 2026}
+
+\begin{document}
+\maketitle
+
+\noindent
+Draft only --- not legal advice. Review with an attorney or the Ohio SBDC
+(free counseling, see \code{planning/BUSINESS\_AND\_LAUNCH\_PLAN.md} \S8) before filing.
+
+\section{Decisions locked in}
+
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Item} & \textbf{Value} \\
+\midrule
+Entity name & \name{Isocline Labs LLC} \\
+Jurisdiction & Ohio \\
+Membership & Single-member \\
+Management & Member-managed \\
+Statutory agent & You, using an Ohio address \\
+Filing fee & \$99 (non-refundable) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Articles of Organization (Ohio Form 533A)}
+
+File online at \textbf{Ohio Business Central} (\url{https://business.ohio.gov})
+--- same-day processing. The paper Form 533A is only needed if you mail it; the
+online form asks the same questions.
+
+\begin{center}
+\begin{tabular}{@{}L{5.0cm}L{11.0cm}@{}}
+\toprule
+\textbf{Form field} & \textbf{Entry} \\
+\midrule
+Article 1 --- Name & \code{Isocline Labs LLC} \\
+Article 2 --- Effective date & Leave blank (effective on filing date) \\
+Article 3 --- Period of existence & Leave blank (defaults to perpetual) \\
+Article 4 --- Purpose & \code{Any lawful purpose} \\
+Article 5 --- Statutory agent & Your full legal name, plus your Ohio street
+address (a P.O. box is \textbf{not} acceptable; must be a physical street
+address in Ohio). \\
+Article 6 --- Additional provisions & Leave blank (add indemnification language
+only if your attorney advises) \\
+Signatory & Your name and signature as authorized representative \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Statutory agent notes}
+
+\begin{itemize}[leftmargin=1.4em,itemsep=0.1em]
+\item The agent must maintain a physical presence at the listed Ohio address
+      during business hours to accept service of process.
+\item \textbf{Your name and address become public record} on the Ohio SOS
+      business search. If you do not want your home address public, use a
+      commercial registered-agent service instead.
+\item Ohio does not require a separate ``agent acceptance'' form when the agent
+      is the same person signing the Articles.
+\end{itemize}
+
+\section{Operating Agreement}
+
+Ohio law requires an operating agreement (not filed with the state, but you
+must keep one with your records). Sign it yourself --- as single-member you sign
+both as ``Member'' and as ``Manager.''
+
+\noindent
+Why it matters even though you are the only owner: it is the document that
+proves the LLC is a real, separate entity and not your personal alter ego. That
+separation is what keeps personal assets protected and is what a bank or
+investor will ask to see.
+
+\section{EIN (IRS Form SS-4) --- free, online}
+
+Apply at \url{https://www.irs.gov/ein} (the online assistant issues the number
+instantly during business hours).
+
+\begin{center}
+\begin{tabular}{@{}L{5.0cm}L{11.0cm}@{}}
+\toprule
+\textbf{SS-4 field} & \textbf{Entry} \\
+\midrule
+Legal name & \code{Isocline Labs LLC} \\
+Entity type & Limited liability company \\
+Number of members & 1 (``disregarded entity'' for federal tax --- profits/losses
+flow to your personal return) \\
+Reason for applying & ``Started a new business'' \\
+Responsible party & Your name + SSN (the IRS requires a natural person, not the LLC) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent
+A single-member LLC with no employees does not strictly need an EIN --- you can
+use your SSN --- but an EIN is free, keeps your SSN off vendor/bank forms, and
+most banks require one to open a business account. Get it.
+
+\section{Post-formation checklist (in order)}
+
+\begin{itemize}[leftmargin=1.4em,itemsep=0.2em]
+\item[$\square$] File Articles of Organization (\$99) --- save the
+      confirmation/certificate.
+\item[$\square$] Sign and keep the operating agreement.
+\item[$\square$] Apply for EIN (free).
+\item[$\square$] Open a \textbf{business bank account} in the LLC's name (bring
+      Articles + EIN + operating agreement). Do not mix personal and business
+      funds from day one.
+\item[$\square$] Register for Ohio \textbf{Commercial Activity Tax (CAT)} only
+      if/when taxable gross receipts exceed \$150{,}000/year --- not relevant at
+      launch. No other Ohio LLC tax registration is automatic.
+\item[$\square$] Update the trademark worksheet: the ``Owner of Mark'' is now
+      \code{Isocline Labs LLC}, organized in Ohio. This unblocks the TEAS Plus
+      filing.
+\item[$\square$] File the trademark (TEAS Plus, Class~9, \S1(b)) once the LLC
+      is formed and the class~9 clearance search is done.
+\item[$\square$] Enroll in the \textbf{App Store Small Business Program} and
+      align it with the LLC + developer account.
+\end{itemize}
+
+\section{What not to worry about yet}
+
+\begin{itemize}[leftmargin=1.4em,itemsep=0.1em]
+\item \textbf{No Ohio annual report fee} --- Ohio LLCs pay no annual report;
+      nothing is due every year at the state level.
+\item \textbf{No publication requirement} --- Ohio does not require newspaper
+      publication (unlike NY/NE).
+\item \textbf{No registered-agent acceptance filing} when you are your own
+      agent.
+\end{itemize}
+
+\end{document}

@@ -16,7 +16,7 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            Theme.Gradients.brand
+            Theme.Colors.appBackground
                 .ignoresSafeArea()
 
             if hasCompletedOnboarding {

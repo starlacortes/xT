@@ -61,12 +61,12 @@ struct ScreeningRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(record.date.formatted(date: .abbreviated, time: .omitted))
-                .font(.subheadline)
+                .font(Theme.Fonts.subheadline)
                 .fontWeight(.medium)
 
             if let notes = record.notes, !notes.isEmpty {
                 Text(notes)
-                    .font(.caption2)
+                    .font(Theme.Fonts.caption2)
                     .foregroundStyle(.tertiary)
                     .lineLimit(2)
             }

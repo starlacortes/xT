@@ -104,7 +104,6 @@ struct JournalView: View {
                     .frame(width: 56, height: 56)
                     .background(Theme.Colors.accent)
                     .clipShape(Circle())
-                    .themeShadow(Theme.Shadows.accentFab)
             }
             .buttonStyle(.pressable)
             .padding(.trailing, 22)
@@ -120,7 +119,6 @@ struct JournalView: View {
                     .frame(width: 50, height: 50)
                     .background(.regularMaterial)
                     .clipShape(Circle())
-                    .themeShadow(Theme.Shadows.floating)
             }
             .buttonStyle(.pressable)
             .padding(.leading, 22)

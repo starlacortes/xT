@@ -1,0 +1,135 @@
+<!DOCTYPE html><html class="dark" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Isocline — Estradiol Tracker</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&amp;family=IBM+Plex+Mono:wght@300;400;500;600&amp;family=IBM+Plex+Serif:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "chassis-base": "#140f1a",
+            "chassis-card": "rgba(28, 21, 36, 0.72)",
+            "chassis-card-inset": "#130d1a",
+            "chassis-elevated": "#231b2e",
+            "gauge-border": "rgba(255, 255, 255, 0.07)",
+            "gauge-border-light": "rgba(255, 255, 255, 0.12)",
+            "gauge-hairline": "rgba(220, 191, 197, 0.12)",
+            "lamp-rose": "#d46b88",
+            "lamp-lavender": "#9b85db",
+            "lamp-cyan": "#68b5a8",
+            "on-chassis": "#ede3e7",
+            "on-chassis-sub": "#bda6af",
+            "on-chassis-dim": "#7e6b75",
+            "primary": "#ffb1c4",
+            "secondary": "#cbbeff",
+            "outline-variant": "#342b4e"
+          },
+          fontFamily: {
+            "mono": ["IBM Plex Mono", "monospace"],
+            "serif": ["IBM Plex Serif", "Georgia", "serif"],
+            "sans": ["Atkinson Hyperlegible", "sans-serif"]
+          },
+          boxShadow: {
+            "bezel": "inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 12px rgba(0, 0, 0, 0.45)",
+            "glass-card": "inset 0 1px 0 rgba(255, 255, 255, 0.09), 0 12px 32px rgba(10, 6, 16, 0.55)",
+            "lamp-rose": "0 0 10px rgba(212, 107, 136, 0.55)",
+            "lamp-lavender": "0 0 10px rgba(155, 133, 219, 0.55)"
+          }
+        }
+      }
+    }
+</script>
+<style>
+  body {
+    min-height: max(884px, 100dvh);
+    background: radial-gradient(circle at 50% 0%, #241629 0%, #171020 40%, #120d18 100%);
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+</style>
+</head>
+<body class="text-on-chassis font-sans min-h-screen pb-32 selection:bg-lamp-rose/30 relative overflow-x-hidden antialiased">
+<!-- Ambient Background Atmosphere -->
+<div class="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+<div class="absolute -top-24 left-1/2 -translate-x-1/2 w-[380px] h-[340px] bg-[#d46b88]/14 rounded-full blur-[90px]"></div>
+<div class="absolute top-72 -right-20 w-[280px] h-[280px] bg-[#9b85db]/12 rounded-full blur-[80px]"></div>
+<div class="absolute bottom-40 -left-20 w-[260px] h-[260px] bg-[#68b5a8]/08 rounded-full blur-[80px]"></div>
+</div>
+<!-- Header / Isocline Integrated Console Title -->
+<!-- Main Laboratory Surface Canvas -->
+<main class="relative z-10 w-full flex flex-col min-h-screen pt-8 overflow-hidden">
+<!-- TOP INTEGRATION: Floating Level & Title Compact Card -->
+<div class="w-full max-w-md mx-auto px-4 z-20 flex flex-col items-center"><div class="w-full flex justify-start"><div class="w-52 flex flex-col gap-2 pt-1"><div class="flex items-center justify-between"><div class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-lamp-rose shadow-lamp-rose"></span><span class="font-mono text-[9px] uppercase tracking-[0.14em] text-on-chassis-dim font-medium">Series 10 · D4</span></div><span class="font-mono text-[9px] text-on-chassis-sub uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-[#1e1628]/90 border border-gauge-border-light">200–500</span></div><div class="flex items-baseline gap-1 mt-0.5"><span class="font-serif font-light text-[52px] leading-none tracking-tight text-on-chassis">412</span><span class="font-mono text-[12px] text-on-chassis-sub font-normal">pg/mL</span></div><div class="flex flex-col pt-1 border-t border-white/[0.06]"><h1 class="font-serif font-medium text-[15px] leading-tight text-on-chassis tracking-tight">Estradiol</h1><span class="font-mono text-[9.5px] text-on-chassis-dim">17β-Estradiol (E2)</span></div></div></div></div>
+<!-- FULL-SCREEN PHARMACOKINETIC GRAPH (Edge-to-Edge bleed with extended vertical gradient wash) -->
+<div class="relative w-full flex-1 -mt-8 flex flex-col justify-between overflow-hidden"><div class="absolute inset-0 flex flex-col justify-start gap-12 pointer-events-none px-4 pt-4 font-mono text-on-chassis-dim/60 z-10"><div class="flex justify-between items-center border-b border-white/[0.04] pb-1 w-full"><span class="text-[10px]">450</span><span class="tracking-widest uppercase text-[9px] text-on-chassis-dim/50">Target Peak</span></div><div class="flex justify-between items-center border-b border-white/[0.04] pb-1 w-full"><span class="text-[10px]">300</span><span class="tracking-widest uppercase text-[9px] text-on-chassis-dim/50">Midline Steady</span></div><div class="flex justify-between items-center border-b border-white/[0.04] pb-1 w-full"><span class="text-[10px]">200</span><span class="tracking-widest uppercase text-[9px] text-on-chassis-dim/50">Trough Limit</span></div></div><div class="relative w-full h-[220px]"><svg class="w-full h-full overflow-visible" fill="none" preserveAspectRatio="none" viewBox="0 0 480 180"><defs><linearGradient id="fullTideGrad" x1="0%" x2="100%" y1="0%" y2="0%"><stop offset="0%" stop-color="#d46b88"></stop><stop offset="50%" stop-color="#b677b8"></stop><stop offset="100%" stop-color="#9b85db"></stop></linearGradient><linearGradient id="verticalWashGrad" x1="0%" x2="0%" y1="0%" y2="100%"><stop offset="0%" stop-color="#d46b88" stop-opacity="0.32"></stop><stop offset="30%" stop-color="#b677b8" stop-opacity="0.22"></stop><stop offset="65%" stop-color="#9b85db" stop-opacity="0.14"></stop><stop offset="100%" stop-color="#120d18" stop-opacity="0.02"></stop></linearGradient><filter height="240%" id="wideGlow" width="240%" x="-70%" y="-70%"><feGaussianBlur in="SourceGraphic" stdDeviation="5"></feGaussianBlur></filter></defs><path d="M 0,110 Q 80,30 170,50 T 310,58 T 480,120 L 480,380 L 0,380 Z" fill="url(#verticalWashGrad)"></path><path d="M 0,110 Q 80,30 170,50 T 310,58 T 480,120" filter="url(#wideGlow)" opacity="0.75" stroke="url(#fullTideGrad)" stroke-linecap="round" stroke-width="4"></path><path d="M 0,110 Q 80,30 170,50 T 310,58 T 480,120" stroke="url(#fullTideGrad)" stroke-linecap="round" stroke-width="2.5"></path><circle cx="260" cy="52" fill="none" r="16" stroke="#d46b88" stroke-opacity="0.2" stroke-width="1"></circle><circle cx="260" cy="52" fill="none" r="10" stroke="#d46b88" stroke-opacity="0.45" stroke-width="1.5"></circle><circle cx="260" cy="52" fill="#d46b88" r="4.5"></circle><circle cx="260" cy="52" fill="#ffffff" fill-opacity="0.9" r="2"></circle></svg></div><div class="w-full px-5 py-2 flex items-center justify-between border-t border-gauge-border/70 font-mono text-[10px] z-20"><div class="flex flex-col items-center gap-0.5"><span class="text-on-chassis-dim">MON</span><span class="text-[8.5px] text-on-chassis-dim/60">Dose</span></div><div class="flex flex-col items-center gap-0.5"><span class="text-on-chassis-dim">WED</span><span class="text-[8.5px] text-on-chassis-dim/60">Peak</span></div><div class="flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg bg-lamp-rose/10 border border-lamp-rose/30"><span class="text-lamp-rose font-medium">FRI [TODAY]</span><span class="text-[8.5px] text-lamp-rose/80">Steady</span></div><div class="flex flex-col items-center gap-0.5"><span class="text-on-chassis-dim">SUN</span><span class="text-[8.5px] text-on-chassis-dim/60">Trough</span></div></div></div>
+<!-- CONSOLIDATED BOTTOM FLOATING GLASS PANE -->
+<div class="w-full max-w-md mx-auto px-4 pb-24 z-20"><div class="bg-chassis-card backdrop-blur-2xl border border-gauge-border-light rounded-2xl p-4 shadow-glass-card flex flex-col mt-2">
+<!-- Row 1: Next Administration & Dose Action -->
+<div class="flex items-center justify-between pb-3.5">
+<div class="flex items-center gap-2.5">
+<div class="w-7 h-7 rounded-lg bg-lamp-rose/15 border border-lamp-rose/30 flex items-center justify-center text-lamp-rose shadow-inner">
+<span class="material-symbols-outlined text-[16px]">schedule</span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-center gap-2">
+<span class="font-serif text-[15px] font-semibold text-on-chassis tracking-tight">Today 6:00 PM</span>
+<span class="font-mono text-[9px] text-lamp-rose bg-lamp-rose/10 border border-lamp-rose/25 px-2 py-0.5 rounded-full">IN 6H 42M</span>
+</div>
+<span class="font-mono text-[10px] text-on-chassis-dim mt-0.5">Estradiol Valerate 4mg · Subcutaneous</span>
+</div>
+</div>
+<button class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-lamp-rose text-[#180e1c] font-sans text-[12px] font-semibold tracking-wide shadow-bezel active:scale-95 transition-all hover:bg-lamp-rose/90 shrink-0">
+<span class="material-symbols-outlined text-[14px]">colorize</span>
+<span class="">Log Dose</span>
+</button>
+</div>
+<!-- Hairline Divider -->
+<div class="h-[1px] w-full bg-gauge-border-light"></div>
+<!-- Row 2: Injection Site Indicator without nested box -->
+<div class="flex items-center justify-between py-3">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-lamp-cyan">adjust</span>
+<span class="font-mono text-[10px] uppercase text-on-chassis-dim tracking-wider">Injection Site</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="font-serif text-[13px] font-medium text-on-chassis">R Deltoid</span>
+<span class="font-mono text-[9px] text-on-chassis-dim">(Rotated Mon)</span>
+</div>
+</div>
+<!-- Hairline Divider -->
+<div class="h-[1px] w-full bg-gauge-border-light"></div>
+<!-- Row 3: Journal Note Observation without nested box -->
+<div class="flex items-center justify-between pt-3">
+<div class="flex items-center gap-2.5 min-w-0 flex-1">
+<div class="w-6 h-6 rounded-lg bg-lamp-lavender/15 border border-lamp-lavender/30 flex items-center justify-center text-lamp-lavender shrink-0">
+<span class="material-symbols-outlined text-[14px]">edit_note</span>
+</div>
+<div class="flex flex-col min-w-0 pr-2">
+<div class="flex items-center gap-2">
+<span class="font-serif text-[12px] font-medium text-on-chassis">Journal</span>
+<span class="font-mono text-[9px] text-on-chassis-dim">08:30 TODAY</span>
+</div>
+<p class="font-sans text-[11px] text-on-chassis-sub italic line-clamp-1 mt-0.5">"Felt genuinely calm today — good sleep, steady mood..."</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-[15px] text-on-chassis-dim shrink-0">chevron_right</span>
+</div>
+</div></div>
+</main>
+<!-- Ambient gradient vignette fading out toward the bottom edge -->
+<div class="fixed bottom-0 left-0 right-0 h-32 pointer-events-none bg-gradient-to-t from-[#120d18] via-[#140f1a]/85 to-transparent z-30"></div>
+<!-- FLOATING LIQUID-GLASS NAVIGATION PILL -->
+<nav class="fixed bottom-5 left-4 right-4 max-w-md mx-auto z-50 flex justify-around items-center py-2 px-3 rounded-full bg-[#1c1524]/80 backdrop-blur-xl border border-gauge-border/70 shadow-bezel"><a class="flex flex-col items-center justify-center text-lamp-rose gap-0.5 py-1 px-3 transition-colors active:scale-95" href="#"><span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">grid_view</span><span class="font-mono text-[9px] uppercase tracking-wider font-semibold">Home</span></a><a class="flex flex-col items-center justify-center text-on-chassis-dim hover:text-on-chassis gap-0.5 py-1 px-3 transition-colors active:scale-95" href="#"><span class="material-symbols-outlined text-[20px]">menu_book</span><span class="font-mono text-[9px] uppercase tracking-wider">Journal</span></a><a class="flex flex-col items-center justify-center text-on-chassis-dim hover:text-on-chassis gap-0.5 py-1 px-3 transition-colors active:scale-95" href="#"><span class="material-symbols-outlined text-[20px]">show_chart</span><span class="font-mono text-[9px] uppercase tracking-wider">Time</span></a><a class="flex flex-col items-center justify-center text-on-chassis-dim hover:text-on-chassis gap-0.5 py-1 px-3 transition-colors active:scale-95" href="#"><span class="material-symbols-outlined text-[20px]">tune</span><span class="font-mono text-[9px] uppercase tracking-wider">Settings</span></a></nav>
+
+
+</body></html>

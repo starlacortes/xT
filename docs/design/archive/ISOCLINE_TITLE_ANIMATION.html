@@ -1,0 +1,581 @@
+<title>Isocline Title Animation</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Serif:wght@400;600;700&display=swap">
+<style>
+/* Single-screen ambient piece: the word stays still while the OKLCH dial turns underneath it. */
+:root { --bg: #F7F5FB; --fg: #251F33; --accent: #7B5FC0; color-scheme: light; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); overflow: hidden; }
+canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
+#hud {
+  position: fixed; left: 16px; bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  font: 11px/1.5 "IBM Plex Mono", "SF Mono", monospace; letter-spacing: .08em;
+  color: var(--fg); opacity: .6; pointer-events: none; white-space: pre;
+}
+</style>
+<div role="note" style="position:fixed;top:0;left:0;right:0;z-index:10;font:13px/1.5 'IBM Plex Mono',ui-monospace,monospace;background:#251F33;color:#F1E8EA;padding:10px 16px">ARCHIVED — historical record, not current guidance. This page animates the retired curve-under-the-word lockup; a new wordmark motion study is on the roadmap. Current spec: <a href="../ISOCLINE_DESIGN_SYSTEM.html" style="color:#E8709A">ISOCLINE_DESIGN_SYSTEM.html</a></div>
+<canvas id="c"></canvas>
+<div id="hud"></div>
+<script>
+"use strict";
+const cv = document.getElementById("c");
+const mainCtx = cv.getContext("2d");
+let ctx = mainCtx;                       // reassignable: during cross-fades painters draw to a scene buffer
+const sc = [document.createElement("canvas"), document.createElement("canvas")];
+const sctx = sc.map(c => c.getContext("2d"));
+const hud = document.getElementById("hud");
+const RM = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const BRAND_HUE = -65;   // OKLCH hue of the lavender accent (#7B5FC0) — the dial opens on-brand, then rotates
+
+/* ---------- OKLCH -> sRGB (same math as the app's ThemeEngine: hold L, rotate H) ---------- */
+function oklch(L, C, hDeg) {
+  const h = hDeg * Math.PI / 180, a = C * Math.cos(h), b = C * Math.sin(h);
+  let l = L + 0.3963377774 * a + 0.2158037573 * b,
+      m = L - 0.1055613458 * a - 0.0638541728 * b,
+      s = L - 0.0894841775 * a - 1.2914855480 * b;
+  l *= l * l; m *= m * m; s *= s * s;
+  const lr = 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+        lg = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+        lb = -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s,
+        lum = 0.2126 * lr + 0.7152 * lg + 0.0722 * lb,
+        f = x => x <= 0.0031308 ? 12.92 * x : 1.055 * Math.pow(Math.max(0, x), 1 / 2.4) - 0.055;
+  const r = Math.round(Math.min(255, Math.max(0, f(lr) * 255))),
+        g = Math.round(Math.min(255, Math.max(0, f(lg) * 255))),
+        b2 = Math.round(Math.min(255, Math.max(0, f(lb) * 255)));
+  return { css: "rgb(" + r + "," + g + "," + b2 + ")", lum: lum };
+}
+
+/* ---------- word layout (stationary; only color changes) ---------- */
+const WORD = "ISOCLINE";
+const HUE_OFF = [0, 12, -8, 16, 4, -12, 8, -4];    // per-letter recipe offsets, like the theme engine
+const LV_OFF  = [0, .02, -.01, .03, .01, -.02, .015, -.005];
+let letters = [], wordY = 0, fontStr = "";
+
+function layoutWord() {
+  const size = Math.min(W * 0.115, H * 0.30, 150);
+  fontStr = "600 " + size + "px 'IBM Plex Serif', Georgia, serif";
+  ctx.font = fontStr;
+  const track = size * 0.08;
+  const ws = Array.from(WORD, ch => ctx.measureText(ch).width);
+  const total = ws.reduce((a, b) => a + b, 0) + track * (WORD.length - 1);
+  let x = (W - total) / 2;
+  wordY = H * 0.5;
+  ctx.textBaseline = "middle";
+  letters = Array.from(WORD, (ch, i) => {
+    const m = ctx.measureText(ch);
+    const o = { ch, x0: x, x1: x + ws[i], hueOff: HUE_OFF[i], lOff: LV_OFF[i],
+                top: wordY - m.actualBoundingBoxAscent, bot: wordY + m.actualBoundingBoxDescent };
+    x += ws[i] + track;
+    return o;
+  });
+}
+
+/* ---------- canvas + offscreens ---------- */
+let W = 0, H = 0, DPR = 1;
+const fo = document.createElement("canvas"), fctx = fo.getContext("2d");
+let flowers = [];
+function layoutFlowers() {
+  fo.width = W * DPR; fo.height = H * DPR;
+  flowers = [];
+  const step = Math.max(46, Math.min(W, H) / 12);
+  for (let y = step * 0.5; y < H + step; y += step * (0.75 + Math.random() * 0.5))
+    for (let x = step * 0.5; x < W + step; x += step * (0.75 + Math.random() * 0.5))
+      flowers.push({ x: x + (Math.random() - .5) * step * .7, y: y + (Math.random() - .5) * step * .7,
+                     r: 7 + Math.random() * 11, petals: 5 + Math.floor(Math.random() * 4),
+                     ph: Math.random() * 6.28, dh: (Math.random() - .5) * 26, dl: (Math.random() - .5) * .14,
+                     tulip: Math.random() < 0.4 });
+}
+function resize() {
+  DPR = Math.min(2, devicePixelRatio || 1);
+  W = innerWidth; H = innerHeight;
+  cv.width = W * DPR; cv.height = H * DPR;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  for (const s of sc) { s.width = W * DPR; s.height = H * DPR; }
+  layoutWord(); layoutFlowers();
+}
+addEventListener("resize", resize);
+resize();
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(resize);
+/* ---------- scene timeline: which look is on screen and when ---------- */
+/* Alternating dominant modes: solid-color page (dominant, letters colored vs plain),
+   picture moments (trees/park/dog silhouettes in the distance, flowers turn solid),
+   interaction beats (a butterfly, dog, or flower touches a letter). */
+const modes = ["plainLetters", "coloredLetters"];           // dominant looks
+const pictureSubjects = ["trees", "park", "dog", "night", "isocline"]; // distance scenes + the brand beat
+const interactSubjects = ["dog", "trees", "park"];          // subjects with a letter-interaction staging
+let rngState = 123456789;
+function rnd() { rngState = (1103515245 * rngState + 12345) & 0x7fffffff; return rngState / 0x80000000; }
+
+let lastSubject = "";
+function pickSubject(list) {                                 // never restage the same scene back-to-back
+  let s = list[Math.floor(rnd() * list.length)], guard = 0;
+  while (list.length > 1 && s === lastSubject && guard++ < 4) s = list[Math.floor(rnd() * list.length)];
+  lastSubject = s; return s;
+}
+function newBeat(now) {
+  // ~60% solid-color page, ~28% picture scene, ~12% letter interaction — long enough to settle into
+  const r = rnd();
+  if (r < 0.12) return { kind: "interact", subject: pickSubject(interactSubjects), t0: now, dur: 6500 };
+  if (r < 0.40) return { kind: "picture", subject: pickSubject(pictureSubjects), t0: now, dur: 10000 };
+  return { kind: "solid", look: modes[Math.floor(rnd() * 2)], t0: now, dur: 8000 };
+}
+let beat = { kind: "picture", subject: "isocline", t0: 0, dur: 13000 }; // establishing shot: the brand moment first
+
+/* ---------- silhouette painters (distance scenes) ---------- */
+function drawTrees(x0, horizon, hue) {
+  for (let i = 0; i < 9; i++) {
+    const x = x0 + i * (W / 9) + (i % 2) * 30, tw = 14 + (i * 7) % 22, th = H * (0.14 + ((i * 13) % 9) / 60);
+    const inkC = oklch(0.42, 0.06, hue + (i % 3) * 14);
+    ctx.fillStyle = inkC.css;
+    ctx.beginPath(); ctx.moveTo(x, horizon - th);
+    ctx.lineTo(x + tw / 2, horizon - th); ctx.lineTo(x + tw / 2, horizon); ctx.lineTo(x - tw / 2, horizon);
+    ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x + tw / 4, horizon - th * 1.45);
+    ctx.lineTo(x + tw * .85, horizon - th * .5); ctx.lineTo(x - tw * .35, horizon - th * .5);
+    ctx.closePath(); ctx.fill();
+  }
+}
+function drawPark(horizon, hue) {
+  const ground = oklch(0.72, 0.12, hue + 40), path = oklch(0.85, 0.06, hue + 90);
+  ctx.fillStyle = ground.css; ctx.fillRect(0, horizon, W, H - horizon);
+  ctx.fillStyle = path.css;
+  ctx.beginPath(); ctx.moveTo(W * 0.35, H); ctx.lineTo(W * 0.55, H); ctx.lineTo(W * 0.62, horizon); ctx.lineTo(W * 0.52, horizon); ctx.closePath(); ctx.fill();
+  drawTrees(0, horizon, hue);
+}
+
+/* ---------- isocline brand beat: the word above its namesake ----------
+   A true slope field converging on one highlighted isocline — dashes steep far from the
+   line, flat at the line: "where the slope stops changing". The curve draws itself once,
+   then holds; the rose "you are here" point rides the plateau (67° off the accent hue,
+   the exact rose/lavender offset of the brand palette). Steady is the point. */
+let isoPts = [], isoDashes = [], isoAcc = [], _isoKey = -1;
+function layoutIsocline() {
+  isoPts = []; isoAcc = [0];
+  const N = 120;
+  for (let i = 0; i <= N; i++) {
+    const u = i / N,                                    // Bateman-flavored rise into plateau
+          x = W * (0.05 + 0.90 * u),
+          s = 1 / (1 + Math.exp(-9 * (u - 0.45))),
+          y = H * 0.80 - s * H * 0.44;
+    isoPts.push([x, y]);
+    if (i) isoAcc.push(isoAcc[i - 1] + Math.hypot(isoPts[i][0] - isoPts[i - 1][0], isoPts[i][1] - isoPts[i - 1][1]));
+  }
+  isoDashes = [];
+  const cols = Math.max(8, Math.round(W / 90)), rows = 5;
+  for (let c = 0; c < cols; c++) for (let r = 0; r < rows; r++) {
+    const x = W * (0.06 + 0.88 * c / (cols - 1)), y = H * (0.10 + 0.62 * r / (rows - 1));
+    const d = y - isoYAt(x);                            // screen: d<0 = above the curve
+    if (Math.abs(d) < H * 0.045) continue;              // keep the line clean
+    const mag = Math.min(0.65, Math.abs(d) / H * 1.6) + 0.08;
+    isoDashes.push({ x, y,
+      base: d > 0 ? -mag : mag,                         // converge toward the line
+      amp: 0.09 * Math.min(1, Math.abs(d) / (H * 0.22)),// breath dies at the line
+      ph: x * 0.004 + y * 0.003 });
+  }
+  _isoKey = W * 1000 + H;
+}
+function isoYAt(x) {
+  let i = 1;
+  while (i < isoPts.length - 1 && isoPts[i][0] < x) i++;
+  const [x0, y0] = isoPts[i - 1], [x1, y1] = isoPts[i];
+  return y0 + (x - x0) / (x1 - x0) * (y1 - y0);
+}
+function drawIsocline(b, hue, t) {
+  if (_isoKey !== W * 1000 + H) layoutIsocline();
+
+  const g = ctx.createLinearGradient(0, 0, 0, H);        // quiet tinted ground
+  g.addColorStop(0, oklch(0.965, 0.02, hue).css);
+  g.addColorStop(1, oklch(0.93, 0.032, hue + 14).css);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+  // field breath: gentle oscillation + a slow highlight ripple traveling left -> right
+  const fieldC = oklch(0.62, 0.05, hue + 2);
+  ctx.lineCap = "round";
+  for (const dsh of isoDashes) {
+    const osc = RM ? 0 : dsh.amp * Math.sin(t / 1400 + dsh.ph),
+          a   = RM ? 0.45 : 0.32 + 0.30 * (0.5 + 0.5 * Math.sin(t / 2400 - dsh.x * 0.004)),
+          dx  = Math.cos(dsh.base + osc) * 8, dy = Math.sin(dsh.base + osc) * 8;
+    ctx.strokeStyle = fieldC.css; ctx.globalAlpha = a; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(dsh.x - dx, dsh.y - dy); ctx.lineTo(dsh.x + dx, dsh.y + dy); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  // the isocline writes itself, then holds — a full-length reveal: the curve draws from its
+  // origin to the plateau, so the rose point only appears once the curve has arrived beneath it
+  const draw   = RM ? 1 : Math.min(1, (t - b.t0) / Math.max(1, b.dur * 0.30)),
+        dE     = 1 - Math.pow(1 - draw, 3),
+        total  = isoAcc[isoAcc.length - 1],
+        target = total * dE;
+  ctx.strokeStyle = oklch(0.56, 0.15, hue).css;
+  ctx.lineWidth = 3; ctx.lineJoin = "round";
+  ctx.beginPath(); ctx.moveTo(isoPts[0][0], isoPts[0][1]);
+  for (let i = 1; i < isoPts.length; i++) {
+    if (isoAcc[i] >= target) {
+      const f = (target - isoAcc[i - 1]) / (isoAcc[i] - isoAcc[i - 1]);
+      ctx.lineTo(isoPts[i - 1][0] + f * (isoPts[i][0] - isoPts[i - 1][0]),
+                 isoPts[i - 1][1] + f * (isoPts[i][1] - isoPts[i - 1][1]));
+      break;
+    }
+    ctx.lineTo(isoPts[i][0], isoPts[i][1]);
+  }
+  ctx.stroke();
+
+  // focal actor: the rose point rides over the word's final letter, in the trailing window —
+  // left of it stays pure curve through the word; the label lives outside the curve
+  const lastL = letters[letters.length - 1],
+        uLast = Math.max(0.05, Math.min(0.95, ((lastL.x0 + lastL.x1) / 2 / W - 0.05) / 0.90)),
+        win   = Math.min(0.14, 0.95 - uLast),
+        u     = RM ? uLast : Math.min(uLast, uLast + win * (0.5 + 0.5 * Math.sin(t / 2600))),
+        px = W * (0.05 + 0.90 * u), py = isoYAt(px),
+        vis = RM ? 1 : Math.min(1, Math.max(0, (draw - 0.8) / 0.2)),
+        k   = RM ? 0.5 : (t % 2400) / 2400,
+        roseC = oklch(0.64, 0.12, hue + 67).css;         // exact palette offset: rose vs lavender
+  ctx.globalAlpha = vis; ctx.fillStyle = roseC;
+  ctx.beginPath(); ctx.arc(px, py, 5.5 + (RM ? 0 : 0.8 * Math.sin(t / 550)), 0, 6.283); ctx.fill();
+  ctx.strokeStyle = roseC; ctx.lineWidth = 1.5;
+  ctx.globalAlpha = vis * (1 - k) * 0.6;
+  ctx.beginPath(); ctx.arc(px, py, 7 + k * 16, 0, 6.283); ctx.stroke();
+  ctx.globalAlpha = vis;
+  ctx.font = "500 " + Math.max(11, Math.min(14, Math.round(W * 0.012))) + "px 'IBM Plex Mono', monospace";
+  ctx.textAlign = "left"; ctx.textBaseline = "middle";
+  ctx.fillText("you are here", px - 16, py - 18);
+
+  // the word above the field, per-letter brand recipe, soft shadow for legibility
+  ctx.globalAlpha = 1;
+  ctx.font = fontStr; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.shadowColor = "rgba(30,20,50,0.18)"; ctx.shadowBlur = 10;
+  for (const l of letters) {
+    ctx.fillStyle = oklch(0.52 + l.lOff, 0.14, hue + l.hueOff).css;
+    ctx.fillText(l.ch, (l.x0 + l.x1) / 2, wordY);
+  }
+  ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
+}
+/* ---------- ambient layer state (re-seeded lazily when size changes) ---------- */
+const CLOUDS = [], BIRDS = [], GRASS = [], PETALS = [], STARS = [];
+let _layerSeed = -1;
+function _seedAll() {
+  _layerSeed = W * 1000 + H;
+  CLOUDS.length = 0;
+  const nC = 3 + Math.floor(Math.random() * 2);
+  for (let i = 0; i < nC; i++) {
+    const parts = [], nP = 4 + Math.floor(Math.random() * 3);
+    for (let p = 0; p < nP; p++) parts.push({ dx: p * 16 - nP * 8, dy: (Math.random() - .5) * 10, r: 12 + Math.random() * 10 });
+    CLOUDS.push({ x: Math.random() * W, y: H * (0.08 + Math.random() * 0.22), s: 0.8 + Math.random() * 0.8, parts, speed: 6 + Math.random() * 8 });
+  }
+  BIRDS.length = 0;
+  const nB = 5 + Math.floor(Math.random() * 3);
+  for (let i = 0; i < nB; i++) BIRDS.push({ dx: -i * 26 - Math.random() * 14, dy: (Math.random() - .5) * 44, ph: Math.random() * 6.28, s: 0.7 + Math.random() * 0.5 });
+  GRASS.length = 0;
+  const nG = 42 + Math.floor(Math.random() * 18);
+  for (let i = 0; i < nG; i++) GRASS.push({ x: Math.random() * W, len: 14 + Math.random() * 20, ph: Math.random() * 6.28, lean: (Math.random() - .5) * 0.9, w: 1.4 + Math.random() });
+  PETALS.length = 0;
+  const nP2 = 12 + Math.floor(Math.random() * 7);
+  for (let i = 0; i < nP2; i++) PETALS.push({ x: Math.random() * W, y: Math.random() * H, vy: 14 + Math.random() * 18, drift: (Math.random() - .5) * 22, ph: Math.random() * 6.28, rot: Math.random() * 6.28, vr: (Math.random() - .5) * 1.6, r: 3.5 + Math.random() * 3, dh: (Math.random() - .5) * 40 });
+  STARS.length = 0;
+  for (let i = 0; i < 60; i++) STARS.push({ x: Math.random() * W, y: Math.random() * H * 0.7, r: 0.7 + Math.random() * 1.4, ph: Math.random() * 6.28, sp: 0.6 + Math.random() * 1.8 });
+}
+function _ensureSeed() { if (_layerSeed !== W * 1000 + H) _seedAll(); }
+
+function drawDog(px, py, s, hue, t, walking) {
+  const c = oklch(0.5, 0.09, hue + 20).css;
+  const bob = RM ? 0 : Math.sin(t / 130) * s * 0.06;
+  ctx.save(); ctx.translate(px, py + bob); ctx.scale(s, s);
+  ctx.fillStyle = c;
+  ctx.beginPath(); ctx.ellipse(0, 0, 30, 14, 0, 0, 6.29); ctx.fill();          // body
+  ctx.beginPath(); ctx.arc(-32, -6, 9, 0, 6.29); ctx.fill();                    // head
+  ctx.beginPath(); ctx.moveTo(-38, -12); ctx.lineTo(-46, -20); ctx.lineTo(-36, -18); ctx.closePath(); ctx.fill(); // ear
+  const wag = RM ? 0.15 : Math.sin(t / 70) * 0.35;                             // tail wag around the hip
+  ctx.save(); ctx.translate(28, -8); ctx.rotate(-0.5 + wag);
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(10, -16); ctx.lineTo(2, -2); ctx.closePath(); ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle = c; ctx.lineWidth = 5; ctx.lineCap = "round";                // legs, phase-offset swing
+  const legs = [[-22, 10], [16, 10], [-10, 12], [4, 12]];
+  for (let i = 0; i < 4; i++) {
+    const swing = (walking && !RM) ? Math.sin(t / 75 + i * Math.PI / 2) * 0.5 : 0;
+    const lx = legs[i][0], ly = legs[i][1];
+    ctx.beginPath(); ctx.moveTo(lx, ly);
+    ctx.lineTo(lx + Math.sin(swing) * 10, ly + 16 * Math.cos(swing * .5));
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/* sky gradient for picture beats — call before other scene painters */
+function drawSky(horizon, hue) {
+  const g = ctx.createLinearGradient(0, 0, 0, horizon);
+  g.addColorStop(0, oklch(0.74, 0.10, hue + 8).css);
+  g.addColorStop(1, oklch(0.82, 0.07, hue + 24).css);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, horizon);
+}
+/* drifting cloud silhouettes */
+function drawClouds(hue, t) {
+  _ensureSeed();
+  ctx.fillStyle = oklch(0.90, 0.05, hue + 36).css;
+  for (const c of CLOUDS) {
+    const x = RM ? c.x : ((c.x + t / 500 * c.speed) % (W + 160)) - 80;          // 2x drift speed
+    ctx.save(); ctx.translate(x, c.y); ctx.scale(c.s, c.s);
+    ctx.beginPath();
+    for (const p of c.parts) { ctx.moveTo(p.dx + p.r, p.dy); ctx.arc(p.dx, p.dy, p.r, 0, 6.283); }
+    ctx.fill(); ctx.restore();
+  }
+}
+/* "m" glyph flock crossing the upper third */
+function drawBirds(hue, t) {
+  _ensureSeed();
+  const span = W + 200;
+  const lead = RM ? 0 : (t / 11) % span;                                       // 2x speed
+  ctx.strokeStyle = oklch(0.35, 0.07, hue + 14).css;
+  ctx.lineWidth = 2; ctx.lineCap = "round";
+  for (const b of BIRDS) {
+    const x = lead + b.dx, y = H * (0.18 + 0.1 * Math.sin(b.ph)) + b.dy;
+    if (x < -30 || x > W + 30) continue;
+    const flap = Math.sin(t / 65 + b.ph) * 4 * b.s;                             // 2x flap
+    ctx.beginPath();
+    ctx.moveTo(x - 7 * b.s, y - flap * .6);
+    ctx.quadraticCurveTo(x - 3 * b.s, y - 4 * b.s - flap, x, y);
+    ctx.quadraticCurveTo(x + 3 * b.s, y - 4 * b.s - flap, x + 7 * b.s, y - flap * .6);
+    ctx.stroke();
+  }
+}
+/* foreground grass fringe along the bottom edge */
+function drawGrass(hue, t) {
+  _ensureSeed();
+  const base = H - 2;
+  ctx.lineCap = "round";
+  for (const g of GRASS) {
+    const sway = RM ? 0 : Math.sin(t / 550 + g.ph) * 5;                        // 2x sway
+    ctx.strokeStyle = oklch(0.44, 0.11, hue + 40 + g.ph * 3).css;
+    ctx.lineWidth = g.w;
+    const tipX = g.x + g.lean * 10 + sway, tipY = base - g.len;
+    ctx.beginPath(); ctx.moveTo(g.x, base);
+    ctx.quadraticCurveTo(g.x + g.lean * 4, base - g.len * .55, tipX, tipY);
+    ctx.stroke();
+  }
+}
+/* tulip flower style — second style alternating with the generic petals */
+function drawTulip(fctx2, fl, hue, sway) {
+  const head = oklch(0.70, 0.14, hue + fl.dh + 60), stem = oklch(0.48, 0.10, hue + fl.dh + 90);
+  const r = fl.r;
+  fctx2.save(); fctx2.translate(fl.x + sway, fl.y); fctx2.rotate(fl.ph * .15);
+  fctx2.strokeStyle = stem.css; fctx2.lineWidth = 2; fctx2.lineCap = "round";
+  fctx2.beginPath(); fctx2.moveTo(0, r * .5); fctx2.quadraticCurveTo(sway * .5, r * 1.1, 0, r * 1.9); fctx2.stroke();
+  fctx2.beginPath(); fctx2.moveTo(0, r * 1.2); fctx2.quadraticCurveTo(r * .9, r * 1.35, r * 1.1, r * 1.75); fctx2.stroke();
+  fctx2.beginPath(); fctx2.moveTo(0, r * 1.35); fctx2.quadraticCurveTo(-r * .8, r * 1.5, -r * .95, r * 1.85); fctx2.stroke();
+  fctx2.fillStyle = head.css;
+  for (let p = -1; p <= 1; p++) {
+    fctx2.beginPath();
+    fctx2.moveTo(p * r * .34, r * .5);
+    fctx2.quadraticCurveTo(p * r * .5, -r * .55, p * r * .34 + p * r * .18, -r * .55);
+    fctx2.quadraticCurveTo(p * r * .34 + p * r * .18, r * .05, p * r * .34, r * .5);
+    fctx2.closePath(); fctx2.fill();
+  }
+  fctx2.restore();
+}
+/* falling petals across the full screen */
+function drawFallingPetals(hue, t) {
+  _ensureSeed();
+  const dt = TIME_SCALE / 60;                          // scales with the frame warp
+  for (const p of PETALS) {
+    if (!RM) {
+      p.y += p.vy * 2 * dt; p.x += (p.drift + Math.sin(t / 450 + p.ph) * 12) * dt;   // 2x fall
+      p.rot += p.vr * dt;
+      if (p.y > H + 8) { p.y = -8; p.x = Math.random() * W; }
+      if (p.x > W + 8) p.x = -8; if (p.x < -8) p.x = W + 8;
+    }
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+    ctx.fillStyle = oklch(0.75, 0.12, hue + p.dh).css;
+    ctx.beginPath(); ctx.ellipse(0, 0, p.r * 1.6, p.r * .7, 0, 0, 6.283); ctx.fill();
+    ctx.restore();
+  }
+}
+/* twinkling stars for the night-park variant */
+function drawStars(hue, t) {
+  _ensureSeed();
+  for (const s of STARS) {
+    const tw = RM ? 0.7 : 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(t / 350 * s.sp + s.ph)); // 2x twinkle
+    ctx.save(); ctx.globalAlpha = tw * 0.9;
+    ctx.fillStyle = oklch(0.94, 0.05, hue + 20).css;
+    ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 6.283); ctx.fill();
+    ctx.restore();
+  }
+}
+/* ---------- flower layer (drawn to offscreen, revealed through letters or full-bleed) ---------- */
+function paintFlowers(hue, t, solid) {
+  fctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  fctx.clearRect(0, 0, W, H);
+  for (const fl of flowers) {
+    const sway = RM ? 0 : Math.sin(t / 700 + fl.ph) * 4;
+    if (fl.tulip) { drawTulip(fctx, fl, hue, sway); continue; }
+    const col = oklch(0.72 + fl.dl, 0.13, hue + fl.dh);
+    fctx.save(); fctx.translate(fl.x + sway, fl.y); fctx.rotate(fl.ph + sway * .06);
+    if (solid) fctx.fillStyle = col.css;
+    else { fctx.strokeStyle = col.css; fctx.lineWidth = 2.6; fctx.lineCap = "round"; }
+    for (let p = 0; p < fl.petals; p++) {
+      const a = p / fl.petals * 6.283;
+      fctx.beginPath();
+      fctx.ellipse(Math.cos(a) * fl.r * .62, Math.sin(a) * fl.r * .62, fl.r * .55, fl.r * .3, a, 0, 6.283);
+      if (solid) fctx.fill(); else fctx.stroke();
+    }
+    fctx.beginPath(); fctx.arc(0, 0, fl.r * .22, 0, 6.283); fctx.fillStyle = col.css; fctx.fill();
+    fctx.restore();
+  }
+}
+
+/* flowers masked to the letter glyphs — "seen through the letters" */
+const mo = document.createElement("canvas"), mctx = mo.getContext("2d");
+function flowersThroughLetters(hue, t, alpha) {
+  if (mo.width !== cv.width || mo.height !== cv.height) { mo.width = cv.width; mo.height = cv.height; } // size once, not per call
+  mctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  mctx.clearRect(0, 0, W, H);
+  paintFlowers(hue, t, false);
+  mctx.drawImage(fo, 0, 0, W, H);
+  mctx.globalCompositeOperation = "destination-in";
+  mctx.font = fontStr; mctx.textAlign = "center"; mctx.textBaseline = "middle";
+  mctx.fillStyle = "#fff";
+  for (const l of letters) mctx.fillText(l.ch, (l.x0 + l.x1) / 2, wordY);
+  mctx.globalCompositeOperation = "source-over";
+  ctx.save(); ctx.globalAlpha = alpha; ctx.drawImage(mo, 0, 0, W, H); ctx.restore();
+}
+
+/* helpers: envelopes + letter stencil */
+const ease = x => x < .5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
+function env(t, t0, dur, aIn, aHold, aOut) { // 0->1->0 window with ease
+  const p = (t - t0) / dur;
+  if (p < 0 || p > 1) return 0;
+  if (p < aIn) return ease(p / aIn);
+  if (p > 1 - aOut) return ease((1 - p) / aOut);
+  return 1;
+}
+function letterStencil(hue, look) {
+  // dominant looks: colored letters on quiet bg, or plain letters on colored bg
+  const quiet = oklch(0.96, 0.02, hue), fullC = oklch(0.68, 0.15, hue);
+  ctx.fillStyle = (look === "coloredLetters") ? quiet.css : fullC.css;
+  ctx.fillRect(0, 0, W, H);
+  ctx.font = fontStr; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  for (const l of letters) {
+    const cx = (l.x0 + l.x1) / 2;
+    if (look === "coloredLetters") {
+      ctx.fillStyle = oklch(0.66 + l.lOff, 0.15, hue + l.hueOff).css;
+      ctx.fillText(l.ch, cx, wordY);
+    } else {
+      ctx.fillStyle = oklch(0.97, 0.015, hue + l.hueOff * .3).css;
+      ctx.fillText(l.ch, cx, wordY);
+    }
+  }
+}
+
+/* ---------- beat rendering (draws one beat into the current ctx) ---------- */
+function renderBeat(b, hue, t) {
+  const p = (t - b.t0) / b.dur, hz = H * 0.78;
+
+  if (b.kind === "solid") {
+    letterStencil(hue, b.look);
+    // faint falling petals as a continuous ambient layer
+    ctx.save(); ctx.globalAlpha = 0.35; drawFallingPetals(hue, t); ctx.restore();
+    // occasional flower flash seen THROUGH the letters (both dominant looks get it)
+    const flash = env(t, b.t0 + b.dur * .45, Math.min(1400, b.dur * .5), .25, .3, .45);
+    if (flash > 0.01) flowersThroughLetters(hue, t, flash);
+  }
+
+  if (b.kind === "picture") {
+    // distance scene: sky + horizon subject + ambient layers; flowers go solid color
+    const night = b.subject === "night";
+    if (b.subject === "isocline") { drawIsocline(b, hue, t); return; }
+    if (night) {
+      const g = ctx.createLinearGradient(0, 0, 0, hz);
+      g.addColorStop(0, oklch(0.24, 0.09, hue + 20).css);
+      g.addColorStop(1, oklch(0.38, 0.10, hue + 40).css);
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, hz);
+      ctx.fillStyle = oklch(0.42, 0.11, hue + 40).css; ctx.fillRect(0, hz, W, H - hz); // dark ground
+      drawStars(hue, t);
+      drawTrees(0, hz, hue - 180);                                     // trees as near-black silhouettes
+    } else {
+      drawSky(hz, hue);
+      drawClouds(hue, t);
+      drawBirds(hue, t);
+      if (b.subject === "trees") drawTrees(W * 0.04, hz, hue);
+      if (b.subject === "park") drawPark(hz, hue);
+      if (b.subject === "dog") { drawTrees(0, hz, hue); drawDog(W * 0.7, hz - 24, Math.min(1.6, W / 640), hue, t, true); }
+    }
+    const reveal = env(t, b.t0, b.dur, .3, .35, .35);
+    // word as plain letters over the scene, no scrim bar — soft shadow keeps them legible
+    ctx.font = fontStr; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillStyle = oklch(0.3, 0.06, hue + 10).css;
+    ctx.shadowColor = "rgba(0,0,0,0.4)"; ctx.shadowBlur = 16;
+    for (const l of letters) ctx.fillText(l.ch, (l.x0 + l.x1) / 2, wordY);
+    ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
+    // solid-color flowers as the scene's own layer, brief flash through the letters
+    paintFlowers(hue + 140, t, true);
+    ctx.save(); ctx.globalAlpha = 0.28 * reveal; ctx.drawImage(fo, 0, 0, W, H); ctx.restore();
+    if (!night) drawGrass(hue, t);                        // foreground fringe
+    ctx.save(); ctx.globalAlpha = 0.5 * reveal; drawFallingPetals(hue, t); ctx.restore();
+    const flash = env(t, b.t0 + b.dur * .25, Math.min(1100, b.dur * .5), .2, .25, .55);
+    if (flash > 0.01) flowersThroughLetters(hue, t, flash);
+  }
+
+  if (b.kind === "interact") {
+    letterStencil(hue, "coloredLetters");
+    // an object crosses the word and interacts: butterfly lands, dog sniffs, flower grows through a letter
+    const prog = p, ex = W * (0.12 + prog * 0.76), ey = wordY + Math.sin(prog * 6.28) * H * 0.06;
+    if (b.subject === "dog") { drawDog(ex, hz - 24, 1.4, hue, t, true); }
+    if (b.subject === "trees") { // a flower grows up through the third letter
+      const li = letters[2], grow = env(t, b.t0, b.dur, .45, .2, .35);
+      const fx = (li.x0 + li.x1) / 2, fy = wordY + 40;
+      ctx.strokeStyle = oklch(0.45, 0.1, hue + 60).css; ctx.lineWidth = 4; ctx.lineCap = "round";
+      ctx.beginPath(); ctx.moveTo(fx, fy + 60); ctx.quadraticCurveTo(fx + 10, fy + 20 * grow, fx, fy); ctx.stroke();
+      for (let pn = 0; pn < 6; pn++) { const a = pn / 6 * 6.283; ctx.fillStyle = oklch(0.72, 0.13, hue + pn * 12).css;
+        ctx.beginPath(); ctx.ellipse(fx + Math.cos(a) * 14 * grow, fy - 8 + Math.sin(a) * 14 * grow, 9 * grow, 5 * grow, a, 0, 6.283); ctx.fill(); }
+    }
+    if (b.subject === "park") { // butterfly flutters along the word
+      const flap = Math.sin(t / 45) * 0.9;
+      ctx.fillStyle = oklch(0.75, 0.14, hue + 120).css;
+      ctx.beginPath(); ctx.ellipse(ex, ey, 12, 8 * Math.abs(Math.cos(flap)) + 2, flap, 0, 6.283); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(ex + 2, ey - 6, 9, 5 * Math.abs(Math.cos(flap)) + 1, -flap, 0, 6.283); ctx.fill();
+    }
+  }
+
+}
+
+/* ---------- main frame with beat cross-fade ---------- */
+let started = 0, prevBeat = null;
+const XFADE = 900;                                     // ms of overlap between beats
+const TIME_SCALE = 2.5;                                // ~2.5x pace: every oscillator, beat, cross-fade and the hue dial share this one warped clock, so each scene's internal choreography stays locked together
+
+function renderTo(bctx, b, hue, t) {
+  ctx = bctx;                                          // painters draw into the scene buffer
+  bctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  bctx.clearRect(0, 0, W, H);
+  renderBeat(b, hue, t);
+  ctx = mainCtx;                                       // restore main ctx
+}
+
+function frame(realT) {
+  const t = realT * TIME_SCALE;                        // warp once: every oscillator scales together
+  if (!started) { started = t; beat.t0 = t; }
+  const tt = t - started;
+  const hue = RM ? BRAND_HUE : (tt * 360 / 40000 + BRAND_HUE) % 360; // one calm dial turn every 40 s, starting on-brand
+  if (t - beat.t0 > beat.dur) { prevBeat = beat; beat = newBeat(t); }
+
+  ctx = mainCtx;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+
+  if (prevBeat) {
+    // fade the old beat out while the new one fades in
+    const k = Math.min(1, (t - beat.t0) / XFADE);
+    renderTo(sctx[0], prevBeat, hue, t);
+    renderTo(sctx[1], beat, hue, t);
+    ctx.globalAlpha = 1 - k; ctx.drawImage(sc[0], 0, 0, W, H);
+    ctx.globalAlpha = k;     ctx.drawImage(sc[1], 0, 0, W, H);
+    ctx.globalAlpha = 1;
+    if (k >= 1) prevBeat = null;
+  } else {
+    renderTo(sctx[1], beat, hue, t);
+    ctx.drawImage(sc[1], 0, 0, W, H);
+  }
+
+  // brand-grade instrument readout: the theme engine showing itself, no dev internals
+  hud.textContent = "ISOCLINE · OKLCH hue " + Math.round(((hue % 360) + 360) % 360) + "°";
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>

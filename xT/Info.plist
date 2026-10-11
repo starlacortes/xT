@@ -4,6 +4,15 @@
 <dict>
 	<key>CFBundleIconName</key>
 	<string>xTGlassIcon</string>
+	<key>UIAppFonts</key>
+	<array>
+		<string>IBMPlexSerif-SemiBold.ttf</string>
+		<string>IBMPlexSerif-Bold.ttf</string>
+		<string>IBMPlexMono-Regular.ttf</string>
+		<string>IBMPlexMono-Medium.ttf</string>
+		<string>AtkinsonHyperlegibleNext-Regular.ttf</string>
+		<string>AtkinsonHyperlegibleNext-Bold.ttf</string>
+	</array>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>fetch</string>

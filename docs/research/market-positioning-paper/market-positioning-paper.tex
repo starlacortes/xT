@@ -1,0 +1,1632 @@
+% !TeX program = pdflatex
+%
+% market-positioning-paper.tex
+%
+% Build:  pdflatex market-positioning-paper.tex   (run 3x: ToC, then cross-refs)
+%
+
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=2.4cm]{geometry}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{ragged2e}
+\makeatletter\def\input@path{{../}{../../design/brand/}}\makeatother
+\usepackage{isocline}   % docs/research/isocline.sty — Isocline Research template
+\usepackage[hidelinks]{hyperref}
+
+\definecolor{mid}{RGB}{120,95,0}
+% Legacy markup, now neutral: Isocline reports observations, not verdicts.
+\newcommand{\bad}[1]{\obs{#1}}
+\newcommand{\good}[1]{#1}
+\newcommand{\mixed}[1]{\textcolor{mid}{#1}}
+\newcommand{\code}[1]{\texttt{\small #1}}
+\newcommand{\name}[1]{\textsc{#1}}
+
+\newcolumntype{L}[1]{>{\RaggedRight\arraybackslash}p{#1}}
+
+\isoclineshorttitle{Market Positioning}
+
+\title{\textbf{Positioning a Pharmacokinetic Instrument in a\\
+Hostile and Under-Served Market:}\\[0.3em]
+\large A Market, Cultural, and Nomenclature Study of xT,\\
+with Screened Rebrand Candidates}
+\author{Prepared for Starla Cortes}
+\date{August 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent
+xT is a mobile application that predicts serum hormone concentration
+over time from a user's logged dose history for gender-affirming
+hormone replacement therapy (HRT), built on a superposed Bateman
+biexponential model with per-user calibration. Its engineering is
+documented to a standard unusual for a consumer application. Its name
+is a development codename. This paper asks what market the product is
+actually entering, what that market's cultural and political conditions
+demand of a brand, and what the application should be called.
+
+We find three things that revise the project's own prior positioning
+statements. First, the trans-specific segment of this category is not
+competitive but \emph{vacant}: its most-cited entrants---Transcapsule,
+Solace/Euphoria, MyTransHealth---are abandoned, with last updates in
+2022, 2022, and 2019 respectively, while the actively maintained,
+well-rated products in the adjacent space are coded to
+cisgender male optimization (Regimen, 338 ratings, 4.8, updated within
+the week) or GLP-1 weight loss (DoneDose). The competitive threat is
+not feature parity; it is that this category has taught its users that
+tools built for them get abandoned. Second, and correcting an explicit
+claim in the project's own business plan, the pharmacokinetic model is
+\emph{not} a unique differentiator: Regimen ships a public one-compartment
+Bateman superposition visualizer with cited sources and stated
+limitations. xT's defensible asset is not that it models
+pharmacokinetics but the depth and honesty of its disclosure---a
+published derivation, an out-of-sample validation dossier, and a
+revision history that names its own defects. Third, the brand brief the
+founder has set---clinically credible \emph{and} discreet---is not a
+stylistic preference but a safety requirement, and it is the specific
+intersection at which every prior entrant in this category has failed.
+
+We evaluate rebrand candidates against a four-part discretion test
+(lock screen, financial record, over-the-shoulder, and disclosure under
+compulsion) and a clearance screen covering App Store collisions and
+United States trademark records in classes 9, 42, and 44. We report
+seven screened candidates and eleven rejections with reasons, and we
+benchmark the incumbent codename against them. We recommend
+\name{Isocline}, with \name{Ephemeris} as the principal alternate and a
+defensible case for retaining \name{xT} stated in full rather than
+strawmanned.
+
+Clearance findings in this paper are indicative, not legal opinions.
+Where a source is a competitor's own marketing, we say so.
+
+\textbf{Keywords:} market positioning, brand nomenclature, trademark
+screening, gender-affirming care, digital health, app store
+optimization, health data privacy, trans health technology
+\end{abstract}
+
+\tableofcontents
+\clearpage
+
+% ======================================================================
+\section{Introduction}
+\label{sec:intro}
+
+\subsection{The problem this paper addresses}
+
+xT began as a directory name. It is short, it gestures at testosterone,
+it is at least ungendered in the sense that it does not commit the
+product to one hormone---but nobody chose it, and no part of it was
+tested against the conditions the product will actually ship into. The
+question posed for this study was whether xT should be renamed, and if
+so, to what.
+
+That question cannot be answered by generating names. A name is a
+solution to a positioning problem, and the positioning problem here is
+unusual in three ways that a generic naming exercise would miss:
+
+\begin{enumerate}[leftmargin=1.5em,itemsep=0.3em]
+\item The product's technical asset is a pharmacokinetic model of
+      unusual rigor for a consumer application, which means the brand
+      has to be able to carry a scientific claim without over-claiming
+      a regulatory one.
+\item The user population is, in a material and documented sense, under
+      surveillance. A name is a string that appears on a lock screen, a
+      bank statement, and a subpoenaed app-store purchase record. In
+      this category that is a safety property, not a marketing one.
+\item The category has a mortality problem. The applications this
+      product would be compared against are, disproportionately,
+      dead. That fact shapes what a new entrant's brand has to
+      communicate more than any feature comparison does.
+\end{enumerate}
+
+\subsection{Scope}
+
+The founder scoped this study to three of four candidate research
+areas: the competitive application landscape
+(\S\ref{sec:landscape}), the social, cultural, and political
+environment (\S\ref{sec:sociopolitical}), and brand and category
+positioning (\S\ref{sec:positioning}). Medical and clinical positioning
+---provider adoption, WPATH and Endocrine Society context, HIPAA
+posture, and the software-as-a-medical-device question---was explicitly
+deprioritized and is not covered here.
+
+One exception is taken to that exclusion, and it is flagged rather than
+smuggled. In March 2026 Apple began requiring apps in the Health \&
+Fitness and Medical categories to declare a regulated-medical-device
+status, with an early-2027 deadline after which undeclared apps cannot
+ship updates~\cite{appledevice}. This is a regulatory fact, but it
+constrains what the brand is permitted to \emph{claim}, and therefore
+falls inside the positioning scope rather than outside it. It is
+treated in \S\ref{sec:deviceclaim} and nowhere else.
+
+\subsection{The brand brief}
+
+The founder specified two optimization targets, selected together:
+
+\begin{description}[leftmargin=1.6em,style=nextline,itemsep=0.35em]
+\item[Clinically credible.] The name should read as a serious health
+      instrument---provider-shareable, grant-fundable, and able to sit
+      on the title page of a research paper without embarrassment.
+\item[Discreet and ungendered.] The name should disclose nothing on a
+      lock screen or a financial record.
+\end{description}
+
+These are not independent axes, and the fact that they were selected
+together is the most consequential input to this study. Section
+\ref{sec:brief} shows that the intersection of the two is a narrow
+region that no existing product in this category occupies, that the
+occupied regions are occupied for legible reasons, and that most of the
+obvious naming instincts---including several this study generated and
+then discarded---fail one axis in the course of satisfying the other.
+
+\subsection{Contributions}
+
+\begin{enumerate}[leftmargin=1.5em,itemsep=0.25em]
+\item A competitive census of the HRT-tracking category built from
+      primary App Store records rather than from competitor-authored
+      comparison articles (\S\ref{sec:census}), including
+      last-updated dates, rating counts, and pricing.
+\item An abandonment analysis showing that the trans-specific segment
+      is vacant rather than contested, and an argument that this
+      changes what the brand must do (\S\ref{sec:graveyard}).
+\item A correction to the project's own business plan: the claim that
+      no competitor models pharmacokinetics is false
+      (\S\ref{sec:notamoat}).
+\item A four-part discretion test operationalizing the ``discreet''
+      half of the brief (\S\ref{sec:discretion}).
+\item Seven screened rebrand candidates and eleven documented
+      rejections, with App Store and trademark screens
+      (\S\ref{sec:candidates}, \S\ref{sec:rejected}).
+\item A stated case for retaining the incumbent codename, benchmarked
+      against the candidates rather than dismissed
+      (\S\ref{sec:incumbent}).
+\end{enumerate}
+
+% ======================================================================
+\section{Method and source quality}
+\label{sec:method}
+
+\subsection{Why this section exists}
+
+The pharmacokinetic paper accompanying this project grades its own
+constants---primary-sourced, secondary-sourced, or uncalibrated---and
+declines to present a secondary source as though it were a primary one.
+Market research is more prone to the same failure, not less, because
+its most available sources are written by interested parties. This
+paper adopts the same hierarchy.
+
+\subsection{Source tiers}
+
+\begin{longtable}{@{}L{2.6cm}L{5.4cm}L{7.2cm}@{}}
+\toprule
+\textbf{Tier} & \textbf{Definition} & \textbf{Used in this paper for} \\
+\midrule
+\endhead
+Primary &
+Record produced by the party with direct knowledge, published for a
+purpose other than persuading the reader of a market conclusion. &
+App Store listing pages (pricing, rating counts, last-updated dates,
+seller names, declared data practices); USPTO records via Justia;
+Apple developer documentation and policy announcements. \\[0.4em]
+
+Secondary &
+Independent third-party reporting or research with no commercial
+interest in the category. &
+Peer-reviewed and press reporting on DIY HRT prevalence; the Movement
+Advancement Project policy maps; POGO's surveillance investigation;
+appellate reporting. \\[0.4em]
+
+\bad{Interested} &
+Written by a market participant about its own market. &
+The ``best HRT tracker apps'' comparison articles published by Regimen
+and DoneDose. Used only for feature enumeration, never for ranking or
+evaluation. \\[0.4em]
+
+\bad{Unverified} &
+Asserted in a project document without a traceable source, or resistant
+to verification with the tools available. &
+Domain availability; the completeness of any trademark screen; several
+claims in the project's own business plan, one of which is corrected in
+\S\ref{sec:notamoat}. \\
+\bottomrule
+\end{longtable}
+
+\subsection{A note on the comparison articles}
+
+Two of the most prominent search results for ``best HRT tracker apps''
+are \code{helloregimen.com/blog/\allowbreak best-hrt-tracker-apps-2026}
+and \code{donedose.com/guides/\allowbreak best-hrt-tracker-app}. Both are
+content
+marketing published by applications that appear in their own
+rankings~\cite{regimenblog,donedoseblog}. Regimen's article places
+Regimen first. DoneDose's article places DoneDose first. Neither
+discloses the conflict in the body text.
+
+This is not a scandal; it is the normal structure of search-optimized
+category content, and both articles are factually useful for
+enumerating who exists. But it has a specific consequence for this
+project: the competitive picture in the project's existing business
+plan is built substantially on these two articles, and therefore
+inherits their framing. Where this paper disagrees with that plan, the
+disagreement usually traces to having gone to the App Store listing
+instead.
+
+\subsection{What this paper cannot establish}
+\label{sec:cannot}
+
+Three limits are stated here rather than buried in
+\S\ref{sec:limitations}, because they bear on how the rebrand section
+should be read.
+
+\textbf{Trademark screens here are not clearance opinions.} The screens
+in \S\ref{sec:candidates} were run against Justia's index of United
+States federal trademark records, filtered to International Classes 9
+(software), 42 (technology services), and 44 (medical services). They
+do not cover state registrations, unregistered common-law marks,
+foreign registrations, or the likelihood-of-confusion analysis that
+determines whether a mark is actually available. A mark reported here
+as ``clear'' means only that this screen surfaced no conflict in those
+classes. Retaining a trademark attorney before filing or before
+printing anything is a separate and necessary step.
+
+\textbf{Domain availability was not established.} The tooling available
+for this study could not query a registrar. Domain notes in
+\S\ref{sec:candidates} are inferences from whether a site appears to
+exist, and should be re-checked directly---a task of a few minutes per
+name.
+
+\textbf{App Store name availability was not established.} Whether a
+name can be reserved is determined in App Store Connect, not by
+searching the storefront. The App Store screens here establish only
+whether a user searching that word would encounter competing results.
+
+% ======================================================================
+\section{The competitive landscape}
+\label{sec:landscape}
+
+\subsection{Three overlapping markets, not one}
+\label{sec:threemarkets}
+
+``HRT tracking'' names three populations that share a mechanism and
+share almost nothing else. Conflating them is the single most common
+error in this category's own marketing, and it is why the comparison
+articles read as incoherent---they rank a menopause education platform
+against an injection logger against a peptide tracker.
+
+\begin{longtable}{@{}L{3.2cm}L{5.0cm}L{3.1cm}L{3.6cm}@{}}
+\toprule
+\textbf{Market} & \textbf{Who} & \textbf{Emotional register} &
+\textbf{Representative apps} \\
+\midrule
+\endhead
+Menopausal HRT &
+Cisgender women, typically 45--60, usually clinician-managed, often
+national-health-service adjacent. &
+Symptom relief; being taken seriously. &
+Balance, Health \& Her, Caria, mySysters, Hormona, HRTMe \\[0.4em]
+
+Optimization / TRT / peptides &
+Predominantly cisgender men, self-directed, protocol-tinkering,
+overlapping with GLP-1 and bodybuilding communities. &
+Performance; control; data maximalism. &
+Regimen, DoneDose, TRT Tracker \\[0.4em]
+
+Gender-affirming HRT &
+Trans and gender-diverse adults, frequently self-advocating, sometimes
+unsupervised, materially at legal and social risk. &
+Safety; self-determination; not being surveilled. &
+Transcapsule, Solace, Hormone Helper, Trans Memo \\
+\bottomrule
+\end{longtable}
+
+The three markets differ in what a product must earn. The menopause
+market rewards authority---Balance leads with its founder's clinical
+credentials and its alignment with national guidance~\cite{regimenblog}.
+The optimization market rewards granularity and rewards it immediately;
+Regimen's pitch is 200-plus compounds and 50-plus daily
+markers~\cite{regimenlisting}. The gender-affirming market rewards
+neither of those first. It rewards evidence that the builder is not
+going to disappear, extract, or expose them---and it has extensive
+evidence that builders do all three.
+
+\subsection{Census of the actively relevant field}
+\label{sec:census}
+
+The following is built from App Store listing pages, which are primary
+records, and not from the comparison articles. Figures were retrieved
+in August 2026 and will drift.
+
+\begin{longtable}{@{}L{3.1cm}L{2.5cm}L{1.5cm}L{2.1cm}L{4.6cm}@{}}
+\toprule
+\textbf{App} & \textbf{Seller} & \textbf{Rating (n)} &
+\textbf{Price} & \textbf{Notes} \\
+\midrule
+\endhead
+Regimen: Peptide Tracker &
+Awaken Labs LLC &
+4.8 (338) &
+Free; \$4.99/mo, \$39.99/yr &
+Health \& Fitness. Updated within the week of retrieval (v2.1.2).
+200+ compounds, half-life plotting, labs, 50+ symptom markers,
+Apple Health. Health data linked to user ID. \\[0.4em]
+
+DoneDose: Injection Tracker &
+Benjamin Fox &
+4.0 (5) &
+Free; \$4.99/mo, \$34.99/yr, \$4.99 lifetime &
+Health \& Fitness. \good{Latest version 1.1.2 dated ``Jun 10'' with no
+year shown}---Apple omits the year for the current year, and the app ID
+is a 2025-series listing, so this reads as June 2026 and the app is
+actively maintained. GLP-1-first
+framing; TRT/HRT listed among many. Local storage, no cloud sync. \\[0.4em]
+
+Hormone Helper &
+John Patterson &
+5.0 (7) &
+\$4.99 paid &
+\bad{Lifestyle} category, not Health. Last updated September 2024.
+Explicitly trans and non-binary framing; educational video content. \\[0.4em]
+
+Transcapsule &
+Transcapsule &
+--- &
+Free w/ premium &
+\bad{Abandoned since 2022} per independent
+review~\cite{transsolidarity}. Crowdfunded 2020. Promised anonymized
+research data sharing. \\[0.4em]
+
+Solace / Euphoria &
+Euphoria.LGBT &
+--- &
+Free &
+\bad{Last updated 2022}~\cite{transsolidarity}. Venture-backed.
+See \S\ref{sec:euphoria}. \\[0.4em]
+
+MyTransHealth &
+--- &
+--- &
+--- &
+\bad{Dead. Last update 2019; site non-functional}~\cite{transsolidarity}. \\[0.4em]
+
+Trans Memo &
+--- &
+--- &
+--- &
+\good{Actively maintained} as of April 2026~\cite{transsolidarity}.
+HRT reminder and injection tracking. Lightweight. \\
+\bottomrule
+\end{longtable}
+
+Three observations follow directly from the table and are worth stating
+separately because they are easy to read past.
+
+\textbf{The ratings distribution is extreme.} Regimen has 338 ratings.
+Every trans-specific product in the census has single digits or no
+retrievable count. This is not evidence that trans users do not want
+software; it is evidence that they have not been offered a maintained
+product to rate.
+
+\textbf{Hormone Helper is in the Lifestyle category.} Its listing is
+categorized under Lifestyle rather than Health \& Fitness or
+Medical~\cite{hormonehelper}. Whether that was a positioning choice or
+an attempt to avoid health-app review scrutiny, the effect is that the
+most explicitly trans-framed maintained product in the census is not
+present in the category where users search for health tools. It is also,
+incidentally, the categorization that would exempt it from Apple's 2027
+medical-device declaration requirement (\S\ref{sec:deviceclaim}).
+
+\textbf{DoneDose stores data locally with no cloud sync.} This is the
+strongest privacy posture in the census and it belongs to a
+GLP-1-oriented product with five ratings. The feature that the
+trans market would most reward is currently shipping in the product
+least aimed at it.
+
+\subsection{The abandonment pattern}
+\label{sec:graveyard}
+
+The trans-specific segment of this category is not a competitive field.
+It is a graveyard, and it is documented as one by the community itself.
+A 2026 community-authored guide to applications for trans people
+characterizes Transcapsule as ``abandoned'' since 2022 and notes that
+its website auto-downloads software; MyTransHealth as dead with a
+non-functional site since 2019; and Solace as last updated in 2022 with
+outdated Android compatibility~\cite{transsolidarity}. Of the sixteen
+applications that guide reviews, the ones it recommends without
+reservation for trans users are, overwhelmingly, not trans-specific
+products at all---Reddit, Finch, Google Maps' location sharing.
+
+This is the central competitive finding of this study, and it inverts
+the usual strategic conclusion. The instinct on discovering an empty
+segment is to celebrate the opening. The correct reading is more
+uncomfortable: the segment is empty because entrants keep dying in it,
+and every prospective user of xT has watched that happen at least once.
+
+The practical consequence is that the strongest competitor xT faces is
+not a feature set. It is a prior---a learned, evidence-backed
+expectation that a trans health app will be built by someone
+well-meaning, will be charming for eighteen months, and will then stop
+receiving updates while continuing to hold its users' hormone histories
+on a server nobody is watching. No feature answers that prior. What
+answers it is a name, an entity, and a publication record that together
+look like something built to persist.
+
+That reframing has direct nomenclature consequences, developed in
+\S\ref{sec:institutional}: it argues for a name with institutional
+weight over a name with warmth, because the thing being communicated is
+durability rather than empathy.
+
+\subsection{Pharmacokinetic modeling is not a moat}
+\label{sec:notamoat}
+
+The project's existing business plan states that xT is ``the only one
+(as far as this research found) that's publishing its own PK research
+memos and running empirical persona validation against the model,'' and
+that ``nobody else in this space appears to be citing population-PK
+papers in their source comments.''
+
+The first clause is defensible. The second is not, and the broader
+implication---that competitors do not do pharmacokinetics---is false.
+
+Regimen publishes a public Half-Life Visualizer that, by its own
+methodology statements, uses ``the Bateman equation, a one-compartment
+pharmacokinetic model,'' applies superposition to layer multiple doses
+and show steady-state accumulation, and cites FDA NDA labels, a New
+England Journal of Medicine trial for retatrutide, and published
+literature for testosterone~\cite{regimenhalflife}. It carries
+limitation language that would not be out of place in xT's own
+documentation: ``Population-average pharmacokinetic model. Individual
+variation is significant''; ``real blood levels vary based on individual
+metabolism, body composition, injection site, formulation''; and an
+acknowledgement that the tool offers ``a useful approximation'' rather
+than clinical precision.
+
+That is, to a first approximation, the same model class xT implements,
+with the same structural caveats, from a competitor with 338 ratings
+and a weekly release cadence.
+
+This correction matters because a positioning built on a false
+differentiator fails on contact with a comparison. If the pitch is ``we
+model pharmacokinetics,'' a reader who has seen Regimen's visualizer
+has already discounted it. The differentiators that survive the
+comparison are narrower and, fortunately, real:
+
+\begin{enumerate}[leftmargin=1.5em,itemsep=0.3em]
+\item \textbf{Derivation rather than assertion.} Regimen states that it
+      uses a Bateman model. xT publishes the closed-form derivation of
+      its scaling constant from a named population-PK source, and a
+      conservation-of-mass identity for the esters where no primary
+      source exists. That is a different epistemic object.
+\item \textbf{Published out-of-sample validation.} A validation dossier
+      and a persona study reporting error bands against published
+      anchors is not something any competitor in this census offers.
+\item \textbf{Disclosed defects.} The current revision of xT's PK paper
+      reports three defects found by re-deriving the model from its
+      sources---including a baseline keyed to the wrong gonads, which
+      over-states a transmasculine user's endogenous testosterone by
+      more than an order of magnitude at treatment onset---and states
+      their magnitudes rather than quietly repairing them. No
+      competitor does this. In a market whose defining problem is
+      earned distrust (\S\ref{sec:graveyard}), a published defect list
+      is worth more than a feature.
+\item \textbf{Trans-specific parameterization.} Regimen's compound
+      library is organized around peptides, GLP-1 agonists, and TRT.
+      Estradiol valerate and cypionate, anti-androgen interactions, and
+      transfeminine dosing are, at best, long-tail entries in a product
+      whose center of gravity is elsewhere.
+\end{enumerate}
+
+The honest one-line claim is therefore not ``we have a PK model.'' It
+is closer to: \emph{the only hormone estimator that shows its work, and
+the only one that tells you where it is wrong.}
+
+\subsection{What the competitive set implies for the name}
+
+Two conventions are visible in the census and both constrain the brand.
+
+First, the App Store naming convention in this category is
+\emph{brand plus descriptor}: ``Regimen: Peptide Tracker,''
+``DoneDose: Injection Tracker.'' DoneDose in fact appears under at
+least two descriptor variants against a single app
+ID~\cite{donedoselisting}, which is ordinary keyword experimentation.
+Apple allows 30 characters of app name plus a 30-character
+subtitle~\cite{mobileaction}. This is strategically useful: the
+descriptor half can carry the search keywords, which frees the brand
+half to be abstract. A brand does not have to say ``hormone'' for the
+listing to rank for ``hormone tracker.''
+
+Second, and consequently, the argument that an abstract name is
+``expensive to market'' because it has to be taught---an argument made
+in the project's own monetization document against the byTime
+candidate---is weaker than it appears in a store that gives you a
+subtitle. The real cost of an abstract name is not comprehension. It is
+brand-term search competition, which is a function of collisions, not
+of abstractness. That distinction drives the screening in
+\S\ref{sec:candidates}.
+
+% ======================================================================
+\section{The social, cultural, and political environment}
+\label{sec:sociopolitical}
+
+\subsection{Why a naming study contains a legal section}
+
+In most categories, the political environment is a marketing context.
+Here it is a threat model. The argument of this section is that the
+``discreet'' half of the brand brief is downstream of documented
+enforcement mechanisms, and that treating it as an aesthetic preference
+would be a category error.
+
+\subsection{Legal climate as of August 2026}
+\label{sec:legal}
+
+Two facts establish the direction of travel.
+
+Restrictions have moved from minors to adults, and a federal appellate
+court has now permitted it. On 11 March 2026 the United States Court of
+Appeals for the Fourth Circuit upheld West Virginia's exclusion of
+gender-affirming surgeries for adults from Medicaid coverage, reasoning
+that because ``the law applies to specific procedures, not specific
+individuals, it does not illegally discriminate against transgender
+people''~\cite{advocate4th}. Reporting characterized it as the first
+federal appellate enforcement of restrictions on adult
+care~\cite{advocate4th}. The reasoning---that a procedure-targeted rule
+is not a person-targeted rule---is portable to any restriction framed
+around a class of treatment, and hormone therapy is such a class.
+
+State-level data reporting is being proposed. Tennessee House Bill 754
+would require clinics to submit patient data to the state including
+age, sex, medications, procedures, provider identity, and mental health
+diagnoses~\cite{transvitae}. The re-identification objection is not
+speculative and has been stated plainly by community outlets: ``If a
+report shows that in a small county, one 16-year-old began hormone
+therapy in March through a specific provider, it doesn't take a hacker
+to figure out who that might be''~\cite{transvitae}.
+
+Coverage protections remain substantially intact in much of the
+country---the Movement Advancement Project's healthcare map, updated
+25 August 2026, records that 54\% of transgender people live in states
+where insurers are prohibited from excluding medically necessary
+transgender care, against 2\% of LGBTQ people ages 13+ living in states
+that explicitly permit insurers to refuse it~\cite{map}. The picture is
+therefore not uniform collapse. It is sharp and worsening divergence,
+which for a national consumer product means the brand must be safe in
+the worst jurisdiction it ships to, not the median one.
+
+\subsection{Surveillance and health data}
+\label{sec:surveillance}
+
+The Project On Government Oversight's investigation into enforcement
+technology enumerates the mechanisms: geofence warrants and cellular
+location data, data-broker purchases made without warrants, health data
+collection and sharing between providers, prescription records, and
+driver's license records---noting in one instance a request for more
+than 16,000 Texas driver's license gender-change
+records~\cite{pogo}. On applications specifically, it warns that
+``location data from apps that track our physical whereabouts,
+communications through popular apps like Facebook and Instagram, health
+data from apps that monitor and track our physical well-being, and
+browser search histories paint a detailed picture of our inner
+lives''~\cite{pogo}. That investigation is dated June 2023 and predates
+the 2026 developments in \S\ref{sec:legal}; it should be read as a floor.
+
+The project's own business plan correctly establishes that HIPAA does
+not bind a direct-to-consumer application. The positioning consequence
+is the one the plan already draws---trust must be earned by disclosure
+rather than by claiming a regulatory badge---but there is a second
+consequence the plan does not draw, and it is a naming consequence:
+
+\begin{quote}
+\emph{Every artifact bearing the product's name is a potential
+disclosure. The App Store purchase record, the recurring line item on a
+bank or card statement, the notification banner, the home screen icon
+label, the receipt email, and the device backup filename are all
+strings the user does not control and cannot redact.}
+\end{quote}
+
+A name that encodes ``hormone,'' ``trans,'' ``T,'' or ``HRT'' converts
+each of those artifacts into an outing surface. This is the
+justification for the discretion test in \S\ref{sec:discretion}, and it
+is the single strongest argument against retaining \name{xT} as a
+consumer-facing name---not that xT is ugly, but that its one piece of
+semantic content is the piece that should not be there.
+
+\subsection{The DIY population}
+\label{sec:diy}
+
+A substantial fraction of the addressable population is not
+clinician-supervised. Prevalence estimates for do-it-yourself hormone
+therapy vary enormously by region and population: a 2022 review reports
+figures from 11\% of transgender people in Ontario at the low end to
+79\% of trans women in Rio de Janeiro at the high end, with 31\% in
+London, 49\% among trans women in San Francisco, and 63\% among trans
+people of color in San Francisco~\cite{diywiki}. Reported drivers
+include difficulty finding knowledgeable and non-stigmatizing
+clinicians, cost, exclusion, discomfort in clinical relationships, and
+a desire for faster transition; prevalence is generally higher among
+trans women, plausibly because testosterone's controlled-substance
+status makes transmasculine DIY harder~\cite{diywiki}.
+
+For xT this cuts two ways, and the tension is worth stating rather than
+resolving.
+
+\textbf{It is where the product is most valuable.} A user without
+regular bloodwork is exactly the user for whom a superposition model
+with a stated error band is the best available estimate of where their
+levels are. The PK paper frames the clinical gap as the interval
+between blood draws; for this population the interval is unbounded.
+
+\textbf{It is where the product is most dangerous.} The same user has
+no clinician to catch the model when it is wrong, and xT's own current
+revision documents a defect that over-states endogenous testosterone by
+more than an order of magnitude at treatment onset for transmasculine
+users. A brand that positions as authoritative to an unsupervised
+population is making an implicit promise the model cannot yet keep.
+
+The resolution is not to exclude these users but to let the brand carry
+the epistemic status honestly---which favors a name meaning
+\emph{estimate}, \emph{model}, or \emph{instrument} over one meaning
+\emph{truth}, \emph{health}, or \emph{care}. Names in the latter
+family---\name{Verity}, \name{Attest}, \name{TrueLevel} and their
+relatives---were generated and discarded on this ground.
+
+\subsection{The Euphoria case}
+\label{sec:euphoria}
+
+The most instructive failure in this category is not a technical one.
+Euphoria.LGBT (later Solace) launched a suite of trans-focused
+applications with venture backing and prominent endorsement, and drew
+sustained community criticism. A 2022 critique published by the
+Massachusetts Transgender Political Coalition objected on grounds
+worth listing individually, because each is a naming and positioning
+lesson rather than a product one~\cite{mtpc}:
+
+\begin{enumerate}[leftmargin=1.5em,itemsep=0.25em]
+\item \textbf{The tagline.} ``Transition as a service'' was read as
+      commodifying transition---treating it as a purchasable product
+      rather than a personal process.
+\item \textbf{Linearity.} A checkbox-based, staged model of transition
+      contradicted lived experience; the author writes that ``no trans*
+      person I know has had or wanted a linear transition.''
+\item \textbf{Unsourced authority.} Content was published with ``no
+      citations or author credentials.''
+\item \textbf{Exclusion.} No material specifically by or for trans
+      people of color, disabled trans people, or low-income trans
+      people.
+\item \textbf{Extraction.} Fears of ``data mining and invasions of
+      LGBTQ+ privacy,'' and objection to the ethics of venture capital
+      in this space specifically.
+\item \textbf{Redundancy.} ``All the information they share is already
+      being circulated via online and in-person LGBTQ+ communities.''
+\end{enumerate}
+
+Three of these bear directly on xT's brand.
+
+\emph{On the name itself.} ``Euphoria'' names the emotional payoff of
+transition and sells it back. It is the archetype of the warm,
+community-legible name, and it is precisely the register that produced
+the commodification objection. This is direct evidence for the
+founder's instinct in rejecting the community-native branding axis: in
+this category, emotional naming reads as extractive when it comes from
+a commercial entity, and the warmth that is supposed to build trust
+does the opposite.
+
+\emph{On sourcing.} The ``no citations or author credentials''
+objection is the one xT is structurally best positioned to answer, and
+it should be answered in the brand rather than in a footnote. A product
+that publishes its derivations is immune to the specific criticism that
+killed the best-funded entrant in its category.
+
+\emph{On linearity.} The critique of staged, checkbox transition models
+is a live risk for xT specifically, because the application ships a
+Stage System that binds named clinical scales---Tanner staging among
+them---to timeline copy. That feature is defensible as clinical
+information and indefensible as a prescription of how transition
+should proceed, and the difference is almost entirely a matter of
+naming and copy register. It is out of scope here but flagged: the
+brand should not imply a finish line.
+
+% ======================================================================
+\section{Category positioning}
+\label{sec:positioning}
+
+\subsection{The brief as a coordinate, not a checklist}
+\label{sec:brief}
+
+The two selected axes---clinical credibility and discretion---define a
+plane. Placing the category's actual inhabitants on it is more
+informative than any of them individually.
+
+\begin{longtable}{@{}L{3.4cm}L{3.5cm}L{3.5cm}L{4.6cm}@{}}
+\toprule
+& \textbf{Low discretion} & \textbf{High discretion} & \\
+\midrule
+\endhead
+\textbf{High clinical credibility} &
+\emph{Balance} (menopause; clinician-fronted, but unmistakably a
+menopause app) &
+\bad{Largely vacant.} Regimen approaches it but is coded to male
+optimization by its descriptor and compound library. &
+The target region. \\[0.6em]
+
+\textbf{Low clinical credibility} &
+\emph{Euphoria/Solace}, \emph{Transcapsule}, \emph{Hormone Helper} ---
+names that disclose the user &
+\emph{Trans Memo}, generic medication reminders &
+Where the trans-specific segment actually sits. \\
+\bottomrule
+\end{longtable}
+
+Two structural observations follow.
+
+\textbf{The target region is vacant for a reason that is not
+inaccessibility.} It is vacant because the two axes pull naming in
+opposite directions along the dimension of \emph{specificity}. Clinical
+credibility is conventionally signalled by naming the domain---
+``Hormone Helper'' is legible precisely because it says hormone.
+Discretion is achieved by not naming the domain. A name cannot resolve
+this by compromise; a half-disclosed name is simply a disclosed name.
+It resolves only by relocating the credibility signal off the noun and
+onto the \emph{register} of the word---which is what an obscure
+technical term does, and what a warm word cannot.
+
+\textbf{This is the whole argument for a technical-register name.} A
+term drawn from measurement, mathematics, or instrumentation carries
+clinical credibility through its diction while carrying zero
+disclosure through its denotation. A clinician reads competence; a
+bystander reads nothing. No other naming family satisfies both axes
+simultaneously.
+
+\subsection{Institutional weight over warmth}
+\label{sec:institutional}
+
+Section \ref{sec:graveyard} established that the dominant competitor is
+a learned expectation of abandonment. Brands answer that expectation
+with signals of permanence, and the vocabulary of permanence is
+institutional: the name of a laboratory, an instrument, an observatory,
+a standard. It is not the vocabulary of companionship.
+
+This aligns with, and independently supports, the founder's rejection
+of the community-native axis. It also reframes what ``clinically
+credible'' is buying. It is not primarily buying provider adoption or
+grant eligibility, useful as those are. It is buying the impression
+that this is a thing that will still exist in four years---which is the
+objection actually forming in a prospective user's mind, whether or not
+they articulate it.
+
+\subsection{App Store mechanics}
+\label{sec:asomechanics}
+
+The constraints are fixed and favorable to an abstract brand.
+
+\begin{longtable}{@{}L{4.6cm}L{10.6cm}@{}}
+\toprule
+\textbf{Field} & \textbf{Constraint and consequence} \\
+\midrule
+\endhead
+App name & 30 characters; roughly the first 26 display in iPhone search
+results~\cite{mobileaction}. Holds ``\emph{Brand}: \emph{Descriptor}''
+comfortably. \\[0.35em]
+Subtitle & 30 characters, displayed beneath the name~\cite{mobileaction}.
+A second keyword surface. \\[0.35em]
+Keywords field & 100 characters, not user-visible, indexed for
+search~\cite{mobileaction}. Carries ``hrt, testosterone, estradiol,
+injection, trans'' without any of those words appearing on the user's
+device. \\[0.35em]
+Category & Health \& Fitness is the correct category and triggers the
+declaration in \S\ref{sec:deviceclaim}. Hormone Helper's Lifestyle
+placement avoids that at the cost of search
+presence~\cite{hormonehelper}. \\
+\bottomrule
+\end{longtable}
+
+The keywords field deserves emphasis because it resolves the apparent
+tension between discretion and discoverability. Search terms live in a
+field the user never sees and that never appears on their device. A
+maximally discreet brand name loses nothing in ranking for ``hormone
+tracker'' provided the descriptor and keyword fields are used. The
+discretion tax on discoverability is close to zero; the discretion tax
+falls entirely on brand-term recall, which is a marketing cost, not a
+search cost.
+
+\subsection{The claim boundary: Apple's medical device declaration}
+\label{sec:deviceclaim}
+
+This subsection sits outside the requested scope and is included
+because it constrains what the brand may assert.
+
+As of 26 March 2026, Apple requires that an app be assigned a
+regulated-medical-device status in App Store Connect if its primary or
+secondary category is Health \& Fitness or Medical, or if it is marked
+as containing frequent references to medical or treatment information
+in the age-rating questionnaire~\cite{appledevice}. Apple defines
+regulated medical device apps as ``those that function on their own or
+as part of a system for a range of medical purposes, including
+diagnosis, prevention, \emph{monitoring}, and treatment of diseases and
+physiological conditions'' (emphasis added). New apps must declare from
+that date; existing apps in the EEA, UK, and US must declare by early
+2027, after which ``you'll no longer be able to submit app
+updates''~\cite{appledevice}.
+
+xT will be a new app in Health \& Fitness and will therefore declare at
+submission. The declaration itself is routine---an app that is not a
+regulated device selects No. The positioning consequence is the
+constraint that comes with it: the marketing register and the declared
+status must agree. A brand and tagline built on \emph{prediction of
+physiological state} sit closer to ``monitoring'' than a brand built on
+\emph{logging and estimation} does. This argues against names and
+taglines in the diagnostic register---\name{Assay}, \name{Verity}, and
+anything reading as a measurement of the user rather than a model of a
+schedule---independently of their trademark profiles.
+
+The safe formulation is the one the project has already written into
+its own disclaimer: xT estimates hormone levels from a pharmacokinetic
+model; it does not replace bloodwork or medical advice. The brand
+should be consistent with that sentence, which means the name should
+denote a \emph{model} or a \emph{curve}, not a \emph{measurement} or a
+\emph{verdict}.
+
+\subsection{The position to claim}
+
+Synthesizing \S\ref{sec:notamoat}, \S\ref{sec:graveyard},
+\S\ref{sec:brief}, and \S\ref{sec:deviceclaim}:
+
+\begin{quote}
+\emph{A maintained, technically serious instrument for people managing
+hormone therapy---one that publishes how it works and where it is
+wrong, names nothing about its user, and is built to still be here in
+four years.}
+\end{quote}
+
+Every clause is load-bearing. \emph{Maintained} answers the graveyard.
+\emph{Publishes how it works and where it is wrong} is the only
+differentiator that survives comparison with Regimen and the only one
+that answers the Euphoria critique. \emph{Names nothing about its user}
+is the safety requirement. \emph{Instrument} rather than \emph{monitor}
+keeps the claim inside the declaration boundary.
+
+Notably, the phrase ``for trans people'' does not appear---not because
+the product is not for trans people, which it emphatically is and
+should say everywhere except on the user's device, but because the
+brand layer is the one layer that has to travel onto a lock screen in a
+hostile state. Trans-specificity belongs in the App Store description,
+the landing page, the community posts, and the grant applications. It
+does not belong in the string.
+
+% ======================================================================
+\section{Rebrand}
+\label{sec:rebrand}
+
+\subsection{The discretion test}
+\label{sec:discretion}
+
+``Discreet'' is not a feeling a name gives; it is a property that can be
+tested. Four tests operationalize it, in rough order of how often each
+situation occurs.
+
+\begin{longtable}{@{}L{3.2cm}L{11.9cm}@{}}
+\toprule
+\textbf{Test} & \textbf{Question} \\
+\midrule
+\endhead
+Lock screen &
+A notification arrives while the phone is face-up on a desk, or is read
+over a shoulder on transit. Does the app name, plus a plausible
+notification body, disclose that the user is on hormone therapy?
+Note that the notification \emph{copy} is as much a disclosure surface
+as the name---``Time for your injection'' passes; ``Estradiol dose
+due'' does not. \\[0.4em]
+
+Financial record &
+A recurring subscription line item appears on a bank or card statement,
+a shared family plan, or an expense report. Does the descriptor
+disclose? This surface is not fully controllable: the App Store
+receipt shows the app name as listed. \\[0.4em]
+
+Over the shoulder &
+The home screen icon and its label are visible to a partner, parent,
+employer, roommate, or border officer. Does the icon disclose---by
+wordmark, by symbol, or \emph{by palette}? \\[0.4em]
+
+Compelled disclosure &
+A device is examined under legal compulsion or coercion. Nothing
+protects the user here except that the name and icon are not
+self-incriminating on their face, and that the vendor holds as little
+as possible. This test cannot be passed by naming alone; it is listed
+because it sets the ceiling on what naming can accomplish and argues
+for the data-minimization posture separately. \\
+\bottomrule
+\end{longtable}
+
+The third test has an implication the founder's own design language
+currently fails, and it is worth stating plainly because it is
+otherwise easy to miss in a naming document. The existing visual
+identity---accent \code{\#E8709A} rose against \code{\#7E74D8}
+lavender---is, in 2026, a legible trans signifier. A rose-and-lavender
+glass icon on a home screen discloses roughly as much as the word
+``hormone'' would. Discretion is a property of the mark, not only of
+the word, and \S\ref{sec:wordmark} treats it accordingly.
+
+\subsection{Screening method}
+
+Each candidate was screened on five criteria:
+
+\begin{description}[leftmargin=1.4em,style=nextline,itemsep=0.25em]
+\item[Discretion] Against the four tests above.
+\item[Clinical register] Whether the word's diction reads as technical
+      rather than consumer, without asserting a diagnostic claim
+      (\S\ref{sec:deviceclaim}).
+\item[App Store collision] Whether a storefront search for the bare
+      word returns competing results that would bury the brand.
+\item[Trademark screen] United States federal records via Justia,
+      filtered to classes 9, 42, and 44, with class 5
+      (pharmaceuticals) noted where relevant. \emph{Indicative only;
+      see \S\ref{sec:cannot}.}
+\item[Sayability] Whether the word survives being said aloud to a
+      clinician, read by someone who has never seen it, and typed from
+      memory.
+\end{description}
+
+\subsection{Screened candidates}
+\label{sec:candidates}
+
+\subsubsection*{1. \name{Isocline} --- recommended}
+
+\emph{An isocline is a curve along which a quantity holds constant---in
+a differential system, the locus of points sharing the same slope.}
+
+\begin{longtable}{@{}L{3.0cm}L{12.1cm}@{}}
+\toprule
+\endhead
+Rationale &
+It names the mathematics of the product rather than its subject
+matter. The application's entire function is the shape of a curve over
+time, and an isocline is the object one draws when asking where a
+system is heading rather than where it is. It denotes a \emph{model},
+not a \emph{measurement}, which keeps it on the correct side of the
+claim boundary in \S\ref{sec:deviceclaim}. \\[0.35em]
+Discretion & \good{Passes all four.} Discloses nothing; reads as
+geology, mathematics, or a consulting firm. \\[0.35em]
+Register & \good{Strong.} Unambiguously technical diction; carries
+credibility without a health noun. Works equally as a product name and
+as the name of a research entity (``Isocline Research''), which matters
+for the eventual nonprofit arm. \\[0.35em]
+App Store & \good{Clear.} A storefront search surfaced no competing
+application. \\[0.35em]
+Trademark & \good{Clear in the relevant classes.} Four marks located:
+Turin Golf (class 28, 2000), Huron Graffenstaden (class 7, 1991),
+Centre d'Etudes du Fraisage (class 7, 1982), and Isocline Ventures LLC
+(class 36, financial services, 2014). \good{Nothing in classes 9, 42,
+44, or 5.} The three industrial and sporting marks are old enough that
+their live status should be confirmed but are in unrelated classes
+regardless. \\[0.35em]
+Domain & \mixed{Assume \code{isocline.com} is held} by Isocline
+Ventures LLC. \code{isocline.app} and \code{isocline.health} are the
+realistic targets. \bad{Unverified---check at a registrar.} \\[0.35em]
+Weaknesses & Four syllables and a spelling that has to be heard twice.
+Semantically precise but not self-explanatory---the meaning has to be
+told, once, in the About screen. That is a real cost and it is the main
+argument for \name{Ephemeris} or a shorter name instead. \\
+\bottomrule
+\end{longtable}
+
+\subsubsection*{2. \name{Ephemeris} --- principal alternate}
+
+\emph{An ephemeris is a table giving the computed future positions of a
+body at regular intervals---the oldest form of the thing xT is.}
+
+\begin{longtable}{@{}L{3.0cm}L{12.1cm}@{}}
+\toprule
+\endhead
+Rationale &
+The semantic fit is the best of any candidate considered. An ephemeris
+is precisely a precomputed trajectory: not a measurement of where
+something is, but a principled prediction of where it will be, tabulated
+against time, produced from a model and periodically corrected against
+observation. That is a one-word description of a superposition PK
+engine with blood-test calibration. It also carries genuine
+institutional gravity---ephemerides are published by observatories, and
+have been for centuries, which is exactly the durability signal
+\S\ref{sec:institutional} calls for. \\[0.35em]
+Discretion & \good{Passes all four.} \\[0.35em]
+Register & \good{Strong}, with one caveat: astrological ephemerides
+are the more common consumer encounter with the word, and that
+association cuts against clinical credibility for some readers while
+being neutral-to-charming for others. \\[0.35em]
+App Store & \mixed{Contested but not in health.} ``Ephemeris: Moon \&
+Sun Tracker,'' ``iPhemeris Astrology,'' and ``The Photographer's
+Ephemeris'' occupy the term. None is a health application, so category
+browsing is unaffected, but a bare brand-term search is crowded. \\[0.35em]
+Trademark & \mixed{Moderate.} Approximately 30 records. Two in class 9:
+Moonshadow Mobile (2014) and The Photographer's Ephemeris / Crookneck
+Consulting (2015). Others in classes 33, 25, 14, 3. \good{None in class
+42 or 44.} The class 9 marks are the concern and warrant an attorney's
+look. \\[0.35em]
+Domain & \bad{Unverified.} Assume the \code{.com} is gone. \\[0.35em]
+Weaknesses & Long, hard to spell from hearing, and the astrology
+association is a genuine liability against the ``clinically credible''
+half of the brief---the one place where this candidate is weaker than
+\name{Isocline} despite the better semantics. \\
+\bottomrule
+\end{longtable}
+
+\subsubsection*{3. \name{Bateman} --- best clearance, disqualifying association}
+
+\emph{Harry Bateman, whose equation the application implements.}
+
+\begin{longtable}{@{}L{3.0cm}L{12.1cm}@{}}
+\toprule
+\endhead
+Rationale &
+Eponymous names carry more institutional weight than any other family:
+they read as a laboratory, a standard, or a firm, and they are the
+strongest available answer to the abandonment prior in
+\S\ref{sec:graveyard}. It is also the most honest name on this list ---
+the product is a Bateman-function engine. \\[0.35em]
+Discretion & \good{Passes all four} completely; a surname discloses
+nothing. \\[0.35em]
+Trademark & \good{The cleanest screen of any candidate.} Only two
+records with the exact mark: Compass Group Holdings (class 43,
+catering, 1994) and Modern Fabrication Inc.\ (material handling, 2019).
+\good{Nothing in classes 5, 9, 42, or 44.} \\[0.35em]
+Weaknesses & \bad{Patrick Bateman.} The protagonist of \emph{American
+Psycho} is, for the exact demographic this product serves---young,
+online, extremely fluent in reference---the first and possibly only
+association the name will produce. A trans health application named
+after a fictional misogynist serial killer is a headline, and the
+community documented in \S\ref{sec:euphoria} is more than capable of
+writing it. This is not a reason to hesitate; it is a reason to
+decline. Listed because its clearance profile is genuinely the best
+found and the reasoning should be on the record. \\
+\bottomrule
+\end{longtable}
+
+\subsubsection*{4. \name{Titer} --- clinical, with a pronunciation problem}
+
+\emph{A titer is the measured concentration of a substance in a
+solution.}
+
+\begin{longtable}{@{}L{3.0cm}L{12.1cm}@{}}
+\toprule
+\endhead
+Rationale & Short, real, clinical, ungendered, and directly on-subject
+without naming a hormone. \\[0.35em]
+Discretion & \good{Passes all four} in writing. \\[0.35em]
+Register & \mixed{Strong but on the wrong side of the claim boundary.}
+A titer is a \emph{measurement}. xT does not measure; it estimates. A
+name asserting measurement sits closer to the ``monitoring'' language
+in Apple's device definition (\S\ref{sec:deviceclaim}) and over-claims
+against the product's own disclaimer. \\[0.35em]
+App Store & \good{Clear.} No competing application surfaced. \\[0.35em]
+Trademark & \mixed{Crowded in the adjacent space.} Roughly 90 records,
+59 in class 9---but predominantly laboratory-apparatus compounds
+(TITERMAX/Promega, TITER ON CHIP/InDevR, TITERSEAL, TITERTUBE) rather
+than the bare mark. Dense enough in scientific class 9 to make
+clearance uncertain. \\[0.35em]
+Weaknesses & \bad{Said aloud, ``titer'' is ambiguous between
+\emph{TIE-ter} and a first syllable that reads as ``tit.''} For a
+trans health application---and specifically for a transfeminine user
+saying the app's name to a clinician, a pharmacist, or a
+partner---this is not a minor infelicity. It is a name that can
+embarrass its user in exactly the interaction the product exists to
+support. Recommended against on this ground alone. \\
+\bottomrule
+\end{longtable}
+
+\subsubsection*{5. \name{Interval} --- the plainest defensible option}
+
+\emph{The dosing interval; also the gap between blood draws that the
+product exists to fill.}
+
+\begin{longtable}{@{}L{3.0cm}L{12.1cm}@{}}
+\toprule
+\endhead
+Rationale & The naming rationale writes itself out of the project's own
+pharmacokinetic paper, which frames the clinical gap as the period
+\emph{between} draws where patients have no visibility. \name{Interval}
+names that gap. It is also the easiest candidate to spell, say, and
+remember. \\[0.35em]
+Discretion & \good{Passes all four.} Reads as a timer or a fitness app,
+which is close to perfect camouflage. \\[0.35em]
+Register & \mixed{Neutral.} Plain rather than technical; carries less
+credibility than \name{Isocline} or \name{Ephemeris}. \\[0.35em]
+App Store & \bad{Poor.} ``Interval'' in a storefront search returns
+interval timers and HIIT applications in volume. Brand-term search
+would be unwinnable. \\[0.35em]
+Trademark & \mixed{No bare-mark conflict located in classes 9, 42, or
+44}---the field is dominated by interval-training marks in class 41 and
+by Interval International in travel. The generic-word problem is
+larger than the conflict problem: a bare common noun is weak as a mark
+and hard to enforce. \\[0.35em]
+Weaknesses & Wins on plainness, loses on both halves of the brief ---
+insufficiently distinctive to own, insufficiently technical to signal
+seriousness. \\
+\bottomrule
+\end{longtable}
+
+\subsubsection*{6. \name{Plateau} --- rejected on semantics, not clearance}
+
+\emph{The steady-state plateau a repeated-dose regimen converges to.}
+
+Pharmacokinetically apt: reaching plateau is what a titrated regimen is
+for. Clearance is mediocre---284 records, including Plateau Systems in
+class 42 (software, 2001) and Menicon in class 9---but survivable.
+
+It fails on meaning. In the vocabulary of transition, ``plateau'' does
+not mean \emph{therapeutic steady state}; it means \emph{stopped
+changing}, and it is a word users encounter in anxious forum posts
+about whether their development has stalled. Naming the application
+after the fear it is meant to allay is a fault no visual identity
+repairs. Retained in this list rather than in \S\ref{sec:rejected}
+because the clearance work was done and the semantic failure is the
+interesting part.
+
+\subsubsection*{7. \name{xT} --- the incumbent}
+\label{sec:incumbent}
+
+The founder did not select ``keep xT'' as a brand posture. It is
+benchmarked here anyway, because a rebrand recommendation that has not
+beaten the incumbent on the record is not a recommendation. The case
+for retention is real and is stated at full strength.
+
+\textbf{In favor.} It is two characters, which is a genuine asset---it
+fits any lockup, any icon, any 30-character App Store name with 27
+characters left for the descriptor. It is already the name in the
+codebase, the repository, the running heads of two research papers, and
+the author's own usage; renaming has a real cost measured in
+documentation, continuity, and the small credibility that accrues to a
+name that has been used consistently. It is ungendered in the sense
+that mattered originally: it does not commit the product to estrogen or
+to testosterone. It has no plausible trademark conflict, because
+two-letter marks in unrelated classes rarely collide in practice. And
+short alphanumeric names age well in software.
+
+\textbf{Against.} The decisive objection is not aesthetic. It is that
+xT's only semantic content is the wrong content. The ``T'' reads as
+testosterone---the founder's own business plan says exactly this, that
+``\name{xT} at least gestured at testosterone/hormones''---and that
+gesture is the single piece of information the discretion analysis in
+\S\ref{sec:surveillance} says must not be on the device. A name that
+is otherwise opaque, but whose one legible element is the hormone,
+fails the lock-screen and over-the-shoulder tests specifically for the
+users in the worst jurisdictions.
+
+Three further objections are weaker but real. It is unsearchable: a
+two-character string cannot rank or be recalled, and cannot be spoken
+to a friend as a recommendation, which matters disproportionately in a
+market whose only real acquisition channel is peer recommendation. It
+reads as unfinished, because it is---a codename signals a project, not
+an institution, which is the opposite of the durability signal
+\S\ref{sec:institutional} identifies as the category's central
+requirement. And it has no room for a research arm: ``xT Research''
+does not read as an organization that publishes.
+
+\textbf{Verdict.} Retention is defensible for a private beta and
+indefensible at public launch. If the name changes at all, it should
+change before the App Store listing, the domain, the privacy policy,
+and the entity filing---all of which are imminent per the project's own
+90-day plan, and all of which are more expensive to change afterward
+than the name is to change now.
+
+\subsection{Rejected candidates}
+\label{sec:rejected}
+
+Eleven names were generated and discarded. The reasons are more useful
+than the names, because each identifies a failure mode that will recur
+in any further naming work.
+
+\begin{longtable}{@{}L{2.9cm}L{3.6cm}L{8.5cm}@{}}
+\toprule
+\textbf{Name} & \textbf{Failure mode} & \textbf{Detail} \\
+\midrule
+\endhead
+\name{Sextant} &
+\bad{Discretion, catastrophically} &
+Semantically excellent---an instrument for fixing your position when
+you cannot see land. The string begins with \code{SEX}. For a product
+whose brief is that the name must be safe on a lock screen and a bank
+statement, this is disqualifying on sight. Also crowded: 178 records
+including Sextant Medical in class 44. \\[0.4em]
+
+\name{Serum} &
+Collision & Elegant camouflage---cosmetic to a layperson, clinical to a
+clinician. But the App Store holds several SERUM applications, and Xfer
+Records' Serum is a widely known audio product almost certainly
+registered in class 9. \\[0.4em]
+
+\name{Depot} &
+Collision & A depot injection is exactly the route modeled. Home Depot
+makes the brand term unsearchable. \\[0.4em]
+
+\name{Almanac} &
+Collision & Semantically strong (periodic quantities tabulated across
+time). ``Almanac Health'' already exists in the App Store---a direct
+collision in the exact category. \\[0.4em]
+
+\name{Assay} &
+Trademark + claim &
+Clean in the App Store, but a live bare \name{ASSAY} mark exists in
+class 44 (medical services), owned by Assay LLC, alongside class 9
+marks held by PerkinElmer and others. Independently, ``assay'' asserts
+measurement and sits on the wrong side of the claim boundary
+(\S\ref{sec:deviceclaim}). \\[0.4em]
+
+\name{Isochron} &
+Trademark, in pharma &
+Better semantics than \name{Isocline} for a time-domain model. But five
+class 5 pharmaceutical registrations exist (Forest Laboratories, Sun
+Pharmaceutical), plus class 9 and 42 marks. \name{Isochron} is a drug
+brand name. Unusable for a health product. \\[0.4em]
+
+\name{Nadir} &
+Valence & The trough of a dosing cycle. 169 records including a class
+42 filing in February 2026. Independently, naming the product after the
+lowest point is the wrong promise. \\[0.4em]
+
+\name{byTime} &
+Collision (previously identified) &
+The project's prior rename candidate. Two existing iOS applications
+share the name, \code{bytimeapp.com} is taken, and the GitHub
+organization is claimed. The project's own monetization document
+already reached this conclusion; it is repeated here so the record is
+complete. \\[0.4em]
+
+\name{Euphoria}-family &
+Register &
+Warm, emotional, transition-naming words. \S\ref{sec:euphoria}
+documents what happened to the best-funded product that tried this.
+Excluded by the founder's brief and independently by the evidence. \\[0.4em]
+
+\name{Verity}, \name{Attest}, \name{TrueLevel} &
+Over-claim &
+Names asserting truth or accuracy. The product's own published
+revision documents three defects including an order-of-magnitude
+baseline error. A brand may not promise what the model has disclosed it
+cannot deliver. \\[0.4em]
+
+\name{Half-Life} &
+Trademark & Valve Corporation. No further analysis required. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Wordmark and visual direction}
+\label{sec:wordmark}
+
+\begin{quote}
+\note{\textbf{Superseded (October 2026).} The identity recommendations in this
+section --- a grotesque lowercase wordmark, the ``parallel slopes'' mark, and
+the palette discussion --- are retained as the record of this study but no
+longer describe the brand. The settled identity is the outlined ISOCLINE
+wordmark in IBM Plex Serif with the ``I.'' small mark, rendered in ink, engraved
+hairline, or inkless emboss; see \code{docs/design/ISOCLINE\_DESIGN\_SYSTEM.html}.
+The discretion test argued for here is kept as a core brand principle.}
+\end{quote}
+
+Naming solves three of the four discretion tests. The
+over-the-shoulder test is solved by the mark, and the current identity
+does not solve it.
+
+\subsubsection*{The palette problem}
+
+The existing design language---\code{\#E8709A} rose and \code{\#7E74D8}
+lavender on a near-black \code{\#0A0814}, in glass cards---is
+well-executed and is the correct emotional register for the product's
+\emph{interior}. As an \emph{icon}, it is a disclosure. Rose-and-lavender
+gradients are, in 2026, among the most legible visual signifiers of
+trans-adjacent software, and a home screen is a public surface.
+
+The recommendation is a split identity, which is a normal pattern and
+costs nothing:
+
+\begin{longtable}{@{}L{3.4cm}L{11.7cm}@{}}
+\toprule
+\textbf{Surface} & \textbf{Treatment} \\
+\midrule
+\endhead
+Icon and lock screen &
+\good{Neutral.} Monochrome or near-monochrome: graphite, slate,
+bone, or deep ink. A single geometric mark. No gradient, no rose. This
+is the only surface where discretion outranks warmth, and it should be
+designed as an instrument's badge rather than as an app icon. \\[0.4em]
+In-app &
+\good{Keep the existing palette.} Once the phone is unlocked and the
+app is open, the user has already chosen to be there. The rose and
+lavender belong here, and they are doing real work---the softness is
+what makes an honest, sometimes unwelcome data presentation bearable. \\[0.4em]
+Landing page and store listing &
+Warm, and explicitly trans-first in copy. These surfaces are sought
+out, not encountered. \\[0.4em]
+Research papers and entity &
+\good{Austere.} Serif, black on white, no accent color. The papers are
+the credibility asset; they should look like the literature they cite. \\
+\bottomrule
+\end{longtable}
+
+\subsubsection*{Typography}
+
+For \name{Isocline} specifically: a grotesque with a technical rather
+than a friendly cast---something in the register of a scientific
+instrument's faceplate. Avoid geometric humanists (the Poppins/Circular
+family), which read as consumer wellness and undercut the credibility
+the name is buying. Set the wordmark in lowercase or small caps with
+moderately open tracking; the word is long enough that tight tracking
+makes it unreadable at icon scale. Do not letterspace it into an
+acronym.
+
+\subsubsection*{The mark}
+
+The obvious symbol is the curve itself, and it is worth resisting the
+obvious form. A literal plotted PK curve is a chart, not a mark, and
+becomes mush below 60 pixels. The extractable idea is that an isocline
+is a \emph{family of parallel slopes}---a small field of short parallel
+strokes at a constant angle, which is both what the mathematics
+depicts and a shape that survives to 16 pixels. It reads as abstract
+and technical at every size and discloses nothing.
+
+The landing page's existing background---a superposed multi-dose curve
+taken from the model's own output---should stay. It is genuinely good,
+and it belongs on the surface where the product is explaining itself
+rather than on the surface where it is sitting on a stranger's desk.
+
+\subsubsection*{Naming lockup}
+
+Following the category convention (\S\ref{sec:asomechanics}), with the
+30-character limit in mind:
+
+\begin{itemize}[leftmargin=1.5em,itemsep=0.2em]
+\item App Store name: \code{Isocline: Hormone Tracker} (25 characters).
+\item Subtitle: something in the register of \code{Levels, doses, and
+      lab results} (30 characters) --- deliberately not naming a
+      hormone, since the subtitle appears in the store listing but the
+      \emph{name} is what propagates to the device.
+\item Keywords field: \code{hrt, testosterone, estradiol,}
+      \code{injection, trans, hormone, transition, taper} ---
+      invisible to the user, indexed by Apple, and present on no
+      surface the user carries.
+\item Home screen label: \code{Isocline}.
+\end{itemize}
+
+Note the deliberate asymmetry: the store listing is findable and
+explicit, the device is silent. That asymmetry is the entire design.
+
+\subsection{Recommendation}
+
+\begin{longtable}{@{}L{1.0cm}L{2.8cm}L{11.3cm}@{}}
+\toprule
+\textbf{Rank} & \textbf{Name} & \textbf{Basis} \\
+\midrule
+\endhead
+1 & \good{\name{Isocline}} &
+Only candidate clear on all five screening criteria. Passes all four
+discretion tests; unambiguously technical register; no App Store
+collision; no located trademark conflict in classes 5, 9, 42, or 44;
+denotes a model rather than a measurement. Costs one sentence of
+explanation, once. \\[0.4em]
+2 & \name{Ephemeris} &
+Better semantics, worse everything else: crowded storefront, two class
+9 marks, and an astrology association that works against the
+credibility half of the brief. Take it if the meaning matters more than
+the clearance. \\[0.4em]
+3 & \name{xT} (retain) &
+Defensible for private beta. Fails the discretion tests at public
+launch for the users who need them most. \\[0.4em]
+--- & \name{Titer}, \name{Interval}, \name{Plateau}, \name{Bateman} &
+Each fails one criterion decisively---pronunciation, distinctiveness,
+valence, and cultural association respectively. Documented rather than
+recommended. \\
+\bottomrule
+\end{longtable}
+
+\noindent
+Three actions follow, in this order, and the first two are cheap:
+
+\begin{enumerate}[leftmargin=1.5em,itemsep=0.25em]
+\item Verify \code{isocline.app} / \code{isocline.health} at a
+      registrar and reserve the App Store name in App Store Connect.
+      Both are same-afternoon tasks and both are prerequisites for the
+      entity filing.
+\item Have a trademark attorney run a real clearance search on
+      \name{Isocline} in classes 9 and 44 before anything is printed or
+      filed. The screen in this paper is not that search
+      (\S\ref{sec:cannot}).
+\item Only then: entity name, privacy policy, landing page
+      find-and-replace, and App Store listing. The landing page rename
+      is, as the project's own monetization document notes, a
+      find-and-replace.
+\end{enumerate}
+
+% ======================================================================
+\section{Limitations}
+\label{sec:limitations}
+
+\textbf{The trademark screens are not clearance.} Stated in
+\S\ref{sec:cannot} and repeated here because it is the finding most
+likely to be over-read. Every ``clear'' in \S\ref{sec:candidates}
+means only that a Justia-indexed search of United States federal
+records surfaced no conflict in the named classes. State registrations,
+common-law marks, foreign filings, and likelihood-of-confusion analysis
+are all outside it.
+
+\textbf{Domain and App Store name availability were not established.}
+No registrar or App Store Connect query was possible with the tooling
+available.
+
+\textbf{App Store figures are a single snapshot.} Rating counts,
+prices, and last-updated dates were retrieved in August 2026 from
+storefront listings. Some competitor data---particularly for the
+abandoned applications---comes from a community-authored secondary
+source~\cite{transsolidarity} rather than from listings, because the
+listings are gone or were not locatable. Those abandonment claims are
+consistent with the other evidence but were not independently verified
+listing-by-listing.
+
+\textbf{The positioning map in \S\ref{sec:brief} is a judgment, not a
+measurement.} No user research, survey, or interview informed this
+paper. Every claim about what trans users want is inferred from
+published community writing and from competitor outcomes. That is a
+real weakness: the single highest-value next step for this work is
+twenty conversations with prospective users, which would test the
+central claim of \S\ref{sec:graveyard}---that abandonment fear
+dominates feature preference---directly rather than by inference.
+
+\textbf{The medical and clinical axis is absent by scope.} Provider
+adoption, WPATH and Endocrine Society positioning, and the
+software-as-a-medical-device question were deprioritized. Only the
+App Store declaration was carried in (\S\ref{sec:deviceclaim}), and
+only because it bounds the brand claim.
+
+\textbf{Two prominent sources are competitor marketing} and are used
+for enumeration only (\S\ref{sec:method}).
+
+% ======================================================================
+\section{Conclusion}
+
+The question was whether to rename xT. The more useful finding was what
+the market turned out to be.
+
+It is not a crowded field of HRT trackers that xT must out-feature. It
+is a segment whose trans-specific entrants are, with one exception,
+dead---Transcapsule since 2022, Solace since 2022, MyTransHealth since
+2019---while the maintained, well-rated products adjacent to it are
+built for cisgender men optimizing testosterone and peptides. The
+opening is real. So is the reason for it: users in this category have
+learned that tools built for them get abandoned, and that prior is a
+more formidable competitor than any feature set.
+
+The project's own business plan identified the pharmacokinetic model as
+the moat. It is not: Regimen ships a one-compartment Bateman
+superposition visualizer with cited sources and stated limitations. The
+asset that survives comparison is narrower and better---xT publishes
+its derivations, its out-of-sample validation, and, uniquely, its own
+defects. In a market defined by earned distrust, a published defect
+list outperforms a feature.
+
+The name follows from that. It must signal durability rather than
+warmth, because durability is the doubt. It must signal technical
+seriousness through diction rather than through a health noun, because
+the health noun is a disclosure. It must denote a model rather than a
+measurement, because that is what the product is and what its own
+disclaimer says. And it must survive appearing on a lock screen, a bank
+statement, and a home screen in a state that is, as of March 2026,
+permitted to restrict adult care.
+
+\name{Isocline} satisfies all of these and cleared every screen this
+study could run. \name{Ephemeris} is the better metaphor and the worse
+brand. \name{xT} remains adequate for a private beta and should not
+survive the App Store listing---not because it is a poor name, but
+because its one legible character names the hormone, and that is the
+one thing the string must not do.
+
+The visual identity needs the same split the name does: austere on
+every surface the user carries in public, and warm everywhere the user
+has chosen to be. The rose and the lavender are not the problem. Their
+location is.
+
+% ======================================================================
+\begin{thebibliography}{99}
+
+\bibitem{advocate4th}
+Advocate (2026). ``U.S.\ court allows state bans on gender-affirming
+care for adults in unprecedented ruling.'' Reporting on the U.S.\ Court
+of Appeals for the Fourth Circuit decision of 11 March 2026 upholding
+West Virginia's Medicaid exclusion for adult gender-affirming surgery.
+\url{https://www.advocate.com/news/court-bans-adult-genderaffirming-care}
+
+\bibitem{appledevice}
+Apple Inc.\ (2026). ``Update on regulated medical device apps in the
+European Economic Area, United Kingdom, and United States.'' Apple
+Developer News, 26 March 2026.
+\url{https://developer.apple.com/news/?id=nyqbfz1y}
+
+\bibitem{diywiki}
+``DIY transgender hormone therapy.'' Wikipedia. Prevalence figures
+cited therein to a 2022 review; region-specific estimates range from
+11\% (Ontario) to 79\% (Rio de Janeiro).
+\url{https://en.wikipedia.org/wiki/DIY_transgender_hormone_therapy}
+
+\bibitem{donedoseblog}
+Done Dose (2026). ``Best HRT Tracker Apps for Hormone Replacement
+Therapy (2026).'' \bad{Interested source} --- published by DoneDose,
+which appears in its own ranking.
+\url{https://www.donedose.com/guides/best-hrt-tracker-app}
+
+\bibitem{donedoselisting}
+``DoneDose: Injection Tracker'' / ``DoneDose: Shot \& Med Tracker,''
+Apple App Store, app ID 6757083101. Seller: Benjamin Fox. Retrieved
+August 2026.
+\url{https://apps.apple.com/us/app/donedose-injection-tracker/id6757083101}
+
+\bibitem{hormonehelper}
+``Hormone Helper,'' Apple App Store, app ID 6517361645. Seller: John
+Patterson. Lifestyle category. Retrieved August 2026.
+\url{https://apps.apple.com/us/app/hormone-helper/id6517361645}
+
+\bibitem{map}
+Movement Advancement Project. ``Healthcare Laws and Policies''
+equality map. Last updated 25 August 2026.
+\url{https://mapresearch.org/equality-map/healthcare-laws-and-policies}
+
+\bibitem{mobileaction}
+MobileAction (2026). ``How to name an app for App Store \& Google
+Play: 2026 Guide.'' Source for the 30-character app name limit, the
+30-character subtitle, and the 100-character keywords field.
+\url{https://www.mobileaction.co/blog/how-to-name-an-app/}
+
+\bibitem{mtpc}
+Carnell H.\ (2022). ``There is No Euphoria Here.'' Massachusetts
+Transgender Political Coalition, 23 June 2022.
+\url{https://www.masstpc.org/there-is-no-euphoria-here/}
+
+\bibitem{pogo}
+Project On Government Oversight (2023). ``Policing Gender: How
+Surveillance Tech Aids Enforcement of Anti-Trans Laws.'' 28 June 2023.
+\url{https://www.pogo.org/investigates/policing-gender-how-surveillance-tech-aids-enforcement-of-anti-trans-laws}
+
+\bibitem{regimenblog}
+Regimen (2026). ``Best HRT Tracker Apps 2026 (6 Compared).''
+\bad{Interested source} --- published by Regimen, which appears first
+in its own ranking.
+\url{https://helloregimen.com/blog/best-hrt-tracker-apps-2026}
+
+\bibitem{regimenhalflife}
+Regimen. ``Half-Life Visualizer: Testosterone \& Peptide Blood
+Levels.'' Methodology statements quoted in \S\ref{sec:notamoat}.
+\url{https://helloregimen.com/tools/half-life-visualizer}
+
+\bibitem{regimenlisting}
+``Regimen: Peptide Tracker,'' Apple App Store, app ID 6753905449.
+Seller: Awaken Labs LLC. Retrieved August 2026.
+\url{https://apps.apple.com/us/app/regimen-peptide-tracker/id6753905449}
+
+\bibitem{transsolidarity}
+Trans Solidarity Project (2026). ``Essential Apps for Transgender
+People in 2026.'' Community-authored review; source for the
+abandonment status of Transcapsule, MyTransHealth, and Solace, and for
+Trans Memo's continued maintenance as of April 2026.
+\url{https://transsolidarityproject.org/transgender-apps-2026/}
+
+\bibitem{transvitae}
+TransVitae. ``When Trans Healthcare Data Becomes Government
+Surveillance.'' Source for Tennessee House Bill 754 and the
+re-identification argument.
+\url{https://www.transvitae.com/when-trans-healthcare-data-becomes-government-surveillance/}
+
+\bibitem{justia}
+Justia Trademarks. United States federal trademark records, searched
+August 2026 for: assay, titer, isocline, isochron, ephemeris, sextant,
+plateau, nadir, bateman, interval. Filtered to International Classes 9,
+42, and 44, with class 5 noted where relevant.
+\url{https://trademarks.justia.com/}
+
+\end{thebibliography}
+
+\end{document}

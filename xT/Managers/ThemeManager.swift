@@ -32,6 +32,8 @@ struct ThemePalette {
     // Surfaces
     let cardSurface: Color
     let border: Color
+    /// The non-themed clinical-safety red (element X10); backs `Theme.Colors.error`.
+    let safety: Color
     /// Opaque screen canvas — replaces raw `Color(.systemBackground)` call sites.
     let appBackground: Color
     /// Opaque icon-tile fill — replaces raw `Color(.systemGray6)` call sites.
@@ -102,10 +104,10 @@ struct ThemePalette {
 
     private typealias Recipe = ThemeEngine.ColorRecipe
 
-    private static func recipe(lightHue: Double = 0, lightL: Double, lightC: Double,
-                                darkHue: Double? = nil, darkL: Double, darkC: Double) -> Recipe {
-        Recipe(light: .init(lightness: lightL, chroma: lightC, hueOffset: lightHue),
-               dark: .init(lightness: darkL, chroma: darkC, hueOffset: darkHue ?? lightHue))
+    private static func recipe(lightHue: Double = 0, lightL: Double, lightC: Double, lightAbsolute: Bool = false,
+                                darkHue: Double? = nil, darkL: Double, darkC: Double, darkAbsolute: Bool = false) -> Recipe {
+        Recipe(light: .init(lightness: lightL, chroma: lightC, hueOffset: lightHue, absoluteHue: lightAbsolute),
+               dark: .init(lightness: darkL, chroma: darkC, hueOffset: darkHue ?? lightHue, absoluteHue: darkAbsolute))
     }
 
     private static func colorPair(_ recipe: Recipe, seedHue: Double) -> (light: Color, dark: Color) {
@@ -140,23 +142,25 @@ struct ThemePalette {
 
     static func resolve(seedHue: Double, increasedContrast: Bool) -> ThemePalette {
         // MARK: Surfaces first — everything else contrast-repairs against these.
+        //
+        // Isocline "paper" ground (element F3): cream by day at every dial position
+        // (absolute hue 86.4°, decision X4), seed-tinted plum by night. The card is an
+        // opaque raised-paper recipe read by its hairline, not an alpha blend.
 
-        let appBackgroundRecipe = recipe(lightL: 0.985, lightC: 0.008, darkL: 0.05, darkC: 0.010)
+        let appBackgroundRecipe = recipe(lightHue: 86.4, lightL: 0.965, lightC: 0.0155, lightAbsolute: true,
+                                         darkHue: 0, darkL: 0.18, darkC: 0.03)
         let appBackgroundPair = colorPair(appBackgroundRecipe, seedHue: seedHue)
         let appBackground = Color(light: appBackgroundPair.light, dark: appBackgroundPair.dark)
-        let cardSurface = Color(light: appBackgroundPair.light.opacity(0.8), dark: appBackgroundPair.dark.opacity(0.8))
+
+        let cardRecipe = recipe(lightHue: 86.4, lightL: 0.985, lightC: 0.009, lightAbsolute: true,
+                                darkHue: 0, darkL: 0.225, darkC: 0.036)
+        let cardSurface = adaptiveColor(cardRecipe, seedHue: seedHue)
 
         let neutralSurface = adaptiveColor(
             recipe(lightL: 0.9626, lightC: 0.012, darkL: 0.2273, darkC: 0.014), seedHue: seedHue
         )
 
-        // `border` doesn't adapt with dark mode today (`Color.white.opacity(0.2)`
-        // regardless of appearance) — preserve that, just seed-tint the anchor.
-        let borderRecipe = recipe(lightL: 0.94, lightC: 0.010, darkL: 0.94, darkC: 0.010)
-        let borderPair = colorPair(borderRecipe, seedHue: seedHue)
-        let border = Color(light: borderPair.light.opacity(0.2), dark: borderPair.dark.opacity(0.2))
-
-        // MARK: Text — one "ink" anchor at full/60%/30% opacity, repaired against appBackground.
+        // MARK: Text — one "ink" anchor at full/muted/faint alpha, repaired against paper.
 
         let inkRecipe = recipe(lightL: 0.10, lightC: 0.010, darkL: 0.94, darkC: 0.010)
         let inkRaw = ThemeEngine.resolve(inkRecipe, seedHue: seedHue)
@@ -166,8 +170,24 @@ struct ThemePalette {
         let inkTextLight = ThemeEngine.srgb(fromOKLCH: inkForText.light)
         let inkTextDark = ThemeEngine.srgb(fromOKLCH: inkForText.dark)
         let textPrimary = Color(light: inkTextLight, dark: inkTextDark)
-        let textSecondary = Color(light: inkTextLight.opacity(0.6), dark: inkTextDark.opacity(0.6))
-        let textTertiary = Color(light: inkTextLight.opacity(0.3), dark: inkTextDark.opacity(0.3))
+        // Ink alphas (tokens: inkAlpha): muted .62, faint .38.
+        let textSecondary = Color(light: inkTextLight.opacity(0.62), dark: inkTextDark.opacity(0.62))
+        let textTertiary = Color(light: inkTextLight.opacity(0.38), dark: inkTextDark.opacity(0.38))
+
+        // `border` is the "line" hairline: ink at .14 (.28 under Increase Contrast).
+        let lineAlpha = increasedContrast ? 0.28 : 0.14
+        let border = Color(light: inkTextLight.opacity(lineAlpha), dark: inkTextDark.opacity(lineAlpha))
+
+        // Safety red (tokens: recipes.safety) — the single non-themed data color (X10):
+        // absolute hue 27°, contrast-repaired against paper. Backs `Theme.Colors.error`.
+        let safetyRecipe = recipe(lightHue: 27, lightL: 0.53, lightC: 0.17, lightAbsolute: true,
+                                  darkHue: 27, darkL: 0.72, darkC: 0.15, darkAbsolute: true)
+        let safetyRaw = ThemeEngine.resolve(safetyRecipe, seedHue: seedHue)
+        let safetyRepaired = repairInk(safetyRaw, lightBackgrounds: [appBackgroundPair.light],
+                                       darkBackgrounds: [appBackgroundPair.dark],
+                                       floor: .bodyText, increasedContrast: increasedContrast)
+        let safety = Color(light: ThemeEngine.srgb(fromOKLCH: safetyRepaired.light),
+                           dark: ThemeEngine.srgb(fromOKLCH: safetyRepaired.dark))
 
         // MARK: Graph canvas — decorative gradient stops, no repair (they *are* the background).
 
@@ -193,7 +213,10 @@ struct ThemePalette {
                                      floor: .bodyText, increasedContrast: increasedContrast)
         let inkGraphLight = ThemeEngine.srgb(fromOKLCH: inkForGraph.light)
         let inkGraphDark = ThemeEngine.srgb(fromOKLCH: inkForGraph.dark)
-        let gridLine = Color(light: inkGraphLight.opacity(0.05), dark: inkGraphDark.opacity(0.035))
+        // Chart grid (tokens: inkAlpha.grid): .05/.035, rising to .10/.07 under Increase Contrast.
+        let gridLight = increasedContrast ? 0.10 : 0.05
+        let gridDark = increasedContrast ? 0.07 : 0.035
+        let gridLine = Color(light: inkGraphLight.opacity(gridLight), dark: inkGraphDark.opacity(gridDark))
         let yAxisLabel = Color(light: inkGraphLight.opacity(0.10), dark: inkGraphDark.opacity(0.15))
         let levelText = Color(light: inkGraphLight, dark: inkGraphDark)
         let levelTextSecondary = Color(light: inkGraphLight.opacity(0.55), dark: inkGraphDark.opacity(0.55))
@@ -315,7 +338,7 @@ struct ThemePalette {
         return ThemePalette(
             accent: accent, accentSecondary: accentSecondary, glassTint: glassTint,
             textPrimary: textPrimary, textSecondary: textSecondary, textTertiary: textTertiary,
-            cardSurface: cardSurface, border: border,
+            cardSurface: cardSurface, border: border, safety: safety,
             appBackground: appBackground, neutralSurface: neutralSurface,
             levelLow: levelLow, levelHigh: levelHigh,
             graph: graph, time: time, onAccent: onAccent, brandColors: brandColors
