@@ -109,4 +109,31 @@ struct Symptom: Identifiable, Codable, Hashable {
         Symptom(name: "breast tenderness", icon: "heart"),
         Symptom(name: "nausea",        icon: "allergens"),
     ]
+
+    /// The common-palette symptom whose name matches `name` (case-insensitively).
+    ///
+    /// `commonSymptoms` regenerates its UUIDs every launch, so a stored entry's symptoms
+    /// never match the palette by `id`. The composer resolves edit-mode selection by name
+    /// instead, so re-opening an entry highlights the chips the user chose (J10).
+    static func matching(name: String) -> Symptom? {
+        commonSymptoms.first { $0.name.caseInsensitiveCompare(name) == .orderedSame }
+    }
+}
+
+// MARK: - Journal top slot (J3)
+
+/// The top of the Journal screen: the newest entry as a "now" card when it's from today,
+/// otherwise an invitation to write. Equatable by entry identity so the view can animate
+/// transitions between the two.
+enum JournalTopSlot: Equatable {
+    case card(JournalEntry)
+    case ghost
+
+    static func == (lhs: JournalTopSlot, rhs: JournalTopSlot) -> Bool {
+        switch (lhs, rhs) {
+        case (.ghost, .ghost):              return true
+        case let (.card(a), .card(b)):      return a.id == b.id
+        default:                            return false
+        }
+    }
 }

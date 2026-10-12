@@ -8,44 +8,46 @@
 
 import SwiftUI
 
-// MARK: - Journal color palette per mood
+// MARK: - Mood presentation (J7)
 
-struct JournalPalette {
-    let surface: Color   // card background
-    let border: Color    // card stroke
-    let accent: Color    // icon, timestamp, tag text
-    let title: Color     // headline + body text
+extension Mood {
+    /// The mood's display name, localized. The raw value stays the storage key; this is
+    /// what the user reads on a chip. Mood never carries a valence color (X23) — coloring
+    /// "sad" grey and "happy" accent is a quiet verdict the journal shouldn't pass.
+    var displayName: String {
+        switch self {
+        case .happy:     return String(localized: "Happy", comment: "Mood name")
+        case .calm:      return String(localized: "Calm", comment: "Mood name")
+        case .neutral:   return String(localized: "Neutral", comment: "Mood name")
+        case .tired:     return String(localized: "Tired", comment: "Mood name")
+        case .anxious:   return String(localized: "Anxious", comment: "Mood name")
+        case .sad:       return String(localized: "Sad", comment: "Mood name")
+        case .energetic: return String(localized: "Energetic", comment: "Mood name")
+        }
+    }
 }
 
-@MainActor
-enum JournalTheme {
-    static func palette(for mood: Mood) -> JournalPalette {
-        switch mood {
-        case .happy, .energetic:
-            // Surface/border/title mirror Theme.Colors.Time.cycle exactly (were
-            // independently duplicated hex before) — deriving from it keeps
-            // Journal mood colors in sync as the theme rotates instead of
-            // silently freezing at today's hues.
-            return JournalPalette(
-                surface: Theme.Colors.Time.cycle.surface,
-                border:  Theme.Colors.Time.cycle.border,
-                accent:  Theme.Colors.accent,
-                title:   Theme.Colors.Time.cycle.text
-            )
-        case .calm, .neutral:
-            return JournalPalette(
-                surface: Theme.Colors.Time.mind.surface,
-                border:  Theme.Colors.Time.mind.border,
-                accent:  Theme.Colors.accentSecondary,
-                title:   Theme.Colors.Time.mind.text
-            )
-        case .tired, .sad, .anxious:
-            return JournalPalette(
-                surface: Color(lightHex: "#F1EFE8", darkHex: "#1E1D18"),
-                border:  Color(lightHex: "#D3D1C7", darkHex: "#4A4840"),
-                accent:  Color(lightHex: "#5F5E5A", darkHex: "#A8A7A2"),
-                title:   Color(lightHex: "#444441", darkHex: "#C8C7C2")
-            )
+// MARK: - Time of day (J5)
+
+extension DayPeriod {
+    /// SF Symbol for the period, drawn at the time-of-day glyph on cards and rows.
+    var glyph: String {
+        switch self {
+        case .morning:   return "sunrise"
+        case .afternoon: return "sun.max"
+        case .evening:   return "sunset"
+        case .night:     return "moon"
+        }
+    }
+
+    /// Localized period word, e.g. "morning". Assembled with the day name via the
+    /// `"%1$@ %2$@"` format so locales can reorder "Sunday morning" (U9).
+    var word: String {
+        switch self {
+        case .morning:   return String(localized: "morning", comment: "Time of day")
+        case .afternoon: return String(localized: "afternoon", comment: "Time of day")
+        case .evening:   return String(localized: "evening", comment: "Time of day")
+        case .night:     return String(localized: "night", comment: "Time of day")
         }
     }
 }
@@ -103,8 +105,12 @@ extension Date {
     private static let composerDateFormatter = AppDateFormatters.weekdayLongMonthDay
 
     var journalDateLabel: String {
-        if Calendar.current.isDateInToday(self) { return "Today" }
-        if Calendar.current.isDateInYesterday(self) { return "Yesterday" }
+        if Calendar.current.isDateInToday(self) {
+            return String(localized: "Today", comment: "Journal day-group header for today")
+        }
+        if Calendar.current.isDateInYesterday(self) {
+            return String(localized: "Yesterday", comment: "Journal day-group header for yesterday")
+        }
         return Self.journalDateFormatter.string(from: self)
     }
 

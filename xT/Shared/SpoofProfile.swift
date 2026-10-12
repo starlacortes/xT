@@ -636,13 +636,21 @@ enum SpoofProfile {
         guard let ctx = jm.modelContext else { return }
 
         let calendar = Calendar.current
-        let allSymptoms = Symptom.commonSymptoms
-        let symptomMap = Dictionary(uniqueKeysWithValues: allSymptoms.map { ($0.name, $0) })
+
+        // Spread entry times across the four day periods so morning/afternoon/evening/night
+        // are all represented, instead of every entry landing at midnight (J12).
+        let periodHours = [8, 13, 18, 22]
 
         let templates = journalTemplates(for: persona)
-        for (daysAgo, mood, symptomNames, text) in templates {
-            guard let entryDate = calendar.date(byAdding: .day, value: -daysAgo, to: today) else { continue }
-            let symptomList = symptomNames.compactMap { symptomMap[$0] }
+        for (index, template) in templates.enumerated() {
+            let (daysAgo, mood, symptomNames, text) = template
+            guard let dayStart = calendar.date(byAdding: .day, value: -daysAgo, to: today) else { continue }
+            let hour = periodHours[(index + daysAgo) % periodHours.count]
+            let minute = (text.count * 7) % 60
+            let entryDate = calendar.date(bySettingHour: hour, minute: minute, second: 0, of: dayStart) ?? dayStart
+            // Match seed symptom names case-insensitively — template names are Title-case,
+            // the common palette is lowercase, so a literal lookup dropped them all (J12).
+            let symptomList = symptomNames.compactMap { Symptom.matching(name: $0) }
             let entry = JournalEntry(
                 id: UUID(), date: entryDate, mood: mood, text: text, symptoms: symptomList)
             ctx.insert(entry)

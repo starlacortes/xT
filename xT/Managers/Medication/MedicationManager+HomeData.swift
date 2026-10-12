@@ -233,4 +233,26 @@ extension MedicationManager {
             .sorted { $0.drawDate < $1.drawDate }
             .map { LabPoint(date: $0.drawDate, measured: $0.measuredLevel) }
     }
+
+    // MARK: - Journal projections (J2, J6)
+
+    /// The calendar days within `interval` on which a **taken** dose was recorded. Feeds
+    /// the Journal week strip's filled dose dot (J2). `doseHistory` is already free of
+    /// soft-deleted records; this also excludes skipped and missed doses.
+    func doseDays(in interval: DateInterval, calendar: Calendar = .current) -> Set<Date> {
+        Set(
+            doseHistory
+                .filter { $0.doseStatus == DoseStatus.taken.rawValue && interval.contains($0.doseDate) }
+                .map { calendar.startOfDay(for: $0.doseDate) }
+        )
+    }
+
+    /// The most recent **taken** dose on the same calendar day as `date`, for the Journal
+    /// card's dose meta line (J6). `doseHistory` is oldest-first, so the last match is the
+    /// latest dose that day. Returns nil when no taken dose fell on that day.
+    func dose(onSameDayAs date: Date, calendar: Calendar = .current) -> DoseRecord? {
+        doseHistory.last {
+            $0.doseStatus == DoseStatus.taken.rawValue && calendar.isDate($0.doseDate, inSameDayAs: date)
+        }
+    }
 }

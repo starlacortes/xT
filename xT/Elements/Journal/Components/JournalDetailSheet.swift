@@ -2,143 +2,116 @@
 //  JournalDetailSheet.swift
 //  xT
 //
-//  Read-only detail view for a past journal entry, presented as a sheet
+//  A past journal entry on sheet glass (elements J4, J10). Flush content — no inner cards,
+//  no mood valence color. The level always carries its unit. Edit opens the composer.
 //
 
 import SwiftUI
 
 struct JournalDetailSheet: View {
+    @Environment(\.medicationManager) private var medicationManager
     @Environment(\.dismiss) private var dismiss
     let entry: JournalEntry
+    /// Opens the composer in edit mode (J10). The host clears this sheet first.
+    var onEdit: () -> Void = {}
 
-    private var palette: JournalPalette { JournalTheme.palette(for: entry.mood) }
+    private var period: DayPeriod { DayPeriod(date: entry.date) }
+    private var unit: String {
+        medicationManager.selectedMedication == "Estrogen" ? "pg/mL" : "ng/dL"
+    }
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: Theme.Spacing.xl) {
+                    header
 
-                    // Header: mood + date
-                    HStack(spacing: 14) {
-                        ZStack {
-                            Circle()
-                                .fill(palette.surface)
-                                .frame(width: 52, height: 52)
-                            Image(systemName: entry.mood.icon)
-                                .font(.system(size: 24))
-                                .foregroundStyle(palette.accent)
-                        }
-
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(entry.mood.rawValue)
-                                .font(.system(size: 17, weight: .medium))
-                                .foregroundStyle(palette.title)
-                            Text(entry.date.fullDateLabel)
-                                .font(.system(size: 13))
-                                .foregroundStyle(palette.accent)
-                        }
-
-                        Spacer()
-                    }
-                    .padding(16)
-                    .background(palette.surface)
-                    .cornerRadius(16)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(palette.border, lineWidth: 0.5)
-                    )
-
-                    // Hormone level at time of entry
                     if let level = entry.hormoneLevel {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Label("Current level", systemImage: "chart.line.uptrend.xyaxis")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(.secondary)
-                                .textCase(.uppercase)
-                                .tracking(0.5)
-
-                            Text(verbatim: AppNumberFormatters.hormoneLevel.string(level))
-                                .font(.system(size: 20, weight: .medium, design: .rounded))
-                                .foregroundStyle(palette.title)
-                                .padding(16)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(palette.surface)
-                                .cornerRadius(14)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 14)
-                                        .stroke(palette.border, lineWidth: 0.5)
-                                )
+                        section("Current level") {
+                            HStack(spacing: Theme.Spacing.sm) {
+                                Text("\(AppNumberFormatters.hormoneLevel.string(level)) \(unit)")
+                                    .font(Theme.Fonts.statValue)
+                                    .foregroundStyle(Theme.Colors.textPrimary)
+                                Pill(text: levelBandLabel(for: level, medication: medicationManager.selectedMedication))
+                            }
                         }
                     }
 
-                    // Entry text
                     if !entry.text.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Label("Entry", systemImage: "pencil")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(.secondary)
-                                .textCase(.uppercase)
-                                .tracking(0.5)
-
+                        section("Entry") {
                             Text(entry.text)
-                                .font(.system(size: 15, design: .serif))
-                                .foregroundStyle(palette.title)
+                                .font(Theme.Fonts.body)
+                                .foregroundStyle(Theme.Colors.textPrimary)
                                 .lineSpacing(5)
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(16)
-                                .background(palette.surface)
-                                .cornerRadius(14)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 14)
-                                        .stroke(palette.border, lineWidth: 0.5)
-                                )
                         }
                     }
 
-                    // Symptoms
                     if !entry.symptoms.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Label("Symptoms", systemImage: "list.bullet")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(.secondary)
-                                .textCase(.uppercase)
-                                .tracking(0.5)
-
-                            FlowLayout(spacing: 7) {
+                        section("Symptoms") {
+                            FlowLayout(spacing: Theme.Spacing.tiny) {
                                 ForEach(entry.symptoms, id: \.id) { symptom in
-                                    HStack(spacing: 5) {
-                                        Image(systemName: symptom.icon)
-                                            .font(.system(size: 11))
-                                        Text(symptom.name)
-                                            .font(.system(size: 12))
-                                    }
-                                    .foregroundStyle(palette.title)
-                                    .padding(.horizontal, 11)
-                                    .padding(.vertical, 6)
-                                    .background(palette.border)
-                                    .cornerRadius(20)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 20)
-                                            .stroke(palette.border, lineWidth: 0.5)
-                                    )
+                                    Pill(text: symptom.name)
                                 }
                             }
                         }
                     }
 
-                    Spacer(minLength: 20)
+                    Spacer(minLength: Theme.Spacing.lg)
                 }
-                .padding()
+                .padding(Theme.Spacing.card)
             }
+            .scrollIndicators(.hidden)
             .navigationTitle(entry.date.journalDateLabel)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
+                ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }
-                        .foregroundStyle(Theme.Colors.accent)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Edit") { onEdit() }
                 }
             }
         }
+    }
+
+    // MARK: - Header
+
+    private var header: some View {
+        HStack(spacing: Theme.Spacing.sm) {
+            Image(systemName: period.glyph)
+                .font(Theme.Fonts.title3)
+                .foregroundStyle(Theme.Colors.accent)
+
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text(AppDateFormatters.weekday.string(from: entry.date))
+                        .font(Theme.Fonts.serifTitle)
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                    Text(period.word)
+                        .font(Theme.Fonts.serifBody)
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                }
+
+                Text(AppDateFormatters.time.string(from: entry.date))
+                    .font(Theme.Fonts.label)
+                    .foregroundStyle(Theme.Colors.textSecondary)
+                    .monoLabel()
+            }
+
+            Spacer()
+
+            Pill(text: entry.mood.displayName, style: .active)
+        }
+    }
+
+    private func section<Content: View>(_ title: LocalizedStringKey,
+                                        @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            Text(title).eyebrow()
+            content()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -150,8 +123,9 @@ struct JournalDetailSheet: View {
         date: Date(),
         mood: .happy,
         text: "Skin has been really soft this week. Noticed my mood staying really level throughout the day too.",
-        symptoms: Array(Symptom.commonSymptoms.prefix(2))
+        symptoms: Array(Symptom.commonSymptoms.prefix(2)),
+        hormoneLevel: 180
     ))
-    .environment(\.journalManager, JournalManager.shared)
+    .environment(\.medicationManager, MedicationManager.shared)
 }
 #endif

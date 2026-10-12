@@ -144,7 +144,7 @@ struct HomeOverlayCard: View {
                     .foregroundStyle(moodTint)
 
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(todayEntry?.mood.rawValue.capitalized ?? String(localized: "Add a note", comment: "Journal row placeholder title on Home"))
+                    Text(todayEntry?.mood.displayName ?? String(localized: "Add a note", comment: "Journal row placeholder title on Home"))
                         .font(Theme.Fonts.footnote.weight(.medium))
                         .foregroundStyle(Theme.Colors.textPrimary)
 
@@ -162,8 +162,9 @@ struct HomeOverlayCard: View {
     }
 
     private var moodTint: Color {
-        guard let mood = todayEntry?.mood else { return Theme.Colors.textTertiary }
-        return JournalTheme.palette(for: mood).accent
+        // J7: mood carries no valence color. The glyph is accent when an entry exists,
+        // muted when the row is a prompt — a presence cue, not a verdict.
+        todayEntry == nil ? Theme.Colors.textTertiary : Theme.Colors.accent
     }
 }
 

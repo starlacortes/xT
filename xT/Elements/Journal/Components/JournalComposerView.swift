@@ -2,7 +2,10 @@
 //  JournalComposerView.swift
 //  xT
 //
-//  Full-screen composer sheet for new journal entries.
+//  The journal composer on sheet glass (elements J7, J9, J10). It writes a new entry or
+//  edits an existing one. The sheet's own glass is the surface — no opaque ground, no
+//  material bar; Cancel and Save are toolbar items. The text area is a ghost-card outline
+//  in Atkinson ink; mood and symptoms are Isocline `Pill`s with no valence color.
 //
 
 import SwiftUI
@@ -12,252 +15,192 @@ struct JournalComposerView: View {
     @Environment(\.medicationManager) private var medicationManager
     @Environment(\.dismiss) private var dismiss
 
-    @State private var text: String = ""
-    @State private var selectedMood: Mood = .neutral
-    @State private var selectedSymptoms: [Symptom] = []
+    /// The entry being edited, or nil for a new one (J10).
+    private let entry: JournalEntry?
+
+    @State private var text: String
+    @State private var selectedMood: Mood
+    @State private var selectedSymptoms: [Symptom]
     @State private var showingDiscardDialog = false
     @FocusState private var textFocused: Bool
+
+    init(entry: JournalEntry? = nil) {
+        self.entry = entry
+        _text = State(initialValue: entry?.text ?? "")
+        _selectedMood = State(initialValue: entry?.mood ?? .neutral)
+        // Resolve stored symptoms back to the common palette by name — their UUIDs
+        // regenerate each launch, so matching by id would drop the selection (J10).
+        _selectedSymptoms = State(initialValue: entry?.symptoms.map {
+            Symptom.matching(name: $0.name) ?? $0
+        } ?? [])
+    }
+
+    private var isEditing: Bool { entry != nil }
 
     private var canSave: Bool {
         !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    private var hasEnteredText: Bool { canSave }
+    private var hasChanges: Bool {
+        if isEditing {
+            return text != (entry?.text ?? "")
+                || selectedMood != entry?.mood
+                || selectedSymptoms.map(\.name) != (entry?.symptoms.map(\.name) ?? [])
+        }
+        return canSave
+    }
 
     var body: some View {
-        VStack(spacing: 0) {
+        NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
-                    Text("New Entry.")
-                        .font(.system(size: 36, weight: .bold))
-                        .foregroundStyle(Theme.Colors.accent)
-                        .padding(.top, 12)
-                        .padding(.leading, Theme.Spacing.card)
+                    Text(isEditing ? "Edit entry" : "New entry")
+                        .font(Theme.Fonts.serifTitle)
+                        .foregroundStyle(Theme.Colors.textPrimary)
 
-                    // "Your Entry" text box — taller
-                    Text("Your entry")
-                        .font(Theme.Fonts.caption2)
-                        .foregroundStyle(.secondary)
-                        .textCase(.uppercase)
-                        .tracking(0.05)
-                        .padding(.leading, Theme.Spacing.card)
+                    entryField
+                    levelRow
+                    symptomsField
+                    moodField
 
-                    ZStack(alignment: .topLeading) {
-                        if text.isEmpty {
-                            Text("Write how you're feeling\u{2026}")
-                                .font(.system(.footnote, design: .serif))
-                                .foregroundStyle(Theme.Colors.accent.opacity(0.7))
-                                .padding(.top, Theme.Spacing.card)
-                                .padding(.leading, Theme.Spacing.lg)
-                                .allowsHitTesting(false)
-                        }
-
-                        TextEditor(text: $text)
-                            .focused($textFocused)
-                            .font(.system(.footnote, design: .serif))
-                            .foregroundStyle(JournalComposerView.journalText)
-                            .scrollContentBackground(.hidden)
-                            .frame(minHeight: 100)
-                            .padding(Theme.Spacing.md)
-                    }
-                    .background(Theme.Colors.Time.cycle.surface)
-                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: Theme.Radius.md)
-                            .stroke(Theme.Colors.Time.cycle.border, lineWidth: 0.5)
-                    )
-                    .padding(.horizontal, Theme.Spacing.card)
-
-                    // "Current level" — compact row
-                    if medicationManager.isFullyConfigured,
-                       let level = medicationManager.currentHormoneLevel?.value {
-                        Text("Current level")
-                            .font(Theme.Fonts.caption2)
-                            .foregroundStyle(.secondary)
-                            .textCase(.uppercase)
-                            .tracking(0.05)
-                            .padding(.leading, Theme.Spacing.card)
-
-                        compactLevelRow(level: level)
-                            .padding(.horizontal, Theme.Spacing.card)
-                    }
-
-                    // Symptoms — horizontally scrollable
-                    Text("Symptoms")
-                        .font(Theme.Fonts.caption2)
-                        .foregroundStyle(.secondary)
-                        .textCase(.uppercase)
-                        .tracking(0.05)
-                        .padding(.leading, Theme.Spacing.card)
-
-                    ZStack(alignment: .trailing) {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 7) {
-                                ForEach(Symptom.commonSymptoms) { symptom in
-                                    let isSelected = selectedSymptoms.contains(where: { $0.id == symptom.id })
-                                    SymptomTag(symptom: symptom, isSelected: isSelected) {
-                                        withAnimation(.easeInOut(duration: 0.12)) {
-                                            if isSelected {
-                                                selectedSymptoms.removeAll(where: { $0.id == symptom.id })
-                                            } else {
-                                                selectedSymptoms.append(symptom)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            .padding(.horizontal, Theme.Spacing.card)
-                            .padding(.vertical, 2)
-                        }
-
-                        edgeFadeGradient
-                    }
-
-                    // "How are you feeling"
-                    Text("How are you feeling?")
-                        .font(Theme.Fonts.caption2)
-                        .foregroundStyle(.secondary)
-                        .textCase(.uppercase)
-                        .tracking(0.05)
-                        .padding(.leading, Theme.Spacing.card)
-
-                    ZStack(alignment: .trailing) {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 6) {
-                                ForEach(Mood.allCases, id: \.self) { mood in
-                                    MoodChip(mood: mood, isSelected: selectedMood == mood) {
-                                        withAnimation(.easeInOut(duration: 0.15)) {
-                                            selectedMood = mood
-                                        }
-                                    }
-                                }
-                            }
-                            .padding(.horizontal, Theme.Spacing.card)
-                            .padding(.vertical, 2)
-                        }
-
-                        edgeFadeGradient
-                    }
-
-                    Spacer(minLength: 80)
+                    Spacer(minLength: Theme.Spacing.xl)
                 }
+                .padding(Theme.Spacing.card)
             }
             .scrollIndicators(.hidden)
-
-            Spacer()
-
-            // Liquid glass buttons above keyboard
-            HStack(spacing: 16) {
-                Button {
-                    if hasEnteredText {
-                        showingDiscardDialog = true
-                    } else {
-                        dismiss()
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        if hasChanges { showingDiscardDialog = true } else { dismiss() }
                     }
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(Theme.Fonts.title3.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(.regularMaterial)
-                        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md))
                 }
-
-                Button { saveAndDismiss() } label: {
-                    Image(systemName: "checkmark")
-                        .font(Theme.Fonts.title3.weight(.semibold))
-                        .foregroundStyle(canSave ? .white : .secondary)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(
-                            RoundedRectangle(cornerRadius: Theme.Radius.md)
-                                .fill(canSave ? Theme.Colors.accent : Color(.tertiarySystemFill))
-                        )
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") { save() }
+                        .disabled(!canSave)
                 }
-                .disabled(!canSave)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(.regularMaterial)
+            .onAppear { textFocused = true }
+            .confirmationDialog(
+                "Discard changes?",
+                isPresented: $showingDiscardDialog,
+                titleVisibility: .visible
+            ) {
+                Button("Discard", role: .destructive) { dismiss() }
+                Button("Keep editing", role: .cancel) {}
+            } message: {
+                Text("Your changes will not be saved.")
+            }
+            .interactiveDismissDisabled(hasChanges)
+            .background(SheetDismissAttemptObserver { showingDiscardDialog = true })
         }
-        .background(Theme.Colors.appBackground)
-        .onAppear {
-            textFocused = true
-        }
-        .confirmationDialog(
-            "Discard entry?",
-            isPresented: $showingDiscardDialog,
-            titleVisibility: .visible
-        ) {
-            Button("Yes", role: .destructive) { dismiss() }
-            Button("No", role: .cancel) {}
-        } message: {
-            Text("Your entry will not be saved.")
-        }
-        .interactiveDismissDisabled(hasEnteredText)
-        .background(SheetDismissAttemptObserver {
-            showingDiscardDialog = true
-        })
     }
 
-    private var edgeFadeGradient: some View {
-        LinearGradient(
-            colors: [Theme.Colors.appBackground.opacity(0), Theme.Colors.appBackground],
-            startPoint: .leading,
-            endPoint: .trailing
-        )
-        .frame(width: 24)
-        .allowsHitTesting(false)
-    }
+    // MARK: - Fields
 
-    private func compactLevelRow(level: Double) -> some View {
-        let name = rangeName(for: level)
-        let unit = medicationManager.selectedMedication == "Estrogen" ? "pg/mL" : "ng/dL"
-        return HStack(spacing: 6) {
-            Image(systemName: "chart.line.uptrend.xyaxis")
-                .font(.system(size: 14))
-                .foregroundStyle(Theme.Colors.Time.mind.base)
-            Text("\(AppNumberFormatters.hormoneLevel.string(level)) \(unit)")
-                .font(Theme.Fonts.subheadline.weight(.medium))
-                .foregroundStyle(Color(lightHex: "#3C3489", darkHex: "#ABA7F0"))
-            Text(name)
-                .font(Theme.Fonts.caption2.weight(.medium))
-                .foregroundStyle(rangeColor(for: name))
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
-                .background(rangeBg(for: name))
-                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
-            Spacer()
+    private var entryField: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+            Text("Your entry").eyebrow()
+
+            ZStack(alignment: .topLeading) {
+                if text.isEmpty {
+                    Text("Write how you're feeling\u{2026}")
+                        .font(Theme.Fonts.body)
+                        .foregroundStyle(Theme.Colors.textTertiary)
+                        .padding(.top, Theme.Spacing.sm + 2)
+                        .padding(.leading, Theme.Spacing.sm)
+                        .allowsHitTesting(false)
+                }
+
+                TextEditor(text: $text)
+                    .focused($textFocused)
+                    .font(Theme.Fonts.body)
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                    .scrollContentBackground(.hidden)
+                    .frame(minHeight: 120)
+            }
+            .ghostCard(padding: Theme.Spacing.sm, radius: Theme.Radius.md)
         }
-        .padding(10)
-        .background(Theme.Colors.Time.mind.surface)
-        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
-        .overlay(
-            RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                .stroke(Theme.Colors.Time.mind.border, lineWidth: 0.5)
-        )
     }
 
-    private func rangeName(for level: Double) -> String {
-        levelBandLabel(for: level, medication: medicationManager.selectedMedication)
+    @ViewBuilder
+    private var levelRow: some View {
+        if medicationManager.isFullyConfigured,
+           let level = medicationManager.currentHormoneLevel?.value {
+            let unit = medicationManager.selectedMedication == "Estrogen" ? "pg/mL" : "ng/dL"
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                Text("Current level").eyebrow()
+                HStack(spacing: Theme.Spacing.sm) {
+                    Text("\(AppNumberFormatters.hormoneLevel.string(level)) \(unit)")
+                        .font(Theme.Fonts.statValue)
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                    Pill(text: levelBandLabel(for: level, medication: medicationManager.selectedMedication))
+                    Spacer()
+                }
+            }
+        }
     }
 
-    private func rangeColor(for name: String) -> Color { Theme.Colors.Time.cycle.base }
+    private var symptomsField: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+            Text("Symptoms").eyebrow()
+            FlowLayout(spacing: Theme.Spacing.tiny) {
+                ForEach(Symptom.commonSymptoms) { symptom in
+                    let isSelected = selectedSymptoms.contains { $0.name == symptom.name }
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.12)) { toggle(symptom) }
+                    } label: {
+                        Pill(text: symptom.name, style: isSelected ? .active : .neutral)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
 
-    private func rangeBg(for name: String) -> Color { Theme.Colors.Time.cycle.surface }
+    private var moodField: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+            Text("How are you feeling?").eyebrow()
+            FlowLayout(spacing: Theme.Spacing.tiny) {
+                ForEach(Mood.allCases, id: \.self) { mood in
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.15)) { selectedMood = mood }
+                    } label: {
+                        Pill(text: mood.displayName, style: selectedMood == mood ? .active : .neutral)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
 
-    private static let journalText = Color(lightHex: "#72243E", darkHex: "#F4A8C0")
+    // MARK: - Actions
 
-    private func saveAndDismiss() {
-        let entry = JournalEntry(
-            date: Date(),
-            mood: selectedMood,
-            text: text.trimmingCharacters(in: .whitespacesAndNewlines),
-            symptoms: selectedSymptoms,
-            hormoneLevel: medicationManager.currentHormoneLevel?.value
-        )
-        journalManager.addEntry(entry)
+    private func toggle(_ symptom: Symptom) {
+        if let idx = selectedSymptoms.firstIndex(where: { $0.name == symptom.name }) {
+            selectedSymptoms.remove(at: idx)
+        } else {
+            selectedSymptoms.append(symptom)
+        }
+    }
+
+    private func save() {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let entry {
+            entry.text = trimmed
+            entry.mood = selectedMood
+            entry.symptoms = selectedSymptoms
+            journalManager.update(entry)
+        } else {
+            let new = JournalEntry(
+                date: Date(),
+                mood: selectedMood,
+                text: trimmed,
+                symptoms: selectedSymptoms,
+                hormoneLevel: medicationManager.currentHormoneLevel?.value
+            )
+            journalManager.addEntry(new)
+        }
         dismiss()
     }
 }
@@ -313,151 +256,12 @@ private struct SheetDismissAttemptObserver: UIViewControllerRepresentable {
     }
 }
 
-// MARK: - Mood Chip
-
-struct MoodChip: View {
-    let mood: Mood
-    let isSelected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 4) {
-                Image(systemName: mood.icon)
-                    .font(Theme.Fonts.title3)
-                    .foregroundStyle(isSelected ? Theme.Colors.accent : .secondary)
-
-                Text(mood.rawValue)
-                    .font(Theme.Fonts.micro)
-                    .foregroundStyle(isSelected ? Theme.Colors.Time.cycle.base : .secondary)
-            }
-            .frame(minWidth: 52)
-            .padding(.vertical, 10)
-            .padding(.horizontal, Theme.Spacing.sm)
-            .background(isSelected ? Theme.Colors.Time.cycle.surface : Color(UIColor.secondarySystemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md))
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.Radius.md)
-                    .stroke(
-                        isSelected ? Theme.Colors.Time.cycle.border : Color(UIColor.separator).opacity(0.4),
-                        lineWidth: 0.5
-                    )
-            )
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-// MARK: - Symptom Tag
-
-struct SymptomTag: View {
-    let symptom: Symptom
-    let isSelected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Text(symptom.name)
-                .font(Theme.Fonts.caption)
-                .foregroundStyle(isSelected ? Theme.Colors.Time.cycle.base : .secondary)
-                .padding(.horizontal, Theme.Spacing.md)
-                .padding(.vertical, 7)
-                .background(isSelected ? Theme.Colors.Time.cycle.surface : Color(UIColor.secondarySystemBackground))
-                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.lg))
-                .overlay(
-                    RoundedRectangle(cornerRadius: Theme.Radius.lg)
-                        .stroke(
-                            isSelected ? Theme.Colors.Time.cycle.border : Color(UIColor.separator).opacity(0.3),
-                            lineWidth: 0.5
-                        )
-                )
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-// MARK: - Hormone Insight Card (legacy; kept for previews)
-
-struct HormoneInsightCard: View {
-    @Environment(\.medicationManager) private var medicationManager
-    let level: Double
-
-    private static let mindText = Color(lightHex: "#3C3489", darkHex: "#ABA7F0")
-
-    private var rangeName: String {
-        levelBandLabel(for: level, medication: medicationManager.selectedMedication)
-    }
-
-    private var rangeColor: Color { Theme.Colors.Time.cycle.base }
-
-    private var rangeBg: Color { Theme.Colors.Time.cycle.surface }
-
-    private var unit: String {
-        medicationManager.selectedMedication == "Estrogen" ? "pg/mL" : "ng/dL"
-    }
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "chart.line.uptrend.xyaxis")
-                .font(.system(size: 18))
-                .foregroundStyle(Theme.Colors.Time.mind.base)
-                .frame(width: 36, height: 36)
-                .background(Theme.Colors.Time.mind.surface)
-                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Current level")
-                    .font(Theme.Fonts.caption2)
-                    .foregroundStyle(Theme.Colors.Time.mind.base)
-
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text("\(AppNumberFormatters.hormoneLevel.string(level)) \(unit)")
-                        .font(Theme.Fonts.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundStyle(Self.mindText)
-
-                    Text(rangeName)
-                        .font(Theme.Fonts.caption2)
-                        .fontWeight(.medium)
-                        .foregroundStyle(rangeColor)
-                        .padding(.horizontal, Theme.Spacing.sm)
-                        .padding(.vertical, 3)
-                        .background(rangeBg)
-                        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
-                }
-            }
-
-            Spacer()
-        }
-        .padding(10)
-        .background(Theme.Colors.Time.mind.surface)
-        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
-        .overlay(
-            RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                .stroke(Theme.Colors.Time.mind.border, lineWidth: 0.5)
-        )
-    }
-}
-
 // MARK: - Preview
 
 #if DEBUG
 #Preview {
     JournalComposerView()
         .environment(\.journalManager, JournalManager.shared)
-        .environment(\.medicationManager, MedicationManager.shared)
-}
-
-#Preview("MoodChip") {
-    MoodChip(mood: .happy, isSelected: true, action: {})
-}
-
-#Preview("SymptomTag") {
-    SymptomTag(symptom: Symptom(name: "Headache", icon: "brain.head.profile"), isSelected: false, action: {})
-}
-
-#Preview("HormoneInsightCard") {
-    HormoneInsightCard(level: 150.0)
         .environment(\.medicationManager, MedicationManager.shared)
 }
 #endif
@@ -470,7 +274,7 @@ struct HormoneInsightCard: View {
 /// a verdict on a reading the journal is only recording alongside an entry — and
 /// the thresholds are population defaults, not anything the user chose. The label
 /// now states the band; the colour is uniform.
-private func levelBandLabel(for level: Double, medication: String?) -> String {
+func levelBandLabel(for level: Double, medication: String?) -> String {
     guard let med = medication else { return "" }
     if med == "Estrogen" {
         if level < 50  { return String(localized: "below 50 pg/mL", comment: "Estradiol band label shown beside a journal entry") }

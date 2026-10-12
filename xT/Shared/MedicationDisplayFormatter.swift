@@ -137,6 +137,26 @@ enum MedicationDisplayFormatter {
                       comment: "A dose amount in milligrams on the dose card, e.g. '4 mg'")
     }
 
+    /// Mono dose meta for a specific record, natural case: "Estradiol Valerate 2 mg" (J6).
+    /// Used on the Journal top card beside the entry time. Views apply the caps.
+    static func doseMetaLine(for dose: DoseRecord) -> String {
+        let base = hormoneBase(dose.medicationType)
+        let effective = MedicationManager.effectiveEsterName(ester: dose.ester,
+                                                             route: dose.administrationMethod)
+        let esterWord: String? = {
+            let trimmed = effective.trimmingCharacters(in: .whitespaces)
+            guard !trimmed.isEmpty else { return nil }
+            if let paren = trimmed.firstIndex(of: "(") {
+                return String(trimmed[..<paren]).trimmingCharacters(in: .whitespaces)
+            }
+            return trimmed
+        }()
+        let amount = AppNumberFormatters.dose.string(dose.doseAmount)
+        let name = [base, esterWord].compactMap { $0 }.joined(separator: " ")
+        return String(localized: "\(name) \(amount) mg",
+                      comment: "Dose meta on a journal card, e.g. 'Estradiol Valerate 2 mg'")
+    }
+
     /// Which day of the dosing interval today is (1-based), clamped to the interval.
     private static func dayOfInterval(_ m: MedicationManager,
                                       now: Date,

@@ -39,9 +39,54 @@ class JournalManager {
         }
     }
 
+    /// Persist in-place edits to an existing entry (J10). The caller has already mutated
+    /// the `@Model`'s fields; this saves and re-sorts the cache in case the date changed.
+    func update(_ entry: JournalEntry) {
+        guard let context = modelContext else { return }
+        do {
+            try context.save()
+            loadEntries()
+        } catch {
+            print("[JournalManager] Failed to update entry: \(error)")
+        }
+    }
+
+    /// Delete an entry (J10). Hard delete — the journal carries no audit requirement.
+    func delete(_ entry: JournalEntry) {
+        guard let context = modelContext else { return }
+        context.delete(entry)
+        do {
+            try context.save()
+            entries.removeAll { $0.id == entry.id }
+        } catch {
+            print("[JournalManager] Failed to delete entry: \(error)")
+        }
+    }
+
     /// Most recent entry (`entries` is kept newest-first).
     var lastEntry: JournalEntry? {
         entries.first
+    }
+
+    // MARK: - Home/Journal projections (J2, J3)
+
+    /// Whether the top of the Journal is a "now" card or an invitation (J3). It's a card
+    /// only when the newest entry is from today; otherwise the ghost card shows.
+    var topSlot: JournalTopSlot {
+        if let first = entries.first, Calendar.current.isDateInToday(first.date) {
+            return .card(first)
+        }
+        return .ghost
+    }
+
+    /// The calendar days within `interval` that carry at least one entry — the week strip's
+    /// hollow entry dot (J2).
+    func entryDays(in interval: DateInterval, calendar: Calendar = .current) -> Set<Date> {
+        Set(
+            entries
+                .filter { interval.contains($0.date) }
+                .map { calendar.startOfDay(for: $0.date) }
+        )
     }
 
     // MARK: - Persistence
