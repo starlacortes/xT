@@ -110,6 +110,9 @@ class MedicationManager {
         static let userTherapeuticTarget = "mm.userTherapeuticTarget"
         // Migration completion flag (device-local, not synced)
         static let cloudKitMigrationDone = "prefs.cloudKitMigrationDone"
+        // Home chart window mode — a view preference, device-local like the
+        // notification layout (X12c)
+        static let chartWindowMode = "mm.chartWindowMode"
     }
 
     /// Prevents `persistUserPreferences()` from firing during a bulk load from SwiftData.
@@ -155,6 +158,17 @@ class MedicationManager {
     var currentHormoneLevel: HormoneLevel? = nil
     /// Provides the historical data points used to drive the 7-day and long-term charts.
     var recentLevels: [EstimatedPoint] = []
+
+    /// Which span the Home curve samples (X12c): the ester-tuned cycle, a
+    /// 90-day trend, or everything logged. A device-local view preference —
+    /// never synced, never exported, like the notification layout.
+    var chartWindowMode: PKChartWindow.WindowMode = .cycle {
+        didSet {
+            guard chartWindowMode != oldValue else { return }
+            defaults.set(chartWindowMode.rawValue, forKey: Keys.chartWindowMode)
+            resampleRecentLevels()
+        }
+    }
 
     // MARK: - Dose History (The Real Source of Truth)
     /// Full log of all logged doses — the backbone of the PK model.
@@ -513,6 +527,11 @@ class MedicationManager {
     ///   `.standard`; tests inject an isolated suite.
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
+        // Device-local view preference (X12c); read before the refreshState()
+        // below so the first sample already uses the persisted window.
+        self.chartWindowMode = PKChartWindow.WindowMode(
+            rawValue: defaults.string(forKey: Keys.chartWindowMode) ?? ""
+        ) ?? .cycle
         // All settings are loaded from SwiftData in reloadFromContext(), which runs after
         // modelContext is injected by xTApp. The call here is a no-op until then.
         reloadFromContext()

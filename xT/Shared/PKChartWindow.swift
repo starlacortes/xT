@@ -56,6 +56,67 @@ enum PKChartWindow {
         var totalDays: Double { end.timeIntervalSince(start) / AppConstants.secondsPerDay }
     }
 
+    /// Which span the Home curve samples (X12c). `.cycle` is the ester-tuned
+    /// instrument view the rule below derives; `.days90` and `.all` are trend
+    /// views, where the lab rings and the long horizon carry the information.
+    /// Persisted device-local by `MedicationManager` — a view preference,
+    /// never synced.
+    enum WindowMode: String, CaseIterable, Identifiable {
+        case cycle
+        case days90
+        case all
+
+        var id: String { rawValue }
+    }
+
+    /// Resolves the window for a mode (X12c). `.cycle` returns the ester-tuned
+    /// window unchanged; the trend modes fix their own span around `now` and
+    /// reuse the cycle window's step as their resolution floor, with one
+    /// added cap: the drawn series never exceeds
+    /// `PKConstants.chartWindowTrendMaxPoints` samples, so "all" over years
+    /// stays a fixed, cheap point count.
+    ///
+    /// - Parameter firstDataDate: The earliest date a trend window must cover —
+    ///   the caller's first dose or lab draw (see
+    ///   `MedicationManager.earliestTrendDate`). `nil` collapses `.all` to the
+    ///   cycle window: with nothing logged, "everything" is "now".
+    static func window(mode: WindowMode, now: Date, cycle: Window,
+                       firstDataDate: Date?) -> Window {
+        switch mode {
+        case .cycle:
+            return cycle
+
+        case .days90:
+            let half = PKConstants.chartWindowTrendSpanDays / 2
+                * AppConstants.secondsPerDay
+            return trend(start: now.addingTimeInterval(-half),
+                         end: now.addingTimeInterval(half),
+                         cycle: cycle)
+
+        case .all:
+            // Everything logged, trailing one cycle-forward beyond now so the
+            // projection still reads as heading somewhere. Includes the whole
+            // cycle window, so "all" is always a superset of it.
+            guard let first = firstDataDate, first < now else { return cycle }
+            let forward = max(cycle.end.timeIntervalSince(now), 0)
+            return trend(start: min(first, cycle.start),
+                         end: now.addingTimeInterval(forward),
+                         cycle: cycle)
+        }
+    }
+
+    /// The shared shape of the trend windows: span fixed by the caller, step
+    /// from the ester-tuned floor and the point budget.
+    private static func trend(start: Date, end: Date, cycle: Window) -> Window {
+        guard end > start else { return cycle }
+        let spanDays = end.timeIntervalSince(start) / AppConstants.secondsPerDay
+        let step = max(cycle.stepDays,
+                       spanDays / PKConstants.chartWindowTrendMaxPoints)
+        let denseStep = max(step / PKConstants.chartWindowDenseStepDivisor,
+                            PKConstants.chartWindowMinDenseStepDays)
+        return Window(start: start, end: end, stepDays: step, denseStepDays: denseStep)
+    }
+
     /// - Parameters:
     ///   - tmaxDays: Exact Bateman time-to-peak for the *effective* ester, or `nil` when
     ///     it must not be trusted. **Callers must pass `nil`, not the raw value, when

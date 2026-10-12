@@ -477,3 +477,159 @@ struct ForwardProjectionTests {
         #expect(!rises, "no dose was ever taken, so nothing should be projected forward")
     }
 }
+
+// MARK: - Trend windows (X12c)
+
+@Suite("PKChartWindow — trend modes (X12c)")
+struct ChartTrendWindowTests {
+
+    private static let day = 86400.0
+
+    /// EV's tuned window — the load-bearing row of the rule above: t_max 2.10 d,
+    /// interval 5 d → total 3.15 d (1.05 d back / 2.1 d forward), step 3.15/40.
+    private func evCycle(now: Date) -> PKChartWindow.Window {
+        PKChartWindow.compute(tmaxDays: 2.10, intervalDays: 5, now: now)
+    }
+
+    @Test("The 90-day window is now-centred with the point-budget step")
+    func days90WindowIsCentered() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let cycle = evCycle(now: now)
+        let w = PKChartWindow.window(mode: .days90, now: now, cycle: cycle, firstDataDate: nil)
+
+        #expect(abs(w.start.timeIntervalSince(now) / Self.day + 45) < 0.001)
+        #expect(abs(w.end.timeIntervalSince(now) / Self.day - 45) < 0.001)
+        // step = max(cycle 0.07875, 90/160 = 0.5625) — the budget binds on EV.
+        #expect(abs(w.stepDays - 90 / PKConstants.chartWindowTrendMaxPoints) < 0.0001)
+        #expect(w.stepDays >= cycle.stepDays, "the cycle step is the resolution floor")
+    }
+
+    @Test("'All' spans the earliest data and trails one cycle-forward")
+    func allWindowSpansEarliestData() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let cycle = evCycle(now: now)
+        let first = now.addingTimeInterval(-300 * Self.day)
+        let w = PKChartWindow.window(mode: .all, now: now, cycle: cycle, firstDataDate: first)
+
+        #expect(w.start == min(first, cycle.start), "'all' is a superset of the cycle window")
+        let forward = cycle.end.timeIntervalSince(now)
+        #expect(abs(w.end.timeIntervalSince(now) - forward) < 0.001)
+        #expect(abs(w.stepDays - w.totalDays / PKConstants.chartWindowTrendMaxPoints) < 0.0001)
+    }
+
+    @Test("'All' with nothing logged collapses to the cycle window")
+    func allFallsBackToCycle() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let cycle = evCycle(now: now)
+        let w = PKChartWindow.window(mode: .all, now: now, cycle: cycle, firstDataDate: nil)
+        #expect(w == cycle, "with nothing logged, 'everything' is the cycle window")
+    }
+
+    @Test("A short 'all' keeps the cycle step — the floor binds, not the budget")
+    func shortAllKeepsCycleStep() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let cycle = evCycle(now: now)
+        // First dose yesterday: inside the cycle window's own past, so 'all' is
+        // the cycle window exactly — span too short for the budget to bind.
+        let first = now.addingTimeInterval(-Self.day)
+        let w = PKChartWindow.window(mode: .all, now: now, cycle: cycle, firstDataDate: first)
+        #expect(w == cycle)
+    }
+}
+
+@Suite("Chart window mode — manager wiring (X12c)")
+struct ChartWindowModeTests {
+
+    private static let day = 86400.0
+
+    /// Six on-schedule EV doses, the most recent half a week back.
+    @MainActor
+    private func estrogenManager() -> (MedicationManager, Date) {
+        let mgr = TestDefaults.manager()
+        mgr.selectedMedication = "Estrogen"
+        mgr.selectedAdministrationMethod = "Injectable"
+        mgr.selectedEster = MedicationEster.valerate.rawValue
+        mgr.customFrequencyDays = nil
+        mgr.hrtStartDate = Calendar.current.date(byAdding: .year, value: -3, to: Date())
+        mgr.bloodTestHistory = []
+
+        let now = Date()
+        mgr.doseHistory = (0..<6).reversed().map { k in
+            DoseRecord(doseDate: now.addingTimeInterval(-(5.5 + Double(k * 5)) * 86400.0),
+                       medicationType: "Estrogen", ester: MedicationEster.valerate.rawValue,
+                       administrationMethod: "Injectable", doseAmount: 4.0, doseStatus: .taken)
+        }
+        mgr.lastDoseDate = mgr.doseHistory.last?.doseDate
+        return (mgr, now)
+    }
+
+    /// Days between the first and last sampled point, or nil when empty.
+    @MainActor
+    private func sampledSpanDays(_ mgr: MedicationManager) -> Double? {
+        guard let first = mgr.recentLevels.first?.date,
+              let last = mgr.recentLevels.last?.date else { return nil }
+        return last.timeIntervalSince(first) / Self.day
+    }
+
+    @MainActor
+    @Test("The mode defaults to cycle and round-trips through the device store")
+    func modeRoundTrips() {
+        let defaults = TestDefaults.suite(function: "chartWindowModeRoundTrip")
+        let a = MedicationManager(defaults: defaults)
+        #expect(a.chartWindowMode == .cycle, "a fresh install starts on the cycle view")
+
+        a.chartWindowMode = .days90
+        // A second manager on the same suite reads the persisted mode — a
+        // relaunch keeps the window the person chose.
+        let b = MedicationManager(defaults: defaults)
+        #expect(b.chartWindowMode == .days90)
+    }
+
+    @MainActor
+    @Test("Setting the mode resamples recentLevels to the new window")
+    func modeChangeResamples() {
+        let (mgr, _) = estrogenManager()
+        mgr.refreshState()
+
+        guard let cycleSpan = sampledSpanDays(mgr) else {
+            Issue.record("expected a sampled series after refreshState()")
+            return
+        }
+        #expect(cycleSpan < 5, "EV's cycle window is ~3 d, got \(cycleSpan) d")
+
+        mgr.chartWindowMode = .days90
+        guard let trendSpan = sampledSpanDays(mgr) else {
+            Issue.record("expected a resampled series after the mode change")
+            return
+        }
+        // The samples span slightly under the window (one step shy at the end).
+        #expect(trendSpan > 88 && trendSpan < 90.01,
+                "the resampled series should span the 90-day window, got \(trendSpan) d")
+
+        mgr.chartWindowMode = .cycle
+        guard let back = sampledSpanDays(mgr) else {
+            Issue.record("expected a resampled series after switching back")
+            return
+        }
+        #expect(abs(back - cycleSpan) < 0.01, "switching back restores the cycle series")
+    }
+
+    @MainActor
+    @Test("earliestTrendDate is the first dose or lab draw, whichever is older")
+    func earliestTrendDateIsTheOldestDatum() {
+        let (mgr, now) = estrogenManager()
+        #expect(mgr.earliestTrendDate == mgr.doseHistory.first?.doseDate)
+
+        let olderLab = BloodTestRecord(
+            drawDate: now.addingTimeInterval(-400 * 86400.0),
+            measuredLevel: 300, hormoneType: "Estrogen", hoursSinceLastDose: 72
+        )
+        mgr.bloodTestHistory = [olderLab]
+        #expect(mgr.earliestTrendDate == olderLab.drawDate)
+
+        mgr.chartWindowMode = .all
+        let w = mgr.chartWindow(now: now)
+        #expect(w.start == olderLab.drawDate,
+                "'all' must open at the lab draw, the oldest thing that would draw")
+    }
+}

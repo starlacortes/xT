@@ -84,13 +84,22 @@ extension MedicationManager {
         // days ago is already off the left edge mid-cycle, and the next dose sits off the
         // right edge for most of the interval. That is the window being honest about its
         // timescale, not a positioning bug.
-        let window = chartWindow()
-        recentLevels = estimatedLevels(from: window.start, to: window.end,
-                                       stepDays: window.stepDays)
+        resampleRecentLevels()
 
         recomputeRegimenHistory()
         recomputeAdherenceRate()
         recomputeOnTimeStreak()
+    }
+
+    /// (Re)samples `recentLevels` from the current chart window (X12c).
+    /// `refreshState()` calls this after data changes; a window-mode change
+    /// calls it directly, because the regimen history, adherence and the
+    /// streak don't depend on the window and shouldn't be paid for on a
+    /// mode switch.
+    func resampleRecentLevels() {
+        let window = chartWindow()
+        recentLevels = estimatedLevels(from: window.start, to: window.end,
+                                       stepDays: window.stepDays)
     }
 
     /// Computes the expected time to peak concentration (in days) for a given ester.

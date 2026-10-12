@@ -860,4 +860,15 @@ enum PKConstants {
     /// Smallest dosing interval the window rule will divide by, so a future ester with a
     /// zero or negative interval degrades to a usable window instead of a zero-width one.
     static let chartWindowMinIntervalDays = 0.5
+
+    /// Length of the 90-day trend window (X12c). Now sits mid-window — half
+    /// history, half projection — because the cycle view's 1:2 past:forward
+    /// split doesn't scale to a span measured in months.
+    static let chartWindowTrendSpanDays = 90.0
+
+    /// Point budget for the trend windows ("90 d", "all"). Their step is
+    /// `max(cycleStep, span / this)`: the ester-tuned cycle step stays the
+    /// resolution floor, and the budget keeps a years-long "all" a fixed,
+    /// cheap sample count instead of thousands of EV-scale points.
+    static let chartWindowTrendMaxPoints = 160.0
 }

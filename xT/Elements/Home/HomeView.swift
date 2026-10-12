@@ -99,6 +99,19 @@ struct HomeView: View {
                 Spacer(minLength: 0)
             }
 
+            // Window picker (X12c), flush top-right — the readout's twin at
+            // the other corner of the same band. Short enough to clear the
+            // readout horizontally; the curve's top inset already clears both.
+            VStack {
+                HStack {
+                    Spacer(minLength: 0)
+                    ChartWindowPicker()
+                }
+                .padding(.horizontal, hPad)
+                .padding(.top, Theme.Spacing.sm)
+                Spacer(minLength: 0)
+            }
+
             // Phase strip + overlay card, docked above the tab bar.
             VStack(spacing: Theme.Spacing.sm) {
                 Spacer(minLength: 0)
