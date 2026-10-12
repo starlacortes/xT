@@ -1,8 +1,8 @@
 # Isocline theme-lint baseline (F9). Regenerate: tools/scripts/lint_theme.sh --update
-# Counts may only go DOWN. Last written: 2026-10-12T16:39:31Z
-font_system=24
+# Counts may only go DOWN. Last written: 2026-10-12T17:24:21Z
+font_system=5
 font_textstyle=0
 hex_outside_theme=1
-glass_effect=1
-gradients_brand=5
+glass_effect=0
+gradients_brand=0
 color_dot_system=4

@@ -273,45 +273,37 @@ struct AuthenticationView: View {
 
     var body: some View {
         ZStack {
-            Theme.Gradients.brand
+            // Paper (O2) — the lock screen is the discretion rendering: what
+            // someone glancing over a shoulder sees. No app name, no color
+            // block; just the embossed "I." centered on the ground. The mark
+            // itself carries no medication or dosage information.
+            Theme.Colors.appBackground
                 .ignoresSafeArea()
 
-            VStack(spacing: 24) {
+            VStack(spacing: Theme.Spacing.xxl) {
                 Spacer()
 
-                ZStack {
-                    Circle()
-                        .fill(Color.white.opacity(0.2))
-                        .frame(width: 100, height: 100)
-
-                    Image(systemName: "key")
-                        .font(.system(size: 50))
-                        .foregroundStyle(.white)
-                }
-                .padding(.horizontal, 40)
-                .padding(.bottom, 8)
-                
-                
+                IsoclineMarkView(mark: .mark, rendering: .emboss)
+                    .frame(width: 96)
 
                 if isAuthenticating {
                     ProgressView()
-                        .tint(.white)
+                        .tint(Theme.Colors.accent)
                 } else {
                     if authManager.biometricType() != .none {
                         Button(action: { Task { await authenticate() } }) {
                             Text("Unlock with \(authManager.biometricType().description)")
                                 .font(Theme.Fonts.headline)
                                 .fontWeight(.medium)
-                                .foregroundStyle(.white)
+                                .foregroundStyle(Theme.Colors.OnAccent.primary)
                                 .frame(maxWidth: .infinity)
-                                .padding(.vertical, 16)
-                                .background(Theme.Colors.accent.opacity(0.8))
-                                .cornerRadius(16)
-                                .shadow(color: Theme.Colors.accent.opacity(0.3), radius: 12, x: 0, y: 4)
+                                .padding(.vertical, Theme.Spacing.lg)
+                                .background(
+                                    Capsule().fill(Theme.Colors.accent)
+                                )
                         }
-                        .frame(width: 200)
-                        
-                        
+                        .buttonStyle(.pressable)
+                        .frame(maxWidth: 240)
                     }
 
                     if showFallback || authManager.biometricType() == .none {
@@ -320,15 +312,15 @@ struct AuthenticationView: View {
                         } label: {
                             Text(authManager.biometricType() == .none ? "Use Passcode" : "Use passcode instead")
                                 .font(Theme.Fonts.subheadline)
-                                .foregroundStyle(.white.opacity(0.7))
+                                .foregroundStyle(Theme.Colors.textSecondary)
                         }
-                        
+                        .buttonStyle(.plain)
                     }
                 }
 
                 Spacer()
             }
-            
+            .padding(.horizontal, Theme.Spacing.Gutter.screen)
         }
         .task { await authenticate() }
     }

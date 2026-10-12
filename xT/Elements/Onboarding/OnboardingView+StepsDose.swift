@@ -13,34 +13,36 @@ extension OnboardingView {
     // MARK: - Step 4: Method & Ester
     var medicationStep: some View {
         ScrollView {
-            VStack(spacing: 24) {
+            VStack(spacing: Theme.Spacing.xxl) {
                 Text("How do you take it?")
-                    .font(Theme.Fonts.title2)
+                    .font(Theme.Fonts.serifTitle)
                     .fontWeight(.regular)
-                    .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
+                    .foregroundStyle(Theme.Colors.textPrimary)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, 40)
-                    .padding(.top, 32)
+                    .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
+                    .padding(.top, Theme.Spacing.xxxl)
 
                 // Method cards
-                VStack(spacing: 12) {
+                VStack(spacing: Theme.Spacing.md) {
                     ForEach(MedicationManager.AdministrationMethod.allCases, id: \.rawValue) { method in
                         methodCard(method)
                     }
                 }
-                .padding(.horizontal, 40)
+                .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
 
                 // Ester selection — only for injectables
                 if selectedMethod == "Injectable" {
-                    VStack(spacing: 12) {
+                    VStack(spacing: Theme.Spacing.md) {
                         Text("Which ester?")
-                            .font(Theme.Fonts.subheadline)
-                            .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.7))
+                            .font(Theme.Fonts.eyebrow)
+                            .textCase(.uppercase)
+                            .tracking(0.6)
+                            .foregroundStyle(Theme.Colors.textSecondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 40)
+                            .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
 
                         esterList
-                            .padding(.horizontal, 40)
+                            .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
                     }
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
                     .animation(.easeInOut(duration: 0.2), value: selectedMethod)
@@ -48,18 +50,20 @@ extension OnboardingView {
 
                 // Frequency selector
                 if !selectedMethod.isEmpty {
-                    VStack(spacing: 8) {
+                    VStack(spacing: Theme.Spacing.sm) {
                         Text("Dosing frequency")
-                            .font(Theme.Fonts.subheadline)
-                            .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.7))
+                            .font(Theme.Fonts.eyebrow)
+                            .textCase(.uppercase)
+                            .tracking(0.6)
+                            .foregroundStyle(Theme.Colors.textSecondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 40)
+                            .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
                         
                         HStack {
                             Stepper("Every \(selectedFrequency) days", value: $selectedFrequency, in: 1...30)
-                                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
+                                .foregroundStyle(Theme.Colors.textPrimary)
                         }
-                        .padding(.horizontal, 40)
+                        .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
                     }
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
                 }
@@ -75,44 +79,44 @@ extension OnboardingView {
                         advanceStep()
                     }
                 }
-                .padding(.horizontal, 40)
-                .padding(.bottom, 40)
+                .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
+                .padding(.bottom, Theme.Spacing.Gutter.onboarding)
             }
         }
     }
 
     // MARK: - Step 5: Concentration Selection (NEW)
     var concentrationStep: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: Theme.Spacing.xxl) {
             Spacer()
             Text("What's your vial concentration?")
-                .font(Theme.Fonts.title2)
+                .font(Theme.Fonts.serifTitle)
                 .fontWeight(.regular)
-                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
+                .foregroundStyle(Theme.Colors.textPrimary)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
+                .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
 
             Text("Look for a number followed by 'mg/mL' on your vial or box.\nFor example, a 200 mg/5 mL vial is 40 mg/mL.")
                 .font(Theme.Fonts.caption)
-                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.55))
+                .foregroundStyle(Theme.Colors.textSecondary)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
+                .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
 
             concentrationPickerList
-                .padding(.horizontal, 40)
+                .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
 
             Spacer()
             HStack(spacing: 16) {
                 secondaryButton("Back") { previousStep() }
                 primaryButton("Continue", disabled: selectedConcentration <= 0) { advanceStep() }
             }
-            .padding(.horizontal, 40)
-            .padding(.bottom, 40)
+            .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
+            .padding(.bottom, Theme.Spacing.Gutter.onboarding)
         }
     }
 
     var concentrationPickerList: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: Theme.Spacing.md) {
             let concentrations = MedicationManager.commonConcentrations(forEster: selectedEster)
             ForEach(concentrations.filter { $0 > 0 }, id: \.self) { conc in
                 concentrationRow(conc)
@@ -134,29 +138,31 @@ extension OnboardingView {
         } label: {
             HStack {
                 Text("\(String(format: "%.0f", conc)) mg/mL")
-                    .font(Theme.Fonts.body)
-                    .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
+                    .font(Theme.Fonts.callout)
+                    .foregroundStyle(Theme.Colors.textPrimary)
                 if isMostCommonConcentration(conc) {
                     Text("· most common")
                         .font(Theme.Fonts.caption)
-                        .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.4))
+                        .foregroundStyle(Theme.Colors.textTertiary)
                 }
                 Spacer()
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
+                        .font(Theme.Fonts.icon)
+                        .foregroundStyle(Theme.Colors.accent)
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(.horizontal, Theme.Spacing.lg)
+            .padding(.vertical, Theme.Spacing.md)
             .background(
                 RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                    .fill(isSelected ? Theme.Colors.accent.opacity(0.3) : Theme.Colors.OnAccent.primary.opacity(0.15))
+                    .fill(isSelected ? Theme.Colors.accent.opacity(0.13) : Theme.Colors.appBackground)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                    .stroke(isSelected ? Theme.Colors.OnAccent.primary.opacity(0.5) : Theme.Colors.OnAccent.primary.opacity(0.3), lineWidth: 1)
+                    .stroke(isSelected ? Theme.Colors.accent : Theme.Colors.border, lineWidth: Theme.Line.hairline)
             )
+            .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
         }
     }
 
@@ -169,24 +175,26 @@ extension OnboardingView {
         } label: {
             HStack {
                 Text("Custom")
-                    .font(Theme.Fonts.body)
-                    .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
+                    .font(Theme.Fonts.callout)
+                    .foregroundStyle(Theme.Colors.textPrimary)
                 Spacer()
                 if showCustomConcentration {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
+                        .font(Theme.Fonts.icon)
+                        .foregroundStyle(Theme.Colors.accent)
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(.horizontal, Theme.Spacing.lg)
+            .padding(.vertical, Theme.Spacing.md)
             .background(
                 RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                    .fill(showCustomConcentration ? Theme.Colors.accentSecondary.opacity(0.3) : Theme.Colors.OnAccent.primary.opacity(0.15))
+                    .fill(showCustomConcentration ? Theme.Colors.accent.opacity(0.13) : Theme.Colors.appBackground)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                    .stroke(showCustomConcentration ? Theme.Colors.OnAccent.primary.opacity(0.5) : Theme.Colors.OnAccent.primary.opacity(0.3), lineWidth: 1)
+                    .stroke(showCustomConcentration ? Theme.Colors.accent : Theme.Colors.border, lineWidth: Theme.Line.hairline)
             )
+            .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
         }
     }
 
@@ -194,13 +202,17 @@ extension OnboardingView {
         HStack {
             TextField("mg/mL", text: $customConcentrationText)
                 .keyboardType(.decimalPad)
-                .font(.system(size: 22, weight: .medium, design: .rounded))
-                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
+                .font(Theme.Fonts.serifTitle)
+                .foregroundStyle(Theme.Colors.textPrimary)
                 .multilineTextAlignment(.center)
-                .padding(.vertical, 12)
+                .padding(.vertical, Theme.Spacing.md)
                 .background(
                     RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                        .fill(Theme.Colors.OnAccent.primary.opacity(0.15))
+                        .fill(Theme.Colors.appBackground)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                        .stroke(Theme.Colors.border, lineWidth: Theme.Line.hairline)
                 )
                 .onChange(of: customConcentrationText) { _, new in
                     if let val = Double(new), val > 0 {
@@ -209,7 +221,7 @@ extension OnboardingView {
                 }
             Text("mg/mL")
                 .font(Theme.Fonts.body)
-                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.6))
+                .foregroundStyle(Theme.Colors.textSecondary)
         }
     }
 
@@ -224,13 +236,13 @@ extension OnboardingView {
 
     // MARK: - Step 6: Dose & Timing (Enhanced with mg/mL toggle)
     var doseStep: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: Theme.Spacing.xl) {
             Spacer()
             Text("What's your dose?")
-                .font(Theme.Fonts.title2)
+                .font(Theme.Fonts.serifTitle)
                 .fontWeight(.regular)
-                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
-                .padding(.horizontal, 40)
+                .foregroundStyle(Theme.Colors.textPrimary)
+                .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
 
             // mg / mL segmented control
             Picker("Dose Unit", selection: $doseUnit) {
@@ -238,27 +250,31 @@ extension OnboardingView {
                 Text("mL").tag("mL")
             }
             .pickerStyle(.segmented)
-            .padding(.horizontal, 40)
+            .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
 
             // Dose entry
-            VStack(spacing: 10) {
+            VStack(spacing: Theme.Spacing.row) {
                 if doseUnit == "mg" {
                     // mg mode
-                    HStack(spacing: 12) {
+                    HStack(spacing: Theme.Spacing.md) {
                         Stepper("", value: $doseDecimal, in: 0.1...500, step: 0.1)
                             .labelsHidden()
                             .tint(Theme.Colors.accent)
 
                         TextField("", text: $doseText)
                             .keyboardType(.decimalPad)
-                            .font(.system(size: 28, weight: .medium, design: .rounded))
-                            .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
+                            .font(Theme.Fonts.numeric)
+                            .foregroundStyle(Theme.Colors.textPrimary)
                             .multilineTextAlignment(.center)
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
+                            .padding(.vertical, Theme.Spacing.md)
                             .background(
                                 RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                                    .fill(Theme.Colors.OnAccent.primary.opacity(0.15))
+                                    .fill(Theme.Colors.appBackground)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                                    .stroke(Theme.Colors.border, lineWidth: Theme.Line.hairline)
                             )
                             .focused($doseFieldFocused)
                             .onChange(of: doseDecimal) { _, new in
@@ -277,41 +293,45 @@ extension OnboardingView {
                             .keyboardDoneToolbar { doseFieldFocused = false }
 
                         Text("mg")
-                            .font(Theme.Fonts.title3)
-                            .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.6))
+                            .font(Theme.Fonts.serifTitle)
+                            .foregroundStyle(Theme.Colors.textSecondary)
                     }
-                    .padding(.horizontal, 40)
+                    .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
 
                     // Computed volume display
                     let volume = MedicationManager.computedVolume(doseMg: doseDecimal, concentrationMgPerMl: selectedConcentration)
                     Text("= \(String(format: "%.3f", volume)) mL (@ \(String(format: "%.0f", selectedConcentration)) mg/mL)")
                         .font(Theme.Fonts.caption)
-                        .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.5))
-                        .padding(.horizontal, 40)
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                        .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
 
                     // Volume warning
                     if let warning = MedicationManager.volumeNote(for: volume, ester: selectedEster) {
                         volumeWarningBanner(warning)
-                            .padding(.horizontal, 40)
+                            .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
                     }
 
                 } else {
                     // mL mode
-                    HStack(spacing: 12) {
+                    HStack(spacing: Theme.Spacing.md) {
                         Stepper("", value: $mlAmount, in: 0.01...10, step: 0.01)
                             .labelsHidden()
                             .tint(Theme.Colors.accentSecondary)
 
                         TextField("", text: $mlText)
                             .keyboardType(.decimalPad)
-                            .font(.system(size: 28, weight: .medium, design: .rounded))
-                            .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
+                            .font(Theme.Fonts.numeric)
+                            .foregroundStyle(Theme.Colors.textPrimary)
                             .multilineTextAlignment(.center)
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
+                            .padding(.vertical, Theme.Spacing.md)
                             .background(
                                 RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                                    .fill(Theme.Colors.OnAccent.primary.opacity(0.15))
+                                    .fill(Theme.Colors.appBackground)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                                    .stroke(Theme.Colors.border, lineWidth: Theme.Line.hairline)
                             )
                             .focused($doseFieldFocused)
                             .onChange(of: mlAmount) { _, new in
@@ -335,57 +355,60 @@ extension OnboardingView {
                             .keyboardDoneToolbar { doseFieldFocused = false }
 
                         Text("mL")
-                            .font(Theme.Fonts.title3)
-                            .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.6))
+                            .font(Theme.Fonts.serifTitle)
+                            .foregroundStyle(Theme.Colors.textSecondary)
                     }
-                    .padding(.horizontal, 40)
+                    .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
 
                     // Computed mg display
                     let computedMg = mlAmount * selectedConcentration
                     Text("= \(String(format: "%.1f", computedMg)) mg (@ \(String(format: "%.0f", selectedConcentration)) mg/mL)")
                         .font(Theme.Fonts.caption)
-                        .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.5))
-                        .padding(.horizontal, 40)
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                        .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
 
                     // Volume warning
                     if let warning = MedicationManager.volumeNote(for: mlAmount, ester: selectedEster) {
                         volumeWarningBanner(warning)
-                            .padding(.horizontal, 40)
+                            .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
                     }
                 }
 
                 // Quick dose chips
                 quickDoseChips
-                    .padding(.horizontal, 40)
-                    .padding(.top, 8)
+                    .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
+                    .padding(.top, Theme.Spacing.sm)
             }
 
             // Concentration adjustment (inline)
             VStack(spacing: 6) {
                 Text("Vial concentration")
-                    .font(Theme.Fonts.caption)
-                    .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.5))
+                    .font(Theme.Fonts.eyebrow)
+                    .textCase(.uppercase)
+                    .tracking(0.6)
+                    .foregroundStyle(Theme.Colors.textSecondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 40)
+                    .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
 
                 concentrationQuickPicker
-                    .padding(.horizontal, 40)
+                    .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
             }
 
             // Last dose date
-            VStack(spacing: 8) {
+            VStack(spacing: Theme.Spacing.sm) {
                 Text("When was your last dose?")
-                    .font(Theme.Fonts.subheadline)
-                    .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.7))
+                    .font(Theme.Fonts.eyebrow)
+                    .textCase(.uppercase)
+                    .tracking(0.6)
+                    .foregroundStyle(Theme.Colors.textSecondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 40)
+                    .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
 
                 DatePicker("", selection: $lastDoseDate, displayedComponents: [.date, .hourAndMinute])
                     .datePickerStyle(.compact)
                     .labelsHidden()
-                    .colorScheme(.dark)
-                    .tint(Theme.Colors.accentSecondary)
-                    .padding(.horizontal, 40)
+                    .tint(Theme.Colors.accent)
+                    .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
             }
 
             Spacer()
@@ -393,8 +416,8 @@ extension OnboardingView {
                 secondaryButton("Back") { previousStep() }
                 primaryButton("Continue") { advanceStep() }
             }
-            .padding(.horizontal, 40)
-            .padding(.bottom, 40)
+            .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
+            .padding(.bottom, Theme.Spacing.Gutter.onboarding)
         }
         .onAppear {
             updateMlFromMg()
@@ -406,7 +429,7 @@ extension OnboardingView {
             .filter { $0 > 0 }
 
         return ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
+            HStack(spacing: Theme.Spacing.sm) {
                 ForEach(concentrations, id: \.self) { conc in
                     Button {
                         withAnimation(.easeInOut(duration: 0.15)) {
@@ -415,20 +438,8 @@ extension OnboardingView {
                             updateMlFromMg()
                         }
                     } label: {
-                        Text("\(String(format: "%.0f", conc))")
-                            .font(Theme.Fonts.caption2)
-                            .fontWeight(.medium)
-                            .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(
-                                RoundedRectangle(cornerRadius: 6)
-                                    .fill(selectedConcentration == conc && !showCustomConcentration ? Theme.Colors.accentSecondary.opacity(0.5) : Theme.Colors.OnAccent.primary.opacity(0.15))
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 6)
-                                    .stroke(selectedConcentration == conc && !showCustomConcentration ? Theme.Colors.OnAccent.primary.opacity(0.5) : Theme.Colors.OnAccent.primary.opacity(0.2), lineWidth: 1)
-                            )
+                        Pill(text: "\(String(format: "%.0f", conc))",
+                             style: selectedConcentration == conc && !showCustomConcentration ? .active : .neutral)
                     }
                 }
                 // Custom chip
@@ -437,45 +448,32 @@ extension OnboardingView {
                         showCustomConcentration = true
                     }
                 } label: {
-                    Text("Custom")
-                        .font(Theme.Fonts.caption2)
-                        .fontWeight(.medium)
-                        .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(showCustomConcentration ? Theme.Colors.accent.opacity(0.5) : Theme.Colors.OnAccent.primary.opacity(0.15))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 6)
-                                .stroke(showCustomConcentration ? Theme.Colors.OnAccent.primary.opacity(0.5) : Theme.Colors.OnAccent.primary.opacity(0.2), lineWidth: 1)
-                        )
+                    Pill(text: "Custom", style: showCustomConcentration ? .active : .neutral)
                 }
             }
         }
     }
 
     func volumeWarningBanner(_ message: String) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: Theme.Spacing.sm) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(Theme.Fonts.caption)
-                .foregroundStyle(.yellow)
+                .foregroundStyle(Theme.Colors.warning)
             Text(message)
-                .font(Theme.Fonts.caption2)
-                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.8))
+                .font(Theme.Fonts.caption)
+                .foregroundStyle(Theme.Colors.textPrimary)
                 .lineLimit(3)
             Spacer()
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.horizontal, Theme.Spacing.md)
+        .padding(.vertical, Theme.Spacing.sm)
         .background(
             RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                .fill(Color.yellow.opacity(0.15))
-                .overlay(
-                    RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                        .stroke(Color.yellow.opacity(0.3), lineWidth: 1)
-                )
+                .fill(Theme.Colors.warning.opacity(0.12))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                .stroke(Theme.Colors.warning.opacity(0.4), lineWidth: Theme.Line.hairline)
         )
     }
 
@@ -489,7 +487,7 @@ extension OnboardingView {
         }()
 
         return ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
+            HStack(spacing: Theme.Spacing.sm) {
                 ForEach(doses, id: \.self) { dose in
                     quickDoseChip(dose)
                 }
@@ -502,7 +500,7 @@ extension OnboardingView {
         let label = doseUnit == "mg" ? String(format: "%.0f", dose) : String(format: "%.2f", dose)
 
         return Button {
-            withAnimation(.easeInOut(duration: 0.15)) {
+            withAnimation(Theme.Motion.quick) {
                 if doseUnit == "mg" {
                     doseDecimal = dose
                     doseText = String(format: "%.1f", dose)
@@ -514,21 +512,9 @@ extension OnboardingView {
                 }
             }
         } label: {
-            Text(label)
-                .font(Theme.Fonts.caption)
-                .fontWeight(.medium)
-                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(isSelected ? Theme.Colors.accent.opacity(0.5) : Theme.Colors.OnAccent.primary.opacity(0.15))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(isSelected ? Theme.Colors.OnAccent.primary.opacity(0.5) : Theme.Colors.OnAccent.primary.opacity(0.2), lineWidth: 1)
-                )
+            Pill(text: label, style: isSelected ? .active : .neutral)
         }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Methods
@@ -549,30 +535,32 @@ extension OnboardingView {
             }
         } label: {
             HStack {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
                     Text(method.rawValue)
-                        .font(Theme.Fonts.body)
-                        .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
+                        .font(Theme.Fonts.callout)
+                        .foregroundStyle(Theme.Colors.textPrimary)
                     Text(frequencyHint(for: method))
                         .font(Theme.Fonts.caption)
-                        .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.5))
+                        .foregroundStyle(Theme.Colors.textSecondary)
                 }
                 Spacer()
                 if selectedMethod == method.rawValue {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
+                        .font(Theme.Fonts.icon)
+                        .foregroundStyle(Theme.Colors.accent)
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
+            .padding(.horizontal, Theme.Spacing.lg)
+            .padding(.vertical, Theme.Spacing.md)
             .background(
                 RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                    .fill(selectedMethod == method.rawValue ? Theme.Colors.accent.opacity(0.3) : Theme.Colors.OnAccent.primary.opacity(0.15))
+                    .fill(selectedMethod == method.rawValue ? Theme.Colors.accent.opacity(0.13) : Theme.Colors.appBackground)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                    .stroke(selectedMethod == method.rawValue ? Theme.Colors.OnAccent.primary.opacity(0.5) : Theme.Colors.OnAccent.primary.opacity(0.3), lineWidth: 1)
+                    .stroke(selectedMethod == method.rawValue ? Theme.Colors.accent : Theme.Colors.border, lineWidth: Theme.Line.hairline)
             )
+            .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
         }
     }
 
@@ -591,7 +579,7 @@ extension OnboardingView {
             }
         }()
 
-        return VStack(spacing: 10) {
+        return VStack(spacing: Theme.Spacing.row) {
             ForEach(items, id: \.name) { item in
                 Button {
                     withAnimation(.easeInOut(duration: 0.2)) {
@@ -600,30 +588,32 @@ extension OnboardingView {
                     }
                 } label: {
                     HStack {
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
                             Text(item.name)
-                                .font(Theme.Fonts.body)
-                                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
+                                .font(Theme.Fonts.callout)
+                                .foregroundStyle(Theme.Colors.textPrimary)
                             Text(esterSubtitle(tHalf: item.tHalf, tPeak: item.tPeak, calibrated: item.calibrated))
                                 .font(Theme.Fonts.caption)
-                                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.5))
+                                .foregroundStyle(Theme.Colors.textSecondary)
                         }
                         Spacer()
                         if selectedEster == item.name {
                             Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
+                                .font(Theme.Fonts.icon)
+                                .foregroundStyle(Theme.Colors.accent)
                         }
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
+                    .padding(.horizontal, Theme.Spacing.lg)
+                    .padding(.vertical, Theme.Spacing.md)
                     .background(
                         RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                            .fill(selectedEster == item.name ? Theme.Colors.accentSecondary.opacity(0.3) : Theme.Colors.OnAccent.primary.opacity(0.15))
+                            .fill(selectedEster == item.name ? Theme.Colors.accent.opacity(0.13) : Theme.Colors.appBackground)
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                            .stroke(selectedEster == item.name ? Theme.Colors.OnAccent.primary.opacity(0.5) : Theme.Colors.OnAccent.primary.opacity(0.3), lineWidth: 1)
+                            .stroke(selectedEster == item.name ? Theme.Colors.accent : Theme.Colors.border, lineWidth: Theme.Line.hairline)
                     )
+                    .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
                 }
             }
         }

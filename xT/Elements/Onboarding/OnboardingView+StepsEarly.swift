@@ -13,43 +13,47 @@ extension OnboardingView {
     // MARK: - Step 1: Welcome
     var welcomeStep: some View {
         ZStack {
-            VStack(spacing: 32) {
+            VStack(spacing: Theme.Spacing.section) {
                 Spacer()
-                Text("xT")
-                    .font(.system(size: 64, weight: .light))
-                    .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.95))
+                // The wordmark's first appearance in the app (O1 step 2): the
+                // fixed outline in ink — the logo is never set as live text.
+                IsoclineMarkView(mark: .wordmark, rendering: .ink)
+                    .frame(maxWidth: 264)
                 Text("Hormone therapy tracking")
                     .font(Theme.Fonts.title3)
                     .fontWeight(.regular)
-                    .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.85))
+                    .foregroundStyle(Theme.Colors.textSecondary)
                     .multilineTextAlignment(.center)
                 Spacer()
-                VStack(spacing: 14) {
+                VStack(spacing: Theme.Spacing.row) {
                     primaryButton("Begin") { advanceStep() }
                     restoreLink
                 }
-                .padding(.horizontal, 40)
-                .padding(.bottom, 40)
+                .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
+                .padding(.bottom, Theme.Spacing.Gutter.onboarding)
             }
 
-            // Compact overlay box while restore runs — blocks the Begin and
+            // Compact overlay card while restore runs — blocks the Begin and
             // restore controls without taking over the whole step.
             if isRestoringFromiCloud {
                 ZStack {
                     Color.black.opacity(0.25)
                         .ignoresSafeArea()
-                    VStack(spacing: 16) {
+                    VStack(spacing: Theme.Spacing.lg) {
                         ProgressView()
                             .tint(Theme.Colors.accent)
                             .scaleEffect(1.2)
                         Text("Restoring from iCloud…")
                             .font(Theme.Fonts.body)
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(Theme.Colors.textPrimary)
                     }
-                    .padding(.horizontal, 32)
-                    .padding(.vertical, 28)
-                    .background(Theme.Colors.appBackground, in: RoundedRectangle(cornerRadius: Theme.Radius.lg))
-                    .shadow(color: .black.opacity(0.2), radius: 16, y: 6)
+                    .padding(.horizontal, Theme.Spacing.xxxl)
+                    .padding(.vertical, Theme.Spacing.section)
+                    .background(Theme.Colors.cardSurface, in: RoundedRectangle(cornerRadius: Theme.Radius.lg))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Theme.Radius.lg)
+                            .strokeBorder(Theme.Colors.border, lineWidth: Theme.Line.hairline)
+                    )
                 }
                 .transition(.opacity)
             }
@@ -91,7 +95,7 @@ extension OnboardingView {
         } label: {
             Text("Restore from iCloud")
                 .font(Theme.Fonts.subheadline)
-                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.8))
+                .foregroundStyle(Theme.Colors.accent)
                 .underline()
         }
         .buttonStyle(.plain)
@@ -122,16 +126,16 @@ extension OnboardingView {
 
     // MARK: - Step 2: Medication Type
     var pathStep: some View {
-        VStack(spacing: 28) {
+        VStack(spacing: Theme.Spacing.section) {
             Spacer()
             Text("What hormone are you taking?")
-                .font(Theme.Fonts.title2)
+                .font(Theme.Fonts.serifTitle)
                 .fontWeight(.regular)
-                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
+                .foregroundStyle(Theme.Colors.textPrimary)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
+                .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
 
-            VStack(spacing: 14) {
+            VStack(spacing: Theme.Spacing.row) {
                 pathCard(
                     title: "Estrogen‑based HRT",
                     subtitle: "Estradiol — feminizing hormone therapy",
@@ -144,30 +148,30 @@ extension OnboardingView {
                     isSelected: selectedType == "Testosterone"
                 ) { selectType("Testosterone", defaultDose: 40.0) }
             }
-            .padding(.horizontal, 40)
+            .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
 
             Spacer()
-            HStack(spacing: 16) {
+            HStack(spacing: Theme.Spacing.lg) {
                 secondaryButton("Back") { previousStep() }
                 primaryButton("Continue", disabled: selectedType.isEmpty) { advanceStep() }
             }
-            .padding(.horizontal, 40)
-            .padding(.bottom, 40)
+            .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
+            .padding(.bottom, Theme.Spacing.Gutter.onboarding)
         }
     }
 
     // MARK: - Step 3: HRT Experience
     var experienceStep: some View {
-        VStack(spacing: 28) {
+        VStack(spacing: Theme.Spacing.section) {
             Spacer()
             Text("How long have you been on HRT?")
-                .font(Theme.Fonts.title2)
+                .font(Theme.Fonts.serifTitle)
                 .fontWeight(.regular)
-                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
+                .foregroundStyle(Theme.Colors.textPrimary)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
+                .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
 
-            VStack(spacing: 14) {
+            VStack(spacing: Theme.Spacing.row) {
                 choiceCard(title: "Just starting", isSelected: !hasBeenOnHRT) {
                     withAnimation { hasBeenOnHRT = false }
                 }
@@ -175,27 +179,27 @@ extension OnboardingView {
                     withAnimation { hasBeenOnHRT = true }
                 }
             }
-            .padding(.horizontal, 40)
+            .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
 
             if hasBeenOnHRT {
-                HStack(spacing: 12) {
+                HStack(spacing: Theme.Spacing.md) {
                     durationStepper(text: "^[\(hrtDurationYears) year](inflect: true)",
                                     value: $hrtDurationYears, range: 0...20)
                     durationStepper(text: "^[\(hrtDurationMonths) month](inflect: true)",
                                     value: $hrtDurationMonths, range: 1...11)
                 }
-                .padding(.horizontal, 40)
+                .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
 
             Spacer()
-            HStack(spacing: 16) {
+            HStack(spacing: Theme.Spacing.lg) {
                 secondaryButton("Back") { previousStep() }
                 primaryButton("Continue") { advanceStep() }
             }
-            .padding(.horizontal, 40)
-            .padding(.bottom, 40)
+            .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
+            .padding(.bottom, Theme.Spacing.Gutter.onboarding)
         }
-        .animation(.easeInOut(duration: 0.2), value: hasBeenOnHRT)
+        .animation(Theme.Motion.quick, value: hasBeenOnHRT)
     }
 }

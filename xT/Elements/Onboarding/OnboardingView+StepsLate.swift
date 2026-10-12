@@ -16,18 +16,18 @@ extension OnboardingView {
         VStack(spacing: 0) {
             Spacer()
             Text("Where did you take it?")
-                .font(Theme.Fonts.title2)
+                .font(Theme.Fonts.serifTitle)
                 .fontWeight(.regular)
-                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
+                .foregroundStyle(Theme.Colors.textPrimary)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
+                .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
 
             Text("Tap on the body model to mark your injection site.\nYou can rotate the model with the arrows below.")
                 .font(Theme.Fonts.caption)
-                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.55))
+                .foregroundStyle(Theme.Colors.textSecondary)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
-                .padding(.top, 8)
+                .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
+                .padding(.top, Theme.Spacing.sm)
 
             Spacer()
 
@@ -53,45 +53,46 @@ extension OnboardingView {
             )
             .noZoneMarkers($noZoneTaps.taps)
             .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.lg))
-            .padding(.horizontal, 40)
+            .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
             .frame(height: 320)
 
             bodyPickerOrbitControls
-                .padding(.top, 12)
+                .padding(.top, Theme.Spacing.md)
 
             if let zone = selectedSiteLabels3D.first {
-                HStack(spacing: 8) {
+                HStack(spacing: Theme.Spacing.sm) {
                     Image(systemName: "mappin.circle.fill")
-                        .foregroundStyle(Theme.Colors.accentSecondary)
+                        .font(Theme.Fonts.icon)
+                        .foregroundStyle(Theme.Colors.accent)
                     Text(zone)
                         .font(Theme.Fonts.subheadline)
-                        .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
+                        .foregroundStyle(Theme.Colors.textPrimary)
                     Button {
                         selectedSiteLabels3D.removeAll()
                         tapPositions.removeAll()
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .font(Theme.Fonts.caption)
-                            .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.4))
+                            .foregroundStyle(Theme.Colors.textTertiary)
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
+                .padding(.horizontal, Theme.Spacing.lg)
+                .padding(.vertical, Theme.Spacing.row)
                 .background(
                     RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                        .fill(Theme.Colors.accentSecondary.opacity(0.2))
+                        .fill(Theme.Colors.accent.opacity(0.13))
                 )
-                .padding(.top, 12)
+                .padding(.top, Theme.Spacing.md)
             } else {
                 Text("Tap the model to mark your site")
                     .font(Theme.Fonts.subheadline)
-                    .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.4))
-                    .padding(.top, 12)
+                    .foregroundStyle(Theme.Colors.textTertiary)
+                    .padding(.top, Theme.Spacing.md)
             }
 
             Spacer()
 
-            HStack(spacing: 16) {
+            HStack(spacing: Theme.Spacing.lg) {
                 secondaryButton("Skip for now") {
                     selectedSiteLabels3D.removeAll()
                     tapPositions.removeAll()
@@ -102,8 +103,8 @@ extension OnboardingView {
                     advanceStep()
                 }
             }
-            .padding(.horizontal, 40)
-            .padding(.bottom, 40)
+            .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
+            .padding(.bottom, Theme.Spacing.Gutter.onboarding)
 
             Spacer()
                 .frame(height: 20)
@@ -111,7 +112,7 @@ extension OnboardingView {
     }
 
     var bodyPickerOrbitControls: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: Theme.Spacing.lg) {
             Button {
                 let angles = BodySnapAngle.allCases
                 let cur = angles.firstIndex(of: bodySnapAngle) ?? 0
@@ -119,8 +120,9 @@ extension OnboardingView {
                 bodySnapNonce += 1
             } label: {
                 Image(systemName: "arrow.backward.circle.fill")
-                    .font(Theme.Fonts.title2)
-                    .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.5))
+                    .font(Theme.Fonts.icon)
+                    .imageScale(.large)
+                    .foregroundStyle(Theme.Colors.textSecondary)
             }
 
             Spacer()
@@ -135,19 +137,20 @@ extension OnboardingView {
                             .font(Theme.Fonts.subheadline.weight(bodySnapAngle == angle ? .semibold : .regular))
                             .foregroundStyle(bodySnapAngle == angle
                                              ? Theme.Colors.accent
-                                             : Theme.Colors.OnAccent.primary.opacity(0.6))
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 8)
+                                             : Theme.Colors.textSecondary)
+                            .padding(.horizontal, Theme.Spacing.xxl)
+                            .padding(.vertical, Theme.Spacing.sm)
                             .background(
-                                RoundedRectangle(cornerRadius: 8)
+                                RoundedRectangle(cornerRadius: Theme.Radius.chip)
                                     .fill(bodySnapAngle == angle
-                                          ? Theme.Colors.accent.opacity(0.25)
+                                          ? Theme.Colors.accent.opacity(0.13)
                                           : Color.clear)
                             )
                     }
                 }
             }
-            .background(RoundedRectangle(cornerRadius: 10).fill(Theme.Colors.OnAccent.primary.opacity(0.15)))
+            .background(RoundedRectangle(cornerRadius: Theme.Radius.control).fill(Theme.Colors.appBackground))
+            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.control).strokeBorder(Theme.Colors.border, lineWidth: Theme.Line.hairline))
 
             Spacer()
 
@@ -158,11 +161,12 @@ extension OnboardingView {
                 bodySnapNonce += 1
             } label: {
                 Image(systemName: "arrow.forward.circle.fill")
-                    .font(Theme.Fonts.title2)
-                    .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.5))
+                    .font(Theme.Fonts.icon)
+                    .imageScale(.large)
+                    .foregroundStyle(Theme.Colors.textSecondary)
             }
         }
-        .padding(.horizontal, 40)
+        .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
     }
 
     var bodyPickerPreferredZones: Set<String> {
@@ -199,51 +203,51 @@ extension OnboardingView {
 
     // MARK: - Step 7: Anti-Androgens
     var antiAndrogenStep: some View {
-        VStack(spacing: 28) {
+        VStack(spacing: Theme.Spacing.section) {
             Spacer()
             Text("Are you taking any other medications?")
-                .font(Theme.Fonts.title2)
+                .font(Theme.Fonts.serifTitle)
                 .fontWeight(.regular)
-                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
+                .foregroundStyle(Theme.Colors.textPrimary)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
+                .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
 
-            VStack(spacing: 12) {
+            VStack(spacing: Theme.Spacing.md) {
                 aaCard(title: "None", subtitle: "I only take my hormone", choice: "None")
                 aaCard(title: "Spironolactone", subtitle: "Common anti‑androgen — can slightly increase estrogen clearance", choice: "Spiro")
                 aaCard(title: "Cyproterone / GnRH agonist", subtitle: "Suppresses testosterone production", choice: "Other AA")
                 aaCard(title: "Finasteride / Dutasteride", subtitle: "5α‑reductase inhibitor — blocks DHT conversion", choice: "5ARI")
             }
-            .padding(.horizontal, 40)
+            .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
 
             Spacer()
-            HStack(spacing: 16) {
+            HStack(spacing: Theme.Spacing.lg) {
                 secondaryButton("Back") { previousStep() }
                 primaryButton("Continue") { advanceStep() }
             }
-            .padding(.horizontal, 40)
-            .padding(.bottom, 40)
+            .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
+            .padding(.bottom, Theme.Spacing.Gutter.onboarding)
         }
     }
 
     // MARK: - Step 8: Body Silhouette
     var bodyTypeStep: some View {
-        VStack(spacing: 28) {
+        VStack(spacing: Theme.Spacing.section) {
             Spacer()
             Text("Choose a body silhouette")
-                .font(Theme.Fonts.title2)
+                .font(Theme.Fonts.serifTitle)
                 .fontWeight(.regular)
-                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
+                .foregroundStyle(Theme.Colors.textPrimary)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
+                .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
 
             Text("This changes the 3D injection-site picker. You can update this anytime in Settings.")
                 .font(Theme.Fonts.callout)
-                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.6))
+                .foregroundStyle(Theme.Colors.textSecondary)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
+                .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
 
-            VStack(spacing: 14) {
+            VStack(spacing: Theme.Spacing.row) {
                 ForEach(BodyType.allCases) { type in
                     pathCard(
                         title: type.displayName,
@@ -256,27 +260,27 @@ extension OnboardingView {
                     }
                 }
             }
-            .padding(.horizontal, 40)
+            .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
 
             Spacer()
-            HStack(spacing: 16) {
+            HStack(spacing: Theme.Spacing.lg) {
                 secondaryButton("Back") { previousStep() }
                 primaryButton("Continue") { advanceStep() }
             }
-            .padding(.horizontal, 40)
-            .padding(.bottom, 40)
+            .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
+            .padding(.bottom, Theme.Spacing.Gutter.onboarding)
         }
     }
 
     // MARK: - Step 9: Profile
     var profileStep: some View {
-        VStack(spacing: 28) {
+        VStack(spacing: Theme.Spacing.section) {
             Spacer()
             Text("Personalize your space")
-                .font(Theme.Fonts.title2)
+                .font(Theme.Fonts.serifTitle)
                 .fontWeight(.regular)
-                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
-                .padding(.bottom, 8)
+                .foregroundStyle(Theme.Colors.textPrimary)
+                .padding(.bottom, Theme.Spacing.sm)
 
             // Photo
             Button { showImagePicker = true } label: {
@@ -285,35 +289,35 @@ extension OnboardingView {
             }
             Text("Tap to add photo")
                 .font(Theme.Fonts.caption)
-                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.6))
+                .foregroundStyle(Theme.Colors.textSecondary)
 
             // Name
             TextField("Your name", text: $profileName)
                 .font(Theme.Fonts.body)
-                .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
-                .padding(.vertical, 12)
-                .padding(.horizontal, 16)
-                .background(RoundedRectangle(cornerRadius: Theme.Radius.sm).fill(Theme.Colors.OnAccent.primary.opacity(0.15)))
-                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.sm).stroke(Theme.Colors.OnAccent.primary.opacity(0.3), lineWidth: 1))
-                .padding(.horizontal, 40)
+                .foregroundStyle(Theme.Colors.textPrimary)
+                .padding(.vertical, Theme.Spacing.md)
+                .padding(.horizontal, Theme.Spacing.lg)
+                .background(RoundedRectangle(cornerRadius: Theme.Radius.sm).fill(Theme.Colors.appBackground))
+                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.sm).stroke(Theme.Colors.border, lineWidth: Theme.Line.hairline))
+                .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
 
             // Photo options
-            HStack(spacing: 24) {
+            HStack(spacing: Theme.Spacing.xxl) {
                 photoBtn("photo", "Library") { showImagePicker = true }
                 photoBtn("camera", "Camera") { showCamera = true }
             }
-            .padding(.top, 8)
+            .padding(.top, Theme.Spacing.sm)
 
             Spacer()
-            HStack(spacing: 16) {
+            HStack(spacing: Theme.Spacing.lg) {
                 secondaryButton("Back") { previousStep() }
                 primaryButton("Continue") {
                     if !profileName.isEmpty { profileManager.updateProfileName(profileName) }
                     advanceStep()
                 }
             }
-            .padding(.horizontal, 40)
-            .padding(.bottom, 40)
+            .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
+            .padding(.bottom, Theme.Spacing.Gutter.onboarding)
         }
         .profilePhotoPickers(libraryPresented: $showImagePicker,
                              cameraPresented: $showCamera,
@@ -322,42 +326,42 @@ extension OnboardingView {
 
     // MARK: - Step 10: Choose your theme
     var themeStep: some View {
-        VStack(spacing: 28) {
+        VStack(spacing: Theme.Spacing.section) {
             Spacer()
             Text("Make it yours")
-                .font(Theme.Fonts.title2)
+                .font(Theme.Fonts.serifTitle)
                 .fontWeight(.regular)
-                .foregroundStyle(Theme.Colors.OnAccent.secondary)
-                .padding(.bottom, 4)
+                .foregroundStyle(Theme.Colors.textPrimary)
+                .padding(.bottom, Theme.Spacing.xxs)
             Text("Drag to pick a color for the whole app. You can always change this later in Settings.")
                 .font(Theme.Fonts.caption)
-                .foregroundStyle(Theme.Colors.OnAccent.tertiary)
+                .foregroundStyle(Theme.Colors.textSecondary)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
+                .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
 
             ThemePickerView()
-                .padding(.horizontal, 40)
-                .padding(.top, 8)
+                .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
+                .padding(.top, Theme.Spacing.sm)
 
             Spacer()
-            HStack(spacing: 16) {
+            HStack(spacing: Theme.Spacing.lg) {
                 secondaryButton("Back") { previousStep() }
                 primaryButton("Continue") { advanceStep() }
             }
-            .padding(.horizontal, 40)
-            .padding(.bottom, 40)
+            .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
+            .padding(.bottom, Theme.Spacing.Gutter.onboarding)
         }
     }
 
     // MARK: - Step 11: Review & Start
     var reviewStep: some View {
         ScrollView {
-            VStack(spacing: 24) {
+            VStack(spacing: Theme.Spacing.xxl) {
                 Text("Here's your setup")
-                    .font(Theme.Fonts.title2)
+                    .font(Theme.Fonts.serifTitle)
                     .fontWeight(.regular)
-                    .foregroundStyle(Theme.Colors.OnAccent.primary.opacity(0.9))
-                    .padding(.top, 32)
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                    .padding(.top, Theme.Spacing.xxxl)
 
                 VStack(spacing: 0) {
                     reviewRow(label: "Hormone", value: selectedType)
@@ -376,17 +380,22 @@ extension OnboardingView {
                     reviewRow(label: "Body silhouette", value: (BodyType(rawValue: medicationManager.bodyTypeRaw) ?? .neutral).displayName)
                 }
                 .background(
-                    RoundedRectangle(cornerRadius: Theme.Radius.md)
-                        .fill(Theme.Colors.OnAccent.primary.opacity(0.12))
+                    RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous)
+                        .fill(Theme.Colors.cardSurface)
                 )
-                .padding(.horizontal, 40)
+                .overlay(
+                    RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous)
+                        .strokeBorder(Theme.Colors.border, lineWidth: Theme.Line.hairline)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
+                .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
 
-                VStack(spacing: 12) {
+                VStack(spacing: Theme.Spacing.md) {
                     primaryButton("Begin Tracking") { commitOnboarding() }
                     secondaryButton("Back") { previousStep() }
                 }
-                .padding(.horizontal, 40)
-                .padding(.bottom, 40)
+                .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
+                .padding(.bottom, Theme.Spacing.Gutter.onboarding)
             }
         }
     }

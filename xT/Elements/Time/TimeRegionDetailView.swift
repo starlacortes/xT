@@ -145,11 +145,8 @@ struct TimeRegionDetailView: View {
                                  enabled: regionKey.framing == .profile))
         // Screen-edge padding is the caller's: the Time explorer pads the card
         // trailing in `.profile` framing and horizontal+bottom in `.stage`.
-        // The Time screen's backdrop is near-black in both appearances, so the
-        // panel is a dark surface whatever the system setting is. Without this,
-        // Light Mode resolves `.primary` to near-black over dark glass and the
-        // glass's own tint to the wrong side of the ground.
-        .environment(\.colorScheme, .dark)
+        // The tab root already forces `.dark` (T2), so this card resolves its
+        // adaptive colors — text, card fill — to the night side on its own.
     }
 
     // MARK: Header
@@ -244,7 +241,7 @@ struct TimeRegionDetailView: View {
     private var closeButton: some View {
         Button(action: onClose) {
             Image(systemName: "xmark")
-                .font(.system(size: 13, weight: .semibold))
+                .font(Theme.Fonts.detail.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .frame(width: 30, height: 30)
                 .background(Color.primary.opacity(0.08), in: Circle())
@@ -384,10 +381,11 @@ struct TimeRegionDetailView: View {
 
 /// Own surface only for `.profile` (thighs), which floats on the starfield
 /// with no sheet under it. `.stage` cards sit in a native sheet whose system
-/// glass is the card — iOS 26 ignores `.presentationBackground(.clear)` on
-/// sheets, so a glass panel here would render inside the sheet's own glass as
-/// a card inside a card. Same `.glassEffect` idiom as `Theme.GlassCardModifier`,
-/// so the thighs card keeps its Time category identity.
+/// glass is the card. The night card (T3): `card` dark-recipe fill at 85%, a
+/// `line` hairline, `Radius.xl` — the Time tab's own opaque equivalent of
+/// `paperCard`, since the tab is the one always-night surface. Replaces the
+/// old content glass, which no other content surface kept through the
+/// transition.
 private struct ProfileSurface: ViewModifier {
     let palette: Theme.Colors.TimePalette
     let enabled: Bool
@@ -395,8 +393,14 @@ private struct ProfileSurface: ViewModifier {
     func body(content: Content) -> some View {
         if enabled {
             content
-                .glassEffect(.regular.tint(palette.base.opacity(0.12)),
-                             in: .rect(cornerRadius: Theme.Radius.xl))
+                .background(
+                    RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous)
+                        .fill(Theme.Colors.cardSurface.opacity(0.85))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous)
+                        .strokeBorder(Theme.Colors.border, lineWidth: Theme.Line.hairline)
+                )
         } else {
             content
         }

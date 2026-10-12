@@ -249,7 +249,7 @@ struct TestBiometricSheet: View {
 
     var body: some View {
         ZStack {
-            Theme.Gradients.brand.ignoresSafeArea()
+            Theme.Colors.appBackground.ignoresSafeArea()
 
             VStack(spacing: Theme.Spacing.xxl) {
                 Spacer()
@@ -297,12 +297,11 @@ struct TestBiometricSheet: View {
             Image(systemName: authManager.biometricType().iconName)
                 .font(Theme.Fonts.icon)
                 .imageScale(.large)
-                .foregroundStyle(Theme.Colors.Time.mind.base)
+                .foregroundStyle(Theme.Colors.accent)
             Text("Test your biometric authentication")
-                .font(Theme.Fonts.title2)
-                .fontWeight(.medium)
-                .foregroundStyle(.white)
-            ProgressView().tint(.white)
+                .font(Theme.Fonts.serifTitle)
+                .foregroundStyle(Theme.Colors.textPrimary)
+            ProgressView().tint(Theme.Colors.accent)
         }
     }
 
@@ -311,28 +310,18 @@ struct TestBiometricSheet: View {
             Image(systemName: "checkmark.circle.fill")
                 .font(Theme.Fonts.icon)
                 .imageScale(.large)
-                .foregroundStyle(.green)
+                .foregroundStyle(Theme.Colors.success)
             Text("Biometrics Enabled!")
-                .font(Theme.Fonts.title2)
-                .fontWeight(.medium)
-                .foregroundStyle(.white)
+                .font(Theme.Fonts.serifTitle)
+                .foregroundStyle(Theme.Colors.textPrimary)
             Text("Biometric authentication is working correctly.")
                 .font(Theme.Fonts.body)
-                .foregroundStyle(.white.opacity(0.85))
+                .foregroundStyle(Theme.Colors.textSecondary)
                 .multilineTextAlignment(.center)
 
-            Button(action: { dismiss() }) {
-                Text("Done")
-                    .font(Theme.Fonts.headline)
-                    .fontWeight(.medium)
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(Theme.Colors.accent.opacity(0.8))
-                    .cornerRadius(16)
-            }
-            .padding(.horizontal, 40)
-            .padding(.top, Theme.Spacing.lg)
+            ActionPill(title: "Done") { dismiss() }
+                .padding(.horizontal, Theme.Spacing.Gutter.screen)
+                .padding(.top, Theme.Spacing.lg)
         }
         .transition(.opacity)
         .animation(.easeIn, value: result)
@@ -343,19 +332,13 @@ struct TestBiometricSheet: View {
             Image(systemName: "xmark.circle.fill")
                 .font(Theme.Fonts.icon)
                 .imageScale(.large)
-                .foregroundStyle(.orange)
-            Button(action: { Task { await testAgain() } }) {
-                Text("Try Again")
-                    .font(Theme.Fonts.headline)
-                    .fontWeight(.medium)
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(Theme.Colors.accent.opacity(0.8))
-                    .cornerRadius(16)
-            }
-            .padding(.horizontal, 40)
-            .padding(.top, Theme.Spacing.lg)
+                .foregroundStyle(Theme.Colors.warning)
+            Text("Authentication failed")
+                .font(Theme.Fonts.serifTitle)
+                .foregroundStyle(Theme.Colors.textPrimary)
+            ActionPill(title: "Try Again") { Task { await testAgain() } }
+                .padding(.horizontal, Theme.Spacing.Gutter.screen)
+                .padding(.top, Theme.Spacing.lg)
         }
         .transition(.opacity)
         .animation(.easeIn, value: result)
@@ -368,22 +351,12 @@ struct TestBiometricSheet: View {
                 .imageScale(.large)
                 .foregroundStyle(.secondary)
             Text("Test Cancelled")
-                .font(Theme.Fonts.title2)
-                .fontWeight(.medium)
-                .foregroundStyle(.white)
+                .font(Theme.Fonts.serifTitle)
+                .foregroundStyle(Theme.Colors.textPrimary)
 
-            Button(action: { dismiss() }) {
-                Text("Done")
-                    .font(Theme.Fonts.headline)
-                    .fontWeight(.medium)
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(Theme.Colors.accent.opacity(0.8))
-                    .cornerRadius(16)
-            }
-            .padding(.horizontal, 40)
-            .padding(.top, Theme.Spacing.lg)
+            ActionPill(title: "Done") { dismiss() }
+                .padding(.horizontal, Theme.Spacing.Gutter.screen)
+                .padding(.top, Theme.Spacing.lg)
         }
         .transition(.opacity)
         .animation(.easeIn, value: result)

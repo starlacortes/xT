@@ -21,11 +21,6 @@ struct TimeView: View {
     @Environment(\.medicationManager) private var medicationManager
     @Environment(\.themeManager) private var themeManager
 
-    // Tier milestone celebration.
-    @AppStorage("lastSeenTierRawValue") private var lastSeenTierRawValue: String = ""
-    @State private var showingTierCelebration = false
-    @State private var celebrationTier: TenureTier? = nil
-
     /// The content model for this screen, derived fresh from the manager's state.
     private var engine: TimeContentEngine {
         // Effective interval (custom frequency when set, else method default) —
@@ -83,42 +78,16 @@ struct TimeView: View {
             .toolbar(.hidden, for: .navigationBar)
             .onAppear {
                 medicationManager.refreshState()
-                checkForTierTransition()
             }
         }
+        // The Time tab is the one intentionally always-night surface: the
+        // backdrop is near-black in both appearances, so everything inside
+        // resolves dark — material, `.primary`/`.secondary` text — instead of
+        // only the sheet and the region card, which forced it individually
+        // before (T2). The tab bar is system-styled and adapts on its own.
+        .environment(\.colorScheme, .dark)
         .onChange(of: medicationManager.doseRecordedCount) { _, _ in
             medicationManager.refreshState()
-        }
-        .onChange(of: engine.tenureTier) { old, new in
-            if new > old {
-                withAnimation(Theme.Motion.entrance) {
-                    celebrationTier = new
-                    showingTierCelebration = true
-                }
-                lastSeenTierRawValue = new.rawValue
-            }
-        }
-        .overlay {
-            if showingTierCelebration, let tier = celebrationTier {
-                TierCelebrationOverlay(tier: tier) {
-                    withAnimation(Theme.Motion.snappy) {
-                        showingTierCelebration = false
-                    }
-                }
-                .transition(.opacity.combined(with: .scale(scale: 0.95)))
-            }
-        }
-    }
-
-    private func checkForTierTransition() {
-        let current = engine.tenureTier
-        defer { lastSeenTierRawValue = current.rawValue }
-        guard !lastSeenTierRawValue.isEmpty,
-              let stored = TenureTier(rawValue: lastSeenTierRawValue),
-              current > stored else { return }
-        withAnimation(Theme.Motion.entrance) {
-            celebrationTier = current
-            showingTierCelebration = true
         }
     }
 }
@@ -137,115 +106,73 @@ struct TimeHeroHeader: View {
         return rate >= 0.8 ? .green : rate >= 0.5 ? .yellow : .red.opacity(0.7)
     }
 
+    /// The quiet tier milestone (T4): factual, in the mono eyebrow voice —
+    /// "MONTH 12 · NEW CHAPTER UNLOCKED" — shown only on the first month of a
+    /// new tier. Replaces the full-screen `TierCelebrationOverlay`; the first
+    /// tier (month 0) is the start, not an unlock, so it never shows.
+    private var milestoneLine: String? {
+        let month = engine.activeMonthsOnHRT
+        let tierStart: Int
+        switch TenureTier(months: month) {
+        case .t1Beginning: return nil
+        case .t2Emerging:  tierStart = 3
+        case .t3InMotion:  tierStart = 6
+        case .t4Deepening:  tierStart = 12
+        case .t5Settled:   tierStart = 24
+        case .t6Rooted:    tierStart = 60
+        case .t7Veteran:   tierStart = 120
+        }
+        guard month == tierStart else { return nil }
+        return "MONTH \(month) · NEW CHAPTER UNLOCKED"
+    }
+
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            // `activeMonthsOnHRT`, not `months`. The region card computes every
-            // phase, band and insight from the gap-aware count, and this header
-            // sits directly above it — two different numbers for "how long have
-            // I been doing this" on one screen is a bug, not a nuance.
-            Text(verbatim: AppNumberFormatters.months.string(engine.activeMonthsOnHRT))
-                .font(.system(size: 42, weight: .bold))
-                .tracking(-1.5)
-                // The Time screen's backdrop is near-black in both appearances,
-                // so the header uses explicit light text rather than adaptive.
-                .foregroundStyle(Color.white)
+        VStack(alignment: .leading, spacing: Theme.Spacing.tiny) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                // `activeMonthsOnHRT`, not `months`. The region card computes every
+                // phase, band and insight from the gap-aware count, and this header
+                // sits directly above it — two different numbers for "how long have
+                // I been doing this" on one screen is a bug, not a nuance.
+                Text(verbatim: AppNumberFormatters.months.string(engine.activeMonthsOnHRT))
+                    .font(Theme.Fonts.hero)
+                    .tracking(-1.5)
+                    // The Time screen's backdrop is near-black in both appearances,
+                    // so the header uses explicit light text rather than adaptive.
+                    .foregroundStyle(Color.white)
 
-            Text("Months")
-                .font(.system(size: 20, weight: .semibold))
-                .foregroundStyle(Color.white.opacity(0.65))
-
-            Spacer(minLength: 12)
-
-            // Regimen + live adherence, on the same baseline.
-            HStack(spacing: 6) {
-                Text("\(esterLabel) · \(engine.medication)")
-                    .font(.system(size: 13))
+                Text("Months")
+                    .font(Theme.Fonts.serifTitle)
                     .foregroundStyle(Color.white.opacity(0.65))
-                    .lineLimit(1)
 
-                if let rate = engine.adherenceRate {
-                    Circle()
-                        .fill(adherenceColor)
-                        .frame(width: 7, height: 7)
-                    Text(verbatim: "\(AppNumberFormatters.percent.string(rate * 100))%")
-                        .font(.system(size: 13, weight: .medium))
+                Spacer(minLength: 12)
+
+                // Regimen + live adherence, on the same baseline.
+                HStack(spacing: 6) {
+                    Text("\(esterLabel) · \(engine.medication)")
+                        .font(Theme.Fonts.detail)
                         .foregroundStyle(Color.white.opacity(0.65))
+                        .lineLimit(1)
+
+                    if let rate = engine.adherenceRate {
+                        Circle()
+                            .fill(adherenceColor)
+                            .frame(width: 7, height: 7)
+                        Text(verbatim: "\(AppNumberFormatters.percent.string(rate * 100))%")
+                            .font(Theme.Fonts.detail.weight(.medium))
+                            .foregroundStyle(Color.white.opacity(0.65))
+                    }
                 }
+            }
+
+            if let milestone = milestoneLine {
+                Text(verbatim: milestone)
+                    .font(Theme.Fonts.eyebrow)
+                    .tracking(0.6)
+                    .textCase(.uppercase)
+                    .foregroundStyle(Theme.Colors.accent)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-}
-
-// MARK: - Tier Celebration Overlay
-
-struct TierCelebrationOverlay: View {
-    let tier: TenureTier
-    let onDismiss: () -> Void
-
-    var body: some View {
-        ZStack {
-            Color.black.opacity(0.45)
-                .ignoresSafeArea()
-                .onTapGesture { onDismiss() }
-
-            VStack(spacing: 16) {
-                Image(systemName: "star.fill")
-                    .font(.system(size: 32))
-                    .foregroundStyle(tierColor)
-
-                VStack(spacing: 6) {
-                    Text("MILESTONE")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                        .tracking(0.5)
-                    Text(tier.timeBandLabel)
-                        .font(.system(size: 22, weight: .bold))
-                        .foregroundStyle(.primary)
-                    Text(subtitle)
-                        .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .lineSpacing(3)
-                        .padding(.horizontal, 8)
-                }
-
-                Button("Continue") { onDismiss() }
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(tierColor)
-                    .padding(.top, 4)
-            }
-            .padding(28)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
-            .overlay(
-                RoundedRectangle(cornerRadius: 20)
-                    .stroke(tierColor.opacity(0.2), lineWidth: 0.5)
-            )
-            .padding(.horizontal, 44)
-            .shadow(color: tierColor.opacity(0.15), radius: 30)
-        }
-    }
-
-    private var tierColor: Color {
-        switch tier {
-        case .t1Beginning, .t2Emerging, .t3InMotion: return .blue
-        case .t4Deepening: return .green
-        case .t5Settled:   return .purple
-        case .t6Rooted:    return .indigo
-        case .t7Veteran:   return .orange
-        }
-    }
-
-    private var subtitle: String {
-        switch tier {
-        case .t1Beginning: return "Your body is beginning to adapt to HRT."
-        case .t2Emerging:  return "First changes are starting to emerge."
-        case .t3InMotion:  return "This is the most active phase of change."
-        case .t4Deepening: return "Changes continue to deepen and settle."
-        case .t5Settled:   return "Changes are largely settled. You've reached a new baseline."
-        case .t6Rooted:    return "Five years on HRT — an established part of your health."
-        case .t7Veteran:   return "Ten years. A milestone worth acknowledging."
-        }
     }
 }
 

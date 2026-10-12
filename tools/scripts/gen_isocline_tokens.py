@@ -12,6 +12,7 @@ Writes (deterministically — re-running produces no diff):
     docs/design/tokens/isocline.tokens.js     the same JSON for file:// HTML docs
     docs/research/isocline.sty                Isocline Research LaTeX template
     xTTests/IsoclineTokenExpectations.swift   expected hexes for the parity test
+    xT/Assets.xcassets/LaunchPaper.colorset   the launch screen's paper (O3)
     THEME_COLOR_PAGES                         <meta name="theme-color"> values kept in sync
 
 Usage: python3 -I tools/scripts/gen_isocline_tokens.py   (stdlib only, Python 3.9+)
@@ -28,6 +29,15 @@ CSS_OUT = REPO / "docs" / "design" / "tokens" / "isocline.css"
 STY_OUT = REPO / "docs" / "research" / "isocline.sty"
 SWIFT_OUT = REPO / "xTTests" / "IsoclineTokenExpectations.swift"
 JS_OUT = REPO / "docs" / "design" / "tokens" / "isocline.tokens.js"
+# The launch screen can't read the user's seed, so it renders the default-seed
+# paper (element O3): light is cream at every seed (absolute hue) and only the
+# dark value is a default-seed approximation. A sub-second flash, close enough.
+# The colorset is emitted for completeness, but the launch *storyboard* embeds
+# raw resolved RGB values — ibtool rejects named-color references it can't
+# resolve at compile time, so `sync_launch_storyboard` keeps the two `<color>`
+# entries in step with the same resolved paper.
+LAUNCH_COLORSET = REPO / "xT" / "Assets.xcassets" / "LaunchPaper.colorset"
+LAUNCH_STORYBOARD = REPO / "xT" / "Base.lproj" / "xTLaunchScreen.storyboard"
 # Web pages whose per-scheme <meta name="theme-color"> must match the resolved paper.
 # Add every future web surface (landing page, Research site) here.
 THEME_COLOR_PAGES = [
@@ -293,6 +303,57 @@ def sync_theme_color(path, res):
     write(path, text)
 
 
+def emit_launch_colorset(res):
+    """LaunchPaper.colorset (element O3) — default-seed paper, light + dark."""
+    def color(h):
+        r, g, b = (int(h[i:i + 2], 16) / 255 for i in (1, 3, 5))
+        s = f"{r:.14g}, {g:.14g}, {b:.14g}"
+        return ('      {"color" : {"color-space" : "srgb", "components" : '
+                '{"red" : "%s", "green" : "%s", "blue" : "%s"}}, '
+                '"idiom" : "universal"}' % tuple(s.split(", ")))
+    def dark_color(h):
+        r, g, b = (int(h[i:i + 2], 16) / 255 for i in (1, 3, 5))
+        return ('      {"appearances" : [{"appearance" : "luminosity", "value" : "dark"}], '
+                '"color" : {"color-space" : "srgb", "components" : '
+                '{"red" : "%s", "green" : "%s", "blue" : "%s"}}, '
+                '"idiom" : "universal"}' % (f"{r:.14g}", f"{g:.14g}", f"{b:.14g}"))
+    return (
+        "{\n"
+        "  \"colors\" : [\n"
+        + color(res["light"]["paper"]) + ",\n"
+        + dark_color(res["dark"]["paper"]) + "\n"
+        "  ],\n"
+        "  \"info\" : {\n"
+        "    \"author\" : \"xcode\",\n"
+        "    \"version\" : 1\n"
+        "  }\n"
+        "}\n"
+    )
+
+
+def sync_launch_storyboard(res):
+    """Rewrite the launch storyboard's `<color key="backgroundColor">` to the resolved
+    default-seed light paper. Raw RGB, not the LaunchPaper color name — a launch
+    storyboard's XML can't express per-appearance background colors and ibtool
+    rejects named colors in launch screens, so dark mode shows the cream for the
+    sub-second flash until the app's own dark paper takes over (O3 accepts this)."""
+    import re
+    text = LAUNCH_STORYBOARD.read_text()
+    h = res["light"]["paper"].lstrip("#")
+    r, g, b = (f"{int(h[i:i + 2], 16) / 255:.14g}" for i in (0, 2, 4))
+    repl = (f'<color key="backgroundColor" red="{r}" green="{g}" blue="{b}" '
+            'alpha="1" colorSpace="custom" customColorSpace="sRGB"/>')
+    # Match either the seed marker (first generation) or a previously resolved
+    # value (re-generation) — idempotent like sync_theme_color.
+    pattern = (r'<color key="backgroundColor"(?: data-color="paper-light")?'
+               r'(?: red="[0-9.]+" green="[0-9.]+" blue="[0-9.]+" alpha="1"'
+               r' colorSpace="custom" customColorSpace="sRGB")?/>')
+    text, n = re.subn(pattern, repl, text)
+    if n != 1:
+        raise SystemExit(f"{LAUNCH_STORYBOARD}: expected one background color, found {n}")
+    write(LAUNCH_STORYBOARD, text)
+
+
 def latex_rgb(hexstr):
     h = hexstr.lstrip("#")
     return ",".join(str(int(h[i:i + 2], 16)) for i in (0, 2, 4))
@@ -433,6 +494,10 @@ def main():
     write(CSS_OUT, emit_css(tokens, res))
     write(STY_OUT, emit_sty(tokens, res))
     write(SWIFT_OUT, emit_swift(tokens, res))
+    # The launch screen's static paper (O3) — regenerated with the tokens.
+    LAUNCH_COLORSET.mkdir(parents=True, exist_ok=True)
+    write(LAUNCH_COLORSET / "Contents.json", emit_launch_colorset(res))
+    sync_launch_storyboard(res)
     for page in THEME_COLOR_PAGES:
         sync_theme_color(page, res)
     # For HTML docs opened over file:// (no fetch): the live hue dial reads this.

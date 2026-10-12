@@ -98,14 +98,15 @@ struct OnboardingView: View {
     // MARK: - Body
     var body: some View {
         ZStack {
-            Theme.Gradients.brand
-                .opacity(0.7)
+            // Paper ground (O1 step 1) — the brand gradient ground retired with
+            // the Isocline transition; onboarding reads like the app it opens.
+            Theme.Colors.appBackground
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
                 progressBar
-                    .padding(.top, 32)
-                    .padding(.horizontal, 40)
+                    .padding(.top, Theme.Spacing.xxxl)
+                    .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
 
                 ZStack {
                     Group {
@@ -162,13 +163,13 @@ struct OnboardingView: View {
     var progressBar: some View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(Theme.Colors.OnAccent.primary.opacity(0.3))
+                RoundedRectangle(cornerRadius: Theme.Radius.hairline)
+                    .fill(Theme.Colors.border)
                     .frame(height: 3)
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(Theme.Colors.accent.opacity(0.8))
+                RoundedRectangle(cornerRadius: Theme.Radius.hairline)
+                    .fill(Theme.Colors.accent)
                     .frame(width: geo.size.width * CGFloat(currentStep + 1) / CGFloat(totalStepCount), height: 3)
-                    .animation(.easeInOut(duration: 0.3), value: currentStep)
+                    .animation(Theme.Motion.quick, value: currentStep)
             }
         }
         .frame(height: 3)

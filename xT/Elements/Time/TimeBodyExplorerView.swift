@@ -164,11 +164,6 @@ struct TimeBodyExplorerView: View {
             // keep landing at the expanded detent too, so a lifted model stays
             // selectable.
             .presentationBackgroundInteraction(.enabled)
-            // The Time screen's backdrop is near-black in both appearances, so
-            // the sheet renders dark whatever the system setting is. Without
-            // this, Light Mode resolves the grabber and glass to the light
-            // side of the ground.
-            .environment(\.colorScheme, .dark)
     }
 
     /// Standard height — the detent the sheet rests at before any drag.
@@ -190,12 +185,13 @@ struct TimeBodyExplorerView: View {
         VStack {
             Spacer()
             Text("Tap a region to explore your changes")
-                .font(.system(size: 14, weight: .medium))
+                .font(Theme.Fonts.detail)
                 .foregroundStyle(.secondary)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .background(.ultraThinMaterial, in: Capsule())
-                .padding(.bottom, 28)
+                .padding(.horizontal, Theme.Spacing.lg)
+                .padding(.vertical, Theme.Spacing.row)
+                .background(Theme.Colors.cardSurface.opacity(0.85), in: Capsule())
+                .overlay(Capsule().strokeBorder(Theme.Colors.border, lineWidth: Theme.Line.hairline))
+                .padding(.bottom, Theme.Spacing.section)
         }
         .frame(maxWidth: .infinity)
     }

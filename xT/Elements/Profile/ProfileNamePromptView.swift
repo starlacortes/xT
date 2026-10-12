@@ -7,6 +7,9 @@
 //  device-local keychain key, so a wiped/reinstalled/new device reads it
 //  back as "no name" — this collects a replacement under the new key.
 //
+//  Sheet glass (O4): the sheet keeps its own system glass; inside, the field
+//  is a `ghostCard` slot and the primary action an `ActionPill`.
+//
 
 import SwiftUI
 
@@ -23,35 +26,29 @@ struct ProfileNamePromptView: View {
         NavigationStack {
             VStack(spacing: Theme.Spacing.xxl) {
                 Text("Set your name")
-                    .font(Theme.Fonts.title2)
-                    .fontWeight(.semibold)
+                    .font(Theme.Fonts.serifTitle)
 
                 Text("Your data is restored, but your profile name couldn't be carried over for privacy. Set it again below.")
                     .font(Theme.Fonts.body)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(Theme.Colors.textSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, Theme.Spacing.xxl)
 
                 TextField("Your name", text: $name)
                     .font(Theme.Fonts.body)
-                    .padding(.vertical, 12)
-                    .padding(.horizontal, 16)
-                    .background(RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                        .fill(Color.secondary.opacity(0.1)))
-                    .overlay(RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                        .stroke(Color.secondary.opacity(0.3), lineWidth: 1))
+                    .padding(.vertical, Theme.Spacing.md)
+                    .padding(.horizontal, Theme.Spacing.lg)
+                    .ghostCard(radius: Theme.Radius.sm)
                     .padding(.horizontal, Theme.Spacing.xxl)
                     .submitLabel(.done)
                     .onSubmit { save() }
 
                 VStack(spacing: Theme.Spacing.sm) {
-                    Button("Save") { save() }
-                        .asAccentButton()
-                        .disabled(trimmedName.isEmpty)
+                    ActionPill(title: "Save", isDisabled: trimmedName.isEmpty) { save() }
                     Button("Later") { isPresented = false }
                         .buttonStyle(.plain)
                         .font(Theme.Fonts.subheadline)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(Theme.Colors.textSecondary)
                 }
                 .padding(.horizontal, Theme.Spacing.xxl)
             }

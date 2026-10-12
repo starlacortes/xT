@@ -40,14 +40,12 @@
 		8FF476832E42783B002F8D71 /* Exceptions for "xT" folder in "xTTests" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				"/Localized: xTlogoLetters.png",
 			);
 			target = D2467CF92DD7A2CB00C98381 /* xTTests */;
 		};
 		8FF476842E42783B002F8D71 /* Exceptions for "xT" folder in "xTUITests" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				"/Localized: xTlogoLetters.png",
 			);
 			target = D2467D032DD7A2CB00C98381 /* xTUITests */;
 		};

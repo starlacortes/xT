@@ -7,8 +7,8 @@
 //  Eight near-identical copies of this row existed across the app: `typeCard`,
 //  `methodCard` and `esterCard` in TypeMethodSettingsView, and `pathCard`, `choiceCard`,
 //  `aaCard`, `methodCard` and the `esterList` rows in OnboardingView. They differed only
-//  in the bound field and — for Onboarding, which sits on the brand gradient — the
-//  surface treatment. Both treatments are available here via `Style`.
+//  in the bound field. The old `.onAccent` style (Onboarding's brand-gradient era)
+//  retired with the paper ground (O1).
 //
 
 import SwiftUI
@@ -16,10 +16,10 @@ import SwiftUI
 struct SelectableOptionRow: View {
 
     enum Style {
-        /// On a standard system background — Settings and other opaque screens.
+        /// On paper — every screen since onboarding moved off the brand
+        /// gradient (O1). Kept as an enum so a future ground can be added
+        /// without reopening every call site.
         case surface
-        /// On the brand gradient — the Onboarding flow.
-        case onAccent
     }
 
     /// `LocalizedStringResource` (not `String`) so the title localizes (X31).
@@ -104,42 +104,23 @@ struct SelectableOptionRow: View {
     // MARK: - Style resolution
 
     private var titleColor: Color {
-        switch style {
-        case .surface:  return Theme.Colors.textPrimary
-        case .onAccent: return Theme.Colors.OnAccent.primary
-        }
+        Theme.Colors.textPrimary
     }
 
     private var subtitleColor: Color {
-        switch style {
-        case .surface:  return Theme.Colors.textSecondary
-        case .onAccent: return Theme.Colors.OnAccent.tertiary
-        }
+        Theme.Colors.textSecondary
     }
 
     private var checkmarkColor: Color {
-        switch style {
-        case .surface:  return Theme.Colors.accent
-        case .onAccent: return Theme.Colors.OnAccent.primary
-        }
+        Theme.Colors.accent
     }
 
     private var fill: Color {
-        switch style {
-        case .surface:
-            return isSelected ? Theme.Colors.accent.opacity(0.1) : Theme.Colors.appBackground
-        case .onAccent:
-            return Theme.Colors.OnAccent.fill.opacity(isSelected ? 1.6 : 1)
-        }
+        isSelected ? Theme.Colors.accent.opacity(0.1) : Theme.Colors.appBackground
     }
 
     private var stroke: Color {
-        switch style {
-        case .surface:
-            return isSelected ? Theme.Colors.accent.opacity(0.3) : .clear
-        case .onAccent:
-            return isSelected ? Theme.Colors.OnAccent.strokeSelected : Theme.Colors.OnAccent.stroke
-        }
+        isSelected ? Theme.Colors.accent.opacity(0.3) : .clear
     }
 }
 
@@ -152,17 +133,6 @@ struct SelectableOptionRow: View {
                             isSelected: false) {}
     }
     .padding(Theme.Spacing.Gutter.screen)
-    .background(Color(.secondarySystemBackground))
-}
-
-#Preview("On accent") {
-    VStack(spacing: Theme.Spacing.sm) {
-        SelectableOptionRow(title: "Estrogen", subtitle: "Feminizing HRT",
-                            isSelected: true, style: .onAccent) {}
-        SelectableOptionRow(title: "Testosterone", subtitle: "Masculinizing HRT",
-                            isSelected: false, style: .onAccent) {}
-    }
-    .padding(Theme.Spacing.Gutter.onboarding)
-    .background(Theme.Gradients.brand)
+    .background(Theme.Colors.appBackground)
 }
 #endif
