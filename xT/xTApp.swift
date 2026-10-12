@@ -162,8 +162,20 @@ struct xTApp: App {
         }
 
 #if DEBUG
-        if DeveloperSettings.shared.sampleProfileEnabled && appContainer != nil {
+        // Sample-profile seeding (DEBUG only). Every branch above has already
+        // built and wired a container by this point, so the flag alone is the
+        // gate. The old guard also read `appContainer` — a `@State` property —
+        // inside init, where reading State is undefined (it isn't installed
+        // yet), so the seeding silently depended on that read happening to
+        // return the initial value. The explicit saves mirror the Developer-
+        // settings path (forceApply → save both contexts):
+        // `persistUserPreferences` saves its own writes, but anything still
+        // pending in the shared mainContext is committed here, so a process
+        // death right after launch can't lose the freshly seeded persona.
+        if DeveloperSettings.shared.sampleProfileEnabled {
             SpoofProfile.applyIfNeeded()
+            MedicationManager.shared.saveContext()
+            try? JournalManager.shared.modelContext?.save()
         }
 #else
         DeveloperSettings.scrubStaleReleaseState()

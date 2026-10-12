@@ -245,6 +245,23 @@ struct SettingsView: View {
                 }
                 .buttonStyle(.plain)
 
+#if DEBUG
+                // The Developer tools row, restored from the pre-Isocline
+                // About section — the Tier 4d gateway rebuild dropped its only
+                // navigation link, leaving DeveloperSettingsView unreachable
+                // from the running app. DEBUG builds only; release keeps the
+                // footer factual (ST10).
+                NavigationLink {
+                    DeveloperSettingsView()
+                } label: {
+                    Text("Developer")
+                        .font(Theme.Fonts.label)
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                        .monoLabel()
+                }
+                .buttonStyle(.plain)
+#endif
+
                 Text(verbatim: "SHAPED PROTOCOL.")
                     .font(Theme.Fonts.label)
                     .foregroundStyle(Theme.Colors.textTertiary)
