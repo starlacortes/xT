@@ -188,45 +188,50 @@ struct Theme {
 
     // MARK: Spacing
 
+    /// Values read from the generated `IsoclineTokens` (X7): one source for
+    /// web, print and app. The measured-histogram names below alias the
+    /// token-named constants (`tiny` == `s6`, …), and `IsoclineTokenParityTests`
+    /// pins both spellings to the tokens.
     struct Spacing {
-        static let xs: CGFloat      = 4
-        static let sm: CGFloat      = 8
-        static let md: CGFloat      = 12
-        static let lg: CGFloat      = 16
-        static let xl: CGFloat      = 20
-        static let xxl: CGFloat     = 24
-        static let card: CGFloat    = 14  // dominant card content padding
+        static let xs: CGFloat      = IsoclineTokens.Spacing.xs
+        static let sm: CGFloat      = IsoclineTokens.Spacing.sm
+        static let md: CGFloat      = IsoclineTokens.Spacing.md
+        static let lg: CGFloat      = IsoclineTokens.Spacing.lg
+        static let xl: CGFloat      = IsoclineTokens.Spacing.xl
+        static let xxl: CGFloat     = IsoclineTokens.Spacing.xxl
+        static let card: CGFloat    = IsoclineTokens.Spacing.card  // dominant card content padding
 
         // Added from the measured spacing histogram.
-        static let xxs: CGFloat     = 2   // 29 stack + 8 padding sites
-        static let tiny: CGFloat    = 6   // 29 stack + 8 padding sites
-        static let row: CGFloat     = 10  // 19 stack + 10 padding sites
-        static let section: CGFloat = 28  // 5 stack + 3 padding sites
-        static let jumbo: CGFloat   = 32  // 4 stack + 9 padding sites
+        static let xxs: CGFloat     = IsoclineTokens.Spacing.xxs  // 29 stack + 8 padding sites
+        static let tiny: CGFloat    = IsoclineTokens.Spacing.s6   // 29 stack + 8 padding sites
+        static let row: CGFloat     = IsoclineTokens.Spacing.s10  // 19 stack + 10 padding sites
+        static let section: CGFloat = IsoclineTokens.Spacing.s28 // 5 stack + 3 padding sites
+        static let jumbo: CGFloat   = IsoclineTokens.Spacing.xxxl // 4 stack + 9 padding sites
 
         /// Horizontal page gutters. Previously three competing literals (40 / 22 / 20)
         /// applied inconsistently; Home, Settings, Journal and the dose sheet now share
         /// one `screen` value and only Onboarding keeps its wider gradient inset.
         struct Gutter {
-            static let screen: CGFloat     = 22
+            static let screen: CGFloat     = IsoclineTokens.Spacing.gutter
             static let onboarding: CGFloat = 40
         }
     }
 
     // MARK: Radius
 
+    /// Values read from the generated `IsoclineTokens` (X7).
     struct Radius {
-        static let sm: CGFloat = 12
-        static let md: CGFloat = 16
-        static let lg: CGFloat = 20
-        static let xl: CGFloat = 24
+        static let sm: CGFloat = IsoclineTokens.Radius.sm
+        static let md: CGFloat = IsoclineTokens.Radius.md
+        static let lg: CGFloat = IsoclineTokens.Radius.lg
+        static let xl: CGFloat = IsoclineTokens.Radius.xl
 
         // Added from the measured corner-radius histogram.
-        static let hairline: CGFloat = 2   // dot tracks / progress rails (7 sites)
-        static let xs: CGFloat       = 4   // mini chips, progress bars (2 sites)
-        static let chip: CGFloat     = 6   // most common raw radius (12 sites)
-        static let control: CGFloat  = 8   // icon tiles, small buttons (6 sites)
-        static let tile: CGFloat     = 10  // stat tiles (9 sites)
+        static let hairline: CGFloat = IsoclineTokens.Radius.hairline // dot tracks / progress rails (7 sites)
+        static let xs: CGFloat       = IsoclineTokens.Radius.xs       // mini chips, progress bars (2 sites)
+        static let chip: CGFloat     = IsoclineTokens.Radius.chip     // most common raw radius (12 sites)
+        static let control: CGFloat  = IsoclineTokens.Radius.control // icon tiles, small buttons (6 sites)
+        static let tile: CGFloat     = IsoclineTokens.Radius.tile    // stat tiles (9 sites)
     }
 
     // MARK: Seed
@@ -237,7 +242,7 @@ struct Theme {
         /// the tokens (`default + n · 45°`, normalized). The alternate icon set
         /// (I2) uses the same list, so hue identity stays consistent between the
         /// picker and the icon (ST8).
-        static let stops: [Double] = [2.52, 47.52, 92.52, 137.52, 182.52, 227.52, 272.52, 317.52]
+        static let stops: [Double] = IsoclineTokens.Seed.stops
     }
 
     // MARK: Gradients

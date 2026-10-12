@@ -11,7 +11,8 @@ Writes (deterministically — re-running produces no diff):
     docs/design/tokens/isocline.css           CSS custom properties, light + dark
     docs/design/tokens/isocline.tokens.js     the same JSON for file:// HTML docs
     docs/research/isocline.sty                Isocline Research LaTeX template
-    xTTests/IsoclineTokenExpectations.swift   expected hexes for the parity test
+    xTTests/IsoclineTokenExpectations.swift   expected hexes and numeric values for the parity test
+    xT/Theme/IsoclineTokens.swift             numeric tokens Theme reads (X7)
     xT/Assets.xcassets/LaunchPaper.colorset   the launch screen's paper (O3)
     THEME_COLOR_PAGES                         <meta name="theme-color"> values kept in sync
 
@@ -28,6 +29,7 @@ TOKENS = REPO / "docs" / "design" / "tokens" / "isocline.tokens.json"
 CSS_OUT = REPO / "docs" / "design" / "tokens" / "isocline.css"
 STY_OUT = REPO / "docs" / "research" / "isocline.sty"
 SWIFT_OUT = REPO / "xTTests" / "IsoclineTokenExpectations.swift"
+TOKENS_SWIFT_OUT = REPO / "xT" / "Theme" / "IsoclineTokens.swift"
 JS_OUT = REPO / "docs" / "design" / "tokens" / "isocline.tokens.js"
 # The launch screen can't read the user's seed, so it renders the default-seed
 # paper (element O3): light is cream at every seed (absolute hue) and only the
@@ -456,6 +458,116 @@ def emit_sty(tokens, res):
 """
 
 
+def pascal(name):
+    """nowPoint -> NowPoint, for the generated nested enum names."""
+    return name[0].upper() + name[1:]
+
+
+def num(v):
+    """JSON number -> exact Swift literal text."""
+    return str(v) if isinstance(v, int) else repr(v)
+
+
+# Theme-facing names that alias a token-named spacing constant (X7). Emitted as
+# extra numeric expectations so a hand-edited alias can't drift from the token.
+SPACING_ALIASES = {
+    "s6": ["tiny"],
+    "s10": ["row"],
+    "s28": ["section"],
+    "xxxl": ["jumbo"],
+    "gutter": ["Gutter.screen"],
+}
+
+
+def emit_token_swift(tokens):
+    """The numeric token groups as Swift, read by Theme's own constants (X7).
+
+    Only numeric values are emitted; string members (colors, roles, radius
+    references like "control") stay in the JSON. Type sizes stay out too —
+    fonts are hand-kept in Theme.Fonts (F2), where size, weight and
+    relativeTo interplay as one decision.
+    """
+    lines = [
+        "//",
+        "//  IsoclineTokens.swift",
+        "//  xT",
+        "//",
+        f"//  {HEADER}",
+        "//  The numeric token groups (radius / spacing / line / curve / components",
+        "//  / seed stops), read by Theme's own constants so the app, the web pages",
+        "//  and Isocline Research print draw from one source. Colors stay",
+        "//  engine-computed in ThemePalette, pinned by the hex parity test.",
+        "//",
+        "",
+        "import CoreGraphics",
+        "",
+        "enum IsoclineTokens {",
+    ]
+
+    for group in ("radius", "spacing", "line"):
+        lines.append(f"    enum {group.capitalize()} {{")
+        for k, v in tokens[group].items():
+            lines.append(f"        static let {k}: CGFloat = {num(v)}")
+        lines += ["    }", ""]
+
+    lines.append("    enum Curve {")
+    for sub, d in tokens["curve"].items():
+        if not isinstance(d, dict):
+            continue
+        members = [(k, v) for k, v in d.items() if isinstance(v, (int, float))]
+        if not members:
+            continue  # color/role-only groups (e.g. curve.stroke) stay in the JSON
+        lines.append(f"        enum {pascal(sub)} {{")
+        for k, v in members:
+            lines.append(f"            static let {k}: CGFloat = {num(v)}")
+        lines.append("        }")
+    lines += ["    }", ""]
+
+    lines.append("    enum Component {")
+    for sub, d in tokens["components"].items():
+        if not isinstance(d, dict):
+            continue
+        members = [(k, v) for k, v in d.items() if isinstance(v, (int, float))]
+        if not members:
+            continue
+        lines.append(f"        enum {pascal(sub)} {{")
+        for k, v in members:
+            lines.append(f"            static let {k}: CGFloat = {num(v)}")
+        lines.append("        }")
+    lines += ["    }", ""]
+
+    stops = ", ".join(num(s) for s in tokens["resolved"]["seedStops"])
+    lines += [
+        "    enum Seed {",
+        f"        static let stops: [Double] = [{stops}]",
+        "    }",
+        "}",
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def numeric_expectations(tokens):
+    """(Theme constant path, expected value) pairs for the X7 parity test."""
+    entries = []
+    for k, v in tokens["radius"].items():
+        entries.append((f"Theme.Radius.{k}", v))
+    for k, v in tokens["spacing"].items():
+        entries.append((f"Theme.Spacing.{k}", v))
+        for alias in SPACING_ALIASES.get(k, []):
+            entries.append((f"Theme.Spacing.{alias}", v))
+    for k, v in tokens["line"].items():
+        entries.append((f"Theme.Line.{k}", v))
+    for sub, d in tokens["curve"].items():
+        if isinstance(d, dict):
+            for k, v in d.items():
+                if isinstance(v, (int, float)):
+                    entries.append((f"Theme.Curve.{pascal(sub)}.{k}", v))
+    for i, s in enumerate(tokens["resolved"]["seedStops"]):
+        entries.append((f"Theme.Seed.stops.{i}", s))
+    return entries
+
+
 def emit_swift(tokens, res):
     lines = [
         "//",
@@ -475,6 +587,14 @@ def emit_swift(tokens, res):
         field = recipe.get("app")
         if field:
             lines.append(f'        ("{field}", "{res["light"][name]}", "{res["dark"][name]}"),')
+    lines += [
+        "    ]",
+        "",
+        "    /// (Theme constant path, expected value) — numeric tokens (X7).",
+        "    static let numeric: [(theme: String, value: Double)] = [",
+    ]
+    for path, v in numeric_expectations(tokens):
+        lines.append(f'        ("{path}", {num(v)}),')
     lines += ["    ]", "}", ""]
     return "\n".join(lines)
 
@@ -494,6 +614,7 @@ def main():
     write(CSS_OUT, emit_css(tokens, res))
     write(STY_OUT, emit_sty(tokens, res))
     write(SWIFT_OUT, emit_swift(tokens, res))
+    write(TOKENS_SWIFT_OUT, emit_token_swift(tokens))
     # The launch screen's static paper (O3) — regenerated with the tokens.
     LAUNCH_COLORSET.mkdir(parents=True, exist_ok=True)
     write(LAUNCH_COLORSET / "Contents.json", emit_launch_colorset(res))

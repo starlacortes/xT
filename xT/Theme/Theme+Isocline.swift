@@ -10,8 +10,9 @@
 //  re-recipe (paper / card / ink / safety), the font switch, and the paper-ground
 //  migration land separately.
 //
-//  Values mirror docs/design/tokens/isocline.tokens.json (line.* / radius.specimen /
-//  spacing.* / curve.*). Edit the tokens first, regenerate, then reconcile here.
+//  Values read from the generated IsoclineTokens.swift (X7): edit
+//  docs/design/tokens/isocline.tokens.json, run the generator, and Theme —
+//  with the web and print outputs — moves together. The parity test pins it.
 //
 
 import SwiftUI
@@ -26,15 +27,15 @@ extension Theme {
     /// per element F3; both exist during the transition.)
     enum Line {
         /// Paper-card borders and dividers.
-        static let hairline: CGFloat  = 1
+        static let hairline: CGFloat  = IsoclineTokens.Line.hairline
         /// Emboss / hairline-mark relief.
-        static let engrave: CGFloat   = 0.75
+        static let engrave: CGFloat   = IsoclineTokens.Line.engrave
         /// The Home curve stroke.
-        static let curve: CGFloat     = 1.8
+        static let curve: CGFloat     = IsoclineTokens.Line.curve
         /// Specimen / hero curve stroke.
-        static let curveHero: CGFloat = 2.5
+        static let curveHero: CGFloat = IsoclineTokens.Line.curveHero
         /// Hollow measured-lab ring.
-        static let labRing: CGFloat   = 1.3
+        static let labRing: CGFloat   = IsoclineTokens.Line.labRing
     }
 
     // MARK: Curve (instrument) drawing constants (tokens: curve.*)
@@ -44,27 +45,27 @@ extension Theme {
     /// non-color drawing constants live here.
     enum Curve {
         enum Fill {
-            static let topOpacity: CGFloat    = 0.3
-            static let bottomOpacity: CGFloat = 0.0
+            static let topOpacity: CGFloat    = IsoclineTokens.Curve.Fill.topOpacity
+            static let bottomOpacity: CGFloat = IsoclineTokens.Curve.Fill.bottomOpacity
         }
         enum NowPoint {
-            static let haloOpacity: CGFloat = 0.15
-            static let dotDiameter: CGFloat = 10
-            static let haloDiameter: CGFloat = 26
+            static let haloOpacity: CGFloat = IsoclineTokens.Curve.NowPoint.haloOpacity
+            static let dotDiameter: CGFloat = IsoclineTokens.Curve.NowPoint.dotDiameter
+            static let haloDiameter: CGFloat = IsoclineTokens.Curve.NowPoint.haloDiameter
         }
         enum LabPoint {
             /// Hollow ring; stroke width is `Theme.Line.labRing`.
-            static let diameter: CGFloat = 9
+            static let diameter: CGFloat = IsoclineTokens.Curve.LabPoint.diameter
         }
         enum RangeBand {
-            static let opacity: CGFloat      = 0.05
+            static let opacity: CGFloat      = IsoclineTokens.Curve.RangeBand.opacity
             /// Cap on the band's y-span (the label still reads the true numbers).
-            static let maxSpanRatio: CGFloat = 2.5
+            static let maxSpanRatio: CGFloat = IsoclineTokens.Curve.RangeBand.maxSpanRatio
         }
         enum Glow {
             /// Night paper only, on the stroke; off under Reduce Transparency.
-            static let opacity: CGFloat = 0.35
-            static let radius: CGFloat  = 6
+            static let opacity: CGFloat = IsoclineTokens.Curve.Glow.opacity
+            static let radius: CGFloat  = IsoclineTokens.Curve.Glow.radius
         }
     }
 }
@@ -73,7 +74,7 @@ extension Theme {
 
 extension Theme.Radius {
     /// Appearance hue-specimen window (element S11).
-    static let specimen: CGFloat = 28
+    static let specimen: CGFloat = IsoclineTokens.Radius.specimen
 }
 
 // MARK: - Spacing (tokens: spacing.*)
@@ -82,9 +83,9 @@ extension Theme.Spacing {
     // Token-named aliases so a token read maps 1:1 to Swift. These equal the existing
     // (call-site-bearing) measured-histogram names rather than renaming them, so no
     // current caller breaks. The legacy names are retired call-site-by-call-site later.
-    static let s6: CGFloat     = 6    // == tiny
-    static let s10: CGFloat    = 10   // == row
-    static let s28: CGFloat    = 28   // == section
-    static let xxxl: CGFloat   = 32   // == jumbo
-    static let gutter: CGFloat = 22   // == Gutter.screen
+    static let s6: CGFloat     = IsoclineTokens.Spacing.s6    // == tiny
+    static let s10: CGFloat    = IsoclineTokens.Spacing.s10   // == row
+    static let s28: CGFloat    = IsoclineTokens.Spacing.s28   // == section
+    static let xxxl: CGFloat   = IsoclineTokens.Spacing.xxxl // == jumbo
+    static let gutter: CGFloat = IsoclineTokens.Spacing.gutter // == Gutter.screen
 }
