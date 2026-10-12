@@ -116,7 +116,10 @@ enum MedicationDisplayFormatter {
     }
 
     /// INJECTION / CREAM / ORAL from the active method, or the configured one.
-    private static func methodWord(for m: MedicationManager) -> String? {
+    ///
+    /// Shared with the notification content builder (NT1), so a dose reminder's
+    /// route word is the same word the dose card shows (U6).
+    static func methodWord(for m: MedicationManager) -> String? {
         let raw = m.latestActiveDose()?.administrationMethod ?? m.selectedAdministrationMethod
         guard let raw, let method = MedicationManager.AdministrationMethod(rawValue: raw) else { return nil }
         switch method {

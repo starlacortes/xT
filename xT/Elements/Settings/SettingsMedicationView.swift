@@ -202,6 +202,19 @@ struct SettingsMedicationView: View {
                 .padding(.vertical, Theme.Spacing.md)
                 .contentShape(Rectangle())
                 .onTapGesture { if journalRemindersEnabled { showingJournalTimePicker = true } }
+
+                SettingsGroupDivider()
+
+                NavigationLink {
+                    NotificationLayoutView()
+                } label: {
+                    SettingsRow(icon: "text.bubble",
+                                title: "Reminder layout",
+                                subtitle: "Choose what a reminder says") {
+                        SettingsChevron()
+                    }
+                }
+                .buttonStyle(.plain)
             }
         }
     }

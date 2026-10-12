@@ -9,6 +9,16 @@ import Foundation
 import UserNotifications
 import Observation
 
+/// The notification categories. Dose reminders split into two — `open` and
+/// `log` — because the action button's label is fixed per category; the content
+/// builder picks one from the layout, so changing the layout never re-registers
+/// categories (NT1). Both dose categories route to the same screen.
+enum NotificationType: String {
+    case doseReminderOpen = "dose_reminder_open"
+    case doseReminderLog = "dose_reminder_log"
+    case journalReminder = "journal_reminder"
+}
+
 /// Manages all local notification scheduling, permission state and tap handling.
 ///
 /// The manager is also the app's `UNUserNotificationCenterDelegate`; `registerNotificationHandling()`
@@ -18,11 +28,6 @@ import Observation
 @Observable
 final class NotificationManager: NSObject {
     static let shared = NotificationManager()
-
-    enum NotificationType: String {
-        case doseReminder = "dose_reminder"
-        case journalReminder = "journal_reminder"
-    }
 
     /// A screen the user asked for by acting on a notification.
     enum Route: String {
@@ -42,6 +47,9 @@ final class NotificationManager: NSObject {
         static let journalReminderEnabled = "journalReminderEnabled"
         static let journalReminderHour = "journalReminderHour"
         static let journalReminderMinute = "journalReminderMinute"
+        /// The chosen dose-reminder layout (NT1). The key lives on the layout type
+        /// itself; re-exported here so every device-local key has one home.
+        static let notificationLayout = NotificationLayout.storageKey
     }
 
     /// Fallback times used when a key has never been written. Chosen once here:
@@ -79,6 +87,9 @@ final class NotificationManager: NSObject {
     var journalReminderHour = Defaults.journalHour
     var journalReminderMinute = Defaults.journalMinute
 
+    /// What a dose reminder says (NT1). Discreet by default; persisted device-local.
+    var layout = NotificationLayout.discreet
+
     /// The dosing frequency in days. Drives whether the dose reminder is daily or on
     /// specific days. Single derivation lives on `MedicationManager` — the ester-aware
     /// due interval, so a TU user's next reminder sits 10 weeks out, not weekly.
@@ -87,8 +98,11 @@ final class NotificationManager: NSObject {
     private let doseNotificationRequestKey = "dose_reminder_request"
     private let journalNotificationRequestKey = "journal_reminder_request"
 
-    /// Identifier of the "Log Dose" button attached to dose reminders.
+    /// Identifiers of the two dose-reminder action buttons. Both open the
+    /// record-dose sheet; the labels differ ("Log dose" vs "Open") and belong to
+    /// the `doseReminderLog` / `doseReminderOpen` categories respectively.
     private static let logDoseActionIdentifier = "dose_action_log"
+    private static let openDoseActionIdentifier = "dose_action_open"
 
     // MARK: - Initialization
     override init() {
@@ -274,23 +288,38 @@ final class NotificationManager: NSObject {
         return UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
     }
 
-    /// Builds the notification content for dose reminders.
-    ///
-    /// The notification reports that a scheduled dose has come due and names what
-    /// it is. It does not instruct the user to take it or to open the app — they
-    /// asked to be told the time; what they do with it is theirs.
+    /// Builds a dose reminder's content from the current regimen and the chosen
+    /// layout (NT1). The builder itself is pure; this only assembles the context.
     private func doseNotificationContent() -> UNMutableNotificationContent {
-        let content = UNMutableNotificationContent()
-        content.title = String(localized: "Dose scheduled",
-                               comment: "Notification title when a scheduled dose comes due")
-        content.sound = .default
-        content.categoryIdentifier = NotificationType.doseReminder.rawValue
+        NotificationContentBuilder.content(for: currentDoseContext(), layout: layout)
+    }
 
-        if let medInfo = getMedicationContext() {
-            content.body = medInfo
-        }
+    /// The regimen facts a dose reminder may name, resolved once (H-D6). Fields
+    /// the layout doesn't ask for are never read; fields whose data is missing
+    /// resolve to `nil` and the builder drops them.
+    private func currentDoseContext() -> DoseContext {
+        let manager = MedicationManager.shared
+        let method = manager.latestActiveDose()?.administrationMethod
+            ?? manager.selectedAdministrationMethod
+        let defaults = manager.resolvedDoseDefaults(medication: manager.selectedMedication,
+                                                    method: method)
+        let routeClass = RouteClass.from(method: method ?? "")
+        return DoseContext(
+            medication: MedicationDisplayFormatter.medicationName(manager),
+            amountMg: defaults.amountMg,
+            route: MedicationDisplayFormatter.methodWord(for: manager),
+            scheduledDate: doseReminderScheduledDate(),
+            suggestedSite: manager.siteSuggestion(routeClass: routeClass).suggested
+        )
+    }
 
-        return content
+    /// The reminder time applied to the next due date, for the body's "due …" field.
+    private func doseReminderScheduledDate() -> Date {
+        let base = MedicationManager.shared.nextDoseDate ?? Date()
+        var components = Calendar.current.dateComponents([.year, .month, .day], from: base)
+        components.hour = doseReminderHour
+        components.minute = doseReminderMinute
+        return Calendar.current.date(from: components) ?? base
     }
 
     /// Schedule a daily journal reminder at the configured time.
@@ -309,14 +338,9 @@ final class NotificationManager: NSObject {
 
         let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
 
-        let content = UNMutableNotificationContent()
-        // The user set this reminder; it tells them it has fired. It does not ask
-        // them how they feel or urge them to write. No body — the title says
-        // everything the notification knows.
-        content.title = String(localized: "Journal reminder",
-                               comment: "Notification title for the daily journal reminder the user scheduled")
-        content.sound = .default
-        content.categoryIdentifier = NotificationType.journalReminder.rawValue
+        // The user set this reminder; it tells them it has fired. It takes the
+        // chosen title style (NT1) but its body never carries health data.
+        let content = NotificationContentBuilder.journalContent(layout: layout)
 
         let request = UNNotificationRequest(identifier: journalNotificationRequestKey, content: content, trigger: trigger)
 
@@ -344,14 +368,16 @@ final class NotificationManager: NSObject {
         // Swiping a reminder away is an explicit "not now" — never navigate on it.
         guard actionIdentifier != UNNotificationDismissActionIdentifier else { return }
 
-        // The "Log Dose" button goes to dose logging regardless of which reminder carried it.
-        if actionIdentifier == Self.logDoseActionIdentifier {
+        // Either dose action button goes to dose logging regardless of which
+        // reminder carried it — "Log dose" and "Open" open the same sheet (NT1).
+        if actionIdentifier == Self.logDoseActionIdentifier
+            || actionIdentifier == Self.openDoseActionIdentifier {
             pendingRoute = .logDose
             return
         }
 
         switch category {
-        case NotificationType.doseReminder.rawValue:
+        case NotificationType.doseReminderOpen.rawValue, NotificationType.doseReminderLog.rawValue:
             pendingRoute = .logDose
         case NotificationType.journalReminder.rawValue:
             pendingRoute = .journal
@@ -431,17 +457,16 @@ final class NotificationManager: NSObject {
             ? defaults.integer(forKey: Keys.journalReminderHour) : Defaults.journalHour
         journalReminderMinute = defaults.object(forKey: Keys.journalReminderMinute) != nil
             ? defaults.integer(forKey: Keys.journalReminderMinute) : Defaults.journalMinute
+        layout = NotificationLayout.load(from: defaults)
     }
 
-    /// A short description of the configured dose, for the reminder body.
-    ///
-    /// Returns `nil` until a medication is chosen, in which case the generic copy stands.
-    private func getMedicationContext() -> String? {
-        let mgr = MedicationManager.shared
-        guard let medication = mgr.selectedMedication else { return nil }
-        guard let amount = mgr.defaultDoseAmount, amount > 0 else { return medication }
-        return String(localized: "\(AppNumberFormatters.dose.string(amount)) mg \(medication)",
-                      comment: "Dose amount and medication name, e.g. '4 mg Estrogen'")
+    /// Persist and apply a new dose-reminder layout, then reschedule so the next
+    /// reminder already speaks the new layout (NT1 step 3).
+    func setLayout(_ newLayout: NotificationLayout) {
+        let normalized = newLayout.normalized()
+        layout = normalized
+        normalized.save()
+        Task { await scheduleAllReminders() }
     }
 
     // MARK: - Notification Categories
@@ -452,30 +477,44 @@ final class NotificationManager: NSObject {
         let center = UNUserNotificationCenter.current()
         center.delegate = self
 
-        let doseAction = UNNotificationAction(
+        // The hidden-preview placeholder is "Reminder" for every category, so a
+        // phone set to hide previews still names nothing (NT1).
+        let placeholder = NotificationContentBuilder.hiddenPreviewPlaceholder
+
+        let logAction = UNNotificationAction(
             identifier: Self.logDoseActionIdentifier,
-            title: String(localized: "Record dose",
-                          comment: "Notification action button that opens the dose entry screen"),
+            title: NotificationContentBuilder.logDoseActionTitle,
             options: [.foreground]
         )
 
-        let doseCategory = UNNotificationCategory(
-            identifier: NotificationType.doseReminder.rawValue,
-            actions: [doseAction],
+        let openAction = UNNotificationAction(
+            identifier: Self.openDoseActionIdentifier,
+            title: NotificationContentBuilder.openActionTitle,
+            options: [.foreground]
+        )
+
+        let doseOpenCategory = UNNotificationCategory(
+            identifier: NotificationType.doseReminderOpen.rawValue,
+            actions: [openAction],
             intentIdentifiers: [],
-            hiddenPreviewsBodyPlaceholder: String(localized: "Dose reminder",
-                comment: "Placeholder shown instead of the notification body when previews are hidden")
+            hiddenPreviewsBodyPlaceholder: placeholder
+        )
+
+        let doseLogCategory = UNNotificationCategory(
+            identifier: NotificationType.doseReminderLog.rawValue,
+            actions: [logAction],
+            intentIdentifiers: [],
+            hiddenPreviewsBodyPlaceholder: placeholder
         )
 
         let journalCategory = UNNotificationCategory(
             identifier: NotificationType.journalReminder.rawValue,
             actions: [],
             intentIdentifiers: [],
-            hiddenPreviewsBodyPlaceholder: String(localized: "Journal reminder",
-                comment: "Placeholder shown instead of the notification body when previews are hidden")
+            hiddenPreviewsBodyPlaceholder: placeholder
         )
 
-        center.setNotificationCategories([doseCategory, journalCategory])
+        center.setNotificationCategories([doseOpenCategory, doseLogCategory, journalCategory])
     }
 }
 

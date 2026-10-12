@@ -52,12 +52,6 @@ enum HomeLayout {
     static let accessibilityCurveFraction = 0.4
 }
 
-/// Notification composer limits (NT1).
-enum NotificationLayout {
-    /// Maximum length of the user's own-words line in a customized dose reminder.
-    static let ownWordsMaxLength = 40
-}
-
 /// Time of day a timestamp falls in, by the hour ranges in H-D0 (J5).
 ///
 /// morning 5–11 · afternoon 12–16 · evening 17–20 · night 21–4.
