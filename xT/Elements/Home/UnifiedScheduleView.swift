@@ -28,10 +28,7 @@ struct UnifiedScheduleView: View {
             VStack(alignment: .leading, spacing: 20) {
                 // Header with profile info
                 HStack {
-                    Image(uiImage: profileManager.getCurrentProfileImage())
-                        .resizable()
-                        .frame(width: 60, height: 60)
-                        .clipShape(Circle())
+                    AvatarView(image: profileManager.profilePhoto, size: 60)
 
                     VStack(alignment: .leading) {
                         Text("Hello, \(profileManager.profileDisplayName)")

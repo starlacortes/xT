@@ -68,6 +68,8 @@ struct PreferredZonesListView: View {
                 }
             }
         }
+        .paperList()
+        .tint(Theme.Colors.accent)
         .navigationTitle("Preferred Zones")
         .navigationBarTitleDisplayMode(.inline)
     }

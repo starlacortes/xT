@@ -19,31 +19,29 @@ struct PreferredZonesEditorView: View {
     @State private var selectedZones: [String: Bool] = [:]
 
     var body: some View {
-        NavigationStack {
-            List {
-                ForEach(ZoneCentroidStore.shared.labels, id: \.self) { zone in
-                    Toggle(zone, isOn: Binding(
-                        get: { selectedZones[zone] ?? false },
-                        set: { selectedZones[zone] = $0 }
-                    ))
-                }
+        // Pushed from PreferredZonesListView — no nested NavigationStack (ST6).
+        List {
+            ForEach(ZoneCentroidStore.shared.labels, id: \.self) { zone in
+                Toggle(zone, isOn: Binding(
+                    get: { selectedZones[zone] ?? false },
+                    set: { selectedZones[zone] = $0 }
+                ))
             }
-            .navigationTitle("Preferred Zones")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+        }
+        .paperList()
+        .tint(Theme.Colors.accent)
+        .navigationTitle("Preferred Zones")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Save") {
+                    let enabled = selectedZones
+                        .filter { $0.value }
+                        .map { $0.key }
+                    onSave(enabled)
+                    dismiss()
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        let enabled = selectedZones
-                            .filter { $0.value }
-                            .map { $0.key }
-                        onSave(enabled)
-                        dismiss()
-                    }
-                    .fontWeight(.semibold)
-                }
+                .fontWeight(.semibold)
             }
         }
         .onAppear {

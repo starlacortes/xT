@@ -79,6 +79,7 @@ struct HistoryListView<Item: Identifiable, RowContent: View, ComposerContent: Vi
                 }
             }
         }
+        .paperList()
         .navigationTitle(title)
         .toolbar {
             if let addLabel {

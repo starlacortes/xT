@@ -280,12 +280,7 @@ extension OnboardingView {
 
             // Photo
             Button { showImagePicker = true } label: {
-                Image(uiImage: profileManager.getCurrentProfileImage())
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 100, height: 100)
-                    .clipShape(Circle())
-                    .overlay(Circle().stroke(Theme.Colors.OnAccent.primary.opacity(0.6), lineWidth: 2))
+                AvatarView(image: profileManager.profilePhoto, size: 100)
                     .id(profilePhotoNonce)
             }
             Text("Tap to add photo")

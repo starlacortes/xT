@@ -229,6 +229,17 @@ struct Theme {
         static let tile: CGFloat     = 10  // stat tiles (9 sites)
     }
 
+    // MARK: Seed
+
+    /// Seed-hue constants derived from the brand rose, `#D4537E`.
+    struct Seed {
+        /// The eight quick-stop hues in the Appearance picker — `seed.stops` in
+        /// the tokens (`default + n · 45°`, normalized). The alternate icon set
+        /// (I2) uses the same list, so hue identity stays consistent between the
+        /// picker and the icon (ST8).
+        static let stops: [Double] = [2.52, 47.52, 92.52, 137.52, 182.52, 227.52, 272.52, 317.52]
+    }
+
     // MARK: Gradients
 
     @MainActor

@@ -2,8 +2,11 @@
 //  ProfileEditorView.swift
 //  xT
 //
-//  Created by Cline on 4/5/2026.
-//  Dedicated profile editing interface
+//  The profile editor, presented as a sheet from the Settings header (ST2).
+//  Its own `NavigationStack` with Cancel/Save is correct now that it's a
+//  sheet — it was wrong when the editor was pushed. Isocline: `AvatarView`
+//  with the hairline ring (no 3pt accent ring), flush rows, and a `ghostCard`
+//  for the name field. The sheet's own glass is the card surface.
 //
 
 import SwiftUI
@@ -21,15 +24,16 @@ struct ProfileEditorView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: Theme.Spacing.xl) {
+                VStack(alignment: .leading, spacing: Theme.Spacing.section) {
                     avatarHeader
                     nameSection
                     photoSection
                 }
                 .padding(.horizontal, Theme.Spacing.Gutter.screen)
-                .padding(.vertical, Theme.Spacing.xl)
+                .padding(.top, Theme.Spacing.md)
+                .padding(.bottom, Theme.Spacing.xxl)
             }
-            .background(Color(.systemGroupedBackground))
+            .background(Theme.Colors.appBackground)
             .navigationTitle("Edit Profile")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -84,25 +88,20 @@ struct ProfileEditorView: View {
                 showingPhotoSourceDialog = true
             } label: {
                 ZStack(alignment: .bottomTrailing) {
-                    Image(uiImage: profileManager.getCurrentProfileImage())
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 112, height: 112)
-                        .clipShape(Circle())
-                        .overlay(Circle().stroke(Theme.Colors.accent, lineWidth: 3))
+                    AvatarView(image: profileManager.profilePhoto, size: AvatarView.Size.editor)
 
                     Image(systemName: "camera.fill")
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(Theme.Colors.OnAccent.primary)
                         .frame(width: 32, height: 32)
                         .background(Circle().fill(Theme.Colors.accent))
-                        .overlay(Circle().stroke(Color(.systemGroupedBackground), lineWidth: 3))
+                        .overlay(Circle().strokeBorder(Theme.Colors.appBackground, lineWidth: 3))
                 }
             }
             .buttonStyle(.plain)
 
-            Text(name.isEmpty ? "Your Profile" : name)
-                .font(Theme.Fonts.headline)
+            Text(verbatim: name.isEmpty ? "Your Profile" : name)
+                .font(Theme.Fonts.serifTitle)
                 .foregroundStyle(Theme.Colors.textPrimary)
 
             Text("Tap the photo to change it")
@@ -124,10 +123,7 @@ struct ProfileEditorView: View {
                 .foregroundStyle(Theme.Colors.textPrimary)
                 .textFieldStyle(.plain)
                 .padding(Theme.Spacing.lg)
-                .background(
-                    RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                        .fill(Theme.Colors.appBackground)
-                )
+                .ghostCard(radius: Theme.Radius.lg)
                 .onChange(of: name) { _, _ in
                     checkForChanges()
                 }
@@ -141,56 +137,46 @@ struct ProfileEditorView: View {
             SheetSectionLabel(text: "Photo")
 
             VStack(spacing: 0) {
-                photoSourceRow(
-                    icon: "photo",
-                    tint: Theme.Colors.accent,
-                    title: "Photo Library",
-                    subtitle: "Choose from your photos"
-                ) {
+                photoSourceRow(icon: "photo",
+                               title: "Photo Library",
+                               subtitle: "Choose from your photos") {
                     profileManager.showImagePicker = true
                 }
 
-                HairlineDivider()
+                HairlineDivider(inset: Theme.Spacing.card)
 
-                photoSourceRow(
-                    icon: "camera",
-                    tint: Theme.Colors.accentSecondary,
-                    title: "Take Photo",
-                    subtitle: "Use your camera"
-                ) {
+                photoSourceRow(icon: "camera",
+                               title: "Take Photo",
+                               subtitle: "Use your camera") {
                     profileManager.showCamera = true
                 }
 
-                HairlineDivider()
+                HairlineDivider(inset: Theme.Spacing.card)
 
-                photoSourceRow(
-                    icon: "person.crop.circle.badge.xmark",
-                    tint: Theme.Colors.error,
-                    title: "Remove Photo",
-                    subtitle: "Use the default avatar",
-                    showsChevron: false
-                ) {
+                photoSourceRow(icon: "person.crop.circle.badge.xmark",
+                               title: "Remove Photo",
+                               subtitle: "Use the default avatar",
+                               showsChevron: false,
+                               isDestructive: true) {
                     removePhoto()
                 }
             }
-            .background(
-                RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                    .fill(Theme.Colors.appBackground)
-            )
         }
     }
 
-    private func photoSourceRow(icon: String, tint: Color, title: String, subtitle: String,
+    private func photoSourceRow(icon: String, title: LocalizedStringResource,
+                                subtitle: LocalizedStringResource,
                                 showsChevron: Bool = true,
+                                isDestructive: Bool = false,
                                 action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: Theme.Spacing.card) {
-                SettingsIconTile(icon: icon, background: tint.opacity(0.15), color: tint)
+                SettingsIconTile(icon: icon)
 
                 VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
                     Text(title)
                         .font(Theme.Fonts.callout)
-                        .foregroundStyle(Theme.Colors.textPrimary)
+                        .foregroundStyle(isDestructive ? Theme.Colors.error : Theme.Colors.textPrimary)
                     Text(subtitle)
                         .font(Theme.Fonts.caption)
                         .foregroundStyle(Theme.Colors.textSecondary)
@@ -199,12 +185,10 @@ struct ProfileEditorView: View {
                 Spacer()
 
                 if showsChevron {
-                    Image(systemName: "chevron.right")
-                        .font(Theme.Fonts.caption)
-                        .foregroundStyle(Theme.Colors.textTertiary)
+                    SettingsChevron()
                 }
             }
-            .padding(.horizontal, Theme.Spacing.lg)
+            .padding(.horizontal, Theme.Spacing.card)
             .padding(.vertical, Theme.Spacing.md)
             .contentShape(Rectangle())
         }
@@ -239,9 +223,7 @@ struct ProfileEditorView: View {
 // MARK: - Preview
 #if DEBUG
 #Preview {
-    NavigationStack {
-        ProfileEditorView()
-            .environment(\.profileManager, ProfileManager.shared)
-    }
+    ProfileEditorView()
+        .environment(\.profileManager, ProfileManager.shared)
 }
 #endif

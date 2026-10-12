@@ -125,7 +125,8 @@ struct DoseHistoryRow: View {
                 if dose.isUserCorrected {
                     HStack(spacing: 2) {
                         Image(systemName: "arrow.triangle.swap")
-                            .font(.system(size: 8))
+                            .font(Theme.Fonts.caption2)
+                            .imageScale(.small)
                         Text("Corrected")
                     }
                     .font(Theme.Fonts.caption2)
@@ -142,7 +143,8 @@ struct DoseHistoryRow: View {
             if dose.isUserCorrected, !dose.originalSites.isEmpty {
                 HStack(spacing: 4) {
                     Image(systemName: "clock.arrow.circlepath")
-                        .font(.system(size: 8))
+                        .font(Theme.Fonts.caption2)
+                            .imageScale(.small)
                     Text("Originally: ")
                         .font(Theme.Fonts.caption2)
                         .foregroundStyle(.tertiary)

@@ -71,7 +71,7 @@ struct TypeMethodSettingsView: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 24)
             }
-            .background(Color(.systemGroupedBackground))
+            .background(Theme.Colors.appBackground)
             .navigationTitle("Type & Method")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

@@ -45,6 +45,8 @@ struct AvoidZonesEditorView: View {
                 }
             }
         }
+        .paperList()
+        .tint(Theme.Colors.accent)
         .navigationTitle("Avoid Zones")
         .sheet(isPresented: $showZonePreview) {
             if let zone = selectedZone {

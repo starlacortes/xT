@@ -18,7 +18,8 @@ import SwiftUI
 /// from `hour`/`minute`, so there is only one copy of the value and no way for the two to
 /// drift apart.
 struct TimePickerSheet: View {
-    let title: String
+    /// `LocalizedStringResource` (not `String`) so the sheet title localizes (X31).
+    let title: LocalizedStringResource
     @Binding var hour: Int
     @Binding var minute: Int
     @Binding var isPresented: Bool

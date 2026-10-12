@@ -22,7 +22,11 @@ struct SelectableOptionRow: View {
         case onAccent
     }
 
-    let title: String
+    /// `LocalizedStringResource` (not `String`) so the title localizes (X31).
+    /// Callers holding a runtime string (enum raw values) use the
+    /// `init(title:…)` convenience below, which treats it as a key — a missing
+    /// key renders the literal itself.
+    let title: LocalizedStringResource
     /// `LocalizedStringResource?` (not `String?`) so Markdown grammar such as
     /// `^[…](inflect: true)` is parsed. A `String` variable would render
     /// verbatim and leave the inflection marker visible on screen.
@@ -69,6 +73,32 @@ struct SelectableOptionRow: View {
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+    }
+
+    // MARK: - Initializers
+
+    /// Designated initializer. Declared explicitly because defining any init in
+    /// the body suppresses the synthesized memberwise one.
+    init(title: LocalizedStringResource, subtitle: LocalizedStringResource? = nil,
+         isSelected: Bool, style: Style = .surface, action: @escaping () -> Void) {
+        self.title = title
+        self.subtitle = subtitle
+        self.isSelected = isSelected
+        self.style = style
+        self.action = action
+    }
+
+    /// For runtime titles (enum raw values like "Injectable") that can't be
+    /// string literals: `LocalizedStringResource(stringLiteral:)` treats the
+    /// string as a key, and a missing key renders the literal — so today's
+    /// behavior is preserved while literal call sites gain extraction (X31).
+    init(title: String, subtitle: LocalizedStringResource? = nil,
+         isSelected: Bool, style: Style = .surface, action: @escaping () -> Void) {
+        // Hoisted: an inline `LocalizedStringResource(stringLiteral: title)`
+        // inside `self.init(…)` resolves against this String init (recursion).
+        let resource = LocalizedStringResource(stringLiteral: title)
+        self.init(title: resource,
+                  subtitle: subtitle, isSelected: isSelected, style: style, action: action)
     }
 
     // MARK: - Style resolution

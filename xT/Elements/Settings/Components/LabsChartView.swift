@@ -3,9 +3,12 @@
 //  xT
 //
 //  Static chart comparing measured lab draws against the model's uncalibrated
-//  prediction at each draw date. Reuses CurveLayout's index-based positioning
-//  primitives (the same ones FlatGraphView uses) rather than a date-proportional
-//  axis, since the rest of the app's charts are built the same way.
+//  prediction at each draw date (ST9). Tier 4d adopts the Home curve
+//  vocabulary:
+//  - x is **time-proportional** (not index-based), so gaps between draws read
+//    honestly — a three-month gap between draws is three months wide;
+//  - the modeled series is a continuous curve, no dash;
+//  - measured draws are hollow rings, not filled dots.
 //
 
 import SwiftUI
@@ -64,6 +67,16 @@ struct LabsChartView: View {
 
     // MARK: - Chart
 
+    /// Time-proportional x: the first and last draws pin the plot edges, and
+    /// everything between sits at its true fraction of the drawn span.
+    private func xFor(_ point: LabsSeriesPoint,
+                      first: Date, span: TimeInterval, width: CGFloat) -> CGFloat {
+        let fraction = span > 0
+            ? point.drawDate.timeIntervalSince(first) / span
+            : 0.5
+        return CGFloat(fraction) * width
+    }
+
     private var chart: some View {
         GeometryReader { geo in
             let width = max(geo.size.width - axisGutter, 1)
@@ -71,6 +84,11 @@ struct LabsChartView: View {
             let (lo, hi) = bounds
             let range = max(hi - lo, 0.0001)
             let ticks = CurveLayout.niceTicks(min: lo, max: hi)
+
+            // The drawn time span, pinned by the first and last draws.
+            let first = points.first?.drawDate ?? Date()
+            let last = points.last?.drawDate ?? first
+            let span = last.timeIntervalSince(first)
 
             ZStack(alignment: .topLeading) {
                 ForEach(ticks, id: \.self) { tick in
@@ -86,34 +104,42 @@ struct LabsChartView: View {
                         .position(x: (axisGutter - 6) / 2, y: y)
                 }
 
-                modeledPath(width: width, height: height, lo: lo, range: range)
+                // Modeled: one continuous curve, no dash (ST9).
+                modeledPath(width: width, height: height, lo: lo, range: range,
+                            first: first, span: span)
                     .stroke(Theme.Colors.Time.skin.base,
-                            style: StrokeStyle(lineWidth: 1.5, lineCap: .round, dash: [5, 4]))
+                            style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
                     .offset(x: axisGutter)
 
                 if points.count > 1 {
-                    measuredPath(width: width, height: height, lo: lo, range: range)
+                    measuredPath(width: width, height: height, lo: lo, range: range,
+                                 first: first, span: span)
                         .stroke(Theme.Colors.accent, style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
                         .offset(x: axisGutter)
                 }
 
-                ForEach(Array(points.enumerated()), id: \.element.id) { index, point in
-                    let x = CurveLayout.xPos(index: index, count: points.count, width: width) + axisGutter
+                // Measured draws: hollow rings (ST9), the same vocabulary as
+                // the in-window lab rings on the Home curve.
+                ForEach(points) { point in
+                    let x = xFor(point, first: first, span: span, width: width) + axisGutter
                     let y = CurveLayout.yPos(value: point.measured, min: lo, range: range, height: height)
-                    Circle()
-                        .fill(Theme.Colors.accent)
-                        .frame(width: 7, height: 7)
-                        .position(x: x, y: y)
+                    ZStack {
+                        Circle().fill(Theme.Colors.cardSurface)
+                        Circle().strokeBorder(Theme.Colors.accent, lineWidth: 2)
+                    }
+                    .frame(width: 9, height: 9)
+                    .position(x: x, y: y)
                 }
             }
         }
     }
 
     /// Straight-line trace through the measured levels, one point per draw.
-    private func measuredPath(width: CGFloat, height: CGFloat, lo: Double, range: Double) -> Path {
+    private func measuredPath(width: CGFloat, height: CGFloat, lo: Double, range: Double,
+                              first: Date, span: TimeInterval) -> Path {
         Path { path in
             for (index, point) in points.enumerated() {
-                let x = CurveLayout.xPos(index: index, count: points.count, width: width)
+                let x = xFor(point, first: first, span: span, width: width)
                 let y = CurveLayout.yPos(value: point.measured, min: lo, range: range, height: height)
                 if index == 0 {
                     path.move(to: CGPoint(x: x, y: y))
@@ -126,15 +152,16 @@ struct LabsChartView: View {
 
     /// Straight-line trace through the modeled predictions, breaking the line at
     /// any draw where `predicted` is nil rather than interpolating across it.
-    private func modeledPath(width: CGFloat, height: CGFloat, lo: Double, range: Double) -> Path {
+    private func modeledPath(width: CGFloat, height: CGFloat, lo: Double, range: Double,
+                             first: Date, span: TimeInterval) -> Path {
         Path { path in
             var isDrawing = false
-            for (index, point) in points.enumerated() {
+            for point in points {
                 guard let predicted = point.predicted else {
                     isDrawing = false
                     continue
                 }
-                let x = CurveLayout.xPos(index: index, count: points.count, width: width)
+                let x = xFor(point, first: first, span: span, width: width)
                 let y = CurveLayout.yPos(value: predicted, min: lo, range: range, height: height)
                 if isDrawing {
                     path.addLine(to: CGPoint(x: x, y: y))
@@ -150,13 +177,17 @@ struct LabsChartView: View {
 
     private var legend: some View {
         HStack(spacing: Theme.Spacing.lg) {
-            HStack(spacing: 6) {
-                Circle().fill(Theme.Colors.accent).frame(width: 7, height: 7)
-                Text("Measured").font(Theme.Fonts.caption2).foregroundStyle(.secondary)
+            HStack(spacing: Theme.Spacing.tiny) {
+                ZStack {
+                    Circle().fill(Theme.Colors.cardSurface)
+                    Circle().strokeBorder(Theme.Colors.accent, lineWidth: 2)
+                }
+                .frame(width: 9, height: 9)
+                Text("Modeled · ring = lab draw").font(Theme.Fonts.caption2).foregroundStyle(.secondary)
             }
-            HStack(spacing: 6) {
+            HStack(spacing: Theme.Spacing.tiny) {
                 Rectangle().fill(Theme.Colors.Time.skin.base).frame(width: 14, height: 1.5)
-                Text("Modeled").font(Theme.Fonts.caption2).foregroundStyle(.secondary)
+                Text("Prediction").font(Theme.Fonts.caption2).foregroundStyle(.secondary)
             }
             Spacer()
         }

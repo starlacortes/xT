@@ -73,7 +73,7 @@ struct DoseScheduleSettingsView: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 24)
             }
-            .background(Color(.systemGroupedBackground))
+            .background(Theme.Colors.appBackground)
             .navigationTitle("Dose Schedule")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -132,7 +132,7 @@ struct DoseScheduleSettingsView: View {
             VStack(spacing: 12) {
                 HStack {
                     Text(verbatim: displayAmountString)
-                        .font(.system(size: 36, weight: .bold))
+                        .font(Theme.Fonts.readout)
                         .foregroundStyle(Theme.Colors.accent)
                     Text(displayUnitLabel)
                         .font(Theme.Fonts.callout)

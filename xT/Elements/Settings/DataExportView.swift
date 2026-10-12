@@ -77,9 +77,10 @@ struct DataExportView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .paperList()
+        .tint(Theme.Colors.accent)
         .navigationTitle("Data Export")
         .navigationBarTitleDisplayMode(.inline)
-        .background(Color(.systemGroupedBackground))
         .sheet(isPresented: $showCSVShare) {
             if let csv = generateCSV() {
                 ShareSheet(items: [csvStringAsFile(csv)])
@@ -99,7 +100,8 @@ struct DataExportView: View {
     private func exportRow(icon: String, title: String, subtitle: String) -> some View {
         HStack(spacing: 14) {
             Image(systemName: icon)
-                .font(.system(size: 17))
+                .font(Theme.Fonts.body)
+                .imageScale(.large)
                 .foregroundStyle(Theme.Colors.accent)
                 .frame(width: 24)
 
@@ -118,7 +120,8 @@ struct DataExportView: View {
     private func summaryRow(icon: String, label: String, count: Int) -> some View {
         HStack(spacing: 14) {
             Image(systemName: icon)
-                .font(.system(size: 14))
+                .font(Theme.Fonts.body)
+                .imageScale(.small)
                 .foregroundStyle(.secondary)
                 .frame(width: 24)
 

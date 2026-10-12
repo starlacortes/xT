@@ -2,8 +2,10 @@
 //  DeveloperSettingsView.swift
 //  xT
 //
-//  Developer tools page — accessed via Settings → About → Developer.
-//  Only compiled and reachable in DEBUG builds.
+//  Developer tools page — accessed via Settings → Privacy & Data → Developer
+//  (DEBUG only). Tier 4d (ST6): the private clones of the row kit are gone;
+//  this screen now uses the shared `SettingsGroup` / `SettingsRow` /
+//  `SettingsToggle` vocabulary like every other sub-screen.
 //
 //  Multi-persona support (2026-08-04): replaces the single Jan toggle with a
 //  persona picker. Select a persona, enable the Sample Profile toggle, and
@@ -14,6 +16,7 @@
 import SwiftUI
 
 struct DeveloperSettingsView: View {
+    @Environment(\.medicationManager) private var medicationManager
     @State private var showingDeveloperModeAlert = false
     @State private var showingSampleProfileAlert = false
     @State private var showingSampleProfileDisableAlert = false
@@ -22,75 +25,91 @@ struct DeveloperSettingsView: View {
         let dev = DeveloperSettings.shared
 
         ScrollView {
-            VStack(spacing: 32) {
-                devSection(label: "Developer Tools") {
-                    devToggleRow(
-                        icon: "wrench.and.screwdriver",
-                        bg: Color(.systemGray6),
-                        color: .secondary,
-                        title: "Developer mode",
-                        subtitle: dev.developerModeEnabled ? "On" : "Off",
-                        isOn: Binding(
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                SectionHeader(text: "Developer tools", emphasis: .accent)
+                SettingsGroup {
+                    HStack(spacing: Theme.Spacing.card) {
+                        SettingsIconTile(icon: "wrench.and.screwdriver")
+                        VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
+                            Text("Developer mode")
+                                .font(Theme.Fonts.callout)
+                                .foregroundStyle(Theme.Colors.textPrimary)
+                            Text(verbatim: dev.developerModeEnabled ? "On" : "Off")
+                                .font(Theme.Fonts.caption)
+                                .foregroundStyle(Theme.Colors.textSecondary)
+                        }
+                        Spacer()
+                        SettingsToggle(isOn: Binding(
                             get: { dev.developerModeEnabled },
                             set: { newValue in
                                 if newValue { showingDeveloperModeAlert = true }
                                 else { onDeveloperModeDisabled() }
                             }
-                        )
-                    )
+                        ))
+                    }
+                    .padding(.horizontal, Theme.Spacing.card)
+                    .padding(.vertical, Theme.Spacing.md)
+                    .contentShape(Rectangle())
 
-                    devDivider()
+                    SettingsGroupDivider()
 
-                    // Persona picker — only active when developer mode is on
                     personaPickerRow(dev: dev)
                         .disabled(!dev.developerModeEnabled)
                         .opacity(dev.developerModeEnabled ? 1 : 0.4)
 
-                    devDivider()
+                    SettingsGroupDivider()
 
-                    devToggleRow(
-                        icon: "person.crop.circle.badge",
-                        bg: Theme.Colors.Time.cycle.surface,
-                        color: Theme.Colors.Time.cycle.base,
-                        title: "Sample profile",
-                        subtitle: dev.sampleProfileEnabled
-                            ? "\(dev.activePersonaName) active"
-                            : "Load \(dev.activePersonaName)",
-                        isOn: Binding(
+                    HStack(spacing: Theme.Spacing.card) {
+                        SettingsIconTile(icon: "person.crop.circle.badge")
+                        VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
+                            Text("Sample profile")
+                                .font(Theme.Fonts.callout)
+                                .foregroundStyle(Theme.Colors.textPrimary)
+                            Text(verbatim: dev.sampleProfileEnabled
+                                 ? "\(dev.activePersonaName) active"
+                                 : "Load \(dev.activePersonaName)")
+                                .font(Theme.Fonts.caption)
+                                .foregroundStyle(Theme.Colors.textSecondary)
+                        }
+                        Spacer()
+                        SettingsToggle(isOn: Binding(
                             get: { dev.sampleProfileEnabled },
                             set: { newValue in
                                 if newValue { showingSampleProfileAlert = true }
                                 else { showingSampleProfileDisableAlert = true }
                             }
-                        )
-                    )
+                        ))
+                    }
+                    .padding(.horizontal, Theme.Spacing.card)
+                    .padding(.vertical, Theme.Spacing.md)
+                    .contentShape(Rectangle())
                     .disabled(!dev.developerModeEnabled)
                     .opacity(dev.developerModeEnabled ? 1 : 0.4)
 
                     if dev.sampleProfileEnabled {
-                        devDivider()
+                        SettingsGroupDivider()
 
-                        HStack {
+                        HStack(spacing: Theme.Spacing.tiny) {
                             Image(systemName: "info.circle.fill")
-                                .font(.system(size: 13))
+                                .font(Theme.Fonts.footnote)
                                 .foregroundStyle(Theme.Colors.accent)
-                            Text("Active persona: \(dev.activePersonaName)")
+                            Text(verbatim: "Active persona: \(dev.activePersonaName)")
                                 .font(Theme.Fonts.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Theme.Colors.textSecondary)
                             Spacer()
                         }
-                        .padding(.horizontal, 22)
-                        .padding(.vertical, 10)
+                        .padding(.horizontal, Theme.Spacing.card)
+                        .padding(.vertical, Theme.Spacing.md)
                     }
                 }
             }
-            .padding(.top, 24)
+            .padding(.horizontal, Theme.Spacing.Gutter.screen)
+            .padding(.top, Theme.Spacing.md)
             .padding(.bottom, 48)
         }
-        .scrollIndicators(.hidden)
+        .background(Theme.Colors.appBackground)
         .navigationTitle("Developer")
         .navigationBarTitleDisplayMode(.inline)
-        .background(Theme.Colors.appBackground)
         .alert("Enable developer mode?", isPresented: $showingDeveloperModeAlert) {
             Button("Cancel", role: .cancel) {}
             Button("Enable") { DeveloperSettings.shared.developerModeEnabled = true }
@@ -114,22 +133,15 @@ struct DeveloperSettingsView: View {
     // MARK: - Persona Picker
 
     private func personaPickerRow(dev: DeveloperSettings) -> some View {
-        HStack(spacing: 14) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color(.systemGray5))
-                    .frame(width: 32, height: 32)
-                Image(systemName: "person.3.fill")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
-            }
-            VStack(alignment: .leading, spacing: 2) {
+        HStack(spacing: Theme.Spacing.card) {
+            SettingsIconTile(icon: "person.3.fill")
+            VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
                 Text("Persona")
                     .font(Theme.Fonts.callout)
-                    .foregroundStyle(.primary)
-                Text(dev.activePersonaName)
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                Text(verbatim: dev.activePersonaName)
                     .font(Theme.Fonts.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.Colors.textSecondary)
             }
             Spacer()
             Picker("", selection: Binding(
@@ -137,15 +149,15 @@ struct DeveloperSettingsView: View {
                 set: { dev.activePersonaIndex = $0 }
             )) {
                 ForEach(0..<DeveloperSettings.personaNames.count, id: \.self) { i in
-                    Text(DeveloperSettings.personaNames[i]).tag(i)
+                    Text(verbatim: DeveloperSettings.personaNames[i]).tag(i)
                 }
             }
             .labelsHidden()
             .pickerStyle(.menu)
             .tint(Theme.Colors.accent)
         }
-        .padding(.horizontal, 22)
-        .padding(.vertical, 16)
+        .padding(.horizontal, Theme.Spacing.card)
+        .padding(.vertical, Theme.Spacing.md)
         .contentShape(Rectangle())
     }
 
@@ -177,72 +189,12 @@ struct DeveloperSettingsView: View {
         UserDefaults.standard.synchronize()
         exit(0)
     }
-
-    // MARK: - Layout Helpers
-
-    private func devSection<Content: View>(label: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(label.uppercased())
-                .font(Theme.Fonts.caption2)
-                .foregroundStyle(Theme.Colors.accent)
-                .tracking(0.5)
-                .padding(.horizontal, 22)
-                .padding(.bottom, 10)
-            HairlineDivider()
-            content()
-            HairlineDivider()
-        }
-    }
-
-    private func devToggleRow(
-        icon: String,
-        bg: Color,
-        color: Color,
-        title: String,
-        subtitle: String,
-        isOn: Binding<Bool>
-    ) -> some View {
-        HStack(spacing: 14) {
-            devIconView(icon: icon, bg: bg, color: color)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(Theme.Fonts.callout)
-                    .foregroundStyle(.primary)
-                Text(subtitle)
-                    .font(Theme.Fonts.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            Toggle("", isOn: isOn)
-                .labelsHidden()
-                .toggleStyle(SwitchToggleStyle(tint: Theme.Colors.accent))
-        }
-        .padding(.horizontal, 22)
-        .padding(.vertical, 16)
-        .contentShape(Rectangle())
-    }
-
-    private func devIconView(icon: String, bg: Color, color: Color) -> some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 8)
-                .fill(bg)
-                .frame(width: 32, height: 32)
-            Image(systemName: icon)
-                .font(.system(size: 15))
-                .foregroundStyle(color)
-        }
-    }
-
-    private func devDivider() -> some View {
-        Divider()
-            .opacity(0.5)
-            .padding(.leading, 22 + 32 + 14)
-    }
 }
 
 #Preview {
     NavigationStack {
         DeveloperSettingsView()
+            .environment(\.medicationManager, MedicationManager.shared)
     }
 }
 #endif

@@ -50,6 +50,7 @@ struct AcknowledgementsView: View {
                     .font(Theme.Fonts.detail)
             }
         }
+        .paperList()
         .navigationTitle("Acknowledgements")
         .navigationBarTitleDisplayMode(.inline)
     }

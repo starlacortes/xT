@@ -12,16 +12,11 @@
 //  they're what stands in for `Slider`'s built-in VoiceOver support.
 //  Persistence is debounced to drag-end via `commitSeedHue()`.
 //
-//  The preview cluster below is deliberately self-contained (an accent
-//  button, two Time cards) rather than including "chrome" text of its own —
-//  those elements already guarantee their own contrast via `ThemePalette`'s
-//  repair pass, so they read correctly regardless of what page background
-//  this view is dropped onto (the colorful onboarding gradient vs. a plain
-//  Settings background). The caller supplies its own title/subtitle text
-//  in whatever color suits its own background. Its outlined container uses
-//  `cardSurface`/`border` — not `OnAccent` — for the same reason: those
-//  tokens are calibrated for content sitting on the brand gradient
-//  specifically, while this box has to read correctly on *either* background.
+//  Tier 4d (ST8): the old swatch cluster is replaced by `ThemeSpecimenView`
+//  — a miniature window of real app chrome over sample data — plus a
+//  Day/Night preview pair, quick stops from `Theme.Seed.stops`, and a mono
+//  readout row. The readout and reset live in the host screens; the picker
+//  owns the specimen, the day/night pills, the band and the stops.
 //
 
 import SwiftUI
@@ -29,62 +24,41 @@ import SwiftUI
 struct ThemePickerView: View {
     @Environment(\.themeManager) private var themeManager
     @State private var isDragging = false
+    @State private var previewScheme: ColorScheme = .light
 
     private let bandHeight: CGFloat = 56
     private let thumbSize: CGFloat = 34
 
     var body: some View {
         VStack(spacing: Theme.Spacing.xxl) {
-            previewCluster
+            specimenBlock
             hueBand
+            quickStops
         }
     }
 
-    // MARK: - Preview
+    // MARK: - Specimen + Day/Night (ST8)
 
-    /// A little "set" of mock app controls, framed like a product shot so it
-    /// reads as a group rather than loose elements floating in the picker.
-    private var previewCluster: some View {
+    private var specimenBlock: some View {
         VStack(spacing: Theme.Spacing.md) {
-            HStack(spacing: Theme.Spacing.md) {
-                timeSwatch(label: "Mind", palette: Theme.Colors.Time.mind)
-                timeSwatch(label: "Cycle", palette: Theme.Colors.Time.cycle)
-                timeSwatch(label: "Body", palette: Theme.Colors.Time.body)
-            }
+            ThemeSpecimenView(preview: previewScheme)
 
-            // Tappable but inert — this is a swatch of what a button looks
-            // like in the app's chosen color, not a real action.
-            Button(action: {}) {
-                Text("xT")
-                    .asAccentButton()
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(Theme.Spacing.lg)
-        .background(
-            RoundedRectangle(cornerRadius: Theme.Radius.lg)
-                .fill(Theme.Colors.cardSurface)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: Theme.Radius.lg)
-                .strokeBorder(Theme.Colors.border, lineWidth: Theme.Colors.hairlineWidth)
-        )
-        .animation(Theme.Motion.instant, value: themeManager.seedHue)
-    }
+            HStack(spacing: Theme.Spacing.sm) {
+                Button {
+                    withAnimation(Theme.Motion.instant) { previewScheme = .light }
+                } label: {
+                    Pill(text: "Day", style: previewScheme == .light ? .active : .neutral)
+                }
+                .buttonStyle(.pressable)
 
-    private func timeSwatch(label: String, palette: Theme.Colors.TimePalette) -> some View {
-        HStack(spacing: Theme.Spacing.xs) {
-            Image(systemName: "circle.fill")
-                .font(.system(size: 10))
-                .foregroundStyle(palette.base)
-            Text(label)
-                .font(Theme.Fonts.caption)
-                .foregroundStyle(palette.text)
+                Button {
+                    withAnimation(Theme.Motion.instant) { previewScheme = .dark }
+                } label: {
+                    Pill(text: "Night", style: previewScheme == .dark ? .active : .neutral)
+                }
+                .buttonStyle(.pressable)
+            }
         }
-        .padding(.horizontal, Theme.Spacing.row)
-        .padding(.vertical, Theme.Spacing.sm)
-        .frame(maxWidth: .infinity)
-        .timeCard(palette)
     }
 
     // MARK: - Hue band
@@ -131,14 +105,16 @@ struct ThemePickerView: View {
             }
     }
 
-    /// A plain white knob (not an `OnAccent` token) is deliberate — unlike
-    /// the preview cluster, this rides directly on top of every hue in the
-    /// band as it drags, so it needs to stay visible against all of them
-    /// rather than being tuned for one background.
+    /// Paper knob with an ink hairline and an accent core (ST8): it rides on
+    /// top of every hue in the band as it drags, so the paper ring keeps it
+    /// visible against all of them.
     private var thumb: some View {
         ZStack {
             Circle()
-                .fill(.white)
+                .fill(Theme.Colors.cardSurface)
+                .frame(width: thumbSize, height: thumbSize)
+            Circle()
+                .strokeBorder(Theme.Colors.border, lineWidth: Theme.Line.hairline)
                 .frame(width: thumbSize, height: thumbSize)
             Circle()
                 .fill(Theme.Colors.accent)
@@ -166,6 +142,48 @@ struct ThemePickerView: View {
         }
         return LinearGradient(gradient: Gradient(stops: stops), startPoint: .leading, endPoint: .trailing)
     }()
+
+    // MARK: - Quick stops (ST8)
+
+    /// Eight circles at the shared `seed.stops` hues — the same list the
+    /// alternate icons use (I2). Tapping snaps the hue; the nearest stop
+    /// shows the accent ring.
+    private var quickStops: some View {
+        HStack(spacing: Theme.Spacing.lg) {
+            ForEach(Theme.Seed.stops, id: \.self) { stop in
+                Button {
+                    themeManager.seedHue = stop
+                    themeManager.commitSeedHue()
+                } label: {
+                    Circle()
+                        .fill(accentColor(hue: stop))
+                        .frame(width: 28, height: 28)
+                        .overlay(
+                            Circle().strokeBorder(
+                                isNearestStop(stop) ? Theme.Colors.accent : Theme.Colors.border,
+                                lineWidth: isNearestStop(stop) ? 2 : Theme.Line.hairline
+                            )
+                            .frame(width: 34, height: 34)
+                        )
+                }
+                .buttonStyle(.pressable)
+                .accessibilityLabel("\(Int(stop.rounded())) degrees")
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func isNearestStop(_ stop: Double) -> Bool {
+        // Circular distance — 350° and 10° are neighbours.
+        let delta = abs(themeManager.seedHue - stop)
+        let distance = min(delta, 360 - delta)
+        return distance <= 22.5 // half a stop step
+    }
+
+    private func accentColor(hue: Double) -> Color {
+        let lch = ThemeEngine.clampToGamut(ThemeEngine.OKLCH(L: 0.6225, C: 0.1666, H: hue))
+        return ThemeEngine.srgb(fromOKLCH: lch)
+    }
 }
 
 #if DEBUG
