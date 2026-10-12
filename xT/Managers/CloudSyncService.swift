@@ -62,6 +62,32 @@ enum CloudSyncService {
         }
     }
 
+    private static var hasInstalledRemoteChangeObserver = false
+
+    /// Registers a store-remote-change observer once per process (H-D7).
+    ///
+    /// The restore poll reloads the caches only during its bounded window; without
+    /// this, a CloudKit import that lands while the user is sitting on Home never moves
+    /// the curve or the journal until the next manual sync. `NSPersistentStoreRemoteChange`
+    /// fires whenever another process or the CloudKit mirroring layer writes to the
+    /// store, so it covers exactly that gap. Reloads run on the main actor because the
+    /// managers are main-actor singletons bound to the main context.
+    static func installRemoteChangeObserverIfNeeded() {
+        guard !hasInstalledRemoteChangeObserver else { return }
+        hasInstalledRemoteChangeObserver = true
+        NotificationCenter.default.addObserver(
+            forName: .NSPersistentStoreRemoteChange,
+            object: nil,
+            queue: .main
+        ) { _ in
+            Task { @MainActor in
+                MedicationManager.shared.reloadAllFromStore()
+                JournalManager.shared.loadEntries()
+                ProfileManager.shared.loadProfile()
+            }
+        }
+    }
+
     /// Row counts of the local store — shows whether a CloudKit import
     /// actually delivered anything (TEMP-DEBUG for the restore diagnosis).
     private static func storeCensus() -> (userPrefs: Int, doses: Int) {

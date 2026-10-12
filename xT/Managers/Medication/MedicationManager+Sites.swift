@@ -136,6 +136,102 @@ extension MedicationManager {
         )
     }
 
+    // MARK: - H-D6 · Next-site suggestion
+
+    /// The last dose's sites, when they were used, and the zone to offer next (H13).
+    ///
+    /// `suggested` is a **zone label**, not an `InjectionSite`: a suggestion names a
+    /// zone, not a precise coordinate inside it, and that is exactly what the record-dose
+    /// summary renders (`SUGGESTED · RIGHT THIGH`). (This narrows the spec's nominal
+    /// `InjectionSite?` to the information the suggestion actually carries.)
+    struct SiteSuggestion: Equatable {
+        /// Sites from the most recent dose in this route class.
+        let last: [InjectionSite]
+        /// When that dose was recorded.
+        let lastDate: Date?
+        /// The zone to offer next, or nil for oral and for routes with no configured zones.
+        let suggested: String?
+    }
+
+    /// The least-recently-used eligible zone for the given route, with the last dose's
+    /// sites for context.
+    ///
+    /// Eligible = `(preferred ∪ recommended) − avoid`, scored over the route's
+    /// `heatMapWindowDays` window. The least recently used zone wins; a zone never used
+    /// in the window counts as maximally stale. Ties break toward the opposite side from
+    /// the last site, which yields a natural left/right rotation. Returns `nil` for
+    /// `suggested` on oral and whenever no zone is eligible.
+    func siteSuggestion(routeClass: RouteClass) -> SiteSuggestion {
+        let last = lastInjectionSites(for: routeClass) ?? []
+        let lastDate = lastInjectionSiteDoseDate(for: routeClass)
+
+        guard routeClass != .oral else {
+            return SiteSuggestion(last: last, lastDate: lastDate, suggested: nil)
+        }
+
+        // Candidate zones, preferred first, then recommended extras, minus avoids,
+        // order-preserving so rotation is deterministic.
+        let preferred = ZoneCentroidStore.preferredZones(medication: selectedMedication ?? "",
+                                                          routeClass: routeClass)
+        let recommended = ZoneCentroidStore.recommendedZones(for: routeClass)
+        var seen = Set<String>()
+        let candidates = (preferred + recommended).filter { label in
+            guard avoidZones[label] == nil else { return false }
+            return seen.insert(label).inserted
+        }
+        guard !candidates.isEmpty else {
+            return SiteSuggestion(last: last, lastDate: lastDate, suggested: nil)
+        }
+
+        // Most recent use of each candidate within the window; absent = never used.
+        let windowDays = routeClass.heatMapWindowDays
+        let now = Date()
+        let cutoff = Calendar.current.date(byAdding: .day, value: -windowDays, to: now) ?? now
+        var lastUsed: [String: Date] = [:]
+        for dose in doseHistory where dose.isActive
+            && RouteClass.from(method: dose.administrationMethod) == routeClass
+            && dose.doseDate >= cutoff {
+            for site in dose.injectionSites {
+                if let existing = lastUsed[site.zoneLabel], existing >= dose.doseDate { continue }
+                lastUsed[site.zoneLabel] = dose.doseDate
+            }
+        }
+
+        // Least recently used (never-used sorts as `.distantPast`), keeping ties.
+        let staleness: (String) -> Date = { lastUsed[$0] ?? .distantPast }
+        let oldest = candidates.map(staleness).min() ?? .distantPast
+        let leastRecent = candidates.filter { staleness($0) == oldest }
+
+        let suggested: String
+        if leastRecent.count == 1 {
+            suggested = leastRecent[0]
+        } else if let preferredSide = Self.oppositeSide(of: last.first?.zoneLabel),
+                  let opposite = leastRecent.first(where: { Self.side(of: $0) == preferredSide }) {
+            suggested = opposite
+        } else {
+            suggested = leastRecent[0]
+        }
+        return SiteSuggestion(last: last, lastDate: lastDate, suggested: suggested)
+    }
+
+    /// The body side a zone label names, read from the "Left"/"Right" token in it, or
+    /// nil for midline zones (e.g. "Periumbilical", "Neck").
+    private static func side(of zoneLabel: String?) -> String? {
+        guard let zoneLabel else { return nil }
+        if zoneLabel.contains("Left") { return "Left" }
+        if zoneLabel.contains("Right") { return "Right" }
+        return nil
+    }
+
+    /// The side opposite the one the label names, for the rotation tie-break.
+    private static func oppositeSide(of zoneLabel: String?) -> String? {
+        switch side(of: zoneLabel) {
+        case "Left":  return "Right"
+        case "Right": return "Left"
+        default:      return nil
+        }
+    }
+
     // MARK: - Avoid Zone Management
 
     /// Mark a zone as "avoid" with an optional reason. Persists to UserDefaults.

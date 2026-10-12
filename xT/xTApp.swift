@@ -127,6 +127,9 @@ struct xTApp: App {
         // Permanent companion to the temp-debug observer above: tracks CloudKit
         // import activity for the restore poll's adaptive window.
         CloudSyncService.installCloudKitEventObserverIfNeeded()
+        // Keeps Home + Journal live when a CloudKit import lands outside a restore
+        // poll's bounded window (H-D7).
+        CloudSyncService.installRemoteChangeObserverIfNeeded()
 
         let defaults = UserDefaults.standard
         let syncPreferenceIsSet = defaults.object(forKey: "icloudSyncEnabled") != nil
