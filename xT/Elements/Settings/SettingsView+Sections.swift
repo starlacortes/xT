@@ -588,7 +588,7 @@ extension SettingsView {
 
     var settingsResetSection: some View {
         VStack(spacing: 0) {
-            Divider().opacity(0.5)
+            HairlineDivider()
             Button(role: .destructive, action: { showingResetAlert = true }) {
                 settingsRowContent(
                     icon: "trash.fill",
@@ -600,7 +600,7 @@ extension SettingsView {
                 )
             }
             .buttonStyle(.plain)
-            Divider().opacity(0.5)
+            HairlineDivider()
         }
     }
 }

@@ -25,9 +25,9 @@ struct SettingsSection<Content: View>: View {
                 .padding(.horizontal, Theme.Spacing.Gutter.screen)
                 .padding(.bottom, Theme.Spacing.row)
 
-            Divider().opacity(0.5)
+            HairlineDivider()
             content()
-            Divider().opacity(0.5)
+            HairlineDivider()
         }
     }
 }

@@ -442,7 +442,7 @@ struct QuickDoseSheet: View {
                         .font(Theme.Fonts.subheadline.weight(.semibold))
                         .padding(.horizontal, 16)
                         .padding(.vertical, 8)
-                        .asGlassCard(tintOpacity: 0.5, cornerRadius: Theme.Radius.md)
+                        .paperCard(padding: 0, radius: Theme.Radius.md)
                 }
             }
         }

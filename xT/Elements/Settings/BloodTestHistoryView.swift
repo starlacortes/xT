@@ -75,7 +75,7 @@ struct BloodTestRow: View {
                     .fontWeight(.medium)
                 Spacer()
                 if test.isCalibrated {
-                    Pill(text: "calibrated", style: .tinted(Theme.Colors.success))
+                    Pill(text: "calibrated", style: .active)
                 }
             }
 

@@ -34,7 +34,7 @@ struct UnifiedStackView: View {
             ActionBarView()
                 .entrance(index: medicationManager.isFullyConfigured ? 3 : 2)
         }
-        .asGlassCard(cornerRadius: Theme.Radius.lg)
+        .paperCard(padding: 0, radius: Theme.Radius.lg)
     }
 }
 

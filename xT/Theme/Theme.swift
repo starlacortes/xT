@@ -303,29 +303,6 @@ struct Theme {
 
 // MARK: - View Modifiers
 
-/// Translucent glass card — for Home cards and any surface floating over a gradient.
-/// Uses iOS 26 Liquid Glass on iOS 26+, falls back to ultraThinMaterial on older iOS.
-struct GlassCardModifier: ViewModifier {
-    var tint: Color = Theme.Colors.glassTint
-    var tintOpacity: CGFloat = 0.55
-    var cornerRadius: CGFloat = Theme.Radius.lg
-
-    func body(content: Content) -> some View {
-        if #available(iOS 26.0, *) {
-            content
-                .glassEffect(.regular.tint(tint.opacity(tintOpacity)), in: .rect(cornerRadius: cornerRadius))
-        } else {
-            content
-                .background(.ultraThinMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
-                .overlay(
-                    RoundedRectangle(cornerRadius: cornerRadius)
-                        .stroke(Theme.Colors.border, lineWidth: 0.5)
-                )
-        }
-    }
-}
-
 /// Opaque pastel card — for Time category cards and Journal mood cards.
 struct TimeCardModifier: ViewModifier {
     let palette: Theme.Colors.TimePalette
@@ -357,13 +334,6 @@ struct AccentButtonModifier: ViewModifier {
 // MARK: - View extensions
 
 extension View {
-    /// Apply a translucent glass surface with a hairline border.
-    /// Uses iOS 26 Liquid Glass with fallback to ultraThinMaterial on older iOS.
-    @MainActor
-    func asGlassCard(tint: Color? = nil, tintOpacity: CGFloat = 0.55, cornerRadius: CGFloat = Theme.Radius.lg) -> some View {
-        modifier(GlassCardModifier(tint: tint ?? Theme.Colors.glassTint, tintOpacity: tintOpacity, cornerRadius: cornerRadius))
-    }
-
     /// Apply an opaque pastel surface keyed to a Time category palette.
     func timeCard(_ palette: Theme.Colors.TimePalette) -> some View {
         modifier(TimeCardModifier(palette: palette))

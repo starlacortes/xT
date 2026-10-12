@@ -2,12 +2,13 @@
 //  Pill.swift
 //  xT
 //
-//  A small capsule-shaped label.
+//  The flat, hairline-bordered chip (element S5). Used for phase-strip chips, mood
+//  chips, quick tags, preset selectors, and count-down chips.
 //
-//  Five near-identical capsules existed across the app — the level-overlay range pill,
-//  the missed-days badge, the constellation region tag, the journal scrubber chip and the
-//  journal detail tags. They shared a shape and metrics but each re-derived its own fill
-//  and stroke. `Pill` keeps the three genuinely different surface treatments as `Style`.
+//  Isocline collapses the old three surface treatments (`.tinted` / `.material` /
+//  `.gradient`) to two states: `.neutral` and `.active`. There is no fill — the chip
+//  is a `line` hairline capsule; the active state is an **accent border**, never an
+//  accent fill (spec §17). The mono `pill` role carries the text.
 //
 
 import SwiftUI
@@ -15,16 +16,14 @@ import SwiftUI
 struct Pill: View {
 
     enum Style {
-        /// Tinted fill with a matching hairline stroke — status and range pills.
-        case tinted(Color)
-        /// Translucent material with a soft shadow — labels floating over artwork.
-        case material(Color)
-        /// Brand gradient with knocked-out text — the selected state of a chip row.
-        case gradient
+        /// Resting chip — `line` hairline, muted text.
+        case neutral
+        /// Selected / current chip — accent border and accent text, no fill.
+        case active
     }
 
     let text: String
-    var style: Style = .tinted(Theme.Colors.accent)
+    var style: Style = .neutral
 
     var body: some View {
         Text(text)
@@ -32,42 +31,23 @@ struct Pill: View {
             .foregroundStyle(foreground)
             .padding(.horizontal, Theme.Spacing.row)
             .padding(.vertical, Theme.Spacing.tiny)
-            .background(background)
-            .overlay(strokeOverlay)
+            .overlay(
+                Capsule().strokeBorder(border, lineWidth: Theme.Line.hairline)
+            )
             .clipShape(Capsule())
     }
 
-    // MARK: - Style resolution
-
     private var foreground: Color {
         switch style {
-        case .tinted(let tint):   return tint
-        case .material(let tint): return tint
-        case .gradient:           return Theme.Colors.OnAccent.primary
+        case .neutral: Theme.Colors.textSecondary
+        case .active:  Theme.Colors.accent
         }
     }
 
-    @ViewBuilder
-    private var background: some View {
+    private var border: Color {
         switch style {
-        case .tinted(let tint):
-            Capsule().fill(tint.opacity(0.15))
-        case .material:
-            Capsule().fill(.ultraThinMaterial)
-        case .gradient:
-            Capsule().fill(Theme.Gradients.brand)
-        }
-    }
-
-    @ViewBuilder
-    private var strokeOverlay: some View {
-        switch style {
-        case .tinted(let tint):
-            Capsule().stroke(tint.opacity(0.3), lineWidth: Theme.Colors.hairlineWidth)
-        case .material(let tint):
-            Capsule().stroke(tint.opacity(0.25), lineWidth: Theme.Colors.hairlineWidth)
-        case .gradient:
-            EmptyView()
+        case .neutral: Theme.Colors.border
+        case .active:  Theme.Colors.accent
         }
     }
 }
@@ -75,10 +55,10 @@ struct Pill: View {
 #if DEBUG
 #Preview {
     VStack(spacing: Theme.Spacing.md) {
-        Pill(text: "optimal", style: .tinted(Theme.Colors.success))
-        Pill(text: "3 days late", style: .tinted(Theme.Colors.error))
-        Pill(text: "Hippocampus", style: .material(Theme.Colors.Time.mind.text))
-        Pill(text: "March", style: .gradient)
+        Pill(text: "Within set trough")
+        Pill(text: "Next dose in 2d", style: .active)
+        Pill(text: "Hippocampus")
+        Pill(text: "March", style: .active)
     }
     .padding(Theme.Spacing.Gutter.screen)
 }

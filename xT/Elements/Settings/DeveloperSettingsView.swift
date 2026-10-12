@@ -188,9 +188,9 @@ struct DeveloperSettingsView: View {
                 .tracking(0.5)
                 .padding(.horizontal, 22)
                 .padding(.bottom, 10)
-            Divider().opacity(0.5)
+            HairlineDivider()
             content()
-            Divider().opacity(0.5)
+            HairlineDivider()
         }
     }
 
