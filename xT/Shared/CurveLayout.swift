@@ -44,6 +44,20 @@ enum CurveLayout {
         return height - CGFloat(norm) * dataHeight * 0.85 - dataHeight * bottomMargin - height * (1 - dataFraction)
     }
 
+    /// Band variant of `yPos`: the curve occupies the vertical band `[plotTop, plotBottom]`
+    /// directly, rather than a fraction of the full height. Used by the Home curve (H1),
+    /// whose top and bottom insets track the readout and overlay-card heights (`plotInsets`).
+    static func yPos(value: Double,
+                     min: Double,
+                     range: Double,
+                     plotTop: CGFloat,
+                     plotBottom: CGFloat) -> CGFloat {
+        let band = Swift.max(plotBottom - plotTop, 1)
+        guard range > 0 else { return plotTop + band / 2 }
+        let norm = (value - min) / range
+        return plotBottom - CGFloat(norm) * band
+    }
+
     // MARK: - Computed bounds
 
     /// The inflated value range (85% of min, 110% of max) used by all graphs.
@@ -95,6 +109,52 @@ enum CurveLayout {
             : height
         base.addLine(to: CGPoint(x: width, y: bottomY))
         base.addLine(to: CGPoint(x: 0, y: bottomY))
+        base.closeSubpath()
+        return base
+    }
+
+    // MARK: - Path construction (band variant)
+
+    /// Band-mapped cubic-bezier stroke path: the curve is drawn into the vertical band
+    /// `[plotTop, plotBottom]` (H1). Shares the smoothing of the `dataFraction` variant.
+    static func curvePath(values: [Double],
+                          min: Double,
+                          range: Double,
+                          width: CGFloat,
+                          plotTop: CGFloat,
+                          plotBottom: CGFloat) -> Path {
+        Path { path in
+            guard !values.isEmpty else { return }
+            func y(_ i: Int) -> CGFloat {
+                yPos(value: values[i], min: min, range: range, plotTop: plotTop, plotBottom: plotBottom)
+            }
+            for i in values.indices {
+                let x = xPos(index: i, count: values.count, width: width)
+                if i == 0 {
+                    path.move(to: CGPoint(x: x, y: y(i)))
+                } else {
+                    let prevX = xPos(index: i - 1, count: values.count, width: width)
+                    let ctrl1 = CGPoint(x: prevX + (x - prevX) * 0.5, y: y(i - 1))
+                    let ctrl2 = CGPoint(x: prevX + (x - prevX) * 0.5, y: y(i))
+                    path.addCurve(to: CGPoint(x: x, y: y(i)), control1: ctrl1, control2: ctrl2)
+                }
+            }
+        }
+    }
+
+    /// Band-mapped fill path. The curve closes down to `fillBottom` (the screen bottom on
+    /// Home, so the fill reads behind the overlay card), not to the band's own floor.
+    static func curveFillPath(values: [Double],
+                              min: Double,
+                              range: Double,
+                              width: CGFloat,
+                              plotTop: CGFloat,
+                              plotBottom: CGFloat,
+                              fillBottom: CGFloat) -> Path {
+        var base = curvePath(values: values, min: min, range: range,
+                             width: width, plotTop: plotTop, plotBottom: plotBottom)
+        base.addLine(to: CGPoint(x: width, y: fillBottom))
+        base.addLine(to: CGPoint(x: 0, y: fillBottom))
         base.closeSubpath()
         return base
     }
@@ -181,6 +241,10 @@ struct AnimatableCurveShape: Shape {
     var minV: Double
     var range: Double
     var dataFraction: CGFloat = 1.0
+    /// When set (with `plotBottom`), the curve is drawn into the band `[plotTop, plotBottom]`
+    /// instead of `dataFraction` of the full height (the Home `plotInsets` path, H1).
+    var plotTop: CGFloat? = nil
+    var plotBottom: CGFloat? = nil
 
     var animatableData: AnimatableVector {
         get { values }
@@ -188,7 +252,13 @@ struct AnimatableCurveShape: Shape {
     }
 
     func path(in rect: CGRect) -> Path {
-        CurveLayout.curvePath(
+        if let plotTop, let plotBottom {
+            return CurveLayout.curvePath(
+                values: values.values, min: minV, range: range,
+                width: rect.width, plotTop: plotTop, plotBottom: plotBottom
+            )
+        }
+        return CurveLayout.curvePath(
             values: values.values,
             min: minV,
             range: range,
@@ -204,6 +274,11 @@ struct AnimatableFillShape: Shape {
     var minV: Double
     var range: Double
     var dataFraction: CGFloat = 1.0
+    /// Band mapping, as in `AnimatableCurveShape`. `fillBottom` is where the fill closes
+    /// (the screen bottom on Home, so it reads behind the overlay card).
+    var plotTop: CGFloat? = nil
+    var plotBottom: CGFloat? = nil
+    var fillBottom: CGFloat? = nil
 
     var animatableData: AnimatableVector {
         get { values }
@@ -211,7 +286,14 @@ struct AnimatableFillShape: Shape {
     }
 
     func path(in rect: CGRect) -> Path {
-        CurveLayout.curveFillPath(
+        if let plotTop, let plotBottom {
+            return CurveLayout.curveFillPath(
+                values: values.values, min: minV, range: range,
+                width: rect.width, plotTop: plotTop, plotBottom: plotBottom,
+                fillBottom: fillBottom ?? rect.height
+            )
+        }
+        return CurveLayout.curveFillPath(
             values: values.values,
             min: minV,
             range: range,
