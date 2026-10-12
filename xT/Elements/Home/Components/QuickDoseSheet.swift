@@ -185,6 +185,10 @@ struct QuickDoseSheet: View {
 
             Spacer()
 
+            // Last and suggested site (H13), both mono. The suggestion is highlighted
+            // here and in step 2, never preselected — the user confirms the zone.
+            siteSuggestionLines
+
             if !isOral {
                 Button {
                     advanceToStep2()
@@ -203,7 +207,7 @@ struct QuickDoseSheet: View {
                 .padding(.horizontal, 20)
             }
 
-            AccentActionButton(title: "Record Dose") {
+            ActionPill(title: "Record Dose") {
                 recordDoseImmediately()
             }
             .padding(.horizontal, 20)
@@ -211,6 +215,40 @@ struct QuickDoseSheet: View {
             .padding(.top, 4)
 
         }
+    }
+
+    /// `LAST SITE · LEFT THIGH · SUN` and `SUGGESTED · RIGHT THIGH` (H13, from H-D6).
+    /// Hidden for oral routes and when there's nothing to show yet.
+    @ViewBuilder
+    private var siteSuggestionLines: some View {
+        if !isOral {
+            let suggestion = medicationManager.siteSuggestion(routeClass: routeClass)
+            if suggestion.last.first != nil || suggestion.suggested != nil {
+                VStack(alignment: .leading, spacing: 4) {
+                    if let lastSite = suggestion.last.first {
+                        Text(lastSiteLine(lastSite, date: suggestion.lastDate))
+                            .eyebrow()
+                    }
+                    if let suggested = suggestion.suggested {
+                        Text("\(String(localized: "Suggested")) · \(suggested)")
+                            .eyebrow()
+                            .foregroundStyle(Theme.Colors.accent)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 4)
+            }
+        }
+    }
+
+    /// Composes "Last site · <zone> · <weekday>", omitting the weekday when the last
+    /// dose date is unknown. Natural case; `.eyebrow()` applies the caps.
+    private func lastSiteLine(_ site: InjectionSite, date: Date?) -> String {
+        let prefix = String(localized: "Last site", comment: "Label for the most recently used injection site")
+        guard let date else { return "\(prefix) · \(site.zoneLabel)" }
+        let day = AppDateFormatters.weekdayShort.string(from: date)
+        return "\(prefix) · \(site.zoneLabel) · \(day)"
     }
 
     private func summaryRow(label: String, value: String) -> some View {
@@ -277,7 +315,7 @@ struct QuickDoseSheet: View {
                 HStack(spacing: 12) {
                     TextField("mg", text: $mgText)
                         .keyboardType(.decimalPad)
-                        .font(.system(size: 32, weight: .medium, design: .rounded))
+                        .font(Theme.Fonts.numeric)
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
@@ -309,7 +347,7 @@ struct QuickDoseSheet: View {
                 HStack(spacing: 12) {
                     TextField("mL", text: $mlText)
                         .keyboardType(.decimalPad)
-                        .font(.system(size: 32, weight: .medium, design: .rounded))
+                        .font(Theme.Fonts.numeric)
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
@@ -414,7 +452,7 @@ struct QuickDoseSheet: View {
             Spacer()
 
             if isCustomizing {
-                AccentActionButton(title: "Done") {
+                ActionPill(title: "Done") {
                     commitActiveField()
                     withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                         isCustomizing = false
@@ -423,7 +461,7 @@ struct QuickDoseSheet: View {
                 .padding(.horizontal, 20)
                 .padding(.bottom, 20)
             } else if isCorrectionMode {
-                AccentActionButton(title: "Choose New Site", systemImage: "arrow.triangle.swap") {
+                ActionPill(title: "Choose New Site", systemImage: "arrow.triangle.swap") {
                     currentStep = 2
                 }
                 .padding(.horizontal, 20)
@@ -574,7 +612,7 @@ struct QuickDoseSheet: View {
 
             Spacer()
 
-            AccentActionButton(
+            ActionPill(
                 title: "Record Dose",
                 systemImage: "checkmark.circle.fill",
                 isDisabled: selectedZoneLabels3D.isEmpty
@@ -610,7 +648,7 @@ struct QuickDoseSheet: View {
 
             VStack(spacing: 20) {
                 Image(systemName: "lightspectral.horizontal")
-                    .font(.system(size: 32))
+                    .font(Theme.Fonts.largeTitle)
                     .foregroundStyle(.white.opacity(0.7))
 
                 Text("Shaded areas are the sites commonly used for this route.")
@@ -727,7 +765,7 @@ struct QuickDoseSheet: View {
                     undoLastTap()
                 } label: {
                     Image(systemName: "arrow.uturn.backward")
-                        .font(.system(size: 18, weight: .medium))
+                        .font(Theme.Fonts.statValue)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
                 }
@@ -740,7 +778,7 @@ struct QuickDoseSheet: View {
                     redoLastTap()
                 } label: {
                     Image(systemName: "arrow.uturn.forward")
-                        .font(.system(size: 18, weight: .medium))
+                        .font(Theme.Fonts.statValue)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
                 }

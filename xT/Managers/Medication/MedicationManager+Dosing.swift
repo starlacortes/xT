@@ -272,10 +272,10 @@ extension MedicationManager {
         }
     }
 
-    /// Delay before HomeView's celebration confetti fires after a dose recorded
-    /// via `recordDose(on:)`. Longer than `MedicationManager.defaultCelebrationDelay`
-    /// (tuned for `QuickDoseSheet`, which dismisses itself immediately) because
-    /// `RecordDoseView` shows an in-sheet confirmation before dismissing.
+    /// Vestigial post-dose delay for `recordDose(on:)`. Home's confetti retired with
+    /// the Isocline rebuild (X19) — the curve morph and a success haptic are the only
+    /// feedback now — so nothing consumes this today; it stays because `recordDose(on:)`
+    /// still sets `celebrationDelay` and the dosing tests exercise that path.
     static let recordDoseCelebrationDelay: TimeInterval = 1.2
 
     /// Ester/amount/concentration to assume for a dose the caller didn't fully

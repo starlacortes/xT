@@ -18,6 +18,7 @@ import SwiftUI
 
 struct HomeView: View {
     @Environment(\.medicationManager) private var medicationManager
+    @Environment(\.appRouter) private var router
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -29,8 +30,6 @@ struct HomeView: View {
     // Measured block heights → the curve's plot insets (H1).
     @State private var readoutBlockHeight: CGFloat = 0
     @State private var bottomBlockHeight: CGFloat = 0
-
-    @State private var lastRecordedCount: Int = 0
 
     @ScaledMetric private var minHorizontalPad: CGFloat = 18
     @ScaledMetric private var maxHorizontalPad: CGFloat = 60
@@ -64,14 +63,16 @@ struct HomeView: View {
         .onPreferenceChange(OverlayCardHeightKey.self) { bottomBlockHeight = $0 }
         .onAppear {
             medicationManager.refreshState()
-            lastRecordedCount = medicationManager.doseRecordedCount
         }
-        .onChange(of: medicationManager.doseRecordedCount) { _, newCount in
-            guard newCount > lastRecordedCount else { return }
-            lastRecordedCount = newCount
-            // X19: the curve morph (driven by FlatGraphView's onChange of the data) is the
-            // celebration. A single success haptic marks the moment; no confetti, no glow.
-            UINotificationFeedbackGenerator().notificationOccurred(.success)
+        // X19: the curve morph (driven by FlatGraphView's onChange of the data) is the
+        // celebration. A single success haptic marks the moment; no confetti, no glow.
+        // `.sensoryFeedback` honors the system haptic setting for us (H13 step 6).
+        .sensoryFeedback(.success, trigger: medicationManager.doseRecordedCount)
+        // The one record-dose sheet (H13). Both the card's Log Dose button and a
+        // notification route (N2) raise it through the router.
+        .sheet(isPresented: Bindable(router).presentRecordDose) {
+            QuickDoseSheet(isPresented: Bindable(router).presentRecordDose)
+                .environment(\.medicationManager, medicationManager)
         }
     }
 

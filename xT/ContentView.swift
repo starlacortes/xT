@@ -11,8 +11,13 @@ struct ContentView: View {
     @Environment(\.medicationManager) private var medicationManager
     @Environment(\.profileManager) private var profileManager
     @Environment(\.authenticationManager) private var authManager
+    @Environment(\.notificationManager) private var notificationManager
     @State private var showOnboarding = false
     @State private var showProfileNamePrompt = false
+
+    /// App-wide navigation state (N2). Owned here so routing survives tab switches
+    /// and notification deep links.
+    @State private var router = AppRouter()
 
     var body: some View {
         ZStack {
@@ -21,10 +26,14 @@ struct ContentView: View {
 
             if hasCompletedOnboarding {
                 MainTabView()
+                    .environment(\.appRouter, router)
             } else {
                 Color.clear
             }
         }
+        // A notification route only applies once the lock screen clears (N2).
+        .onChange(of: notificationManager.pendingRoute) { _, _ in applyPendingRoute() }
+        .onChange(of: authManager.showAuthentication) { _, _ in applyPendingRoute() }
         .onAppear {
             let defaults = UserDefaults.standard
             let hasMedicationData = defaults.string(forKey: "selectedMedication") != nil
@@ -72,6 +81,24 @@ struct ContentView: View {
                 .interactiveDismissDisabled(true)
         }
     }
+
+    /// Translate a pending notification route into router intents — but only once the
+    /// lock screen is down, so a reminder tapped on a locked phone lands correctly
+    /// after unlock (N2).
+    private func applyPendingRoute() {
+        guard let route = notificationManager.pendingRoute,
+              !authManager.showAuthentication else { return }
+
+        switch route {
+        case .logDose:
+            router.tab = .home
+            router.presentRecordDose = true
+        case .journal:
+            router.tab = .journal
+            router.journalScrollToTop = true
+        }
+        notificationManager.consumePendingRoute()
+    }
 }
 
 #if DEBUG
@@ -80,5 +107,6 @@ struct ContentView: View {
         .environment(\.medicationManager, MedicationManager.shared)
         .environment(\.profileManager, ProfileManager.shared)
         .environment(\.authenticationManager, AuthenticationManager.shared)
+        .environment(\.notificationManager, NotificationManager.shared)
 }
 #endif

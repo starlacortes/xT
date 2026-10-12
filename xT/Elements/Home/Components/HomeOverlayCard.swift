@@ -18,9 +18,9 @@ import SwiftUI
 struct HomeOverlayCard: View {
     @Environment(\.medicationManager) private var medicationManager
     @Environment(\.journalManager) private var journalManager
+    @Environment(\.appRouter) private var router
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    @State private var showingQuickDose = false
     @State private var showingComposer = false
 
     private var doseState: MedicationManager.DoseDayState {
@@ -40,10 +40,7 @@ struct HomeOverlayCard: View {
         }
         .paperCard(radius: Theme.Radius.lg)
         .animation(reduceMotion ? nil : Theme.Motion.settle, value: doseState)
-        .sheet(isPresented: $showingQuickDose) {
-            QuickDoseSheet(isPresented: $showingQuickDose)
-                .environment(\.medicationManager, medicationManager)
-        }
+        // The record-dose sheet is owned by HomeView, raised through the router (H13/N2).
         .sheet(isPresented: $showingComposer) {
             JournalComposerView()
                 .environment(\.journalManager, journalManager)
@@ -80,7 +77,7 @@ struct HomeOverlayCard: View {
 
             case .dueToday, .overdue:
                 ActionPill(title: "Log Dose", systemImage: "syringe") {
-                    showingQuickDose = true
+                    router.presentRecordDose = true
                 }
 
             case .unscheduled:

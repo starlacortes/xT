@@ -509,6 +509,7 @@
       }
     },
     "✓ Dose recorded successfully!" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2110,6 +2111,7 @@
       }
     },
     "Dose time" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2857,6 +2859,9 @@
           }
         }
       }
+    },
+    "Last site" : {
+      "comment" : "Label for the most recently used injection site"
     },
     "Last site is marked as avoid. Choose a different site." : {
       "extractionState" : "stale",
@@ -4067,6 +4072,7 @@
       }
     },
     "Record your dose" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4457,6 +4463,9 @@
           }
         }
       }
+    },
+    "Suggested" : {
+
     },
     "Suppressed, consistent with established anti-androgen or estrogen therapy." : {
       "comment" : "Factual description of a suppressed testosterone band for a long-term user",
