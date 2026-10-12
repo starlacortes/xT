@@ -363,6 +363,10 @@ class ThemeManager {
 
     let defaults: UserDefaults
 
+    /// The iCloud mirror the committed hue writes through to (X6). Injectable
+    /// so the mirror logic can be tested without iCloud.
+    let hueMirror: SeedHueMirrorStore
+
     var seedHue: Double {
         didSet {
             #if DEBUG
@@ -381,19 +385,36 @@ class ThemeManager {
         didSet { palette = ThemePalette.resolve(seedHue: seedHue, increasedContrast: increasedContrast) }
     }
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard,
+         hueMirror: SeedHueMirrorStore = UbiquitySeedHueStore()) {
         self.defaults = defaults
+        self.hueMirror = hueMirror
         let hue = defaults.object(forKey: Keys.seedHue) as? Double ?? Self.defaultSeedHue
         let contrast = UIAccessibility.isDarkerSystemColorsEnabled
         self.seedHue = hue
         self.increasedContrast = contrast
         self.palette = ThemePalette.resolve(seedHue: hue, increasedContrast: contrast)
 
+        // X6: adopt the iCloud-mirrored hue when this device is behind — a
+        // fresh install, or another device moved the dial. KVS is usually
+        // already merged at launch; changes that arrive later land through
+        // the observer below.
+        adoptSyncedSeedHue()
+
         NotificationCenter.default.addObserver(
             forName: UIAccessibility.darkerSystemColorsStatusDidChangeNotification,
             object: nil, queue: .main
         ) { [weak self] _ in
             self?.increasedContrast = UIAccessibility.isDarkerSystemColorsEnabled
+        }
+
+        // X6: the hue changed on another device while this one was closed.
+        // Block-based, so the token cleans itself up with the manager.
+        NotificationCenter.default.addObserver(
+            forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
+            object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.adoptSyncedSeedHue()
         }
     }
 
@@ -405,6 +426,7 @@ class ThemeManager {
         print("[ThemeDebug] commitSeedHue -> \(seedHue) (persisted)")
         #endif
         defaults.set(seedHue, forKey: Keys.seedHue)
+        mirrorSeedHue()
     }
 
     func resetToDefault() {

@@ -280,6 +280,11 @@ struct SettingsPrivacyView: View {
             // is alive in xTApp.init).
             defaults.set(false, forKey: "icloudSyncEnabled")
             defaults.set(true, forKey: CloudSyncService.pendingLocalStoreWipeKey)
+        } else {
+            // The seed-hue mirror must go too, or the next launch would adopt
+            // the pre-reset hue back from iCloud (X6). The local-only path
+            // keeps it — its iCloud copy survives by design.
+            ThemeManager.clearSyncedSeedHue()
         }
 
         // 8. Close the app — every reset path wants a clean relaunch (fresh
