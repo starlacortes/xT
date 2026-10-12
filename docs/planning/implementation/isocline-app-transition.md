@@ -43,6 +43,7 @@ Re-check line numbers before editing.
 | 2026-10-11 | X24 | **Settings uses four gateway cards**, as in Stitch. | ST1 |
 | 2026-10-11 | X35 | **The dose notification layout is user-customizable**: Discreet, Standard, Detailed or Custom (fields plus own words), with a live lock-screen preview. Discreet is the default (recommended; flag if you want otherwise). | Spec §08 (live mock), NT1, ST1 / X25 |
 | 2026-10-11 | — | **The Appearance picker opens on a hue specimen**: a near-square, rounded window of sample UI (curve, buttons, chips, dose card and more) that follows the hue, with a Day/Night preview and quick stops. | Spec §08 (live sketch), tokens (`radius.specimen`, `components.specimen`, `seed.stops`), ST8, S11 |
+| 2026-10-12 | X36 | **The icon set ships as delivered by the external icon work** (`docs/design/external-work/isocline-logos/`): the "I." in ink on a light seed-tint gradient ground — one icon per quick stop, with the default rose as the primary and the remaining seven as alternates — plus the embossed Discreet icon on plain paper. This supersedes I1's sketch of a `brandColors` ground with an OnAccent mark. Icon Composer `.icon` files **do** work as alternates under `ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES` (the I2 "verify" is resolved); in `icon.json`, groups render **front-first**, so the mark group precedes the ground group. The picker shows the shipped artwork as preview imagesets; "Update icon to match your hue?" appears when a hue icon drifts from the dial, never for Discreet. | I1–I4, `tools/scripts/build_isocline_app_icons.py`, `xT/xTGlassIcon.icon`, `xT/AppIcon{Hue48…Hue318,Discreet}.icon`, `Models/AppIconChoice.swift`, `Managers/AppIconManager.swift`, `SettingsAppearanceView.swift`, U2 |
 
 ---
 
@@ -1841,7 +1842,7 @@ The app needs nothing equivalent: it already follows iOS appearance, since nothi
 
 ## Crossroads register
 
-**Blocking** means: decide before that phase starts. Everything else has a safe default (the recommendation) that can be revisited. **Decided crossroads leave this register** and live only in the [Decisions log](#decisions-log): X1, X4, X8, X9, X10, X24 and X35.
+**Blocking** means: decide before that phase starts. Everything else has a safe default (the recommendation) that can be revisited. **Decided crossroads leave this register** and live only in the [Decisions log](#decisions-log): X1, X4, X8, X9, X10, X24, X35 and X36.
 
 ### Foundations
 
@@ -1895,7 +1896,6 @@ The app needs nothing equivalent: it already follows iOS appearance, since nothi
 | X32 | Time-tab glass and celebration | **(a)** Night card instead of glass, and a milestone line instead of the overlay. **(b)** Grandfather Time as-is. | **(a)**. | — |
 | X33 | Launch screen color | **(a)** Static default-seed paper (light and dark). **(b)** Neutral paper with no hue. | **(a)**. | — |
 | X34 | Mono caps tab labels | **(a)** Accept the system label font and amend spec §09. **(b)** Use `UITabBarAppearance` font overrides, which are fragile under iOS 26 glass. | **(a)**. | — |
-| X36 | Icon variety | **(a)** Default plus the eight `seed.stops` (shared with the picker's quick stops) plus Discreet. **(b)** Default plus Discreet only. | **(a)** if the hue identity matters at the icon level; **(b)** for a faster v1. | Phase 4 |
 
 ---
 

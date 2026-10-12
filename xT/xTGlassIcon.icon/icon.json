@@ -1,35 +1,43 @@
 {
-  "fill" : "automatic",
-  "groups" : [
+  "fill": "automatic",
+  "groups": [
     {
-      "layers" : [
+      "layers": [
         {
-          "blend-mode" : "normal",
-          "image-name" : "xTlogoLetters.png",
-          "name" : "xTlogoLetters",
-          "position" : {
-            "scale" : 1.25,
-            "translation-in-points" : [
+          "blend-mode": "normal",
+          "image-name": "mark.svg",
+          "name": "mark",
+          "position": {
+            "scale": 1.0,
+            "translation-in-points": [
               0,
               0
             ]
           }
         }
-      ],
-      "shadow" : {
-        "kind" : "neutral",
-        "opacity" : 0.5
-      },
-      "translucency" : {
-        "enabled" : true,
-        "value" : 0.5
-      }
+      ]
+    },
+    {
+      "layers": [
+        {
+          "blend-mode": "normal",
+          "image-name": "background.svg",
+          "name": "background",
+          "position": {
+            "scale": 1.0,
+            "translation-in-points": [
+              0,
+              0
+            ]
+          }
+        }
+      ]
     }
   ],
-  "supported-platforms" : {
-    "circles" : [
+  "supported-platforms": {
+    "circles": [
       "watchOS"
     ],
-    "squares" : "shared"
+    "squares": "shared"
   }
 }

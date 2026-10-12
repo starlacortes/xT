@@ -1,0 +1,1040 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#F8F3E8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1C0C10" media="(prefers-color-scheme: dark)">
+<title>Isocline Research · Wordmark Motion</title>
+<!--
+  ISOCLINE_WORDMARK_MOTION — Isocline RESEARCH, 70 scenes, one still word.
+
+  Structure is the retired archive/ISOCLINE_TITLE_ANIMATION.html, restyled for Paper & Instrument
+  (ISOCLINE_DESIGN_SYSTEM.html §02):
+    · the word never moves. It is ONLY the master outline (brand/isocline-marks.js, via Path2D).
+      What changes is its rendering — ink, engraved hairline, emboss — chosen by the scene on screen
+      and settled slowly. No per-letter colour, no shadow, no glow, no gradient inside the letters.
+    · the OKLCH dial keeps turning underneath (ThemeEngine port: hold L, rotate H). Day paper stays
+      cream at every dial position; night paper takes the seed hue.
+    · the old "beats" are 70 scenes, drawn as hairline instrument plates on the paper, in chapters
+      taken from the design docs:  PRELUDE · THE WORD (what an isocline is) · LINEAGE (survey,
+      telemetry, Rayo, the 1968 envelope, Conway, Cassils) · THE WORK (Bateman curve → readout) ·
+      DECISIONS (Aug–Oct 2026 identity history, the eight dial stops, renderings, arms, discretion,
+      voice) · CLOSE.
+    · pacing is deliberate: long holds, then runs of 1–1.5 s scenes, then a slow-down. Every
+      crossfade is as long as the shorter of its two scenes allows, so quick runs stay quiet and slow
+      scenes dissolve. Scenes that share a base (slope field, hero curve, dial) share it through a
+      layer, so a crossfade never dips.
+    · clear space (the cap height of the O) is honoured: scenes are engraved around the lockup and
+      nothing enters it, except the one diagram that is about the clear space.
+    · the arm descriptor is RESEARCH (mono, never a different mark); it lets go for emboss, the
+      discretion rendering, which names nothing.
+    · lineage scenes follow §12: the 1968 envelope is honoured by its shape, not by name. §12 is
+      "internal and Research about only" — set LINEAGE = false below to drop those scenes from a
+      public cut.
+    · prefers-reduced-motion: one still frame — ink word, LABS, the hairline and its point.
+    · no on-screen text besides the lockup itself (the scene counter / caption readout was removed for deployment).
+    · debug (optional):  #t=SECONDS to start there, &freeze=1 to hold a frame.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Serif:wght@400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/tokens/isocline.css">
+<style>
+html, body { height: 100%; }
+body { margin: 0; background: var(--paper); overflow: hidden; }
+canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
+</style>
+</head>
+<body>
+<canvas id="c" role="img" aria-label="The Isocline wordmark with its RESEARCH descriptor, still, on paper. Around it, in hairline, a long sequence of instrument plates from the brand's history — slope fields, survey contours, a synthesizer envelope, the Bateman curve, the dial's eight stops — fades in and out while the hue dial slowly turns and the word changes only its rendering: ink, engraved hairline, embossed relief."></canvas>
+
+<script src="/tokens/isocline.tokens.js"></script>
+<script src="/brand/isocline-marks.js"></script>
+<script>
+"use strict";
+(function () {
+  var T = window.ISOCLINE_TOKENS, M = window.ISOCLINE_MARKS;
+  if (!T || !M) return;
+  var ARM = "RESEARCH";                         // arm descriptor: "LABS" · "RESEARCH" · "" (the app: wordmark alone)
+  var ARMIDX = ARM === "" ? 0 : ARM === "RESEARCH" ? 1 : 2;
+  var LINEAGE = true;                       // §12 lineage scenes (internal / Research "about" only)
+  var cv = document.getElementById("c"), ctx = cv.getContext("2d");
+  var RM = false;
+  try { RM = matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) {}
+  var qs = {};
+  (location.hash || "").replace(/^#/, "").split("&").forEach(function (kv) { var a = kv.split("="); if (a[0]) qs[a[0]] = a[1]; });
+  var TAU = 6.283185307179586;
+
+  /* ---------- small math ---------- */
+  function clamp(x, a, b) { return x < a ? a : x > b ? b : x; }
+  function lerp(a, b, f) { return a + (b - a) * f; }
+  function seg(k, a, b) { return clamp((k - a) / (b - a), 0, 1); }
+  function ss(x) { x = clamp(x, 0, 1); return x * x * x * (x * (x * 6 - 15) + 10); }      // smootherstep
+  function ease(x) { x = clamp(x, 0, 1); return 1 - Math.pow(1 - x, 3); }
+  function rng(seed) { var s = seed >>> 0; return function () { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; }; }
+
+  /* ---------- ThemeEngine port: OKLCH -> sRGB, hold L, rotate H ---------- */
+  function lin(c) { return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+  function gam(c) { return c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(Math.max(0, c), 1 / 2.4) - 0.055; }
+  function toLinear(L, C, H) {
+    var h = H * Math.PI / 180, a = C * Math.cos(h), b = C * Math.sin(h);
+    var l = Math.pow(L + 0.3963377774 * a + 0.2158037573 * b, 3),
+        m = Math.pow(L - 0.1055613458 * a - 0.0638541728 * b, 3),
+        s = Math.pow(L - 0.0894841775 * a - 1.2914855480 * b, 3);
+    return [4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+            -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+            -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s];
+  }
+  function inGamut(L, C, H) { return toLinear(L, C, H).every(function (v) { return v >= -1e-4 && v <= 1 + 1e-4; }); }
+  function clampC(L, C, H) {
+    if (inGamut(L, C, H)) return C;
+    var lo = 0, hi = C, best = 0;
+    for (var i = 0; i < 12; i++) { var mid = (lo + hi) / 2; if (inGamut(L, mid, H)) { best = mid; lo = mid; } else hi = mid; }
+    return best;
+  }
+  function rgb(L, C, H) {
+    C = clampC(L, C, H);
+    return toLinear(L, C, H).map(function (v) { return Math.round(gam(Math.min(Math.max(v, 0), 1)) * 255); });
+  }
+  function hueOf(hx) {
+    var r = lin(parseInt(hx.substr(1, 2), 16) / 255), g = lin(parseInt(hx.substr(3, 2), 16) / 255), b = lin(parseInt(hx.substr(5, 2), 16) / 255);
+    var l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b),
+        m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b),
+        s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+    var A = 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s, B = 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s;
+    return (Math.atan2(B, A) * 180 / Math.PI + 360) % 360;
+  }
+  var DEFAULT = hueOf(T.seed.defaultHex);                 // the dial opens on-brand, then turns
+  function resolve(seed, ap) {
+    var o = {};
+    Object.keys(T.recipes).forEach(function (k) {
+      var r = T.recipes[k][ap], abs = (T.recipes[k].hue || {})[ap] === "absolute";
+      o[k] = rgb(r[0], r[1], (((abs ? 0 : seed) + r[2]) % 360 + 360) % 360);
+    });
+    return o;
+  }
+  function rgba(c, a) { return "rgba(" + Math.round(c[0]) + "," + Math.round(c[1]) + "," + Math.round(c[2]) + "," + (a == null ? 1 : a) + ")"; }
+  function hexA(h, a) { return rgba([parseInt(h.substr(1, 2), 16), parseInt(h.substr(3, 2), 16), parseInt(h.substr(5, 2), 16)], a); }
+  function mixc(a, b, f) { return [lerp(a[0], b[0], f), lerp(a[1], b[1], f), lerp(a[2], b[2], f)]; }
+
+  /* palette at a hue and a day→night mix n (0 = day paper, 1 = night paper) */
+  function makePal(hue, n) {
+    var Lt = resolve(hue, "light"), Dk = resolve(hue, "dark"), C = {};
+    Object.keys(Lt).forEach(function (k) { C[k] = mixc(Lt[k], Dk[k], n); });
+    var ink = C.ink, ia = T.inkAlpha;
+    function al(k) { return lerp(ia[k][0], ia[k][1], n); }
+    var P = {};
+    P.paper = function (a) { return rgba(C.paper, a); };
+    P.card = function (a) { return rgba(C.card, a); };
+    P.ink = function (a) { return rgba(ink, a); };
+    P.muted = function (m) { return rgba(ink, al("muted") * (m == null ? 1 : m)); };
+    P.faint = function (m) { return rgba(ink, al("faint") * (m == null ? 1 : m)); };
+    P.line = function (m) { return rgba(ink, al("line") * (m == null ? 1 : m)); };
+    P.grid = function (m) { return rgba(ink, al("grid") * (m == null ? 1 : m)); };
+    P.acc = function (a) { return rgba(C.accent, a); };
+    P.acc2 = function (a) { return rgba(C.accent2, a); };
+    P.low = function (a) { return rgba(C.levelLow, a); };
+    P.high = function (a) { return rgba(C.levelHigh, a); };
+    P.onAcc = function (a) { return rgba(C.onAccent, a); };
+    P.safety = function (a) { return rgba(C.safety, a); };
+    P.lh = function (f, a) { return rgba(mixc(C.levelLow, C.levelHigh, f), a); };
+    P.at = function (h, a) {                             // the accent recipe at any seed hue
+      var r = T.recipes.accent, l = rgb(r.light[0], r.light[1], (((h + r.light[2]) % 360) + 360) % 360),
+          d = rgb(r.dark[0], r.dark[1], (((h + r.dark[2]) % 360) + 360) % 360);
+      return rgba(mixc(l, d, n), a);
+    };
+    return P;
+  }
+
+  /* ---------- the word: only ever the master outline ---------- */
+  var VBW = M.wordmark.viewBox.split(" ").map(Number), VW = VBW[2], VH = VBW[3], CX = VBW[0] + VW / 2, CY = VBW[1] + VH / 2;
+  var wordPath = new Path2D(M.wordmark.d);
+  var VBM = M.mark.viewBox.split(" ").map(Number), markPath = new Path2D(M.mark.d);
+
+  function paintShape(c, P, path, mode, wt, pxu, off, nn) {
+    if (wt < 0.004) return;
+    var A0 = c.globalAlpha, E = T.logo.emboss;
+    if (mode === "emb") {
+      var ea = wt * nn;
+      if (ea > 0.004) {                                   // inkless relief: light plate up-left, shadow down-right, paper on top
+        c.globalAlpha = A0 * ea * E.lightOpacity; c.save(); c.translate(-off, -off); c.fillStyle = E.light; c.fill(path); c.restore();
+        c.globalAlpha = A0 * ea * E.shadowOpacity; c.save(); c.translate(off, off); c.fillStyle = E.shadow; c.fill(path); c.restore();
+        c.globalAlpha = A0 * ea; c.fillStyle = P.paper(); c.fill(path);
+      }
+    } else if (mode === "hair") {                          // engraved hairline, like a survey plate
+      c.globalAlpha = A0 * wt; c.strokeStyle = P.ink(); c.lineWidth = 1.4 / pxu; c.lineJoin = c.lineCap = "round"; c.stroke(path);
+    } else {                                               // ink on paper
+      c.globalAlpha = A0 * wt; c.fillStyle = P.ink(); c.fill(path);
+    }
+    c.globalAlpha = A0;
+  }
+  /* the small mark "I." at a size in px, centred on (x, y) */
+  function drawMark(c, P, x, y, size, mode, wt, nn) {
+    var sc = size / VBM[2];
+    c.globalAlpha = G.a;
+    c.save(); c.translate(x, y); c.scale(sc, sc); c.translate(-(VBM[0] + VBM[2] / 2), -(VBM[1] + VBM[3] / 2));
+    paintShape(c, P, markPath, mode, wt == null ? 1 : wt, sc, Math.max(1.2, size * 0.035) / sc, nn == null ? 1 : nn);
+    c.restore();
+  }
+  function drawWordmarkAt(c, P, x, y, w, mode) {         // ink rendering of the lockup at an exact px width
+    var s = w / VW; c.globalAlpha = G.a;
+    c.save(); c.translate(x, y); c.scale(s, s); c.translate(-CX, -CY);
+    paintShape(c, P, wordPath, mode, 1, s, 1, 1);
+    c.restore();
+  }
+
+  /* ---------- canvas + layout ---------- */
+  var W = 0, H = 0, DPR = 1, Ly = {};
+  function layout() {
+    DPR = Math.min(2, window.devicePixelRatio || 1);
+    W = innerWidth; H = innerHeight;
+    cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+    var w = Math.max(96, Math.min(W * 0.62, 640)), s = w / VW, cx = W / 2, cy = H * 0.44, cap = 700 * s;
+    var fs = Math.max(10, Math.min(24, w * 0.037)), gap = Math.max(8, w * 0.033);
+    var wordTop = cy - 361 * s, wordBot = cy + 361 * s, descBot = ARM ? wordBot + gap + fs : wordBot;
+    var u = clamp(Math.min(W, H) / 900, 0.62, 1.35);
+    Ly = { w: w, s: s, cx: cx, cy: cy, cap: cap, fs: fs, gap: gap, wordTop: wordTop, wordBot: wordBot, descBot: descBot, u: u,
+           x0: cx - w / 2 - cap, x1: cx + w / 2 + cap, y0: wordTop - cap, y1: descBot + cap };
+    var bY1 = H - 84, bY0 = Ly.y1 + (bY1 - Ly.y1) * 0.08;
+    if (bY1 - bY0 < 96) bY0 = bY1 - 96;
+    Ly.cb = { x0: W * 0.09, x1: W * 0.91, y0: bY0, y1: bY1 };                       // bottom chart box
+    var tY0 = 38, tY1 = Math.max(tY0 + 80, Ly.y0 - 26);
+    Ly.ct = { x0: W * 0.09, x1: W * 0.91, y0: tY0, y1: tY1 };                       // top chart box
+    Ly.baseY = clamp(Ly.y1 + (H - Ly.y1) * 0.42, Ly.y1 + 18, H - 74);
+  }
+  addEventListener("resize", layout);
+  layout();
+  ["500 12px 'IBM Plex Mono'", "400 12px 'IBM Plex Mono'", "400 12px 'IBM Plex Serif'", "400 12px 'Atkinson Hyperlegible Next'", "700 12px 'Atkinson Hyperlegible Next'"].forEach(function (f) { try { document.fonts.load(f); } catch (e) {} });
+
+  /* chart-box mapping helpers */
+  function bx(f) { return Ly.cb.x0 + f * (Ly.cb.x1 - Ly.cb.x0); }
+  function by(v) { return Ly.cb.y1 - v * (Ly.cb.y1 - Ly.cb.y0); }
+  function tbx(f) { return Ly.ct.x0 + f * (Ly.ct.x1 - Ly.ct.x0); }
+  function cbw() { return Ly.cb.x1 - Ly.cb.x0; }
+  function cbh() { return Ly.cb.y1 - Ly.cb.y0; }
+  function pathFn(c, fn, f0, f1, n, X, Y) {
+    c.beginPath();
+    for (var i = 0; i <= n; i++) { var f = f0 + (f1 - f0) * i / n, x = X(f), y = Y(fn(f)); if (i) c.lineTo(x, y); else c.moveTo(x, y); }
+  }
+  function sig(f) { return 1 / (1 + Math.exp(-9 * (f - 0.45))); }
+  function isoV(f) { var a = sig(0), b = sig(1); return 0.08 + 0.80 * (sig(f) - a) / (b - a); }   // rise into plateau
+  function isoY(f) { return Ly.cb.y1 - isoV(f) * cbh(); }
+
+  /* ---------- pharmacokinetics (Bateman) ---------- */
+  function batN(x, ka, ke) {
+    if (x <= 0) return 0;
+    var tm = Math.log(ka / ke) / (ka - ke), pk = Math.exp(-ke * tm) - Math.exp(-ka * tm);
+    return (Math.exp(-ke * x) - Math.exp(-ka * x)) / pk;
+  }
+  var HERO = (function () {
+    var days = 8, tau = 1.5, ka = 2.4, ke = 0.55, m = 240, s = [], mx = 0, i, j;
+    for (i = 0; i <= m; i++) { var x = i / m * days, v = 0; for (j = 0; j * tau <= x; j++) v += batN(x - j * tau, ka, ke); s.push(v); mx = Math.max(mx, v); }
+    for (i = 0; i <= m; i++) s[i] /= mx;
+    var peaks = [], troughs = [], mean = 0, cnt = 0;
+    for (i = 1; i < m; i++) {
+      var f = i / m;
+      if (f > 0.5) { mean += s[i]; cnt++; }
+      if (f > 0.5 && s[i] > s[i - 1] && s[i] >= s[i + 1]) peaks.push(f);
+      if (f > 0.5 && s[i] < s[i - 1] && s[i] <= s[i + 1]) troughs.push(f);
+    }
+    var doses = []; for (j = 0; j * tau < days; j++) doses.push(j * tau / days);
+    return { s: s, m: m, peaks: peaks, troughs: troughs, mean: mean / cnt, doses: doses,
+             at: function (f) { var q = clamp(f, 0, 1) * m, a = Math.floor(q), b = Math.min(m, a + 1); return lerp(s[a], s[b], q - a); } };
+  })();
+
+  /* ---------- the drawing kit handed to every scene ---------- */
+  var G = { c: ctx, P: null, L: null, a: 1, now: 0, k: 0, lk: 0, fset: false, fx: 0, fy: 0 };
+  var layerA = {}, layerBirth = {}, layerPrev = {}, layerDone = {};
+  G.al = function (x) { ctx.globalAlpha = clamp(G.a * x, 0, 1); };
+  G.focus = function (x, y) { G.fset = true; G.fx = x; G.fy = y; };
+  G.ln = function (x1, y1, x2, y2, col, w) { ctx.strokeStyle = col || G.P.line(); ctx.lineWidth = w || 1; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); };
+  G.ring = function (x, y, r, col, w, fill) { ctx.beginPath(); ctx.arc(x, y, Math.max(0.1, r), 0, TAU); if (fill) { ctx.fillStyle = fill; ctx.fill(); } ctx.strokeStyle = col || G.P.ink(); ctx.lineWidth = w || 1; ctx.stroke(); };
+  G.disc = function (x, y, r, col) { ctx.beginPath(); ctx.arc(x, y, Math.max(0.1, r), 0, TAU); ctx.fillStyle = col; ctx.fill(); };
+  G.rr = function (x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); };
+  function fontOf(o) {
+    var sz = o.size || 11, f = o.font;
+    if (f === "serif") return "400 " + sz + "px 'IBM Plex Serif', Georgia, serif";
+    if (f === "sans") return (o.wt || 400) + " " + sz + "px 'Atkinson Hyperlegible Next', 'Helvetica Neue', Arial, sans-serif";
+    return (o.wt || 400) + " " + sz + "px 'IBM Plex Mono', 'SF Mono', ui-monospace, monospace";
+  }
+  G.meas = function (s, o) {
+    o = o || {}; ctx.font = fontOf(o);
+    var tr = (o.track == null ? (o.font ? 0 : 0.12) : o.track) * (o.size || 11);
+    if (!tr) return ctx.measureText(s).width;
+    var t = -tr; for (var i = 0; i < s.length; i++) t += ctx.measureText(s[i]).width + tr; return t;
+  };
+  G.tx = function (s, x, y, o) {                          // tracked text; align l|c|r
+    o = o || {}; ctx.font = fontOf(o); ctx.textBaseline = "alphabetic"; ctx.textAlign = "left";
+    var tr = (o.track == null ? (o.font ? 0 : 0.12) : o.track) * (o.size || 11), tot = G.meas(s, o);
+    var x0 = o.align === "c" ? x - tot / 2 : o.align === "r" ? x - tot : x;
+    ctx.fillStyle = o.col || G.P.muted();
+    var vis = o.n == null ? s.length : Math.max(0, Math.min(s.length, o.n));
+    if (!tr && vis >= s.length) { G.al(o.a == null ? 1 : o.a); ctx.fillText(s, x0, y); return tot; }
+    for (var i = 0; i < s.length; i++) {
+      var w = ctx.measureText(s[i]).width, fa = o.stag ? clamp(vis - i, 0, 1) : (i < vis ? 1 : 0);
+      if (fa > 0) { G.al((o.a == null ? 1 : o.a) * fa); ctx.fillText(s[i], x0, y); }
+      x0 += w + tr;
+    }
+    return tot;
+  };
+  G.fit = function (s, o, maxW) { o = Object.assign({}, o); while (G.meas(s, o) > maxW && o.size > 8) o.size *= 0.93; return o; };
+  G.layer = function (name, fn) {
+    if (layerDone[name]) return; layerDone[name] = 1;
+    var sv = G.a, svk = G.lk; G.a = layerA[name] || 0; G.lk = G.now - (layerBirth[name] || 0);
+    ctx.save(); ctx.globalAlpha = G.a; fn(G); ctx.restore(); G.a = sv; G.lk = svk;
+  };
+  G.stroke = function () {                                // level sweep: levelLow → levelHigh along the chart
+    var g = ctx.createLinearGradient(Ly.cb.x0, 0, Ly.cb.x1, 0); g.addColorStop(0, G.P.low()); g.addColorStop(1, G.P.high()); return g;
+  };
+  G.nowPoint = function (x, y, sc, a) {                   // the concentric point: 15% halo + solid dot
+    var NP = T.curve.nowPoint;
+    ctx.save();
+    ctx.globalAlpha = clamp(G.a * (a == null ? 1 : a) * NP.haloOpacity, 0, 1); G.disc(x, y, NP.haloDiameter / 2 * sc, G.P.acc());
+    ctx.globalAlpha = clamp(G.a * (a == null ? 1 : a), 0, 1); G.disc(x, y, NP.dotDiameter / 2 * sc, G.P.lh(0));
+    ctx.restore();
+  };
+
+  /* ---------- shared layers ---------- */
+  function baselineLayer(g) { g.ln(0, Ly.baseY, W, Ly.baseY, g.P.line(), 1); }          // the isocline: one hairline of equal slope
+
+  function fieldLayer(g) {                                 // slope field converging on the isocline
+    var c = g.c, P = g.P, u = Ly.u, cb = Ly.cb, bh = cbh(), lk = g.lk;
+    var cols = Math.max(9, Math.round(W / 84)), rows = 7, len = 8 * u;
+    c.lineCap = "round"; c.lineWidth = 1.4; c.strokeStyle = P.faint();
+    for (var i = 0; i < cols; i++) {
+      var fx = i / (cols - 1), rv = ss(seg(lk, fx * 2.0, fx * 2.0 + 1.3)); if (rv <= 0) continue;
+      var x = W * (0.04 + 0.92 * fx), f = clamp((x - cb.x0) / cbw(), 0, 1), yc = isoY(f);
+      for (var j = 0; j < rows; j++) {
+        var y = cb.y0 - bh * 0.35 + j / (rows - 1) * bh * 1.4, dd = (y - yc) / bh;
+        if (Math.abs(dd) < 0.07) continue;
+        var mag = Math.min(0.65, Math.abs(dd) * 1.5) + 0.06,
+            ang = (dd > 0 ? -mag : mag) + 0.05 * Math.min(1, Math.abs(dd) * 4) * Math.sin(g.now / 0.9 + x * 0.004 + y * 0.003);
+        g.al(0.9 * rv);
+        c.beginPath(); c.moveTo(x - Math.cos(ang) * len, y - Math.sin(ang) * len); c.lineTo(x + Math.cos(ang) * len, y + Math.sin(ang) * len); c.stroke();
+      }
+    }
+  }
+  function icurveLayer(g) {                                // the highlighted isocline: writes itself, then holds
+    var c = g.c, P = g.P, prog = ease(seg(g.lk, 0.2, 4.2));
+    c.lineJoin = c.lineCap = "round"; c.strokeStyle = g.stroke(); c.lineWidth = 2.5;
+    pathFn(c, isoV, 0, prog, 120, bx, by2); c.stroke();
+  }
+  function by2(v) { return by(v); }
+
+  function heroLayer(g) {                                  // multi-dose build to steady state — the hero curve
+    var c = g.c, P = g.P, u = Ly.u, prog = ease(seg(g.lk, 0.2, 5.4));
+    g.ln(bx(0), by(0), bx(1), by(0), P.line(), 1);
+    for (var i = 0; i < HERO.doses.length; i++) {
+      var f = HERO.doses[i]; if (f > prog) break;
+      g.ring(bx(f), by(0), 3.5 * u, P.ink(0.8), 1, P.paper());
+    }
+    c.lineJoin = c.lineCap = "round"; c.strokeStyle = g.stroke(); c.lineWidth = 2.5;
+    pathFn(c, function (f) { return HERO.at(f) * HS; }, 0, prog, 200, bx, by); c.stroke();
+    g.hx = bx(prog); g.hy = by(HERO.at(prog) * HS);
+  }
+  var HS = 0.84, calK = 1.08, labF = 0.64;
+  function calLayer(g) {                                   // the model, calibrated to the draw
+    var c = g.c, P = g.P, u = Ly.u, a = 1 + (calK - 1) * ease(seg(g.lk, 0.3, 2.2));
+    g.ln(bx(0), by(0), bx(1), by(0), P.line(), 1);
+    c.lineJoin = c.lineCap = "round"; c.strokeStyle = g.stroke(); c.lineWidth = 2.5;
+    pathFn(c, function (f) { return HERO.at(f) * HS * a; }, 0, 1, 200, bx, by); c.stroke();
+    g.ring(bx(labF), by(HERO.at(labF) * HS * calK), 4.5 * u, P.ink(), 1, P.paper());
+  }
+  var dialPhase = 0;
+  function dialCenter() { return { x: (Ly.cb.x0 + Ly.cb.x1) / 2, y: (Ly.cb.y0 + Ly.cb.y1) / 2 - 8, R: Math.min(cbh() * 0.38, cbw() * 0.2) }; }
+  function dialLayer(g) {                                  // eight stops, 45° apart, each in its own seed hue
+    var P = g.P, u = Ly.u, D = dialCenter(), c = g.c;
+    g.ring(D.x, D.y, D.R, P.line(), 1);
+    for (var j = 0; j < 8; j++) {
+      var a = -Math.PI / 2 + j * Math.PI / 4, x = D.x + Math.cos(a) * D.R, y = D.y + Math.sin(a) * D.R;
+      g.disc(x, y, 9 * u, P.at(DEFAULT + j * 45, 0.95));
+    }
+  }
+  var mfM = { sc: 1 };
+  function mfield(g) {                                     // dy/dx = x − y, everywhere
+    var c = g.c, P = g.P, sc = Math.min(W, H) / 5.5, step = 0.5 * sc, len = step * 0.28;
+    c.lineCap = "round"; c.lineWidth = 1.3; c.strokeStyle = P.faint(); g.al(0.55);
+    for (var px = W / 2 - Math.ceil(W / 2 / step) * step; px <= W + step; px += step)
+      for (var py = H * 0.5 - Math.ceil(H * 0.5 / step) * step; py <= H + step; py += step) {
+        var xs = (px - W / 2) / sc, ys = (H * 0.5 - py) / sc, a = Math.atan(xs - ys);
+        c.beginPath(); c.moveTo(px - Math.cos(a) * len, py + Math.sin(a) * len); c.lineTo(px + Math.cos(a) * len, py - Math.sin(a) * len); c.stroke();
+      }
+  }
+  function mScene(m, fx) {
+    return function (g, p, k, d) {
+      var c = g.c, P = g.P, sc = Math.min(W, H) / 5.5, step = 0.5 * sc, len = step * 0.28;
+      g.layer("mf", mfield);
+      var rv = ss(seg(k, 0, 0.5));
+      c.lineCap = "round"; c.strokeStyle = P.acc(); c.lineWidth = 1.8;
+      for (var px = W / 2 - Math.ceil(W / 2 / step) * step; px <= W + step; px += step)
+        for (var py = H * 0.5 - Math.ceil(H * 0.5 / step) * step; py <= H + step; py += step) {
+          var xs = (px - W / 2) / sc, ys = (H * 0.5 - py) / sc, s = xs - ys;
+          if (Math.abs(s - m) > 0.26) continue;
+          var a = Math.atan(s); g.al(0.95 * rv * (1 - Math.abs(s - m) / 0.26));
+          c.beginPath(); c.moveTo(px - Math.cos(a) * len, py + Math.sin(a) * len); c.lineTo(px + Math.cos(a) * len, py - Math.sin(a) * len); c.stroke();
+        }
+      g.al(0.8 * rv); g.ln(W / 2 - 6 * sc, H * 0.5 + (6 + m) * sc, W / 2 + 6 * sc, H * 0.5 - (6 - m) * sc, P.acc(), 1.2);
+      g.focus(W / 2 + 2.6 * sc, H * 0.5 - (2.6 - m) * sc);
+    };
+  }
+
+  /* ---------- the scenes ---------- */
+  var SC = [];
+  function S(cap, tag, d, o, fn) { o = o || {}; SC.push({ cap: cap, tag: tag, d: d, r: o.r || null, n: o.n || 0, lay: o.lay || null, nc: !!o.nc, fn: fn, lin: !!o.lin }); }
+
+  /* — PRELUDE — */
+  S("AN ISOCLINE · A LINE OF EQUAL SLOPE", "PRELUDE", 10, { r: "ink", lay: "base" }, function (g, p) {
+    g.layer("base", baselineLayer); g.focus(W * (0.1 + 0.8 * ss(p)), Ly.baseY);
+  });
+
+  /* — I · THE WORD — */
+  S("A SLOPE FIELD", "THE WORD", 5, { lay: "field" }, function (g, p, k) {
+    g.layer("field", fieldLayer); g.focus(bx(0.12 + 0.5 * ss(p)), isoY(0.12 + 0.5 * ss(p)) - 0.2 * cbh());
+  });
+  S("WHERE THE SLOPE STOPS CHANGING", "THE WORD", 6.5, { lay: ["field", "icurve"] }, function (g, p, k) {
+    g.layer("field", fieldLayer); g.layer("icurve", icurveLayer);
+    var f = ease(seg(g.lk, 0.2, 4.2)); g.focus(bx(f), by(isoV(f)));
+    if (f > 0.97) g.tx("YOU ARE HERE", bx(1) - 14, by(isoV(1)) - 20, { size: 10.5 * Ly.u, align: "r", col: g.P.muted(), a: ss(seg(k, 3.2, 4.2)) });
+  });
+  S("ZERO-GROWTH ISOCLINE · EQUILIBRIUM", "THE WORD", 5, { lay: ["field", "icurve"] }, function (g, p, k) {
+    var c = g.c, P = g.P, u = Ly.u;
+    g.layer("field", fieldLayer); g.layer("icurve", icurveLayer);
+    var a = ss(seg(k, 0.3, 1.4));
+    c.lineCap = "round"; c.strokeStyle = P.acc(); c.lineWidth = 3; g.al(a);
+    pathFn(c, isoV, 0.72, 1, 40, bx, by2); c.stroke();
+    g.ring(bx(1), by(isoV(1)), 6 * u, P.acc(), 1.3);
+    g.tx("dy/dt = 0.00", bx(0.86), by(isoV(0.86)) - 26 * u, { size: 12 * u, align: "c", col: P.ink(0.8), a: a, track: 0.04 });
+    g.focus(bx(0.86), by(isoV(0.86)));
+  });
+  S("PHASE PLANE · TWO NULLCLINES, ONE REST POINT", "THE WORD", 6, {}, function (g, p, k, d) {
+    var c = g.c, P = g.P, u = Ly.u, cb = Ly.cb, D = dialCenter(), R = Math.min(cbh() * 0.52, cbw() * 0.25);
+    var cx = D.x, cy = D.y, ex = cx + R * 0.22, ey = cy - R * 0.12, a = ss(seg(k, 0, 0.8));
+    g.al(a); g.ln(cx - R * 1.5, cy, cx + R * 1.5, cy, P.line()); g.ln(cx, cy - R, cx, cy + R, P.line());
+    g.ln(ex - R * 1.3, ey + R * 0.9, ex + R * 1.3, ey - R * 0.9, P.faint(0.9));
+    c.strokeStyle = P.faint(0.9); c.lineWidth = 1; c.beginPath();
+    for (var i = -20; i <= 20; i++) { var q = i / 20, x = ex + q * R * 1.3, y = ey + (q * q * R * 0.9 - 0.0) * 1.0 - 0.0 * R; if (i > -20) c.lineTo(x, y); else c.moveTo(x, y); } c.stroke();
+    var th = 14 * ease(seg(k, 0.4, d * 0.85)), hx = ex, hy = ey;
+    c.strokeStyle = P.acc(); c.lineWidth = 1.8; c.lineCap = "round"; g.al(1); c.beginPath();
+    for (var j = 0; j <= 120; j++) {
+      var t = th * j / 120, r = R * 0.95 * Math.exp(-0.22 * t), x2 = ex + r * 1.25 * Math.cos(t), y2 = ey + r * Math.sin(t);
+      if (j) c.lineTo(x2, y2); else c.moveTo(x2, y2); hx = x2; hy = y2;
+    } c.stroke();
+    if (th > 13) g.ring(ex, ey, 4.5 * u, P.ink(), 1, P.paper());
+    g.focus(hx, hy);
+  });
+  S("ISO · EQUAL · THE SAME SLOPE ALONG EVERY LINE", "THE WORD", 3, {}, function (g, p, k) {
+    var c = g.c, P = g.P, u = Ly.u, cb = Ly.cb, bh = cbh(), ang = -0.32, rows = 7, cols = Math.max(8, Math.round(W / 90)), tn = Math.tan(ang);
+    c.lineCap = "round";
+    for (var r = 0; r < rows; r++) {
+      var rv = ss(seg(k, r * 0.18, r * 0.18 + 0.8)), yc = cb.y0 - bh * 0.1 + bh * 1.1 * r / (rows - 1);
+      g.al(0.8 * rv); g.ln(0, yc - tn * W / 2, W, yc + tn * W / 2, P.line(), 1);
+      for (var q = 0; q < cols; q++) {
+        var x = W * (0.06 + 0.88 * q / (cols - 1)), y = yc + tn * (x - W / 2);
+        g.al(0.9 * rv); c.strokeStyle = P.ink(0.7); c.lineWidth = 1.6;
+        c.beginPath(); c.moveTo(x - Math.cos(ang) * 7 * u, y - Math.sin(ang) * 7 * u); c.lineTo(x + Math.cos(ang) * 7 * u, y + Math.sin(ang) * 7 * u); c.stroke();
+      }
+    }
+    g.focus(W * (0.2 + 0.6 * p), cb.y0 + bh * 0.5);
+  });
+  /* the run: dy/dx = x − y, the isocline m sweeping toward zero, each hold a little longer than the last */
+  [[2.0, "+2.00", 1.15], [1.0, "+1.00", 1.2], [0.5, "+0.50", 1.3], [0.25, "+0.25", 1.5], [0.1, "+0.10", 1.8], [0.04, "+0.04", 2.3]].forEach(function (q) {
+    S("m = " + q[1] + " · EQUAL SLOPE, ONE LINE", "THE WORD", q[2], { lay: "mf" }, mScene(q[0]));
+  });
+  S("m = 0 · THE RATE OF CHANGE HOLDS", "THE WORD", 8, { r: "ink", lay: "mf" }, mScene(0));
+
+  /* — II · LINEAGE — */
+  if (LINEAGE) {
+    S("SURVEY · CONTOUR LINES ARE ISOLINES", "USGS QUADRANGLE", 8, { r: "hair" }, function (g, p, k, d) {
+      var c = g.c, P = g.P, m = Math.max(W, H) * 0.042, hills = [[0.18, 0.30, 1.0, 0.4], [0.82, 0.74, 1.15, 1.9], [0.64, 0.08, 0.7, 3.1], [0.08, 0.86, 0.75, 4.4]], n = 9;
+      c.lineJoin = "round";
+      hills.forEach(function (h, hi) {
+        for (var i = 0; i < n; i++) {
+          var rv = ss(seg(k, (n - 1 - i) * 0.34 + hi * 0.25, (n - 1 - i) * 0.34 + hi * 0.25 + 1.1)); if (rv <= 0) continue;
+          var R = (i + 1) * m * h[2];
+          g.al(rv * (i % 4 === 3 ? 0.9 : 0.55)); c.strokeStyle = P.ink(i % 4 === 3 ? 0.5 : 0.3); c.lineWidth = i % 4 === 3 ? 1.4 : 0.9; c.beginPath();
+          for (var j = 0; j <= 96; j++) {
+            var th = j / 96 * TAU, rho = R * (1 + 0.16 * Math.sin(2 * th + h[3]) + 0.09 * Math.sin(3 * th + h[3] * 1.7) + 0.05 * Math.sin(5 * th + h[3] * 0.6) - 0.01 * i * Math.sin(th));
+            var x = W * h[0] + Math.cos(th) * rho * 1.35, y = H * h[1] + Math.sin(th) * rho;
+            if (j) c.lineTo(x, y); else c.moveTo(x, y);
+          } c.closePath(); c.stroke();
+        }
+      });
+      g.focus(W * (0.18 + 0.64 * ss(p)), H * (0.30 + 0.44 * ss(p)));
+    });
+    S("THE NEATLINE", "USGS QUADRANGLE", 2.2, { r: "hair" }, function (g, p, k) {
+      var c = g.c, P = g.P, u = Ly.u, x0 = 24, x1 = W - 24, y0 = 24, y1 = H - 66, a = ss(seg(k, 0, 0.9));
+      g.al(0.9 * a); c.strokeStyle = P.ink(0.35); c.lineWidth = 1; c.strokeRect(x0, y0, x1 - x0, y1 - y0);
+      var tk = 52 * u; c.lineWidth = 1;
+      for (var i = 1; i * tk < x1 - x0; i++) { var big = i % 5 === 0, x = x0 + i * tk, rv = ss(seg(k, i * 0.03, i * 0.03 + 0.5)); g.al(0.8 * rv); g.ln(x, y0, x, y0 + (big ? 12 : 6) * u, P.ink(0.4)); g.ln(x, y1, x, y1 - (big ? 12 : 6) * u, P.ink(0.4)); }
+      for (var j = 1; j * tk < y1 - y0; j++) { var bg = j % 5 === 0, y = y0 + j * tk; g.al(0.8); g.ln(x0, y, x0 + (bg ? 12 : 6) * u, y, P.ink(0.4)); g.ln(x1, y, x1 - (bg ? 12 : 6) * u, y, P.ink(0.4)); }
+      [[x0, y0], [x1, y0], [x0, y1], [x1, y1]].forEach(function (q) { g.al(a); g.ln(q[0] - 9 * u, q[1], q[0] + 9 * u, q[1], P.ink(0.55)); g.ln(q[0], q[1] - 9 * u, q[0], q[1] + 9 * u, P.ink(0.55)); });
+      g.focus(x1, y1);
+    });
+    S("BENCHMARKS", "USGS QUADRANGLE", 1.5, { r: "hair" }, function (g, p, k) {
+      var c = g.c, P = g.P, u = Ly.u, rnd = rng(11), st = 110 * u;
+      for (var x = st * 0.5; x < W; x += st) for (var y = st * 0.5; y < H - 50; y += st) {
+        var rv = ss(seg(k, rnd() * 0.7, 1.0)); g.al(0.7 * rv); g.ln(x - 5 * u, y, x + 5 * u, y, P.ink(0.4)); g.ln(x, y - 5 * u, x, y + 5 * u, P.ink(0.4));
+      }
+      for (var i = 0; i < 6; i++) {
+        var bxp = W * (0.1 + rnd() * 0.8), byp = H * (0.1 + rnd() * 0.75); g.al(ss(seg(k, 0.2 + i * 0.1, 0.9)));
+        c.strokeStyle = P.ink(0.7); c.lineWidth = 1.1; c.beginPath(); c.moveTo(bxp, byp - 7 * u); c.lineTo(bxp + 6.5 * u, byp + 5 * u); c.lineTo(bxp - 6.5 * u, byp + 5 * u); c.closePath(); c.stroke();
+        g.disc(bxp, byp + 1 * u, 1.3 * u, P.ink(0.8));
+        if (i === 3) g.focus(bxp, byp);
+      }
+    });
+    S("MISSION CONTROL · CALM TELEMETRY, IN MONO", "APOLLO-ERA", 5.5, {}, function (g, p, k) {
+      var c = g.c, P = g.P, u = Ly.u, cb = Ly.cb, bh = cbh(), rows = 6, w = Math.min(cbw(), 620 * u), x0 = (cb.x0 + cb.x1) / 2 - w / 2, rh = Math.min(34 * u, bh / (rows + 0.5));
+      var y0 = (cb.y0 + cb.y1) / 2 - rh * rows / 2, fs = 12 * u;
+      for (var r = 0; r < rows; r++) {
+        var rv = ss(seg(k, r * 0.22, r * 0.22 + 0.8)), y = y0 + r * rh + rh * 0.65, v = 0.4 + 0.18 * Math.sin(r * 1.7 + k * 0.45) + 0.0013 * Math.floor(k * 1.3 + r);
+        g.al(0.75 * rv); g.ln(x0, y + rh * 0.3, x0 + w, y + rh * 0.3, P.grid(2.2), 1);
+        g.tx("CH-" + ("0" + (r + 1)).slice(-2), x0, y, { size: fs, col: P.faint() , a: rv});
+        g.tx(v.toFixed(3), x0 + w * 0.5, y, { size: fs, align: "r", col: P.ink(0.85), wt: 500, track: 0.02, a: rv });
+        g.tx("V", x0 + w * 0.5 + 6 * u, y, { size: fs * 0.85, col: P.muted(), a: rv });
+        g.ln(x0 + w * 0.62, y - 3 * u, x0 + w * 0.62 + (w * 0.38) * clamp(v, 0, 1), y - 3 * u, P.ink(0.35), 1.5);
+        if (r === 2) g.focus(x0 + w * 0.62 + (w * 0.38) * clamp(v, 0, 1), y - 3 * u);
+      }
+    });
+    S("TELEMETRY · THE TRACE", "APOLLO-ERA", 2.6, {}, function (g, p, k) {
+      var c = g.c, P = g.P, cb = Ly.cb;
+      for (var i = 0; i <= 12; i++) g.ln(bx(i / 12), cb.y0, bx(i / 12), cb.y1, P.grid(1.4), 1);
+      for (var j = 0; j <= 4; j++) g.ln(cb.x0, by(j / 4), cb.x1, by(j / 4), P.grid(1.4), 1);
+      var fn = function (f) { return 0.5 + 0.18 * Math.sin(7 * (f - k * 0.12)) + 0.08 * Math.sin(17 * (f - k * 0.12) + 1); };
+      var rv = ease(seg(k, 0, 1.2)); c.strokeStyle = g.stroke(); c.lineWidth = 1.8; c.lineJoin = "round"; g.al(1);
+      pathFn(c, fn, 0, rv, 160, bx, function (v) { return by(v * 0.9); }); c.stroke();
+      g.focus(bx(rv), by(fn(rv) * 0.9));
+    });
+    S("INTAGLIO · THE FORM AS RELIEF AND SHADOW · OMAR RAYO", "RAYO", 8, { r: "emb" }, function (g, p, k) {
+      var c = g.c, P = g.P, E = T.logo.emboss, nn = 1 - (G.n || 0), cell = 92 * Ly.u, off = 1.8 * Ly.u;
+      var cols = Math.ceil(W / cell) + 1, rows = Math.ceil(H / cell) + 1;
+      for (var i = -1; i < cols; i++) for (var j = -1; j < rows; j++) {
+        var x = i * cell + cell / 2, y = j * cell + cell / 2, rv = ss(seg(k, (i + j) * 0.09, (i + j) * 0.09 + 1.2)); if (rv <= 0) continue;
+        for (var q = 0; q < 2; q++) {
+          var sz = cell * (0.38 - q * 0.16);
+          var build = function (cc) { cc.beginPath(); cc.moveTo(x, y - sz); cc.lineTo(x + sz, y); cc.lineTo(x, y + sz); cc.lineTo(x - sz, y); cc.closePath(); };
+          g.al(rv * E.lightOpacity * nn); c.save(); c.translate(-off, -off); build(c); c.fillStyle = E.light; c.fill(); c.restore();
+          g.al(rv * E.shadowOpacity * 1.0 * nn); c.save(); c.translate(off, off); build(c); c.fillStyle = E.shadow; c.fill(); c.restore();
+          g.al(rv * nn); build(c); c.fillStyle = P.paper(); c.fill();
+        }
+      }
+      g.focus(W * (0.15 + 0.7 * ss(p)), H * 0.2);
+    });
+    S("RELIEF · LATTICE", "RAYO", 1.8, { r: "emb" }, function (g, p, k) {
+      var c = g.c, P = g.P, E = T.logo.emboss, nn = 1 - (G.n || 0), cell = 60 * Ly.u, off = 1.5 * Ly.u, rnd = rng(5);
+      for (var i = 0; i < W / cell + 1; i++) for (var j = 0; j < H / cell + 1; j++) {
+        var x = i * cell, y = j * cell + (i % 2 ? cell / 2 : 0), rv = ss(seg(k, rnd() * 0.8, 1.2));
+        var build = function (cc) { cc.beginPath(); cc.moveTo(x, y - cell * 0.42); cc.lineTo(x + cell * 0.36, y); cc.lineTo(x, y + cell * 0.42); cc.lineTo(x - cell * 0.36, y); cc.closePath(); };
+        g.al(rv * E.lightOpacity * nn); c.save(); c.translate(-off, -off); build(c); c.fillStyle = E.light; c.fill(); c.restore();
+        g.al(rv * E.shadowOpacity * 1.0 * nn); c.save(); c.translate(off, off); build(c); c.fillStyle = E.shadow; c.fill(); c.restore();
+        g.al(rv * nn); build(c); c.fillStyle = P.paper(); c.fill();
+      }
+    });
+    S("RELIEF · CONCENTRIC", "RAYO", 1.8, { r: "emb" }, function (g, p, k) {
+      var c = g.c, P = g.P, E = T.logo.emboss, nn = 1 - (G.n || 0), cell = 120 * Ly.u, off = 1.6 * Ly.u;
+      for (var i = 0; i < W / cell + 1; i++) for (var j = 0; j < H / cell + 1; j++) {
+        var x = i * cell + cell / 2, y = j * cell + cell / 2, rv = ss(seg(k, (i * 0.11 + j * 0.07) % 0.9, 1.2));
+        for (var q = 0; q < 2; q++) {
+          var r = cell * (0.40 - q * 0.17), build = function (cc) { cc.beginPath(); cc.arc(x, y, r, 0, TAU); };
+          g.al(rv * E.lightOpacity * nn); c.save(); c.translate(-off, -off); build(c); c.fillStyle = E.light; c.fill(); c.restore();
+          g.al(rv * E.shadowOpacity * 1.0 * nn); c.save(); c.translate(off, off); build(c); c.fillStyle = E.shadow; c.fill(); c.restore();
+          g.al(rv * nn); build(c); c.fillStyle = P.paper(); c.fill();
+        }
+      }
+    });
+    function envFn(f) {                                    // attack · decay · sustain · release
+      if (f < 0.15) return 1 - Math.pow(1 - f / 0.15, 2);
+      if (f < 0.35) return 0.62 + 0.38 * Math.exp(-(f - 0.15) / 0.2 * 3.2);
+      if (f < 0.75) return 0.62 - 0.05 * (f - 0.35) / 0.4;
+      return 0.57 * Math.exp(-(f - 0.75) / 0.25 * 4.4) * (1 - Math.pow((f - 0.75) / 0.25, 6));
+    }
+    function graticule(g) { var cb = Ly.cb, P = g.P; for (var i = 0; i <= 10; i++) g.ln(bx(i / 10), cb.y0, bx(i / 10), cb.y1, P.grid(1.6), 1); for (var j = 0; j <= 4; j++) g.ln(cb.x0, by(j / 4), cb.x1, by(j / 4), P.grid(1.6), 1); g.ln(cb.x0, (cb.y0 + cb.y1) / 2, cb.x1, (cb.y0 + cb.y1) / 2, P.grid(2.2), 1); }
+    S("ATTACK · DECAY · SUSTAIN · RELEASE", "1968 · THE ENVELOPE", 6.5, { r: "ink", lay: "grat" }, function (g, p, k, d) {
+      var c = g.c, P = g.P, u = Ly.u; g.layer("grat", graticule);
+      var rv = ease(seg(k, 0.4, d * 0.7)); c.strokeStyle = g.stroke(); c.lineWidth = 2.2; c.lineJoin = "round";
+      pathFn(c, envFn, 0, rv, 200, bx, function (v) { return by(v * 0.9); }); c.stroke();
+      [["A", 0.075, "ATTACK"], ["D", 0.25, "DECAY"], ["S", 0.55, "SUSTAIN"], ["R", 0.875, "RELEASE"]].forEach(function (q) {
+        var a = ss(seg(rv, q[1] - 0.04, q[1] + 0.06));
+        g.tx(q[0], bx(q[1]), by(0) + 18 * u, { size: 14 * u, align: "c", col: P.ink(0.85), wt: 500, a: a });
+        if (cbw() > 560) g.tx(q[2], bx(q[1]), by(0) + 32 * u, { size: 9.5 * u, align: "c", col: P.faint(), a: a });
+      });
+      g.focus(bx(rv), by(envFn(rv) * 0.9));
+    });
+    S("A DOSING CURVE IS AN ENVELOPE", "1968 · THE ENVELOPE", 3.8, { lay: "grat" }, function (g, p, k, d) {
+      var c = g.c, P = g.P; g.layer("grat", graticule);
+      c.lineWidth = 1.4; c.strokeStyle = P.ink(0.3); g.al(1); pathFn(c, envFn, 0, 1, 200, bx, function (v) { return by(v * 0.9); }); c.stroke();
+      var rv = ease(seg(k, 0.3, d * 0.8)); c.strokeStyle = g.stroke(); c.lineWidth = 2.5; c.lineJoin = "round";
+      pathFn(c, function (f) { return batN(f * 9, 2.4, 0.5) * 0.98; }, 0, rv, 200, bx, function (v) { return by(v * 0.9); }); c.stroke();
+      g.focus(bx(rv), by(batN(rv * 9, 2.4, 0.5) * 0.98 * 0.9));
+    });
+    S("LYNN CONWAY · 1968 — 2020", "A QUIET LINEAGE", 7, {}, function (g, p, k, d) {
+      var c = g.c, P = g.P, u = Ly.u, y = (Ly.cb.y0 + Ly.cb.y1) / 2, a = ss(seg(k, 0, 1));
+      g.al(a); g.ln(bx(0.04), y, bx(0.96), y, P.line(), 1);
+      for (var yr = 1968; yr <= 2020; yr += 4) { var f = 0.04 + 0.92 * (yr - 1968) / 52; g.al(a * 0.9); g.ln(bx(f), y - (yr % 12 === 0 ? 7 : 4) * u, bx(f), y + (yr % 12 === 0 ? 7 : 4) * u, P.ink(0.35)); }
+      var f1 = 0.04, f2 = 0.96, r1 = ss(seg(k, 0.5, 1.5)), r2 = ss(seg(k, d * 0.62, d * 0.62 + 1.2));
+      g.al(r1); g.ring(bx(f1), y, 5.5 * u, P.ink(), 1.2, P.paper());
+      g.tx("1968", bx(f1), y - 18 * u, { size: 14 * u, align: "c", col: P.ink(0.9), wt: 500, a: r1 });
+      g.tx("FIRED BY IBM FOR TRANSITIONING", bx(f1) - 2, y + 28 * u, { size: 9.5 * u, col: P.muted(), a: r1 });
+      g.al(r2); g.ring(bx(f2), y, 5.5 * u, P.ink(), 1.2, P.paper());
+      g.tx("2020", bx(f2), y - 18 * u, { size: 14 * u, align: "c", col: P.ink(0.9), wt: 500, a: r2 });
+      g.tx("IBM APOLOGIZES PUBLICLY", bx(f2) + 2, y + 28 * u, { size: 9.5 * u, align: "r", col: P.muted(), a: r2 });
+      var f = lerp(f1, f2, ease(seg(k, 1, d * 0.62))); g.al(0.9); g.ln(bx(f1), y, bx(f), y, P.acc(), 1.8); g.focus(bx(f), y);
+    });
+    S("VLSI · A REVOLUTION IN CHIP DESIGN", "A QUIET LINEAGE", 3, {}, function (g, p, k) {
+      var c = g.c, P = g.P, u = Ly.u, rnd = rng(23), gs = 22 * u, N = 34;
+      c.lineJoin = "miter"; c.lineCap = "butt";
+      for (var i = 0; i < N; i++) {
+        var x = Math.round(rnd() * W / gs) * gs, y = Math.round(rnd() * (H - 70) / gs) * gs, pts = [[x, y]], ns = 3 + Math.floor(rnd() * 3), hz = rnd() < 0.5;
+        for (var s = 0; s < ns; s++) { var L2 = (1 + Math.floor(rnd() * 6)) * gs * (rnd() < 0.5 ? -1 : 1); if (hz) x += L2; else y += L2; pts.push([x, y]); hz = !hz; }
+        var rv = ss(seg(k, i * 0.045, i * 0.045 + 1)); if (rv <= 0) continue;
+        g.al(0.95 * rv); c.strokeStyle = P.ink(i % 5 === 0 ? 0.6 : 0.4); c.lineWidth = i % 5 === 0 ? 2 : 1.3; c.beginPath();
+        pts.forEach(function (q, ix) { if (ix) c.lineTo(q[0], q[1]); else c.moveTo(q[0], q[1]); }); c.stroke();
+        var e = pts[pts.length - 1]; c.fillStyle = P.paper(); c.strokeStyle = P.ink(0.55); c.lineWidth = 1; c.fillRect(e[0] - 3 * u, e[1] - 3 * u, 6 * u, 6 * u); c.strokeRect(e[0] - 3 * u, e[1] - 3 * u, 6 * u, 6 * u);
+        if (i === 4) g.focus(e[0], e[1]);
+      }
+    });
+    S("SET IN IBM PLEX · A SMALL RECLAMATION", "A QUIET LINEAGE", 4.2, {}, function (g, p, k) {
+      var c = g.c, P = g.P, u = Ly.u, cb = Ly.cb, y = (cb.y0 + cb.y1) / 2 + 12 * u, items = [["Aa", "serif", 60, "PLEX SERIF"], ["218", "mono", 50, "PLEX MONO"], ["Aa", "sans", 60, "ATKINSON HYPERLEGIBLE NEXT"]];
+      items.forEach(function (it, i) {
+        var x = bx(0.18 + 0.32 * i), a = ss(seg(k, i * 0.4, i * 0.4 + 0.9));
+        var o = { size: it[2] * u, font: it[1] === "mono" ? null : it[1], align: "c", col: P.ink(0.9), a: a, wt: it[1] === "mono" ? 500 : 400, track: it[1] === "mono" ? 0 : 0 };
+        g.tx(it[0], x, y, o); g.ln(x - 40 * u, y + 14 * u, x + 40 * u, y + 14 * u, P.line(), 1);
+        g.tx(it[3], x, y + 32 * u, { size: 9 * u, align: "c", col: P.muted(), a: a });
+      });
+      g.focus(bx(0.18 + 0.32 * 2) + 44 * u, y - 24 * u);
+    });
+    S("23 WEEKS · THE BODY AS A TIME SERIES", "CASSILS · CUTS", 8, {}, function (g, p, k, d) {
+      var c = g.c, P = g.P, u = Ly.u, cb = Ly.cb, cols = 23, rows = 7, cell = Math.min(cbw() / (cols + 1), cbh() * 0.62 / rows, 30 * u);
+      var gw = cols * cell, gh = rows * cell, x0 = (cb.x0 + cb.x1) / 2 - gw / 2 + cell / 2, y0 = (cb.y0 + cb.y1) / 2 - gh / 2 + cell / 2 + 8 * u;
+      var n = Math.floor(ease(seg(k, 0.4, d * 0.82)) * 161), lastx = x0, lasty = y0;
+      for (var i = 0; i < 161; i++) {
+        var wk = Math.floor(i / 7), dy = i % 7, x = x0 + wk * cell, y = y0 + dy * cell;
+        if (i < n) { g.al(0.95); g.disc(x, y, cell * 0.27, P.lh(i / 160)); lastx = x; lasty = y; } else { g.al(0.9); g.ring(x, y, cell * 0.22, P.ink(0.25), 1); }
+      }
+      g.tx("DAY " + n + " / 161 · WEEK " + (Math.floor(Math.max(0, n - 1) / 7) + 1), x0 - cell / 2, y0 - cell * 0.9, { size: 10 * u, col: P.muted() });
+      g.focus(lastx, lasty);
+    });
+  }
+
+  /* — III · THE WORK — */
+  S("ONE DOSE · ABSORPTION LESS ELIMINATION", "BATEMAN", 6, { r: "ink" }, function (g, p, k, d) {
+    var c = g.c, P = g.P, u = Ly.u; g.ln(bx(0), by(0), bx(1), by(0), P.line(), 1);
+    var rv = ease(seg(k, 0.3, d * 0.72)), fn = function (f) { return batN(f * 7, 2.6, 0.6) * 0.9; };
+    c.lineJoin = c.lineCap = "round"; c.strokeStyle = g.stroke(); c.lineWidth = 2.5; pathFn(c, fn, 0, rv, 160, bx, by); c.stroke();
+    g.tx("ABSORPTION", bx(0.06), by(0.62), { size: 10 * u, col: P.muted(), a: ss(seg(rv, 0.05, 0.2)), align: "r" });
+    g.tx("ELIMINATION", bx(0.44), by(fn(0.44)) - 12 * u, { size: 10 * u, col: P.muted(), a: ss(seg(rv, 0.4, 0.55)) });
+    g.focus(bx(rv), by(fn(rv)));
+  });
+  S("MANY DOSES · A STEADY STATE", "BATEMAN", 7.5, { lay: "hero" }, function (g, p, k) {
+    g.layer("hero", heroLayer); var f = ease(seg(g.lk, 0.2, 5.4)); g.focus(bx(f), by(HERO.at(f) * HS));
+  });
+  S("PEAK · STEADY · TROUGH", "BATEMAN", 3.6, { lay: "hero" }, function (g, p, k) {
+    var c = g.c, P = g.P, u = Ly.u; g.layer("hero", heroLayer);
+    var pk = HERO.peaks.slice(-3), tr = HERO.troughs.slice(-3);
+    g.al(ss(seg(k, 0.2, 1))); g.ln(bx(0.5), by(HERO.mean * HS), bx(1), by(HERO.mean * HS), P.faint(0.8), 1);
+    g.tx("STEADY", bx(1), by(HERO.mean * HS) - 6 * u, { size: 10 * u, align: "r", col: P.muted(), a: ss(seg(k, 0.4, 1.2)) });
+    pk.forEach(function (f, i) { var a = ss(seg(k, 0.5 + i * 0.3, 1.3 + i * 0.3)); g.tx("PEAK", bx(f), by(HERO.at(f) * HS) - 14 * u, { size: 9.5 * u, align: "c", col: P.ink(0.85), a: a }); g.ring(bx(f), by(HERO.at(f) * HS), 3 * u, P.ink(0.7), 1, P.paper()); });
+    tr.forEach(function (f, i) { var a = ss(seg(k, 0.8 + i * 0.3, 1.6 + i * 0.3)); g.tx("TROUGH", bx(f), by(HERO.at(f) * HS) + 22 * u, { size: 9.5 * u, align: "c", col: P.muted(), a: a }); });
+    g.focus(bx(pk[pk.length - 1]), by(HERO.at(pk[pk.length - 1]) * HS));
+  });
+  S("THE FILL · LEVEL TINT TO TRANSPARENT", "THE CURVE", 3, { lay: "hero" }, function (g, p, k) {
+    var c = g.c, P = g.P; g.layer("hero", heroLayer);
+    var a = ss(seg(k, 0.1, 1.6)), gr = c.createLinearGradient(0, by(1), 0, by(0)); gr.addColorStop(0, P.high(T.curve.fill.topOpacity)); gr.addColorStop(1, P.high(0));
+    pathFn(c, function (f) { return HERO.at(f) * HS; }, 0, 1, 200, bx, by); c.lineTo(bx(1), by(0)); c.lineTo(bx(0), by(0)); c.closePath(); c.fillStyle = gr; g.al(a); c.fill();
+    g.focus(bx(0.5), by(HERO.at(0.5) * HS));
+  });
+  S("ONE LINE, LEVEL LOW → LEVEL HIGH", "THE CURVE", 2.4, { lay: "hero" }, function (g, p, k) {
+    var c = g.c, P = g.P, u = Ly.u; g.layer("hero", heroLayer);
+    var ct = Ly.ct, w = Math.min(420 * u, (ct.x1 - ct.x0) * 0.7), x0 = (ct.x0 + ct.x1) / 2 - w / 2, y = (ct.y0 + ct.y1) / 2, a = ss(seg(k, 0, 0.8));
+    var gr = c.createLinearGradient(x0, 0, x0 + w, 0); gr.addColorStop(0, P.low()); gr.addColorStop(1, P.high());
+    g.al(a); c.strokeStyle = gr; c.lineWidth = 2.5; c.lineCap = "round"; c.beginPath(); c.moveTo(x0, y); c.lineTo(x0 + w, y); c.stroke();
+    g.tx("LEVEL LOW", x0, y + 22 * u, { size: 9.5 * u, col: P.muted(), a: a }); g.tx("LEVEL HIGH", x0 + w, y + 22 * u, { size: 9.5 * u, align: "r", col: P.muted(), a: a });
+    g.focus(x0 + w * ease(seg(k, 0.2, 2.2)), y);
+  });
+  S("A LAB DRAW · THE HOLLOW RING", "THE CURVE", 4.5, { lay: "hero" }, function (g, p, k) {
+    var c = g.c, P = g.P, u = Ly.u; g.layer("hero", heroLayer);
+    var f = labF, my = by(HERO.at(f) * HS), ry = by(HERO.at(f) * HS * calK), a = ss(seg(k, 0.3, 1.2)), b = ss(seg(k, 1.2, 2.2));
+    g.al(b); g.ln(bx(f), my, bx(f), ry, P.ink(0.4), 1);
+    g.al(a); g.ring(bx(f), ry, 4.5 * u, P.ink(), 1.2, P.paper());
+    g.tx("MEASURED", bx(f) + 12 * u, ry - 2 * u, { size: 9.5 * u, col: P.ink(0.85), a: a });
+    g.tx("MODELED", bx(f) + 12 * u, my + 14 * u, { size: 9.5 * u, col: P.muted(), a: b });
+    g.focus(bx(f), ry - 26 * u);
+  });
+  S("CALIBRATED · THE MODEL MEETS THE DRAW", "THE CURVE", 3.6, { lay: "cal" }, function (g, p, k) {
+    var P = g.P, u = Ly.u; g.layer("cal", calLayer);
+    g.tx("CALIBRATED TO 1 LAB", bx(0.02), by(0.0) - 12 * u, { size: 10 * u, col: P.muted(), a: ss(seg(k, 1.2, 2.2)) });
+    g.focus(bx(labF), by(HERO.at(labF) * HS * calK) - 26 * u);
+  });
+  S("YOUR RANGE · A BAND THE USER SETS", "THE CURVE", 4.6, { lay: "cal" }, function (g, p, k) {
+    var c = g.c, P = g.P, u = Ly.u; g.layer("cal", calLayer);
+    var a = ss(seg(k, 0.2, 1.4)), lo = 0.2, hi = 0.94;
+    g.al(a); c.fillStyle = P.acc(T.curve.rangeBand.opacity * 1.6); c.fillRect(bx(0), by(hi), cbw(), by(lo) - by(hi));
+    g.ln(bx(0), by(lo), bx(1), by(lo), P.acc(0.5), 1); g.ln(bx(0), by(hi), bx(1), by(hi), P.acc(0.5), 1);
+    g.tx("YOUR RANGE 100–600", bx(0.01), by(hi) + 15 * u, { size: 10 * u, col: P.ink(0.8), a: a });
+    g.tx("100", bx(0) - 8, by(lo) + 3, { size: 9 * u, align: "r", col: P.faint(), a: a }); g.tx("600", bx(0) - 8, by(hi) + 3, { size: 9 * u, align: "r", col: P.faint(), a: a });
+    g.focus(bx(0.8), by(HERO.at(0.8) * HS * calK));
+  });
+  S("PROVENANCE · SAID IN A LINE, NOT A DASH", "THE CURVE", 4.6, { r: "hair" }, function (g, p, k) {
+    var P = g.P, u = Ly.u, y = (Ly.cb.y0 + Ly.cb.y1) / 2, mw = cbw() * 0.96, x = (Ly.cb.x0 + Ly.cb.x1) / 2;
+    var o1 = g.fit("MODELED · NO LABS YET", { size: 15 * u }, mw), o2 = g.fit("MODELED · CALIBRATED TO 2 LABS · LAST 4 MO AGO", { size: 15 * u }, mw);
+    var a1 = ss(seg(k, 0.1, 0.7)) * (1 - ss(seg(k, 2.2, 2.9))), a2 = ss(seg(k, 2.6, 3.2));
+    o1.align = o2.align = "c"; o1.col = o2.col = P.ink(0.85); o1.a = a1; o2.a = a2; o1.stag = o2.stag = true;
+    o1.n = (k - 0.1) * 22; o2.n = (k - 2.6) * 26;
+    g.tx("MODELED · NO LABS YET", x, y, o1); g.tx("MODELED · CALIBRATED TO 2 LABS · LAST 4 MO AGO", x, y, o2);
+    var w1 = G.meas("MODELED · NO LABS YET", o1), w2 = G.meas("MODELED · CALIBRATED TO 2 LABS · LAST 4 MO AGO", o2), fw = lerp(w1, w2, ss(seg(k, 2.4, 3.2)));
+    g.focus(x + fw / 2 + 16 * u, y - 4 * u);
+  });
+  S("NOW · THE SAME POINT AS THE I.", "THE POINT", 3.6, {}, function (g, p, k) {
+    var c = g.c, P = g.P, u = Ly.u, y = (Ly.cb.y0 + Ly.cb.y1) / 2, x = bx(0.42), a = ss(seg(k, 0, 0.8)), sc = 2.4 * u;
+    g.al(a * 0.9); g.ln(x - 110 * u, y, x + 110 * u, y, P.line(), 1); g.ln(x, y - 38 * u, x, y + 38 * u, P.line(), 1);
+    g.nowPoint(x, y, sc, a);
+    var kk = (k % 2.4) / 2.4; g.al(a * (1 - kk) * 0.5); g.ring(x, y, 13 * sc + kk * 18 * u, P.acc(), 1);
+    g.tx("NOW", x, y - 46 * u, { size: 10 * u, align: "c", col: P.ink(0.85), a: a });
+    var b = ss(seg(k, 0.8, 1.6)); drawMark(c, P, bx(0.62), y, 64 * u, "ink", b, 1); g.tx("I.", bx(0.62), y + 54 * u, { size: 10 * u, align: "c", col: P.muted(), a: b });
+    g.focus(x, y);
+  });
+  S("218 pg/mL · INSIDE YOUR RANGE", "THE READOUT", 5, {}, function (g, p, k) {
+    var c = g.c, P = g.P, u = Ly.u, sc = Math.min(1, cbh() / 150) * u, cy = (Ly.cb.y0 + Ly.cb.y1) / 2, x = (Ly.cb.x0 + Ly.cb.x1) / 2;
+    var v = Math.round(218 * (1 - Math.exp(-3.4 * Math.max(0, k - 0.3)) * Math.cos(7.5 * Math.max(0, k - 0.3)))), a = ss(seg(k, 0.1, 0.8));
+    var o = { size: 64 * sc, wt: 500, track: 0, col: P.ink(), a: a }, w1 = G.meas("218", o), w2 = G.meas(" pg/mL", { size: 18 * sc, track: 0 });
+    var x0 = x - (w1 + w2) / 2; g.tx(String(Math.max(0, v)), x0, cy, o);
+    g.tx("pg/mL", x0 + w1 + 8 * sc, cy, { size: 18 * sc, track: 0, col: P.muted(), a: a });
+    g.tx("INSIDE YOUR RANGE", x, cy + 26 * sc, { size: 12 * sc, align: "c", col: P.ink(0.8), a: ss(seg(k, 1.2, 2)) });
+    g.tx("MODELED · CALIBRATED TO 1 LAB · 14 D AGO", x, cy + 46 * sc, { size: 10 * sc, align: "c", col: P.faint(), a: ss(seg(k, 1.6, 2.4)) });
+    g.focus(x0 + w1 + w2 + 14 * sc, cy - 22 * sc);
+  });
+  S("FIT TO PUBLISHED PHARMACOKINETICS", "THE MOAT", 4.4, {}, function (g, p, k) {
+    var c = g.c, P = g.P, u = Ly.u, rows = [["01", "BI", "2018"], ["02", "ICHIHARA", "2020"], ["03", "PASTUSZAK", "2021"]], w = Math.min(cbw() * 0.8, 440 * u), x0 = (Ly.cb.x0 + Ly.cb.x1) / 2 - w / 2, rh = 38 * u, y0 = (Ly.cb.y0 + Ly.cb.y1) / 2 - rh * 1.2;
+    rows.forEach(function (r, i) {
+      var a = ss(seg(k, i * 0.5, i * 0.5 + 0.9)), y = y0 + i * rh;
+      g.al(a); g.ln(x0, y + 10 * u, x0 + w, y + 10 * u, P.line(), 1);
+      g.tx(r[0], x0, y, { size: 10 * u, col: P.faint(), a: a }); g.tx(r[1], x0 + 40 * u, y, { size: 15 * u, col: P.ink(0.9), wt: 500, a: a }); g.tx(r[2], x0 + w, y, { size: 15 * u, align: "r", col: P.muted(), a: a });
+    });
+    g.focus(x0 + w + 12 * u, y0 + 2 * rh - 4 * u);
+  });
+  S("ESTER-SPECIFIC · FIVE CURVES, ONE METHOD", "THE MOAT", 3.6, {}, function (g, p, k) {
+    var c = g.c, P = g.P, ks = [[3.2, 0.9], [2.6, 0.62], [1.8, 0.42], [1.2, 0.3], [0.8, 0.22]]; g.ln(bx(0), by(0), bx(1), by(0), P.line(), 1);
+    c.lineJoin = c.lineCap = "round"; var hx = bx(0), hy = by(0);
+    ks.forEach(function (q, i) {
+      var rv = ease(seg(k, i * 0.28, i * 0.28 + 1.4)); c.strokeStyle = P.lh(i / 4, 0.4 + 0.12 * i); c.lineWidth = i === 4 ? 2.5 : 1.6; g.al(1);
+      pathFn(c, function (f) { return batN(f * 9, q[0], q[1]) * 0.9; }, 0, rv, 140, bx, by); c.stroke();
+      if (i === 4) { hx = bx(rv); hy = by(batN(rv * 9, q[0], q[1]) * 0.9); }
+    });
+    g.focus(hx, hy);
+  });
+  S("THE PHASE STRIP", "THE CURVE", 3.2, {}, function (g, p, k) {
+    var c = g.c, P = g.P, u = Ly.u, items = [["MON", "DOSE"], ["WED", "PEAK"], ["FRI", "TODAY"], ["SUN", "TROUGH"]], gap = 10 * u, cw = Math.min(118 * u, (cbw() - 3 * gap) / 4), ch = 46 * u;
+    var x0 = (Ly.cb.x0 + Ly.cb.x1) / 2 - (cw * 4 + gap * 3) / 2, y = (Ly.cb.y0 + Ly.cb.y1) / 2 - ch / 2;
+    items.forEach(function (it, i) {
+      var a = ss(seg(k, i * 0.22, i * 0.22 + 0.7)), x = x0 + i * (cw + gap); g.al(a);
+      G.rr(x, y, cw, ch, ch / 2); c.strokeStyle = i === 2 ? P.acc() : P.line(2); c.lineWidth = i === 2 ? 1.6 : 1; c.stroke();
+      g.tx(it[0], x + cw / 2, y + ch * 0.44, { size: 12 * u, align: "c", col: P.ink(0.9), wt: 500, a: a }); g.tx(it[1], x + cw / 2, y + ch * 0.76, { size: 9 * u, align: "c", col: P.muted(), a: a });
+    });
+    g.focus(x0 + 2 * (cw + gap) + cw / 2, y - 10 * u);
+  });
+  S("A GAUGE SETTLES · ONE DAMPED SWING", "THE INSTRUMENT", 6, {}, function (g, p, k) {
+    var c = g.c, P = g.P, u = Ly.u, D = dialCenter(), R = Math.min(cbh() * 0.72, cbw() * 0.2), cx = D.x, cy = D.y + R * 0.45, a0 = Math.PI * 1.12, a1 = Math.PI * 1.88;
+    var a = ss(seg(k, 0, 0.8)); g.al(a); c.strokeStyle = P.line(2); c.lineWidth = 1; c.beginPath(); c.arc(cx, cy, R, a0, a1); c.stroke();
+    for (var i = 0; i <= 20; i++) { var th = lerp(a0, a1, i / 20), r2 = R - (i % 5 === 0 ? 11 : 6) * u; g.al(a * 0.9); g.ln(cx + Math.cos(th) * R, cy + Math.sin(th) * R, cx + Math.cos(th) * r2, cy + Math.sin(th) * r2, P.ink(0.4)); }
+    var tgt = lerp(a0, a1, 0.62), th0 = a0 + 0.02, t2 = Math.max(0, k - 0.8), th = tgt + (th0 - tgt) * Math.exp(-2.1 * t2) * Math.cos(4.6 * t2);
+    var tipx = cx + Math.cos(th) * (R - 4 * u), tipy = cy + Math.sin(th) * (R - 4 * u);
+    g.al(1); g.ln(cx, cy, tipx, tipy, P.ink(0.9), 1.8); g.disc(cx, cy, 5 * u, P.acc());
+    g.focus(tipx, tipy);
+  });
+
+  /* — IV · DECISIONS — */
+  S("MOST TRACKERS COUNT DOSES. ISOCLINE SHOWS YOU THE CURVE.", "AUG 2026 · POSITION", 6, {}, function (g, p, k, d) {
+    var c = g.c, P = g.P, u = Ly.u, cb = Ly.cb, bh = cbh(), mid = (cb.x0 + cb.x1) / 2;
+    g.al(ss(seg(k, 0, 0.6))); g.ln(mid, cb.y0 + bh * 0.05, mid, cb.y1, P.line(), 1);
+    g.tx("COUNT", mid - 24 * u, cb.y0 + bh * 0.1, { size: 10 * u, align: "r", col: P.muted(), a: ss(seg(k, 0.2, 0.9)) }); g.tx("CURVE", mid + 24 * u, cb.y0 + bh * 0.1, { size: 10 * u, col: P.muted(), a: ss(seg(k, 0.2, 0.9)) });
+    var tw = 26, n = Math.floor(ease(seg(k, 0.5, d * 0.7)) * tw), gx = mid - 40 * u, gy = cb.y0 + bh * 0.34, gw = 34 * u, gap = 18 * u;
+    c.strokeStyle = P.ink(0.75); c.lineWidth = 1.6; c.lineCap = "round"; g.al(0.9);
+    for (var i = 0; i < n; i++) {
+      var grp = Math.floor(i / 5), pos = i % 5, col = grp % 3, row = Math.floor(grp / 3), bx0 = gx - (col + 1) * (gw + gap) + gap, by0 = gy + row * 42 * u;
+      c.beginPath();
+      if (pos < 4) { c.moveTo(bx0 + pos * 8 * u, by0); c.lineTo(bx0 + pos * 8 * u, by0 + 28 * u); } else { c.moveTo(bx0 - 4 * u, by0 + 24 * u); c.lineTo(bx0 + 32 * u, by0 + 4 * u); }
+      c.stroke();
+    }
+    var rv = ease(seg(k, 0.8, d * 0.78)), X = function (f) { return mid + 30 * u + f * (cb.x1 - mid - 40 * u); };
+    c.strokeStyle = g.stroke(); c.lineWidth = 2.4; c.lineJoin = "round"; g.al(1);
+    pathFn(c, function (f) { return HERO.at(f * 0.9 + 0.1) * HS; }, 0, rv, 140, X, by); c.stroke();
+    g.focus(X(rv), by(HERO.at(rv * 0.9 + 0.1) * HS));
+  });
+  S("RETIRED · THE CURVE UNDER THE WORD", "OCT 4 → OCT 10", 3.6, {}, function (g, p, k) {
+    var c = g.c, P = g.P, u = Ly.u, X = function (f) { return bx(0.04 + f * 0.34); }, a = ss(seg(k, 0, 0.8));
+    c.strokeStyle = P.ink(0.4); c.lineWidth = 1.6; g.al(a); pathFn(c, isoV, 0, 1, 80, X, by2); c.stroke();
+    var s = ease(seg(k, 1.0, 1.8)); g.al(1); g.ln(X(0), by(0.1), X(0) + (X(1) - X(0)) * s, by(0.1) - (by(0.1) - by(0.9)) * s, P.ink(0.8), 1.4);
+    g.tx("RETIRED", X(0.5), by(0) + 18 * u, { size: 10 * u, align: "c", col: P.muted(), a: ss(seg(k, 1.5, 2.2)) });
+    g.focus(X(0.5), by(0.5));
+  });
+  S("RETIRED · THE BULLSEYE · THE POINT REMAINS", "OCT 4 → OCT 10", 2.8, {}, function (g, p, k) {
+    var c = g.c, P = g.P, u = Ly.u, x = bx(0.7), y = (Ly.cb.y0 + Ly.cb.y1) / 2, col = ease(seg(k, 0.6, 1.9));
+    [34, 22, 11].forEach(function (r, i) { g.al(ss(seg(k, 0, 0.5)) * (1 - ss(seg(k, 1.2 + i * 0.1, 2.0)))); g.ring(x, y, r * u * (1 - col * 0.9), P.ink(0.7), 1.2); });
+    g.al(1); g.disc(x, y, 4 * u, P.acc()); g.focus(x, y);
+  });
+  S("WHAT IS · FLUSH ON PAPER — WHAT YOU ADJUST · IN A CARD", "OCT 10 · PAPER & INSTRUMENT", 6, {}, function (g, p, k) {
+    var c = g.c, P = g.P, u = Ly.u, cb = Ly.cb, cy = (cb.y0 + cb.y1) / 2, lx = bx(0.27), a = ss(seg(k, 0, 0.9)), b = ss(seg(k, 1.2, 2.2));
+    g.tx("WHAT IS", lx, cy - 52 * u, { size: 9.5 * u, align: "c", col: P.muted(), track: 0.18, a: a });
+    var sz = 52 * u; g.tx("218", lx - 30 * u, cy + 6 * u, { size: sz, wt: 500, track: 0, col: P.ink(), align: "c", a: a }); g.tx("pg/mL", lx + 52 * u, cy + 6 * u, { size: 15 * u, track: 0, col: P.muted(), a: a });
+    var cw = Math.min(250 * u, cbw() * 0.4), ch = 112 * u, cx0 = bx(0.62), cy0 = cy - ch / 2 + 6 * u;
+    g.tx("WHAT YOU ADJUST", cx0 + cw / 2, cy - 52 * u, { size: 9.5 * u, align: "c", col: P.muted(), track: 0.18, a: b });
+    g.al(b); G.rr(cx0, cy0, cw, ch, 16 * u); c.fillStyle = P.card(); c.fill(); c.strokeStyle = P.line(); c.lineWidth = 1; c.stroke();
+    g.tx("NEXT ENTRY", cx0 + 14 * u, cy0 + 26 * u, { size: 9 * u, col: P.faint(), track: 0.18, a: b }); g.tx("TODAY 6:00 PM", cx0 + 14 * u, cy0 + 46 * u, { size: 12 * u, col: P.ink(0.9), wt: 500, a: b });
+    var pw = 100 * u, ph = 30 * u, px = cx0 + 14 * u, py = cy0 + ch - ph - 14 * u; g.al(b); G.rr(px, py, pw, ph, ph / 2); c.fillStyle = P.acc(); c.fill();
+    g.tx("LOG DOSE", px + pw / 2, py + ph * 0.64, { size: 10.5 * u, align: "c", col: P.onAcc(), wt: 500, a: b });
+    g.focus(cx0 + cw - 18 * u, cy0 + ch - 14 * u - ph / 2);
+  });
+  S("NIGHT PAPER KEEPS THE SEED'S HUE", "OCT 10 · PAPER & INSTRUMENT", 10, { r: "ink", n: 1 }, function (g, p, k, d) {
+    var c = g.c, P = g.P, u = Ly.u, rnd = rng(77), nn = G.n || 0;
+    for (var i = 0; i < 70; i++) { var x = rnd() * W, y = rnd() * (H - 60), ph = rnd() * 6, sp = 0.3 + rnd() * 0.7, r = 0.6 + rnd() * 1.1; g.al(nn * (0.25 + 0.4 * (0.5 + 0.5 * Math.sin(g.now * sp + ph)))); g.disc(x, y, r * u, P.ink()); }
+    var rv = ease(seg(k, 0.8, 5.2)), fn = function (f) { return HERO.at(f) * HS; };
+    c.save(); c.lineJoin = c.lineCap = "round"; c.strokeStyle = g.stroke(); c.lineWidth = 2.5; g.al(1);
+    if (nn > 0.5) { c.shadowColor = P.acc(0.35 * nn); c.shadowBlur = 6; }
+    pathFn(c, fn, 0, rv, 200, bx, by); c.stroke(); c.restore();
+    var gr = c.createLinearGradient(0, by(1), 0, by(0)); gr.addColorStop(0, P.high(0.28)); gr.addColorStop(1, P.high(0));
+    pathFn(c, fn, 0, rv, 200, bx, by); c.lineTo(bx(rv), by(0)); c.lineTo(bx(0), by(0)); c.closePath(); c.fillStyle = gr; g.al(0.9); c.fill();
+    g.ln(bx(0), by(0), bx(1), by(0), P.line(), 1);
+    g.focus(bx(rv), by(fn(rv)));
+  });
+  S("DAY PAPER IS CREAM AT EVERY DIAL POSITION · #F8F3E8", "OCT 11 · X4", 6.5, {}, function (g, p, k) {
+    var c = g.c, P = g.P, u = Ly.u, N = 24, y = (Ly.cb.y0 + Ly.cb.y1) / 2, sw = Math.min(34 * u, cbw() / (N + 2)), pitch = sw * 1.12, x0 = (Ly.cb.x0 + Ly.cb.x1) / 2 - pitch * N / 2 + pitch / 2;
+    for (var i = 0; i < N; i++) {
+      var a = ss(seg(k, i * 0.05, i * 0.05 + 0.7)), x = x0 + i * pitch;
+      g.al(a); G.rr(x - sw * 0.46, y - sw * 0.62, sw * 0.92, sw * 1.24, 5 * u); c.fillStyle = P.card(); c.fill(); c.strokeStyle = P.line(); c.lineWidth = 1; c.stroke();
+      g.disc(x, y, sw * 0.24, P.at(DEFAULT + i * 15, 0.95));
+    }
+    var pos = ((((G.hue - DEFAULT) / 15) % N) + N) % N, cxp = x0 + pos * pitch;
+    g.al(0.9); g.ln(cxp, y - sw * 0.62 - 12 * u, cxp, y - sw * 0.62 - 3 * u, P.ink(0.8), 1.4); g.tx("DIAL", cxp, y - sw * 0.62 - 18 * u, { size: 8.5 * u, align: "c", col: P.muted() });
+    g.tx("PAPER #F8F3E8 · EVERY HUE", (Ly.cb.x0 + Ly.cb.x1) / 2, y + sw * 1.1 + 6 * u, { size: 10 * u, align: "c", col: P.muted(), a: ss(seg(k, 1.4, 2.4)) });
+    g.focus(cxp, y - sw * 0.62 - 3 * u);
+  });
+  /* the eight stops, 45° apart — a run */
+  for (var si = 0; si < 8; si++) (function (i) {
+    S("STOP " + (i + 1) + " / 8 · +" + (i * 45) + "° FROM THE DEFAULT SEED", "THE DIAL", i === 7 ? 1.9 : 1.1, { lay: "dial" }, function (g, p, k) {
+      var c = g.c, P = g.P, u = Ly.u, D = dialCenter(); g.layer("dial", dialLayer);
+      var a = -Math.PI / 2 + i * Math.PI / 4, x = D.x + Math.cos(a) * D.R, y = D.y + Math.sin(a) * D.R;
+      g.ring(x, y, 15 * u, P.ink(0.85), 1.2);
+      g.tx("+" + (i * 45) + "°", D.x, D.y + 5 * u, { size: 16 * u, align: "c", col: P.ink(0.9), wt: 500, track: 0.04 });
+      g.tx("STOP " + (i + 1) + " / 8", D.x, D.y + 24 * u, { size: 9 * u, align: "c", col: P.muted() });
+      g.focus(x, y);
+    });
+  })(si);
+  S("ONE SHAPE · THREE RENDERINGS", "OCT 10 · THE LOGO", 5, {}, function (g, p, k) {
+    var c = g.c, P = g.P, u = Ly.u, y = (Ly.cb.y0 + Ly.cb.y1) / 2 - 6 * u, nn = 1 - (G.n || 0);
+    [["INK", "ink", 0.28], ["HAIRLINE", "hair", 0.5], ["EMBOSS", "emb", 0.72]].forEach(function (q, i) {
+      var a = ss(seg(k, i * 0.5, i * 0.5 + 1)); drawMark(c, P, bx(q[2]), y, 78 * u, q[1], a, nn);
+      g.tx(q[0], bx(q[2]), y + 62 * u, { size: 10 * u, align: "c", col: P.muted(), a: a });
+    });
+    g.focus(bx(0.5), y - 54 * u);
+  });
+  S("CLEAR SPACE · THE CAP HEIGHT OF THE O", "OCT 10 · THE LOGO", 5, { r: "ink", nc: true }, function (g, p, k) {
+    var c = g.c, P = g.P, u = Ly.u, L = Ly, a = ss(seg(k, 0, 1)), b = ss(seg(k, 0.9, 1.9));
+    var wl = L.cx - L.w / 2, wr = L.cx + L.w / 2;
+    g.al(a); c.strokeStyle = P.acc(0.9); c.lineWidth = 1; c.strokeRect(L.x0, L.y0, L.x1 - L.x0, L.y1 - L.y0);
+    g.al(a * 0.6); c.strokeStyle = P.line(2); c.strokeRect(wl, L.wordTop, L.w, L.descBot - L.wordTop);
+    var my = L.cy, mx = L.cx;
+    g.al(b); g.ln(L.x0, my, wl, my, P.acc(), 1); g.ln(L.x0, my - 5, L.x0, my + 5, P.acc(), 1); g.ln(wl, my - 5, wl, my + 5, P.acc(), 1);
+    g.ln(mx, L.y0, mx, L.wordTop, P.acc(), 1); g.ln(mx - 5, L.y0, mx + 5, L.y0, P.acc(), 1); g.ln(mx - 5, L.wordTop, mx + 5, L.wordTop, P.acc(), 1);
+    g.tx("O", (L.x0 + wl) / 2, my - 7, { size: 11 * u, align: "c", col: P.ink(0.85), a: b, wt: 500 }); g.tx("O", mx + 9, (L.y0 + L.wordTop) / 2 + 4, { size: 11 * u, col: P.ink(0.85), a: b, wt: 500 });
+    g.tx("CLEAR SPACE", L.x0, L.y0 - 10, { size: 9.5 * u, col: P.muted(), a: b });
+    g.focus(L.x1, L.y1);
+  });
+  S("BELOW 96 PX THE WORD BECOMES I.", "OCT 10 · THE LOGO", 4.6, {}, function (g, p, k) {
+    var c = g.c, P = g.P, u = Ly.u, y = (Ly.cb.y0 + Ly.cb.y1) / 2 - 4, sizes = [96, 48, 32, 24, 16], total = 96 + 48 + 32 + 24 + 16 + 4 * 46, x = (Ly.cb.x0 + Ly.cb.x1) / 2 - total / 2;
+    sizes.forEach(function (sz, i) {
+      var a = ss(seg(k, i * 0.3, i * 0.3 + 0.8)), cx = x + sz / 2; g.al(a);
+      if (i === 0) drawWordmarkAt(c, P, cx, y, 96, "ink"); else drawMark(c, P, cx, y, sz, "ink", a, 1);
+      g.tx(i === 0 ? "96 PX" : sz + " PX", cx, y + 34 * u, { size: 9 * u, align: "c", col: P.muted(), a: a });
+      if (i === 0) g.tx("WORDMARK MINIMUM", cx, y + 48 * u, { size: 8 * u, align: "c", col: P.faint(), a: a });
+      if (i === 4) g.tx("MARK MINIMUM", cx, y + 48 * u, { size: 8 * u, align: "c", col: P.faint(), a: a });
+      x += sz + 46;
+    });
+    g.focus(x - 46 + 12, y);
+  });
+  S("APP ICON · STEALTH ICON", "OCT 10 · THE LOGO", 5.4, {}, function (g, p, k) {
+    var c = g.c, P = g.P, u = Ly.u, y = (Ly.cb.y0 + Ly.cb.y1) / 2 - 8 * u, sz = 98 * u, nn = 1 - (G.n || 0);
+    var a = ss(seg(k, 0, 0.9)), b = ss(seg(k, 1.0, 1.9)), x1 = bx(0.36), x2 = bx(0.64);
+    g.al(a); G.rr(x1 - sz / 2, y - sz / 2, sz, sz, sz * 0.225); var gr = c.createLinearGradient(0, y - sz / 2, 0, y + sz / 2); gr.addColorStop(0, P.acc(0.2)); gr.addColorStop(1, P.acc(0.5)); c.fillStyle = gr; c.fill(); c.strokeStyle = P.line(); c.lineWidth = 1; c.stroke();
+    drawMark(c, P, x1, y, sz * 0.5, "ink", a, 1);
+    g.tx("APP ICON", x1, y + sz / 2 + 22 * u, { size: 9.5 * u, align: "c", col: P.muted(), a: a });
+    g.al(b); G.rr(x2 - sz / 2, y - sz / 2, sz, sz, sz * 0.225); c.fillStyle = P.paper(); c.fill(); c.strokeStyle = P.line(); c.lineWidth = 1; c.stroke();
+    drawMark(c, P, x2, y, sz * 0.5, "emb", b, nn);
+    g.tx("STEALTH ICON", x2, y + sz / 2 + 22 * u, { size: 9.5 * u, align: "c", col: P.muted(), a: b });
+    g.focus(x2 + sz / 2, y - sz / 2);
+  });
+  S("ONE LOGO · THREE ARMS", "ARCHITECTURE", 6, {}, function (g, p, k) {
+    var c = g.c, P = g.P, u = Ly.u, rows = [["01", "APP", "NO DESCRIPTOR"], ["02", "RESEARCH", "PAPERS · PRINT"], ["03", "LABS", "LEGAL · COMPANY"]], w = Math.min(cbw() * 0.84, 460 * u), x0 = (Ly.cb.x0 + Ly.cb.x1) / 2 - w / 2, rh = 40 * u, y0 = (Ly.cb.y0 + Ly.cb.y1) / 2 - rh * 1.1;
+    rows.forEach(function (r, i) {
+      var a = ss(seg(k, i * 0.45, i * 0.45 + 0.9)), y = y0 + i * rh, hl = i === ARMIDX, hlA = hl ? ss(seg(k, 2.0, 3.0)) : 0;
+      g.al(a); g.ln(x0, y + 12 * u, x0 + w, y + 12 * u, P.line(), 1);
+      g.tx(r[0], x0, y, { size: 9.5 * u, col: P.faint(), a: a });
+      g.tx(r[1], x0 + 44 * u, y, { size: 15 * u, col: hl ? P.acc() : P.ink(0.9), wt: 500, track: 0.3, a: a });
+      g.tx(r[2], x0 + w, y, { size: 9.5 * u, align: "r", col: P.muted(), a: a });
+      if (hl) { g.al(hlA); g.ring(x0 - 14 * u, y - 4 * u, 3.5 * u, P.acc(), 1.2); }
+    });
+    g.focus(x0 - 14 * u, y0 + ARMIDX * rh - 4 * u);
+  });
+  S("RED IS ONLY FOR DOCUMENTED CLINICAL THRESHOLDS · OUTLINE, NEVER FILL", "SAFETY", 2.8, {}, function (g, p, k) {
+    var c = g.c, P = g.P, u = Ly.u, txt = "E2 > 1,000 pg/mL", o = { size: 12 * u, wt: 500, track: 0.04 }, tw = G.meas(txt, o), ph = 34 * u, pw = tw + 62 * u, x = (Ly.cb.x0 + Ly.cb.x1) / 2 - pw / 2, y = (Ly.cb.y0 + Ly.cb.y1) / 2 - ph / 2, a = ss(seg(k, 0, 0.8));
+    g.al(a); G.rr(x, y, pw, ph, ph / 2); c.strokeStyle = P.safety(); c.lineWidth = 1.5; c.stroke();
+    c.beginPath(); c.moveTo(x + 17 * u, y + ph * 0.28); c.lineTo(x + 24 * u, y + ph * 0.7); c.lineTo(x + 10 * u, y + ph * 0.7); c.closePath(); c.stroke();
+    o.col = P.safety(); o.a = a; g.tx(txt, x + 38 * u, y + ph * 0.62, o);
+    g.focus(x + pw + 12 * u, y + ph / 2);
+  });
+  S("DISCRETION FIRST · NOTHING NAMES A MEDICATION", "PRINCIPLE", 5.6, { r: "emb" }, function (g, p, k) {
+    var c = g.c, P = g.P, u = Ly.u, cw = Math.min(380 * u, cbw() * 0.92), ch = 74 * u, x = (Ly.cb.x0 + Ly.cb.x1) / 2 - cw / 2, y = (Ly.cb.y0 + Ly.cb.y1) / 2 - ch / 2, a = ss(seg(k, 0.1, 1)), nn = 1 - (G.n || 0);
+    g.al(a); G.rr(x, y, cw, ch, 18 * u); c.fillStyle = P.card(); c.fill(); c.strokeStyle = P.line(); c.lineWidth = 1; c.stroke();
+    var ix = x + 16 * u + 15 * u, iy = y + ch / 2; g.al(a); G.rr(ix - 15 * u, iy - 15 * u, 30 * u, 30 * u, 7 * u); c.fillStyle = P.paper(); c.fill(); c.strokeStyle = P.line(); c.stroke();
+    drawMark(c, P, ix, iy, 16 * u, "emb", a, nn);
+    g.tx("Reminder", ix + 26 * u, y + ch * 0.4, { size: 14 * u, font: "sans", wt: 700, col: P.ink(0.92), a: ss(seg(k, 0.6, 1.4)) });
+    g.tx("Your scheduled entry is ready.", ix + 26 * u, y + ch * 0.68, { size: 13 * u, font: "sans", col: P.muted(), a: ss(seg(k, 1.0, 1.8)) });
+    g.tx("now", x + cw - 14 * u, y + ch * 0.4, { size: 9.5 * u, align: "r", col: P.faint(), a: a });
+    g.focus(x + cw + 12 * u, y + ch / 2);
+  });
+  S("COORDINATES, NOT VERDICTS", "VOICE", 4, {}, function (g, p, k) {
+    var P = g.P, u = Ly.u, x = (Ly.cb.x0 + Ly.cb.x1) / 2, y = (Ly.cb.y0 + Ly.cb.y1) / 2;
+    var o1 = g.fit("218 pg/mL · inside your range", { size: 17 * u, wt: 500, track: 0.04 }, cbw() * 0.95); o1.align = "c"; o1.col = P.ink(0.9); o1.a = ss(seg(k, 0.2, 1));
+    g.tx("218 pg/mL · inside your range", x, y - 6 * u, o1);
+    g.tx("Lower than this time last cycle", x, y + 26 * u, { size: 15 * u, font: "sans", align: "c", col: P.muted(), a: ss(seg(k, 1.3, 2.1)) });
+    g.focus(x + G.meas("218 pg/mL · inside your range", o1) / 2 + 14 * u, y - 14 * u);
+  });
+  /* a quiet run of lines, then a long hold */
+  [["Most trackers count doses.", 1.3], ["Isocline shows you the curve.", 1.6], ["Find your line.", 1.8], ["Your protocol has a shape.", 2.0], ["Shaped protocol.", 2.5]].forEach(function (q) {
+    S(q[0].toUpperCase(), "LANGUAGE", q[1], {}, function (g, p, k) {
+      var P = g.P, u = Ly.u, x = (Ly.cb.x0 + Ly.cb.x1) / 2, y = (Ly.cb.y0 + Ly.cb.y1) / 2 + 8 * u, o = g.fit(q[0], { size: 34 * u, font: "serif", track: 0 }, cbw() * 0.95);
+      o.align = "c"; o.col = P.ink(0.92); g.tx(q[0], x, y, o); g.focus(x + G.meas(q[0], o) / 2 + 20 * u, y - 10 * u);
+    });
+  });
+  S("STEADY IS THE POINT.", "CLOSE", 14, { r: "ink", lay: "base" }, function (g, p, k) {
+    var P = g.P, u = Ly.u, x = (Ly.cb.x0 + Ly.cb.x1) / 2, y = Ly.baseY - 38 * u, o = g.fit("Steady is the point.", { size: 30 * u, font: "serif", track: 0 }, cbw() * 0.95);
+    g.layer("base", baselineLayer);
+    o.align = "c"; o.col = P.ink(0.9); o.a = ss(seg(k, 0.8, 2.6)); g.tx("Steady is the point.", x, y, o);
+    g.focus(W * (0.28 + 0.44 * ss(p)), Ly.baseY);
+  });
+
+  /* ---------- timeline: long holds, quick runs, slow-downs; every seam is a smootherstep crossfade ---------- */
+  var N = SC.length, ST = [], LOOP = 0;
+  function seam(a, b) { return clamp(0.38 * Math.min(SC[a].d, SC[b].d), 0.34, 1.5); }
+  (function () {
+    var t0 = 0;
+    for (var i = 0; i < N; i++) {
+      var fin = seam((i + N - 1) % N, i), fout = seam(i, (i + 1) % N);
+      ST.push({ start: t0, fin: fin, fout: fout });
+      t0 += SC[i].d - fout;
+    }
+    LOOP = t0 + 0;                                          // the last seam is the wrap seam: scene 1 begins as the last one lets go
+  })();
+  function envOf(i, tt) {
+    var s = ST[i], x = tt - s.start, d = SC[i].d;
+    if (x < 0 || x > d) return 0;
+    return ss(x / s.fin) * ss((d - x) / s.fout);
+  }
+
+  /* ---------- word rendering, ground, point: all settled, none snapped ---------- */
+  var curR = "ink", wts = [1, 0, 0], night = 0, dot = { x: W / 2, y: Ly.baseY, a: 0 }, clock = qs.t ? parseFloat(qs.t) || 0 : 0, last = 0, firstFrame = true, FREEZE = !!qs.freeze, hue = DEFAULT;
+  var RIDX = { ink: 0, hair: 1, emb: 2 };
+
+  function frame(nowT) {
+    if (!last) last = nowT;
+    var dt = Math.min(0.1, (nowT - last) / 1000); last = nowT;
+    if (!FREEZE && !RM) clock += dt;
+    var snap = firstFrame || FREEZE; firstFrame = false;
+    G.now = clock;
+    hue = RM ? DEFAULT : (DEFAULT + clock / (LOOP / 3) * 360) % 360; G.hue = hue;
+
+    /* which scenes are on */
+    var tau = RM ? 0 : clock % LOOP, firstPass = clock < LOOP, active = [], i;
+    for (i = 0; i < N; i++) {
+      var a = envOf(i, tau), k = tau - ST[i].start;
+      if (!firstPass || clock < 0) { var a2 = envOf(i, tau + LOOP); if (a2 > a) { a = a2; k = tau + LOOP - ST[i].start; } }
+      if (a > 0.004) active.push({ i: i, a: a, k: k });
+    }
+    if (RM) active = [{ i: N - 1, a: 1, k: SC[N - 1].d * 0.5 }];
+
+    /* ground, rendering and layer alphas from what is on screen */
+    var nT = 0, rT = null, rBest = 0, layers = {}, ln;
+    active.forEach(function (q) {
+      var s = SC[q.i]; nT += q.a * s.n;
+      if (s.r && q.a > rBest) { rBest = q.a; rT = s.r; }
+      if (s.lay) (Array.isArray(s.lay) ? s.lay : [s.lay]).forEach(function (nm) { layers[nm] = Math.max(layers[nm] || 0, q.a); });
+    });
+    nT = clamp(nT, 0, 1);
+    night += (nT - night) * (snap ? 1 : 1 - Math.exp(-dt / 0.7)); G.n = night;
+    Object.keys(layerPrev).concat(Object.keys(layers)).forEach(function (nm) {
+      var na = layers[nm] || 0; if (!(layerPrev[nm] > 0) && na > 0) layerBirth[nm] = clock; layerPrev[nm] = na;
+    });
+    layerA = layers; layerDone = {};
+    if (rT != null) curR = rT; rT = curR;
+    var tw = [0, 0, 0]; tw[RIDX[rT]] = 1;
+    var rk = snap ? 1 : 1 - Math.exp(-dt / 1.0); for (i = 0; i < 3; i++) wts[i] += (tw[i] - wts[i]) * rk;
+
+    var P = makePal(hue, night); G.P = P; G.L = Ly;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.globalAlpha = 1;
+    ctx.fillStyle = P.paper(); ctx.fillRect(0, 0, W, H);
+    document.body.style.background = P.paper();
+
+    /* scenes, engraved around the lockup's clear space */
+    var foci = [];
+    function run(q) {
+      G.a = q.a; G.k = q.k; G.fset = false;
+      ctx.save(); ctx.globalAlpha = q.a; ctx.lineCap = "butt"; ctx.lineJoin = "miter"; ctx.setLineDash([]);
+      SC[q.i].fn(G, clamp(q.k / SC[q.i].d, 0, 1), q.k, SC[q.i].d);
+      ctx.restore();
+      if (G.fset) foci.push({ x: G.fx, y: G.fy, a: q.a });
+    }
+    ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.rect(Ly.x0, Ly.y0, Ly.x1 - Ly.x0, Ly.y1 - Ly.y0); ctx.clip("evenodd");
+    active.forEach(function (q) { if (!SC[q.i].nc) run(q); });
+    ctx.restore();
+    active.forEach(function (q) { if (SC[q.i].nc) run(q); });
+    ctx.globalAlpha = 1;
+
+    /* the word — still. Width stays within brand bounds (≥96px); only its rendering moves. */
+    var s = Ly.s, cx = Ly.cx, cy = Ly.cy, wInk = wts[0] + wts[2] * night, wHair = wts[1], wEmb = wts[2];
+    ctx.save(); ctx.translate(cx, cy); ctx.scale(s, s); ctx.translate(-CX, -CY);
+    paintShape(ctx, P, wordPath, "emb", wEmb, s, VW * T.logo.emboss.largeDepthRatio, 1 - night);
+    paintShape(ctx, P, wordPath, "hair", wHair, s, 1, 1);
+    paintShape(ctx, P, wordPath, "ink", wInk, s, 1, 1);
+    ctx.restore();
+    /* the arm — LABS, a mono descriptor, never a different mark. It lets go for emboss, which names nothing. */
+    var dA = Math.min(1, wInk + wHair);
+    if (dA > 0.004 && ARM) {
+      var fs = Ly.fs, track = 0.42 * fs, txt = ARM, yB = Ly.wordBot + Ly.gap + fs, ws = [], tot = -track, j;
+      ctx.font = "500 " + fs + "px 'IBM Plex Mono', 'SF Mono', ui-monospace, monospace"; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+      for (j = 0; j < txt.length; j++) { var cw = ctx.measureText(txt[j]).width; ws.push(cw); tot += cw + track; }
+      var dx = cx - tot / 2; ctx.globalAlpha = dA; ctx.fillStyle = P.ink();
+      for (j = 0; j < txt.length; j++) { ctx.fillText(txt[j], dx, yB); dx += ws[j] + track; }
+      ctx.globalAlpha = 1;
+    }
+
+    /* the one plotted point — it glides from each scene's focus to the next, never jumps */
+    var fw = 0, fx = 0, fy = 0, fa = 0;
+    foci.forEach(function (q) { fw += q.a; fx += q.x * q.a; fy += q.y * q.a; fa = Math.max(fa, q.a); });
+    if (fw > 0) {
+      fx /= fw; fy /= fw;
+      var ink = Math.min(1, dot.a + 1);
+      if (dot.a < 0.01 && fa > 0) { dot.x = fx; dot.y = fy; }
+      var dk = snap ? 1 : 1 - Math.exp(-dt / 0.55); dot.x += (fx - dot.x) * dk; dot.y += (fy - dot.y) * dk;
+    }
+    dot.a += (fa - dot.a) * (snap ? 1 : 1 - Math.exp(-dt / 0.4));
+    var px = dot.x, py = dot.y;
+    if (px > Ly.x0 && px < Ly.x1 && py > Ly.y0 && py < Ly.y1) {         // nothing enters the clear space
+      var dl = px - Ly.x0, dr = Ly.x1 - px, dtp = py - Ly.y0, db = Ly.y1 - py, mn = Math.min(dl, dr, dtp, db);
+      if (mn === dl) px = Ly.x0; else if (mn === dr) px = Ly.x1; else if (mn === dtp) py = Ly.y0; else py = Ly.y1;
+    }
+    if (dot.a > 0.004) {
+      var NP = T.curve.nowPoint, breath = RM ? 0 : Math.sin(clock / 0.7) * 1.2;
+      ctx.globalAlpha = NP.haloOpacity * dot.a; ctx.fillStyle = P.acc(); ctx.beginPath(); ctx.arc(px, py, NP.haloDiameter * 0.62 + breath, 0, TAU); ctx.fill();
+      ctx.globalAlpha = dot.a; ctx.fillStyle = P.lh(0); ctx.beginPath(); ctx.arc(px, py, NP.dotDiameter * 0.62 / 2, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
+    }
+
+    if (!RM) requestAnimationFrame(frame);
+  }
+
+  if (qs.debug) window.__iso = { SC: SC, ST: ST, LOOP: LOOP, N: N, set: function (t) { clock = t; } };
+  requestAnimationFrame(frame);
+  if (RM) setTimeout(function () { requestAnimationFrame(frame); }, 600);
+})();
+</script>
+</body>
+</html>

@@ -17,6 +17,7 @@ struct SettingsView: View {
     @Environment(\.notificationManager) var notificationManager
     @Environment(\.authenticationManager) var authManager
     @Environment(\.themeManager) var themeManager
+    @Environment(\.appIconManager) var appIconManager
 
     @State var showingProfileEditor = false
 
@@ -177,10 +178,29 @@ struct SettingsView: View {
     }
 
     private var appearanceGatewaySubtitle: LocalizedStringResource? {
+        // ST5: the hue plus the active icon — "Hue 2° · Default icon".
         LocalizedStringResource(
-            "Hue \(Int(themeManager.seedHue.rounded()))°",
-            comment: "Appearance gateway subtitle: the chosen hue in degrees"
+            "Hue \(Int(themeManager.seedHue.rounded()))° · \(appearanceIconName)",
+            comment: "Appearance gateway subtitle: the chosen hue in degrees, plus the active app icon"
         )
+    }
+
+    /// The active icon as the subtitle names it: word labels for the primary
+    /// and Discreet, the rounded hue for the rest.
+    private var appearanceIconName: String {
+        switch appIconManager.current {
+        case .primary:
+            String(localized: "Default icon",
+                   comment: "The primary app icon, as the Appearance subtitle names it")
+        case .discreet:
+            String(localized: "Discreet icon",
+                   comment: "The Discreet app icon, as the Appearance subtitle names it")
+        default:
+            String(
+                localized: "\(appIconManager.current.hueLabel ?? "") icon",
+                comment: "A hue-matched app icon, as the Appearance subtitle names it"
+            )
+        }
     }
 
     private var privacyGatewaySubtitle: LocalizedStringResource? {

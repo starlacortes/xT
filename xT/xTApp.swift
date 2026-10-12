@@ -204,6 +204,7 @@ struct xTApp: App {
         .environment(\.authenticationManager, AuthenticationManager.shared)
         .environment(\.securityManager, SecurityManager.shared)
         .environment(\.themeManager, ThemeManager.shared)
+        .environment(\.appIconManager, AppIconManager.shared)
     }
 
     // MARK: - TEMP-DEBUG (iCloud restore diagnosis)
