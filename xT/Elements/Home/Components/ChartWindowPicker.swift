@@ -4,8 +4,8 @@
 //
 //  The Home curve's window control (X12c): the ester-tuned cycle view, a
 //  90-day trend, or everything logged. Sits flush top-right, the readout's
-//  twin at the other corner of the same band — chips on paper, like the
-//  phase strip's.
+//  twin at the other corner of the same band, kept clear of it by a measured
+//  trailing inset — chips on paper.
 //
 //  Setting the mode persists it device-locally and resamples `recentLevels`;
 //  FlatGraphView's own onChange then morphs the curve to the new window, and

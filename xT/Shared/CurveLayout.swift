@@ -159,6 +159,116 @@ enum CurveLayout {
         return base
     }
 
+    // MARK: - X-axis time markers
+
+    /// Vertical-rule markers for the curve's x-axis: the "stationary day of the
+    /// week" lines. Local-midnight boundaries strictly inside `(first, last)`,
+    /// each labeled with the abbreviated weekday.
+    ///
+    /// The granularity widens so markers never crowd: when daily boundaries
+    /// would sit closer than `minSpacing` points across `width`, the markers
+    /// step back to week starts, then to month starts. Crowded tiers thin out
+    /// by keeping every k-th marker rather than disappearing — a years-long
+    /// "all" window keeps a sparse month axis instead of no axis at all.
+    ///
+    /// Pure date math + label formatting, so the tiering is unit-testable
+    /// without a view. `width` is only used to convert span into spacing.
+    static func timeMarkers(first: Date, last: Date, width: CGFloat,
+                            minSpacing: CGFloat = 24,
+                            calendar: Calendar = .current) -> [(date: Date, label: String)] {
+        let span = last.timeIntervalSince(first)
+        guard span > 0, width > 0 else { return [] }
+        let days = span / AppConstants.secondsPerDay
+
+        // Daily: one marker per local midnight, labeled with the weekday.
+        if width / days >= minSpacing {
+            return dayBoundaries(after: first, before: last, stepDays: 1, calendar: calendar)
+                .map { ($0, AppDateFormatters.weekdayShort.string(from: $0)) }
+        }
+
+        // Weekly: markers on the week's first weekday. Weeks may thin to every
+        // k-th (k ≤ 4 — past that a month axis reads better); a thinned weekly
+        // axis carries a "Mar 4"-style date, since consecutive week starts all
+        // share one weekday name.
+        let weekCount = max(days / 7, 1)
+        if let k = thinFactor(markerCount: weekCount, width: width, minSpacing: minSpacing), k <= 4 {
+            let starts = weekStarts(after: first, before: last, calendar: calendar)
+                .enumerated()
+                .filter { $0.offset % k == 0 }
+                .map(\.element)
+            return starts.map {
+                ($0, k == 1
+                    ? AppDateFormatters.weekdayShort.string(from: $0)
+                    : AppDateFormatters.monthDay.string(from: $0))
+            }
+        }
+
+        // Monthly: first-of-month markers with a month label, thinned by
+        // whatever k the span needs. k is unbounded — a decade-long window
+        // just lands on every k-th month.
+        let monthCount = max(days / 30, 1)
+        if let k = thinFactor(markerCount: monthCount, width: width, minSpacing: minSpacing) {
+            return monthStarts(after: first, before: last, calendar: calendar)
+                .enumerated()
+                .filter { $0.offset % k == 0 }
+                .map { ($0.element, AppDateFormatters.monthShort.string(from: $0.element)) }
+        }
+        return []
+    }
+
+    /// Keep-every-k-th factor: the smallest k that spaces `markerCount` markers
+    /// across `width` at least `minSpacing` apart (k = 1 when they already
+    /// fit). nil when the spacing itself is degenerate.
+    private static func thinFactor(markerCount: Double, width: CGFloat, minSpacing: CGFloat) -> Int? {
+        guard markerCount > 0 else { return nil }
+        let spacing = width / CGFloat(markerCount)
+        guard spacing > 0 else { return nil }
+        return max(1, Int((minSpacing / spacing).rounded(.up)))
+    }
+
+    /// Local start-of-day dates strictly inside `(first, last)`, stepping
+    /// `stepDays` at a time. The first candidate is strictly after `first` so a
+    /// rule never sits on the window's own edge.
+    private static func dayBoundaries(after first: Date, before last: Date,
+                                      stepDays: Int, calendar: Calendar) -> [Date] {
+        var result: [Date] = []
+        var day = calendar.startOfDay(for: first)
+        while day <= first {
+            guard let next = calendar.date(byAdding: .day, value: stepDays, to: day) else { return result }
+            day = next
+        }
+        while day < last {
+            result.append(day)
+            guard let next = calendar.date(byAdding: .day, value: stepDays, to: day) else { break }
+            day = next
+        }
+        return result
+    }
+
+    /// The week-start midnights strictly inside `(first, last)`, per the
+    /// calendar's own `firstWeekday`.
+    private static func weekStarts(after first: Date, before last: Date,
+                                   calendar: Calendar) -> [Date] {
+        dayBoundaries(after: first, before: last, stepDays: 1, calendar: calendar)
+            .filter { calendar.component(.weekday, from: $0) == calendar.firstWeekday }
+    }
+
+    /// First-of-month dates strictly inside `(first, last)`. Steps by calendar
+    /// month, so 28/29/30/31-day months all stay on the true month boundary.
+    private static func monthStarts(after first: Date, before last: Date,
+                                    calendar: Calendar) -> [Date] {
+        var result: [Date] = []
+        let comps = calendar.dateComponents([.year, .month], from: first)
+        guard let month = calendar.date(from: comps),
+              var cursor = calendar.date(byAdding: .month, value: 1, to: month) else { return result }
+        while cursor < last {
+            result.append(cursor)
+            guard let next = calendar.date(byAdding: .month, value: 1, to: cursor) else { break }
+            cursor = next
+        }
+        return result
+    }
+
     // MARK: - Nice axis ticks
 
     /// Returns evenly-spaced label values for the Y-axis given a data range.

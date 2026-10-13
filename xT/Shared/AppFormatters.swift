@@ -44,6 +44,9 @@ enum AppDateFormatters {
     /// "Wed" — abbreviated weekday for dense schedule strips.
     static let weekdayShort: DateFormatter = templated("EEE")
 
+    /// "Oct" — abbreviated month for long-horizon chart rules.
+    static let monthShort: DateFormatter = templated("MMM")
+
     /// "Wed, Mar 4" — journal entry headers.
     static let weekdayShortMonthDay: DateFormatter = templated("EEEMMMd")
 

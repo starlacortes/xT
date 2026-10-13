@@ -9,8 +9,9 @@
 //  200×200 `renderPlaceholder` UIImage. The ring is a single `Theme.Line.hairline`
 //  in the `line` ink-alpha — no 2/3 pt rings, no gradient ring, no shadow (ST2).
 //
-//  Three canonical sizes are named so call sites read intent rather than magic
-//  numbers: a settings row (56), a header (72), the editor (112).
+//  Four canonical sizes are named so call sites read intent rather than magic
+//  numbers: a settings row (56), a header (72), the centered Settings hero (88),
+//  the editor (112).
 //
 
 import SwiftUI
@@ -24,6 +25,7 @@ struct AvatarView: View {
     enum Size {
         static let row: CGFloat = 56
         static let header: CGFloat = 72
+        static let settingsHero: CGFloat = 88
         static let editor: CGFloat = 112
     }
 

@@ -31,6 +31,10 @@ struct HomeView: View {
     @State private var readoutBlockHeight: CGFloat = 0
     @State private var bottomBlockHeight: CGFloat = 0
 
+    // Measured picker width → the readout block's trailing clearance, so the
+    // eyebrow never slides under the flush-top-right chips (X12c).
+    @State private var pickerWidth: CGFloat = 0
+
     @ScaledMetric private var minHorizontalPad: CGFloat = 18
     @ScaledMetric private var maxHorizontalPad: CGFloat = 60
 
@@ -61,6 +65,7 @@ struct HomeView: View {
         }
         .onPreferenceChange(ReadoutBlockHeightKey.self) { readoutBlockHeight = $0 }
         .onPreferenceChange(OverlayCardHeightKey.self) { bottomBlockHeight = $0 }
+        .onPreferenceChange(PickerWidthKey.self) { pickerWidth = $0 }
         .onAppear {
             medicationManager.refreshState()
         }
@@ -89,9 +94,11 @@ struct HomeView: View {
                           scrubValue: $scrubValue,
                           scrubDate: $scrubDate)
 
-            // Flush readout, top-left.
+            // Flush readout, top-left — its eyebrow row is kept clear of the
+            // picker's share of the band by the measured trailing clearance.
             VStack {
-                HomeReadout(scrubValue: scrubValue, scrubDate: scrubDate)
+                HomeReadout(scrubValue: scrubValue, scrubDate: scrubDate,
+                            trailingClearance: pickerWidth + Theme.Spacing.sm)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, hPad)
                     .padding(.top, Theme.Spacing.sm)
@@ -100,12 +107,13 @@ struct HomeView: View {
             }
 
             // Window picker (X12c), flush top-right — the readout's twin at
-            // the other corner of the same band. Short enough to clear the
-            // readout horizontally; the curve's top inset already clears both.
+            // the other corner of the same band. Its measured width becomes the
+            // readout's trailing clearance; the curve's top inset clears both.
             VStack {
                 HStack {
                     Spacer(minLength: 0)
                     ChartWindowPicker()
+                        .background(widthReader(PickerWidthKey.self))
                 }
                 .padding(.horizontal, hPad)
                 .padding(.top, Theme.Spacing.sm)
@@ -115,12 +123,22 @@ struct HomeView: View {
             // Phase strip + overlay card, docked above the tab bar.
             VStack(spacing: Theme.Spacing.sm) {
                 Spacer(minLength: 0)
-                PhaseStripView()
-                HomeOverlayCard()
-                    .padding(.horizontal, hPad)
+                // The measured container holds only the strip + card. The docking
+                // Spacer stays outside it: a Spacer expands to whatever height the
+                // ZStack proposes, so measuring the outer VStack reported the
+                // whole screen as the block's height. That bottom inset then
+                // pushed `plotBottom` to its `plotTop + 1` floor and the curve
+                // drew into a one-point band — flat regardless of the data (H1).
+                VStack(spacing: Theme.Spacing.sm) {
+                    // Stationary columns share the card's margins (H9).
+                    PhaseStripView()
+                        .padding(.horizontal, hPad)
+                    HomeOverlayCard()
+                        .padding(.horizontal, hPad)
+                }
+                .background(heightReader(OverlayCardHeightKey.self))
             }
             .padding(.bottom, Theme.Spacing.sm)
-            .background(heightReader(OverlayCardHeightKey.self))
         }
     }
 
@@ -153,6 +171,12 @@ struct HomeView: View {
             Color.clear.preference(key: key, value: proxy.size.height)
         }
     }
+
+    private func widthReader<K: PreferenceKey>(_ key: K.Type) -> some View where K.Value == CGFloat {
+        GeometryReader { proxy in
+            Color.clear.preference(key: key, value: proxy.size.width)
+        }
+    }
 }
 
 // MARK: - Preference keys (H1)
@@ -168,6 +192,15 @@ private struct ReadoutBlockHeightKey: PreferenceKey {
 /// Height of the phase strip + overlay card block — the curve's bottom plot inset. Tracks
 /// the card's live height as the dose state changes (H1).
 private struct OverlayCardHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
+/// Width of the chart-window picker — the readout block's trailing clearance, so the
+/// eyebrow never slides under the flush-top-right chips (X12c).
+private struct PickerWidthKey: PreferenceKey {
     static let defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = max(value, nextValue())

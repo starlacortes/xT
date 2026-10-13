@@ -8,7 +8,8 @@
 //  to clear it (the plot's top inset tracks this block's height, H1).
 //
 //  Four lines, top to bottom (§7):
-//    • eyebrow   — ESTRADIOL VALERATE · DAY 3 OF 7   (MedicationDisplayFormatter)
+//    • eyebrow   — ESTRADIOL · DAY 3   (MedicationDisplayFormatter). Only this row
+//      shares its band with the chart-window chips, so only it gets `trailingClearance`.
 //    • number    — the modeled level, mono 500 · 52, with its unit (mono, muted)
 //    • provenance — MODELED · CALIBRATED TO YOUR LAB OF 4 MAR   (LevelProvenance → H2 copy)
 //    • status / safety — AT TROUGH · WITHIN YOUR SET TROUGH, and the X10 safety pill
@@ -25,6 +26,9 @@ struct HomeReadout: View {
     var scrubValue: Double? = nil
     /// Scrubbed date from the curve — drives the provenance line while scrubbing.
     var scrubDate: Date? = nil
+    /// Trailing clearance for the eyebrow row only — the measured width of the
+    /// chart-window chips (+gap) that shares the eyebrow's band (X12c).
+    var trailingClearance: CGFloat = 0
 
     @State private var showingSafetyNote = false
 
@@ -37,7 +41,9 @@ struct HomeReadout: View {
 
         VStack(alignment: .leading, spacing: Theme.Spacing.tiny) {
             if let eyebrow = MedicationDisplayFormatter.readoutEyebrow(medicationManager) {
-                Text(eyebrow).eyebrow()
+                Text(eyebrow)
+                    .eyebrow()
+                    .padding(.trailing, trailingClearance)
             }
 
             if let displayValue {
@@ -57,8 +63,14 @@ struct HomeReadout: View {
 
             provenanceLine
 
-            if !isScrubbing, let level {
+            // The status block stays in the layout while scrubbing — rendered
+            // invisible, never removed — so the measured readout height (and with
+            // it the curve's top plot inset) doesn't reflow mid-drag.
+            if let level {
                 statusAndSafety(for: level)
+                    .opacity(isScrubbing ? 0 : 1)
+                    .allowsHitTesting(!isScrubbing)
+                    .accessibilityHidden(isScrubbing)
             }
         }
         .animation(Theme.Motion.snappy, value: scrubValue)

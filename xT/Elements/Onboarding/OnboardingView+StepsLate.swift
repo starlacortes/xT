@@ -369,8 +369,13 @@ extension OnboardingView {
                     if !selectedEster.isEmpty {
                         reviewRow(label: "Ester", value: selectedEster)
                     }
-                    let vol = MedicationManager.computedVolume(doseMg: doseDecimal, concentrationMgPerMl: selectedConcentration)
-                    reviewRow(label: "Dose", value: "\(String(format: "%.1f", doseDecimal)) mg (\(String(format: "%.3f", vol)) mL @ \(String(format: "%.0f", selectedConcentration)) mg/mL)")
+                    // Oral pills are dosed in whole mg — no vial volume to show.
+                    if isOralRoute {
+                        reviewRow(label: "Dose", value: "\(String(format: "%.1f", doseDecimal)) mg")
+                    } else {
+                        let vol = MedicationManager.computedVolume(doseMg: doseDecimal, concentrationMgPerMl: selectedConcentration)
+                        reviewRow(label: "Dose", value: "\(String(format: "%.1f", doseDecimal)) mg (\(String(format: "%.3f", vol)) mL @ \(String(format: "%.0f", selectedConcentration)) mg/mL)")
+                    }
                     reviewRow(label: "Frequency", value: "Every \(selectedFrequency) days")
                     reviewRow(label: "Last dose", value: lastDoseDate.formatted(date: .abbreviated, time: .shortened))
                     reviewRow(label: "Experience", value: hrtSummary)

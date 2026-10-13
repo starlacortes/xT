@@ -229,10 +229,22 @@ final class ThemeEngineTests: XCTestCase {
 
     // MARK: - Persistence cadence
 
+    /// In-memory `SeedHueMirrorStore` stand-in — without it, `ThemeManager`'s
+    /// default `hueMirror` talks to the real `NSUbiquitousKeyValueStore`, and
+    /// `adoptSyncedSeedHue()` (called from `init`) can adopt whatever hue is
+    /// actually mirrored on the test-running account/device, persisting it to
+    /// `defaults` before the test's own assertion runs — a flake, not a bug
+    /// in the code under test.
+    private final class NullSeedHueMirror: SeedHueMirrorStore {
+        func setHue(_ hue: Double, forKey key: String) {}
+        func hue(forKey key: String) -> Double? { nil }
+        func removeHue(forKey key: String) {}
+    }
+
     @MainActor
     func testSeedHueMutationAloneDoesNotPersist() {
         let defaults = TestDefaults.suite()
-        let manager = ThemeManager(defaults: defaults)
+        let manager = ThemeManager(defaults: defaults, hueMirror: NullSeedHueMirror())
         manager.seedHue = 120
 
         XCTAssertNil(defaults.object(forKey: ThemeManager.Keys.seedHue),
@@ -241,7 +253,7 @@ final class ThemeEngineTests: XCTestCase {
         manager.commitSeedHue()
         XCTAssertEqual(defaults.double(forKey: ThemeManager.Keys.seedHue), 120, accuracy: 1e-9)
 
-        let reloaded = ThemeManager(defaults: defaults)
+        let reloaded = ThemeManager(defaults: defaults, hueMirror: NullSeedHueMirror())
         XCTAssertEqual(reloaded.seedHue, 120, accuracy: 1e-9,
                        "a fresh manager reading the same suite should pick up the committed hue")
     }
@@ -250,7 +262,7 @@ final class ThemeEngineTests: XCTestCase {
 
     @MainActor
     func testPaletteRecomputesWhenSeedHueChanges() {
-        let manager = ThemeManager(defaults: TestDefaults.suite())
+        let manager = ThemeManager(defaults: TestDefaults.suite(), hueMirror: NullSeedHueMirror())
         let before = manager.palette.accent
         manager.seedHue = (manager.seedHue + 90).truncatingRemainder(dividingBy: 360)
         let after = manager.palette.accent

@@ -47,6 +47,9 @@ Re-check line numbers before editing.
 | 2026-10-12 | X12 | **(a) + (c) together: in-window lab rings, and a Home window control.** The trend windows ("90 d", "all") fix their own span around now — 90 d centred; "all" from the first dose or lab draw of the selected medication (whichever is older), trailing one cycle-forward — with the cycle window's ester-tuned step as the resolution floor and a 160-point budget cap, so a years-long "all" stays a fixed, cheap sample count. "All" with nothing logged collapses to the cycle window. The mode is a device-local view preference (never synced, like the notification layout); a mode change resamples `recentLevels` directly, without paying for the regimen/adherence/streak recomputes. The phase strip stays cycle-scoped whatever the window (X11), and the now point, scrub, range band and lab rings all read the window generically. The picker sits flush top-right as chips on paper — the readout's twin in the same band. | `PKChartWindow` (`WindowMode`, `window(mode:)`), `PKConstants` (trend constants), `MedicationManager` (`chartWindowMode`, `earliestTrendDate`, `resampleRecentLevels`), `ChartWindowPicker`, `HomeView`, `ChartWindowTests` |
 | 2026-10-11 | — | **The Appearance picker opens on a hue specimen**: a near-square, rounded window of sample UI (curve, buttons, chips, dose card and more) that follows the hue, with a Day/Night preview and quick stops. | Spec §08 (live sketch), tokens (`radius.specimen`, `components.specimen`, `seed.stops`), ST8, S11 |
 | 2026-10-12 | X36 | **The icon set ships as delivered by the external icon work** (`docs/design/external-work/isocline-logos/`): the "I." in ink on a light seed-tint gradient ground — one icon per quick stop, with the default rose as the primary and the remaining seven as alternates — plus the embossed Discreet icon on plain paper. This supersedes I1's sketch of a `brandColors` ground with an OnAccent mark. Icon Composer `.icon` files **do** work as alternates under `ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES` (the I2 "verify" is resolved); in `icon.json`, groups render **front-first**, so the mark group precedes the ground group. The picker shows the shipped artwork as preview imagesets; "Update icon to match your hue?" appears when a hue icon drifts from the dial, never for Discreet. | I1–I4, `tools/scripts/build_isocline_app_icons.py`, `xT/xTGlassIcon.icon`, `xT/AppIcon{Hue48…Hue318,Discreet}.icon`, `Models/AppIconChoice.swift`, `Managers/AppIconManager.swift`, `SettingsAppearanceView.swift`, U2 |
+| 2026-10-12 | — | **The phase strip renders as stationary two-line columns**, per the screen sketches: weekday over the positional word (`MON / Dose · WED / Peak · FRI / Today · SUN / Trough`), evenly spread across the card's margins — no scrolling, no chips. Only the Today column carries the accent hairline rounded-rect ring (`Radius.sm`; the Journal week strip's today-circle motif); the rest are bare muted type — labels, not buttons. All H9 behavior is unchanged: cycle-scoped and never chart-aligned (X11), hidden for daily routes, PEAK omitted without a calibrated t_max, positional words only (X18). | `Elements/Home/Components/PhaseStripView.swift` (`PhaseColumn`), `HomeView` (strip shares card `hPad`), spec §9, S5 usage list |
+| 2026-10-12 | — | **Home tidy-up trio.** (1) The curve's day rules keep their hairlines but lose their weekday labels — the phase strip is the single calendar element (H9); the `CurveLayout.timeMarkers` tiering (day/week/month) still governs line density. (2) The scrub reflow is fixed at its source: `HomeReadout` keeps its status block in the layout while scrubbing (invisible, accessibility-hidden), so the measured readout height — and the curve's top inset — never changes mid-drag. (3) The `ChartWindowPicker`'s measured width (`PickerWidthKey`) becomes the readout eyebrow's trailing clearance (eyebrow row only — the number and provenance lines never reach the chips), and the eyebrow copy drops to `ESTRADIOL · DAY 3`, per the screen sketches — the ester lives on the dose card's medication line, the interval total on the phase strip. Together the eyebrow and chips share their band without overlap or everyday truncation. | `FlatGraphView` (`dayGridLayer`), `HomeReadout`, `HomeView`, `MedicationDisplayFormatter` (`readoutEyebrow`) |
+| 2026-10-12 | — | **The Settings root composes per the screen sketch.** An ISOCLINE brand eyebrow rides over the serif title; the profile centers flush on the paper — avatar (new 88pt `settingsHero` canonical), serif name, mono tenure in caps, and a quiet accent EDIT caption — the block itself stays non-interactive, so X26 stands (editing opens only from the caption, as a sheet). Gateway cards get the sketch's icon set (`plus` / `diamond` / `circle.righthalf.filled` / `square`), serif titles, and the third card is renamed "Appearance & Curve"; their live mono subtitles (ST5) are unchanged. A latent grammar bug is fixed on the way: `String(localized:)` doesn't resolve `^[…](inflect: true)` directives, so the tenure line and the labs "last draw" age now build through `AttributedString` (the raw directive text had been leaking into the header). | `SettingsView` (eyebrow, centered profile header, card order/icons), `SettingsRowKit` (`SettingsGatewayCard` serif title), `AvatarView` (`Size.settingsHero`) |
 
 ---
 
@@ -876,7 +879,7 @@ The cache doesn't refresh on CloudKit remote changes. It only reloads through `C
 **Target**
 - No card, no material, no dodge.
 - Contents:
-  - eyebrow: `ESTRADIOL VALERATE · DAY 3 OF 7`, built from medication display name plus cycle day on the **due** tier, and omitted for daily routes;
+  - eyebrow: `ESTRADIOL · DAY 3`, built from the hormone base word plus cycle day on the **due** tier, and omitted for daily routes (ester name and interval total moved off the eyebrow — they live on the dose card's medication line and the phase strip; see the 2026-10-12 Home tidy-up decision);
   - readout: mono 500 at 52, `218`, with the unit `pg/mL` in muted mono;
   - provenance line (H-D3);
   - an optional status line (X18);
@@ -1392,11 +1395,11 @@ Mood raw values stay as storage keys. Fill in the empty discard keys.
 
 The header already sits flush with no card. Keep that.
 
-**Target**
-- `AvatarView(size: 72)` (S8).
-- Serif name (`serifTitle`).
-- A mono line: `DAY 412 · 13 MONTHS` (`label` + `.monoLabel()`).
-- A trailing "Edit" text button in accent (X26).
+**Target** *(updated 2026-10-12 to the screen sketch)*
+- `AvatarView(size: .settingsHero / 88)` (S8), centered.
+- Serif name (`serifTitle`), centered.
+- A mono line in caps: `DAY 412 · 13 MONTHS` (`label` + `.monoLabel()` + `.textCase(.uppercase)`), centered.
+- A quiet accent EDIT mono caption beneath; the block itself is not the control (X26).
 
 **Steps**
 1. Restyle the header.
@@ -1436,8 +1439,8 @@ Delete the 2×2 grid (`SettingsView+Header.swift:64-112`). All four cards duplic
 | Gateway | Source | Example |
 |---|---|---|
 | Medication & Dose | `MedicationDisplayFormatter` + `resolvedDoseDefaults` + `effectiveDueIntervalDays` | `ESTRADIOL VALERATE · 4.0 MG Q7D` |
-| Labs & Records | `bloodTestHistory` for the selected hormone, plus the last draw age | `2 LABS · LAST 14 D AGO` / `NO LABS YET` |
-| Appearance | `seedHue` (rounded) + current icon name | `HUE 2° · DEFAULT ICON` |
+| Labs & Records | `bloodTestHistory` for the selected hormone, plus the last draw age (`AttributedString` so the `^` directive inflects — `String(localized:)` leaks it raw) | `2 LABS · LAST 14 DAYS AGO` / `NO LABS YET` |
+| Appearance & Curve | `seedHue` (rounded) + current icon name | `HUE 2° · DEFAULT ICON` |
 | Privacy & Data | `AuthenticationManager.requireAuthentication` / biometric type + `icloudSyncEnabled` | `FACE ID · ICLOUD ON` / `LOCK OFF · ICLOUD OFF` |
 
 Reminder subtitles are built in English with `String(format: "Daily at %02d:%02d")` (`SettingsView+Helpers.swift:133-144`). Switch them to a localized format plus `Date.FormatStyle` time.

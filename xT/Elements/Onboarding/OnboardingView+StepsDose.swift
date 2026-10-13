@@ -89,14 +89,22 @@ extension OnboardingView {
     var concentrationStep: some View {
         VStack(spacing: Theme.Spacing.xxl) {
             Spacer()
-            Text("What's your vial concentration?")
+            // Route-aware wording: the step is injectables-and-creams only
+            // (oral never reaches it — pills are dosed in whole mg), so the
+            // vessel the user is reading from is their vial or their cream's
+            // label, never a vial for a non-injectable route.
+            Text(isTopicalRoute
+                 ? "What's your cream concentration?"
+                 : "What's your vial concentration?")
                 .font(Theme.Fonts.serifTitle)
                 .fontWeight(.regular)
                 .foregroundStyle(Theme.Colors.textPrimary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
 
-            Text("Look for a number followed by 'mg/mL' on your vial or box.\nFor example, a 200 mg/5 mL vial is 40 mg/mL.")
+            Text(isTopicalRoute
+                 ? "Check your cream's label or the pharmacy slip for its strength in mg/mL."
+                 : "Look for a number followed by 'mg/mL' on your vial or box.\nFor example, a 200 mg/5 mL vial is 40 mg/mL.")
                 .font(Theme.Fonts.caption)
                 .foregroundStyle(Theme.Colors.textSecondary)
                 .multilineTextAlignment(.center)
@@ -244,17 +252,21 @@ extension OnboardingView {
                 .foregroundStyle(Theme.Colors.textPrimary)
                 .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
 
-            // mg / mL segmented control
-            Picker("Dose Unit", selection: $doseUnit) {
-                Text("mg").tag("mg")
-                Text("mL").tag("mL")
+            // mg / mL segmented control — a volume-entry aid for routes that
+            // draw from a vial or tube. Oral pills are dosed in whole mg, so
+            // the toggle (and everything derived from a concentration) hides.
+            if !isOralRoute {
+                Picker("Dose Unit", selection: $doseUnit) {
+                    Text("mg").tag("mg")
+                    Text("mL").tag("mL")
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
             }
-            .pickerStyle(.segmented)
-            .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
 
             // Dose entry
             VStack(spacing: Theme.Spacing.row) {
-                if doseUnit == "mg" {
+                if doseUnit == "mg" || isOralRoute {
                     // mg mode
                     HStack(spacing: Theme.Spacing.md) {
                         Stepper("", value: $doseDecimal, in: 0.1...500, step: 0.1)
@@ -298,17 +310,20 @@ extension OnboardingView {
                     }
                     .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
 
-                    // Computed volume display
-                    let volume = MedicationManager.computedVolume(doseMg: doseDecimal, concentrationMgPerMl: selectedConcentration)
-                    Text("= \(String(format: "%.3f", volume)) mL (@ \(String(format: "%.0f", selectedConcentration)) mg/mL)")
-                        .font(Theme.Fonts.caption)
-                        .foregroundStyle(Theme.Colors.textSecondary)
-                        .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
-
-                    // Volume warning
-                    if let warning = MedicationManager.volumeNote(for: volume, ester: selectedEster) {
-                        volumeWarningBanner(warning)
+                    // Computed volume display — meaningless for oral (no vial
+                    // to draw the mg from), so it hides there.
+                    if !isOralRoute {
+                        let volume = MedicationManager.computedVolume(doseMg: doseDecimal, concentrationMgPerMl: selectedConcentration)
+                        Text("= \(String(format: "%.3f", volume)) mL (@ \(String(format: "%.0f", selectedConcentration)) mg/mL)")
+                            .font(Theme.Fonts.caption)
+                            .foregroundStyle(Theme.Colors.textSecondary)
                             .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
+
+                        // Volume warning
+                        if let warning = MedicationManager.volumeNote(for: volume, ester: selectedEster) {
+                            volumeWarningBanner(warning)
+                                .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
+                        }
                     }
 
                 } else {
@@ -380,18 +395,22 @@ extension OnboardingView {
                     .padding(.top, Theme.Spacing.sm)
             }
 
-            // Concentration adjustment (inline)
-            VStack(spacing: 6) {
-                Text("Vial concentration")
-                    .font(Theme.Fonts.eyebrow)
-                    .textCase(.uppercase)
-                    .tracking(0.6)
-                    .foregroundStyle(Theme.Colors.textSecondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
+            // Concentration adjustment (inline) — a label-strength concept the
+            // oral route doesn't have (its dose is the pill's mg), so the whole
+            // section hides there.
+            if !isOralRoute {
+                VStack(spacing: 6) {
+                    Text(isTopicalRoute ? "Cream concentration" : "Vial concentration")
+                        .font(Theme.Fonts.eyebrow)
+                        .textCase(.uppercase)
+                        .tracking(0.6)
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
 
-                concentrationQuickPicker
-                    .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
+                    concentrationQuickPicker
+                        .padding(.horizontal, Theme.Spacing.Gutter.onboarding)
+                }
             }
 
             // Last dose date

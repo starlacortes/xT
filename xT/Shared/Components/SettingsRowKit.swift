@@ -22,8 +22,8 @@ import SwiftUI
 
 // MARK: - Gateway card (ST1)
 
-/// One of the four gateway cards on the Settings root: accent tile, sans title,
-/// a live mono subtitle, a chevron. The whole card is the link.
+/// One of the four gateway cards on the Settings root: accent tile, serif title
+/// (the screen sketch), a live mono subtitle, a chevron. The whole card is the link.
 struct SettingsGatewayCard<Destination: View>: View {
     let icon: String
     let title: LocalizedStringResource
@@ -42,13 +42,14 @@ struct SettingsGatewayCard<Destination: View>: View {
 
                 VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
                     Text(title)
-                        .font(Theme.Fonts.callout)
+                        .font(Theme.Fonts.serifBody)
                         .foregroundStyle(Theme.Colors.textPrimary)
                     if let subtitle {
                         Text(subtitle)
                             .font(Theme.Fonts.label)
                             .foregroundStyle(Theme.Colors.textSecondary)
                             .monoLabel()
+                            .textCase(.uppercase)
                     }
                 }
 

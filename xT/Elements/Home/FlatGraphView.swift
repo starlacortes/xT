@@ -37,6 +37,11 @@ struct FlatGraphView: View {
     @Binding var scrubDate: Date?
 
     @State private var densePoints: [(date: Date, value: Double, xFraction: CGFloat)] = []
+    /// Cached day/week/month grid markers (H1's stationary time rules). `CurveLayout
+    /// .timeMarkers` walks the window a day at a time, so it's keyed to the data —
+    /// not recomputed on every scrub-driven body re-evaluation (`scrubFraction`/
+    /// `scrubValue` bindings change at gesture frequency and don't affect the markers).
+    @State private var dayMarkers: [(date: Date, label: String)] = []
     @State private var drawProgress: CGFloat = 0
     @State private var areaReveal: CGFloat = 0
     @State private var dotSlide: CGFloat = 0
@@ -95,6 +100,8 @@ struct FlatGraphView: View {
                     gridLayer(values: values, bounds: bounds, w: w,
                               plotTop: plotTop, plotBottom: plotBottom)
 
+                    dayGridLayer(w: w, plotTop: plotTop, plotBottom: plotBottom)
+
                     labRingsLayer(bounds: bounds, w: w, plotTop: plotTop, plotBottom: plotBottom)
 
                     nowPoint(bounds: bounds, w: w, plotTop: plotTop, plotBottom: plotBottom)
@@ -115,6 +122,7 @@ struct FlatGraphView: View {
                     animatedValues = AnimatableVector(values: points.map(\.value))
                 }
                 generateDensePoints()
+                recomputeDayMarkers(width: w)
             }
             .onAppear {
                 guard drawProgress == 0 else { return }
@@ -135,6 +143,7 @@ struct FlatGraphView: View {
                     animatedValues = AnimatableVector(values: newValues)
                 }
                 generateDensePoints()
+                recomputeDayMarkers(width: w)
             }
         }
     }
@@ -211,6 +220,34 @@ struct FlatGraphView: View {
                     .statLabel()
                     .foregroundStyle(Theme.Colors.Graph.yAxisLabel)
                     .position(x: w - 20, y: y)
+            }
+        }
+    }
+
+    // MARK: - Day grid (stationary time rules)
+
+    /// Vertical hairlines at day boundaries across the window, drawn WITHOUT
+    /// weekday labels — the phase strip under the curve is the calendar element
+    /// (H9), and two calendar rows read as noise. The tiering (day → week →
+    /// month) still comes from `CurveLayout.timeMarkers`, so the rules thin out
+    /// on the trend windows. Unlike the scrub line, they hold still — a fixed
+    /// time axis under the moving readout.
+    ///
+    /// X is time-proportional here (and on the curve) because `recentLevels`
+    /// samples the window at a uniform step.
+    @ViewBuilder
+    private func dayGridLayer(w: CGFloat, plotTop: CGFloat, plotBottom: CGFloat) -> some View {
+        if let first = points.first?.date, let last = points.last?.date, last > first, !dayMarkers.isEmpty {
+            let total = last.timeIntervalSince(first)
+
+            ForEach(dayMarkers.indices, id: \.self) { i in
+                let x = CGFloat(dayMarkers[i].date.timeIntervalSince(first) / total) * w
+
+                Path { p in
+                    p.move(to: CGPoint(x: x, y: plotTop))
+                    p.addLine(to: CGPoint(x: x, y: plotBottom))
+                }
+                .stroke(Theme.Colors.Graph.gridLine, lineWidth: Theme.Colors.hairlineWidth)
             }
         }
     }
@@ -338,6 +375,16 @@ struct FlatGraphView: View {
                 .position(x: x, y: h / 2)
                 .frame(height: h)
         }
+    }
+
+    // MARK: - Day grid markers (cache)
+
+    private func recomputeDayMarkers(width: CGFloat) {
+        guard let first = points.first?.date, let last = points.last?.date, last > first else {
+            dayMarkers = []
+            return
+        }
+        dayMarkers = CurveLayout.timeMarkers(first: first, last: last, width: width)
     }
 
     // MARK: - Dense scrub points

@@ -29,20 +29,24 @@ enum MedicationDisplayFormatter {
         return "\(base) \(ester)"
     }
 
-    /// The readout eyebrow: `ESTRADIOL VALERATE · DAY 3 OF 7`. The day clause is omitted
-    /// for daily routes (interval below `PhaseStrip.minIntervalDays`), matching the phase
-    /// strip's hidden-for-daily rule.
+    /// The readout eyebrow: `ESTRADIOL · DAY 3`. Hormone base word + cycle day only —
+    /// the ester and dose live on the card's medication line directly below, and the
+    /// interval total is read off the phase strip, so a long eyebrow here only fought
+    /// the chart-window chips for its band. The day clause is omitted for daily routes
+    /// (interval below `PhaseStrip.minIntervalDays`), matching the phase strip's
+    /// hidden-for-daily rule.
     static func readoutEyebrow(_ m: MedicationManager,
                                now: Date = .now,
                                calendar: Calendar = .current) -> String? {
-        guard let name = medicationName(m) else { return nil }
+        guard let medication = m.selectedMedication else { return nil }
+        let name = hormoneBase(medication)
 
         let interval = m.effectiveDueIntervalDays
         guard interval >= PhaseStrip.minIntervalDays, let day = dayOfInterval(m, now: now, calendar: calendar) else {
             return name
         }
-        let clause = String(localized: "Day \(day) of \(interval)",
-                            comment: "Where today falls in the dosing interval, shown mid-eyebrow: 'ESTRADIOL VALERATE · DAY 3 OF 7'")
+        let clause = String(localized: "Day \(day)",
+                            comment: "Where today falls in the dosing interval, shown mid-eyebrow: 'ESTRADIOL · DAY 3'")
         return "\(name) · \(clause)"
     }
 

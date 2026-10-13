@@ -87,12 +87,39 @@ struct OnboardingView: View {
     @State var bodySnapNonce: Int = 0
     @State var selectedInjectionSites: [InjectionSite] = []
 
+    var isOralRoute: Bool {
+        RouteClass.from(method: selectedMethod) == .oral
+    }
+
+    var isTopicalRoute: Bool {
+        RouteClass.from(method: selectedMethod) == .topical
+    }
+
     var isRouteShowsBodyPicker: Bool {
-        RouteClass.from(method: selectedMethod) != .oral
+        !isOralRoute
+    }
+
+    /// The concentration step asks an mg/mL strength question. Oral pills carry
+    /// none — they're dosed in whole mg — and `commitOnboarding` stores no
+    /// concentration for them, so the step is skipped for the oral route, the
+    /// same way the injection-site step is.
+    var showsConcentrationStep: Bool {
+        !isOralRoute
+    }
+
+    /// Step indices actually visited for the chosen route, in order. Skipped
+    /// steps drop out here so the progress bar's fraction, which walks this
+    /// array, never overflows on the routes that skip (a raw
+    /// `(currentStep + 1) / totalStepCount` ran past 1.0 at the review step).
+    var visitedSteps: [Int] {
+        var steps = Array(0...11)
+        if !showsConcentrationStep { steps.removeAll { $0 == 4 } }
+        if !isRouteShowsBodyPicker { steps.removeAll { $0 == 6 } }
+        return steps
     }
 
     var totalStepCount: Int {
-        isRouteShowsBodyPicker ? 12 : 11
+        visitedSteps.count
     }
     
     // MARK: - Body
@@ -162,13 +189,17 @@ struct OnboardingView: View {
     // MARK: - Progress Bar
     var progressBar: some View {
         GeometryReader { geo in
+            // Fraction from the visited-step sequence, not the raw index —
+            // skipped steps would otherwise leave the bar short (or, at the
+            // review step, wider than its track).
+            let visitedIndex = (visitedSteps.firstIndex(of: currentStep) ?? 0) + 1
             ZStack(alignment: .leading) {
                 RoundedRectangle(cornerRadius: Theme.Radius.hairline)
                     .fill(Theme.Colors.border)
                     .frame(height: 3)
                 RoundedRectangle(cornerRadius: Theme.Radius.hairline)
                     .fill(Theme.Colors.accent)
-                    .frame(width: geo.size.width * CGFloat(currentStep + 1) / CGFloat(totalStepCount), height: 3)
+                    .frame(width: geo.size.width * CGFloat(visitedIndex) / CGFloat(totalStepCount), height: 3)
                     .animation(Theme.Motion.quick, value: currentStep)
             }
         }
@@ -209,6 +240,10 @@ struct OnboardingView: View {
             return
         }
         var nextStep = currentStep + 1
+        if currentStep == 3 && !showsConcentrationStep {
+            // Oral: no vial-strength question — jump the concentration step.
+            nextStep = 5
+        }
         if currentStep == 5 && !isRouteShowsBodyPicker {
             nextStep = 7
         }
@@ -221,6 +256,9 @@ struct OnboardingView: View {
 
     func previousStep() {
         var prevStep = currentStep - 1
+        if currentStep == 5 && !showsConcentrationStep {
+            prevStep = 3
+        }
         if currentStep == 7 && !isRouteShowsBodyPicker {
             prevStep = 5
         }
@@ -268,8 +306,11 @@ struct OnboardingView: View {
         // Determine final dose in mg (already computed correctly from whichever mode)
         let finalMg = doseDecimal
         
-        // Determine concentration to store (nil for non-injectable or if not set)
-        let finalConcentration: Double? = (medMethod == .injectable && selectedConcentration > 0) ? selectedConcentration : nil
+        // Determine concentration to store. Oral has no mg/mL strength to ask
+        // about (its concentration step is skipped), so it is always nil;
+        // injectables and creams carry a real label strength, which the dose
+        // sheet later prefills from.
+        let finalConcentration: Double? = (medMethod != .oral && selectedConcentration > 0) ? selectedConcentration : nil
 
         // Log first dose with concentration + injection sites (from body picker step)
         medicationManager.addDose(

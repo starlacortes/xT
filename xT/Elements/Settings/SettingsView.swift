@@ -2,11 +2,13 @@
 //  SettingsView.swift
 //  xT
 //
-//  The Settings root on Isocline paper (ST1–ST3, ST5, ST10). An ink serif
-//  title, a flush profile header (ST2), four gateway cards with live mono
-//  subtitles (ST5) and a flush mono footer (ST10). The old 2×2 quick-card
-//  grid and the five inline sections are gone — every row now lives in one
-//  of the four gateway sub-screens.
+//  The Settings root on Isocline paper (ST1–ST3, ST5, ST10). The screen
+//  sketch's composition: an ISOCLINE brand eyebrow over an ink serif title,
+//  the profile centered flush on the paper (avatar, serif name, mono tenure,
+//  a quiet EDIT caption — the block itself stays non-interactive, X26), four
+//  gateway cards with live mono subtitles (ST5) and a flush mono footer (ST10).
+//  The old 2×2 quick-card grid and the five inline sections are gone — every
+//  row now lives in one of the four gateway sub-screens.
 //
 
 import SwiftUI
@@ -20,6 +22,11 @@ struct SettingsView: View {
     @Environment(\.appIconManager) var appIconManager
 
     @State var showingProfileEditor = false
+    /// Tracked separately from the raw default so the Privacy gateway's "iCloud
+    /// on/off" half stays live — `UserDefaults` reads aren't an Observation
+    /// dependency, so this screen would otherwise show a stale subtitle after
+    /// the user flips the toggle on `SettingsPrivacyView` and comes back.
+    @AppStorage("icloudSyncEnabled") private var icloudSyncEnabled = false
 
     private let hPad: CGFloat = Theme.Spacing.Gutter.screen
 
@@ -27,34 +34,38 @@ struct SettingsView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    Text("Settings")
-                        .font(Theme.Fonts.hero)
-                        .foregroundStyle(Theme.Colors.textPrimary)
-                        .padding(.horizontal, hPad)
-                        .padding(.top, 48)
-                        .padding(.bottom, Theme.Spacing.sm)
+                    VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
+                        Text("Isocline")
+                            .eyebrow()
+                        Text("Settings")
+                            .font(Theme.Fonts.hero)
+                            .foregroundStyle(Theme.Colors.textPrimary)
+                    }
+                    .padding(.horizontal, hPad)
+                    .padding(.top, 48)
+                    .padding(.bottom, Theme.Spacing.xl)
 
                     profileHeader
-                        .padding(.horizontal, hPad)
-                        .padding(.bottom, Theme.Spacing.xl)
+                        .frame(maxWidth: .infinity)
+                        .padding(.bottom, Theme.Spacing.xxl)
 
                     VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-                        SettingsGatewayCard(icon: "pills.fill",
+                        SettingsGatewayCard(icon: "plus",
                                             title: "Medication & Dose",
                                             subtitle: medicationGatewaySubtitle) {
                             SettingsMedicationView()
                         }
-                        SettingsGatewayCard(icon: "flask",
+                        SettingsGatewayCard(icon: "diamond",
                                             title: "Labs & Records",
                                             subtitle: labsGatewaySubtitle) {
                             SettingsLabsView()
                         }
-                        SettingsGatewayCard(icon: "paintbrush.fill",
-                                            title: "Appearance",
+                        SettingsGatewayCard(icon: "circle.righthalf.filled",
+                                            title: "Appearance & Curve",
                                             subtitle: appearanceGatewaySubtitle) {
                             SettingsAppearanceView()
                         }
-                        SettingsGatewayCard(icon: "lock.fill",
+                        SettingsGatewayCard(icon: "square",
                                             title: "Privacy & Data",
                                             subtitle: privacyGatewaySubtitle) {
                             SettingsPrivacyView()
@@ -82,30 +93,37 @@ struct SettingsView: View {
 
     // MARK: - Profile header (ST2)
 
+    /// The screen-sketch profile: centered flush on the paper — avatar, serif
+    /// name, mono tenure, and a quiet EDIT caption beneath (the block itself
+    /// stays non-interactive; X26 stands).
     private var profileHeader: some View {
-        HStack(spacing: Theme.Spacing.lg) {
-            AvatarView(image: profileManager.profilePhoto, size: AvatarView.Size.header)
+        VStack(spacing: 0) {
+            AvatarView(image: profileManager.profilePhoto, size: AvatarView.Size.settingsHero)
+                .padding(.bottom, Theme.Spacing.card)
 
-            VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
-                Text(verbatim: displayName)
-                    .font(Theme.Fonts.serifTitle)
-                    .foregroundStyle(Theme.Colors.textPrimary)
-                    .lineLimit(1)
+            Text(verbatim: displayName)
+                .font(Theme.Fonts.serifTitle)
+                .foregroundStyle(Theme.Colors.textPrimary)
+                .lineLimit(1)
+                .padding(.bottom, Theme.Spacing.xxs)
 
+            if !tenureLine.isEmpty {
                 Text(verbatim: tenureLine)
                     .font(Theme.Fonts.label)
                     .foregroundStyle(Theme.Colors.textSecondary)
                     .monoLabel()
+                    .textCase(.uppercase)
+                    .padding(.bottom, Theme.Spacing.xs)
             }
-
-            Spacer(minLength: Theme.Spacing.sm)
 
             Button {
                 showingProfileEditor = true
             } label: {
                 Text("Edit")
-                    .font(Theme.Fonts.callout)
+                    .font(Theme.Fonts.label)
                     .foregroundStyle(Theme.Colors.accent)
+                    .monoLabel()
+                    .textCase(.uppercase)
             }
             .buttonStyle(.plain)
         }
@@ -119,16 +137,23 @@ struct SettingsView: View {
 
     /// `DAY 412 · 13 MONTHS` — built from `tenureLabel` plus the day count.
     /// `nil` tenure renders the day count alone; no HRT start yet renders nothing.
+    ///
+    /// The tenure resource carries a `^[…](inflect: true)` grammar directive,
+    /// which only resolves through `AttributedString` — `String(localized:)`
+    /// leaves the raw directive in the text.
     private var tenureLine: String {
         guard let start = medicationManager.hrtStartDate else { return "" }
         let days = Calendar.current.dateComponents([.day], from: start, to: Date()).day ?? 0
         let dayPart = String(localized: "Day \(days)",
                              comment: "Days on HRT, Settings profile mono line")
-        if let tenure = medicationManager.tenureLabel {
-            let label = String(localized: tenure)
-            return "\(dayPart) · \(label)"
-        }
-        return dayPart
+        guard let tenure = medicationManager.tenureLabel else { return dayPart }
+        return "\(dayPart) · \(Self.resolvedInflection(AttributedString(localized: tenure)))"
+    }
+
+    /// Resolves an `^[…](inflect: true)` grammar directive — only `AttributedString`
+    /// parses it; `String(localized:)` leaves the raw directive in the text.
+    private static func resolvedInflection(_ attributed: AttributedString) -> String {
+        String(attributed.characters)
     }
 
     // MARK: - Gateway subtitles (ST5)
@@ -169,8 +194,10 @@ struct SettingsView: View {
         let count = tests.count
         guard let last = tests.map(\.drawDate).max() else { return nil }
         let days = Calendar.current.dateComponents([.day], from: last, to: Date()).day ?? 0
-        let age = String(localized: "^[\(days) day](inflect: true) ago",
-                         comment: "Age of the most recent lab draw")
+        let age = Self.resolvedInflection(AttributedString(
+            localized: "^[\(days) day](inflect: true) ago",
+            comment: "Age of the most recent lab draw"
+        ))
         return LocalizedStringResource(
             "\(count) labs · last \(age)",
             comment: "Labs gateway subtitle: count plus the age of the newest lab"
@@ -212,7 +239,7 @@ struct SettingsView: View {
                           comment: "Privacy gateway subtitle when the app lock is disabled")
         }
         let cloud: String
-        if UserDefaults.standard.bool(forKey: "icloudSyncEnabled") {
+        if icloudSyncEnabled {
             cloud = String(localized: "iCloud on",
                             comment: "Privacy gateway subtitle when iCloud sync is enabled")
         } else {

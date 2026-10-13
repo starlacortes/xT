@@ -2,8 +2,8 @@
 //  Pill.swift
 //  xT
 //
-//  The flat, hairline-bordered chip (element S5). Used for phase-strip chips, mood
-//  chips, quick tags, preset selectors, and count-down chips.
+//  The flat, hairline-bordered chip (element S5). Used for mood chips, quick tags,
+//  preset selectors, chart-window pickers, and count-down chips.
 //
 //  Isocline collapses the old three surface treatments (`.tinted` / `.material` /
 //  `.gradient`) to two states: `.neutral` and `.active`. There is no fill — the chip

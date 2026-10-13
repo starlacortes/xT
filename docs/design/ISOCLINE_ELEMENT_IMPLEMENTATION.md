@@ -271,7 +271,7 @@ The Home level readout. Type-read-only, no card, flush on the paper.
 | Property | Value / token | Implementation |
 |---|---|---|
 | Number | `readout` role (mono 500 · 52) with unit (mono, muted) | `H2` — rebuild `LevelOverlayView` as `HomeReadout`. `AnimatedCounter` gains a `formatter:` parameter that defaults to `AppNumberFormatters.hormoneLevel` (locale-grouped; bug Appendix A). |
-| Eyebrow above | `ESTRADIOL VALERATE · DAY 3 OF 7`, mono caps `eyebrow()` | Built by `MedicationDisplayFormatter` (ester + due-day); omit for daily routes. |
+| Eyebrow above | `ESTRADIOL · DAY 3`, mono caps `eyebrow()` | Built by `MedicationDisplayFormatter` (hormone base + due-day; the ester and interval total live on the dose card / phase strip); omit for daily routes. Trailing clearance = measured `ChartWindowPicker` width (`PickerWidthKey`), eyebrow row only. |
 | Provenance line below | Mono caps `label` in muted; one of: `MODELED · NO LABS YET` / `MODELED · CALIBRATED TO YOUR LAB OF 4 MAR` / `MODELED · LAST LAB NOT USED FOR CALIBRATION` / `MODELED · FRI 14:00` (while scrubbing) | `H-D3` — `LevelProvenance`. Never "CALIBRATED TO N LABS" (X13/U3). |
 | Optional status line | `AT TROUGH · WITHIN YOUR SET TROUGH` | `X18` — InsightRowView retires here as a flush line. |
 | Safety pill | Outline + text + glyph in `safety` token, no fill; taps to show the clinical note | `X10` — gate only on real `SafetyFlag` cases; never gated by calibration or entitlement (§6.3 of calibration plan). |
@@ -291,12 +291,13 @@ The full-height Home graph, drawn to §6. Data comes from the H-D supports (cata
 
 ## 9 · Phase strip
 
-Four mono weekday chips under the curve. Today's chip ringed in accent.
+Four stationary text columns under the curve — weekday over the positional word. Only the Today column is ringed in accent (the Journal week strip's today-circle motif); the rest are bare muted type.
 
 | Property | Token / rule | `xT/` home |
 |---|---|---|
-| Copy | `MON Dose · WED Peak · FRI Today · SUN Trough` (weekday when ≤ 14 d interval, `MAR 4 Dose · APR 2 Peak · …` above) | New (Home). Built from `Pill` `.neutral` / `.active` |
-| Today chip | accent hairline ring | same |
+| Copy | `MON Dose · WED Peak · FRI Today · SUN Trough` (weekday when ≤ 14 d interval, `MAR 4 Dose · APR 2 Peak · …` above) | New (Home). Two-line `PhaseColumn`s, weekday `.statLabel()` over word `.monoLabel()` |
+| Layout | Stationary even columns across the card's margins — never scrolls | 2–4 markers, `.frame(maxWidth: .infinity)` each |
+| Today column | accent text + accent hairline rounded-rect ring (`Radius.sm`) | same |
 | Alignment | NOT x-aligned to the chart (window is ~3 d, interval is 1–70 d) | `H9`, X11 decision (U5) |
 | Hidden when | `cyclePhaseMarkers()` is empty (daily routes) | `H9`, X11 |
 | PEAK omitted when | tmax isn't calibrated (`PharmacokineticConstants.isTmaxCalibrated`) | `H-D2` honesty rule |
@@ -398,22 +399,23 @@ Today neither exists. Add `JournalManager.update(_:)` / `delete(_:)` (both save 
 
 ## 13 · Section card (Settings gateway)
 
-The Settings gateway pattern: paper card, accent icon tile (one accent everywhere), sans title, **mono subtitle with live values**, chevron.
+The Settings gateway pattern: paper card, accent icon tile (one accent everywhere), serif title (per the screen sketch), **mono subtitle with live values**, chevron. The root composes under an ISOCLINE brand eyebrow over the serif screen title.
 
 | Token | Value | `xT/` home |
 |---|---|---|
 | Card | `paperCard(radius: lg)` | New — replaces the 2×2 quick-card grid + inline sections (ST1, X24) |
 | Icon tile | `components.tile.size` (32) · `fillOpacity` (0.13) · radius `control` (8) | `SettingsRowKit.swift` — the tile follows the token, **no caller colors** (S7) |
-| Title | sans (system, not serif — the spec says "sans title"; see §08; today `headline`) | `SettingsRowKit.swift` |
-| Subtitle | mono `label` role, live values (`ESTRADIOL VALERATE · 4.0 MG Q7D`) | `SettingsRowKit.swift`, built by `SettingsHelpers` (ST5) + `MedicationDisplayFormatter` (H2) |
+| Title | `serifBody` (the screen sketch; was sans `callout` — supersedes the earlier "sans title" read of §08) | `SettingsRowKit.swift` (`SettingsGatewayCard`) |
+| Subtitle | mono `label` role, live values (`ESTRADIOL VALERATE · 4.0 MG Q7D`) | `SettingsRowKit.swift`, built by `SettingsView` (ST5) + `MedicationDisplayFormatter` (H2) |
+| Root icons | `plus` / `diamond` / `circle.righthalf.filled` / `square` (Medication · Labs · Appearance & Curve · Privacy) | `SettingsView.swift` — the sketch's set |
 
 Live subtitle examples (ST5):
 
 | Gateway | Live values | Implementation |
 |---|---|---|
 | Medication & Dose | `ESTRADIOL VALERATE · 4.0 MG Q7D` | `MedicationDisplayFormatter` + `resolvedDoseDefaults` + `effectiveDueIntervalDays` |
-| Labs & Records | `2 LABS · LAST 14 D AGO` / `NO LABS YET` | `bloodTestHistory` + last-draw age |
-| Appearance | `HUE 2° · DEFAULT ICON` | `seedHue` + icon name |
+| Labs & Records | `2 LABS · LAST 14 D AGO` / `NO LABS YET` | `bloodTestHistory` + last-draw age (^ inflects via `AttributedString` — `String(localized:)` leaks the directive) |
+| Appearance & Curve | `HUE 2° · DEFAULT ICON` | `seedHue` + icon name |
 | Privacy & Data | `FACE ID · ICLOUD ON` / `LOCK OFF · ICLOUD OFF` | `AuthenticationManager` state + `icloudSyncEnabled` |
 
 The footer (flush, no card): `ISOCLINE · VERSION 1.0 (42)` · Acknowledgements link · `SHAPED PROTOCOL.` — mono at `faint`, from `CFBundleShortVersionString`+`CFBundleVersion` (ST10, F8; kills hardcoded "0.9").
@@ -426,12 +428,13 @@ The footer (flush, no card): `ISOCLINE · VERSION 1.0 (42)` · Acknowledgements 
 
 | Token | Value | `xT/` home |
 |---|---|---|
-| Sizes | `components.avatar.row`=56 · `.header`=72 · `.editor`=112 | `SettingsView+Header.swift`, `ProfileEditorView.swift`, `OnboardingView+StepsLate.swift` |
+| Sizes | `components.avatar.row`=56 · `.header`=72 · `.settingsHero`=88 (centered Settings block) · `.editor`=112 | `SettingsView.swift`, `ProfileEditorView.swift`, `OnboardingView+StepsLate.swift` |
 | Ring | `components.avatar.ring` → 1 px `Theme.Line.hairline` in `line` color | Today: 0/2/3 pt rings + a 3 pt gradient ring + shadow in the editor (S8, ST2) |
 | Placeholder | Accent disc with `person.fill` glyph in `OnAccent`, **drawn in SwiftUI** so it tracks the hue live | `ProfileManager.renderPlaceholder` is a static 200×200 UIImage (S8 Gap) |
 | Photo | User's own, chosen from library / camera, stored on-device / iCloud | `ProfileManager.profilePhoto` |
 | Never | On the icon, in notifications, in widgets | S8 — same rule; design mockups must use placeholder not stock photography |
-| Edit | Explicit "Edit" text button in accent (X26) — tapping header alone is not the control | ST2 |
+| Layout | Screen sketch: centered column — avatar, serif name, mono tenure in caps — flush on the paper | `SettingsView.profileHeader` (ST2) |
+| Edit | Explicit EDIT mono caption in accent beneath the tenure line (X26) — the centered block itself is not the control | ST2 |
 
 ---
 
@@ -482,7 +485,7 @@ The dose reminder, customizable by the user. The default is **Discreet** (names 
 
 ## 17 · Pill / chip
 
-The flat, hairline-bordered control. Used for phase strip chips, mood chips, quick tags, preset selectors, count-down chips.
+The flat, hairline-bordered control. Used for mood chips, quick tags, preset selectors, count-down chips.
 
 | Token | Value | `xT/` home today | Gap |
 |---|---|---|---|
