@@ -143,30 +143,10 @@ extension MedicationManager {
                                           intervalDays: Double(interval),
                                           now: now)
 
-        // X12c: the trend windows ("90 d", "all") fix their own span around the
-        // same instant, with this ester-tuned window's step as their floor.
+        // X12c: the fortnight trend view fixes its own span trailing to now,
+        // with this ester-tuned window's step as its floor.
         guard chartWindowMode != .cycle else { return cycle }
-        return PKChartWindow.window(mode: chartWindowMode, now: now, cycle: cycle,
-                                    firstDataDate: earliestTrendDate)
-    }
-
-    /// The earliest date a trend window ("all", X12c) needs to cover: the
-    /// first taken dose of the selected medication or its first lab draw,
-    /// whichever is older. Mirrors the filters `estimatedLevels` and
-    /// `labPoints` apply, so the window never opens before data that would
-    /// actually draw. `nil` when neither exists — "all" then collapses to
-    /// the cycle window, the honest empty state.
-    var earliestTrendDate: Date? {
-        let medication = selectedMedication ?? ""
-        let firstDose = doseHistory.first {
-            $0.isActive && $0.medicationType == medication
-                && DoseStatus(rawValue: $0.doseStatus) == .taken
-        }?.doseDate
-        let firstLab = bloodTestHistory
-            .filter { $0.hormoneType == medication }
-            .map(\.drawDate)
-            .min()
-        return [firstDose, firstLab].compactMap { $0 }.min()
+        return PKChartWindow.window(mode: chartWindowMode, now: now, cycle: cycle)
     }
 
     // MARK: - Most recent dose

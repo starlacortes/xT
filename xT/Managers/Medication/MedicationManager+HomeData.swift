@@ -195,10 +195,12 @@ extension MedicationManager {
     // MARK: - H-D4 · Range band
 
     /// The user's therapeutic range, as the curve canvas draws it (§6). `low` is the
-    /// trough floor, `high` is the peak ceiling (X9); `troughMax` stays in the readout's
-    /// "within set trough" comparison, not the band.
+    /// trough floor and `high` the peak ceiling (X9) — the full reference band;
+    /// `troughHigh` is the trough ceiling, drawn as a stronger sub-band inside it
+    /// and the pair the readout's "within set trough" comparison reads.
     struct RangeBand: Equatable {
         let low: Double
+        let troughHigh: Double
         let high: Double
         let unit: HormoneUnit
     }
@@ -212,7 +214,8 @@ extension MedicationManager {
         let unit: HormoneUnit = (MedicationType(rawValue: selectedMedication ?? "") == .testosterone)
             ? .nanogramsPerDeciliter
             : .picogramsPerMilliliter
-        return RangeBand(low: target.troughMin, high: target.peakCeiling, unit: unit)
+        return RangeBand(low: target.troughMin, troughHigh: target.troughMax,
+                         high: target.peakCeiling, unit: unit)
     }
 
     // MARK: - H-D5 · Lab points

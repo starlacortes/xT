@@ -16,10 +16,6 @@ import Foundation
 
 /// Phase-strip thresholds (H-D2, H9).
 enum PhaseStrip {
-    /// At or below this dosing interval the strip labels chips by weekday
-    /// (`MON Dose · WED Peak`); above it, by date (`MAR 4 Dose · APR 2 Peak`).
-    static let weekdayMaxIntervalDays = 14
-
     /// Below this interval the strip is not produced at all — daily routes have no
     /// cycle to chart (X11).
     static let minIntervalDays = 2
@@ -50,6 +46,12 @@ enum HomeLayout {
     /// Fraction of the scroll height the curve keeps when Dynamic Type reaches an
     /// accessibility size and the layout switches to a scrolling arrangement.
     static let accessibilityCurveFraction = 0.4
+
+    /// Vertical room reserved under the plot band for the day-of-week axis
+    /// labels, which sit under the day-boundary hairlines and share the
+    /// curve's x mapping (the phase strip below is the event row, not the
+    /// calendar).
+    static let dayAxisHeight: CGFloat = 24
 }
 
 /// Time of day a timestamp falls in, by the hour ranges in H-D0 (J5).

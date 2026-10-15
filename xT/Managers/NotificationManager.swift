@@ -523,7 +523,7 @@ final class NotificationManager: NSObject {
 extension NotificationManager: UNUserNotificationCenterDelegate {
 
     /// Show reminders even while the app is open. Without this the system drops any
-    /// notification that fires in the foreground, so a user with xT on screen at
+    /// notification that fires in the foreground, so a user with Isocline on screen at
     /// dose time is never told.
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,

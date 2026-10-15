@@ -57,50 +57,34 @@ enum PKChartWindow {
     }
 
     /// Which span the Home curve samples (X12c). `.cycle` is the ester-tuned
-    /// instrument view the rule below derives; `.days90` and `.all` are trend
-    /// views, where the lab rings and the long horizon carry the information.
-    /// Persisted device-local by `MedicationManager` — a view preference,
-    /// never synced.
+    /// instrument view the rule below derives; `.fortnight` is the two-week
+    /// history view, where the lab rings and the longer horizon carry the
+    /// information. Persisted device-local by `MedicationManager` — a view
+    /// preference, never synced.
     enum WindowMode: String, CaseIterable, Identifiable {
         case cycle
-        case days90
-        case all
+        case fortnight
 
         var id: String { rawValue }
     }
 
     /// Resolves the window for a mode (X12c). `.cycle` returns the ester-tuned
-    /// window unchanged; the trend modes fix their own span around `now` and
-    /// reuse the cycle window's step as their resolution floor, with one
-    /// added cap: the drawn series never exceeds
-    /// `PKConstants.chartWindowTrendMaxPoints` samples, so "all" over years
-    /// stays a fixed, cheap point count.
-    ///
-    /// - Parameter firstDataDate: The earliest date a trend window must cover —
-    ///   the caller's first dose or lab draw (see
-    ///   `MedicationManager.earliestTrendDate`). `nil` collapses `.all` to the
-    ///   cycle window: with nothing logged, "everything" is "now".
-    static func window(mode: WindowMode, now: Date, cycle: Window,
-                       firstDataDate: Date?) -> Window {
+    /// window unchanged; `.fortnight` fixes its own span — the past
+    /// `PKConstants.chartWindowFortnightDays` days, trailing to `now` — and
+    /// reuses the cycle window's step as its resolution floor, with one added
+    /// cap: the drawn series never exceeds
+    /// `PKConstants.chartWindowTrendMaxPoints` samples.
+    static func window(mode: WindowMode, now: Date, cycle: Window) -> Window {
         switch mode {
         case .cycle:
             return cycle
 
-        case .days90:
-            let half = PKConstants.chartWindowTrendSpanDays / 2
+        case .fortnight:
+            // The past two weeks, trailing to now — history, not projection.
+            let span = PKConstants.chartWindowFortnightDays
                 * AppConstants.secondsPerDay
-            return trend(start: now.addingTimeInterval(-half),
-                         end: now.addingTimeInterval(half),
-                         cycle: cycle)
-
-        case .all:
-            // Everything logged, trailing one cycle-forward beyond now so the
-            // projection still reads as heading somewhere. Includes the whole
-            // cycle window, so "all" is always a superset of it.
-            guard let first = firstDataDate, first < now else { return cycle }
-            let forward = max(cycle.end.timeIntervalSince(now), 0)
-            return trend(start: min(first, cycle.start),
-                         end: now.addingTimeInterval(forward),
+            return trend(start: now.addingTimeInterval(-span),
+                         end: now,
                          cycle: cycle)
         }
     }

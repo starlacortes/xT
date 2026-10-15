@@ -861,14 +861,14 @@ enum PKConstants {
     /// zero or negative interval degrades to a usable window instead of a zero-width one.
     static let chartWindowMinIntervalDays = 0.5
 
-    /// Length of the 90-day trend window (X12c). Now sits mid-window — half
-    /// history, half projection — because the cycle view's 1:2 past:forward
-    /// split doesn't scale to a span measured in months.
-    static let chartWindowTrendSpanDays = 90.0
+    /// Length of the two-week trend window (X12c). It trails to now — pure
+    /// history, no forward projection — because "the past two weeks" is the
+    /// question the view answers.
+    static let chartWindowFortnightDays = 14.0
 
-    /// Point budget for the trend windows ("90 d", "all"). Their step is
+    /// Point budget for the trend windows ("2 W"). Their step is
     /// `max(cycleStep, span / this)`: the ester-tuned cycle step stays the
-    /// resolution floor, and the budget keeps a years-long "all" a fixed,
-    /// cheap sample count instead of thousands of EV-scale points.
+    /// resolution floor, and the budget keeps the two-week view a fixed,
+    /// cheap sample count.
     static let chartWindowTrendMaxPoints = 160.0
 }

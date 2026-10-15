@@ -89,6 +89,13 @@ extension MedicationManager {
         recomputeRegimenHistory()
         recomputeAdherenceRate()
         recomputeOnTimeStreak()
+
+        // The widget reads a snapshot of this state from the shared App Group;
+        // every change that flows through the funnel also refreshes the Home
+        // Screen curve. No-ops when the App Group is unavailable. `self` is
+        // passed explicitly — this also runs from the manager's own init,
+        // where reading `.shared` again would deadlock (see the writer).
+        WidgetSnapshotWriter.publish(from: self)
     }
 
     /// (Re)samples `recentLevels` from the current chart window (X12c).
@@ -397,42 +404,30 @@ extension MedicationManager {
         let scaledTroughMin = base.troughMin * troughScale
         let scaledTroughMax = base.troughMax * troughScale
         
-        // If user has set personal therapeutic targets, use those as the trough reference
-        let troughMin: Double
-        let troughMax: Double
-        let peakCeiling: Double
-
+        // If the user set personal therapeutic targets, their trough range is the
+        // reference at EVERY cycle position — not only at the trough itself. The
+        // old rule quoted "your set trough" just once per cycle (at the trough
+        // position), so the range they configured was silently ignored the rest
+        // of the time.
         if let userTarget = userTherapeuticTarget {
-            troughMin = userTarget.troughMin
-            troughMax = userTarget.troughMax
-            peakCeiling = userTarget.peakCeiling
-        } else {
-            troughMin = scaledTroughMin
-            troughMax = scaledTroughMax
-            peakCeiling = scaledPeakMax
+            return (.userSet, userTarget.troughMin, userTarget.troughMax)
         }
 
-        // `.userSet` marks bounds the user actually configured — which is only the
-        // trough pair, and only when they set one. Settings offers a trough floor,
-        // a trough ceiling and a peak ceiling; it never asks for a mid-cycle or
-        // peak-floor target, so those are interpolated against model-scaled peak
-        // values. Reporting a blend as "your set range" would quote the user
-        // numbers they never entered.
-        let userSetTrough = userTherapeuticTarget != nil
-
+        // No user targets: model-scaled bounds. `.modelDerived` is the honesty
+        // marker — the copy never presents these as the user's own range.
         switch position {
         case .nearPeak:
-            return (.modelDerived, scaledPeakMin, peakCeiling)
+            return (.modelDerived, scaledPeakMin, scaledPeakMax)
         case .trough:
-            return (userSetTrough ? .userSet : .modelDerived, troughMin, troughMax)
+            return (.modelDerived, scaledTroughMin, scaledTroughMax)
         case .midCycle:
             // Interpolate between trough and peak targets
-            let midMin = (troughMin + scaledPeakMin) / 2
-            let midMax = (troughMax + peakCeiling) / 2
+            let midMin = (scaledTroughMin + scaledPeakMin) / 2
+            let midMax = (scaledTroughMax + scaledPeakMax) / 2
             return (.modelDerived, midMin, midMax)
         case .unknown:
             // Fallback: widest span, trough floor to peak ceiling
-            return (.modelDerived, troughMin, peakCeiling)
+            return (.modelDerived, scaledTroughMin, scaledPeakMax)
         }
     }
     

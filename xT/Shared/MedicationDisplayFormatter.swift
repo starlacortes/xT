@@ -65,32 +65,30 @@ enum MedicationDisplayFormatter {
 
     // MARK: - Provenance line
 
-    /// The provenance line under the readout number (§7). States what the modeled value
-    /// rests on — never a count of labs (X13/U3).
-    static func provenanceLine(_ provenance: MedicationManager.LevelProvenance,
-                               now: Date = .now,
-                               calendar: Calendar = .current) -> String {
+    /// The provenance line under the readout number (§7). One word for what the value
+    /// rests on — "Calibrated" when the newest lab reconciled, "Estimated" when no lab
+    /// has calibrated the model. Never a count of labs (X13/U3).
+    static func provenanceLine(_ provenance: MedicationManager.LevelProvenance) -> String {
         switch provenance.basis {
         case .noLabs:
-            return String(localized: "Modeled · No labs yet",
+            return String(localized: "Estimated",
                           comment: "Provenance line: the level is modeled with no lab to calibrate against")
-        case .calibrated(let lastLab):
-            let date = AppDateFormatters.monthDay.string(from: lastLab)
-            return String(localized: "Modeled · Calibrated to your lab of \(date)",
+        case .calibrated:
+            return String(localized: "Calibrated",
                           comment: "Provenance line: the level is calibrated to the user's most recent lab draw")
         case .labNotUsable:
-            return String(localized: "Modeled · Last lab not used for calibration",
+            return String(localized: "Estimated",
                           comment: "Provenance line: a lab exists but could not reconcile with the model")
         }
     }
 
-    /// The provenance line while scrubbing: `MODELED · FRI 2:00 PM`. Replaces the "Estimated"
-    /// caption during a scrub.
+    /// The provenance line while scrubbing: `ESTIMATED · FRI 2:00 PM` — the base word
+    /// plus the scrubbed instant.
     static func scrubProvenanceLine(_ date: Date) -> String {
         let day = AppDateFormatters.weekdayShort.string(from: date)
         let time = AppDateFormatters.time.string(from: date)
         let stamp = "\(day) \(time)"
-        return String(localized: "Modeled · \(stamp)",
+        return String(localized: "Estimated · \(stamp)",
                       comment: "Provenance line while scrubbing the curve, showing the scrubbed time")
     }
 

@@ -3,7 +3,8 @@
 //  xTTests
 //
 //  H-D4 — the user's therapeutic range as the curve draws it. Nil unless the user set
-//  a range; bounds are troughMin…peakCeiling (X9); unit tracks the hormone.
+//  a range; the band spans troughMin…peakCeiling (X9) with the trough ceiling
+//  carried as `troughHigh` for the stronger trough sub-band; unit tracks the hormone.
 //
 
 import Testing
@@ -30,6 +31,7 @@ struct RangeBandTests {
 
         let band = try #require(m.rangeBand)
         #expect(band.low == 100)
+        #expect(band.troughHigh == 200)    // the trough sub-band's ceiling
         #expect(band.high == 600)          // peakCeiling, not troughMax (X9)
         #expect(band.unit == .picogramsPerMilliliter)
     }
@@ -42,6 +44,7 @@ struct RangeBandTests {
 
         let band = try #require(m.rangeBand)
         #expect(band.low == 400)
+        #expect(band.troughHigh == 700)
         #expect(band.high == 1200)
         #expect(band.unit == .nanogramsPerDeciliter)
     }

@@ -14,6 +14,9 @@ struct ContentView: View {
     @Environment(\.notificationManager) private var notificationManager
     @State private var showOnboarding = false
     @State private var showProfileNamePrompt = false
+    /// The launch reveal ("I. → ISOCLINE"): one pass per cold launch —
+    /// `ContentView` is created once per process, never on background returns.
+    @State private var showLaunchReveal = true
 
     /// App-wide navigation state (N2). Owned here so routing survives tab switches
     /// and notification deep links.
@@ -30,6 +33,15 @@ struct ContentView: View {
             } else {
                 Color.clear
             }
+
+            // The launch reveal: over the paper, under only the app lock (it
+            // waits the lock out). It lets go into whichever world is beneath
+            // — the tabs, or onboarding on a first run.
+            if showLaunchReveal {
+                IsoclineWordmarkRevealView(onFinished: revealFinished)
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+            }
         }
         // A notification route only applies once the lock screen clears (N2).
         .onChange(of: notificationManager.pendingRoute) { _, _ in applyPendingRoute() }
@@ -38,11 +50,12 @@ struct ContentView: View {
             let defaults = UserDefaults.standard
             let hasMedicationData = defaults.string(forKey: "selectedMedication") != nil
 
+            // A pre-onboarding build's data still counts as onboarded.
             if !hasCompletedOnboarding && hasMedicationData {
                 hasCompletedOnboarding = true
-            } else if !hasCompletedOnboarding {
-                showOnboarding = true
             }
+            // First-run onboarding waits for the launch reveal to let go
+            // (`revealFinished`) so the wordmark lands before the welcome.
         }
         .onChange(of: hasCompletedOnboarding) { _, newValue in
             if !newValue {
@@ -79,6 +92,18 @@ struct ContentView: View {
         )) {
             AuthenticationView(reason: "Access your health data")
                 .interactiveDismissDisabled(true)
+        }
+    }
+
+    /// The launch reveal has let go — its last frame is pure paper (the lockup
+    /// dissolved into it), so removing the layer over the same app paper is
+    /// seamless. On a first run, the welcome now takes over.
+    private func revealFinished() {
+        withAnimation(.easeOut(duration: 0.35)) {
+            showLaunchReveal = false
+        }
+        if !hasCompletedOnboarding {
+            showOnboarding = true
         }
     }
 

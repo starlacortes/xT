@@ -427,6 +427,11 @@ class ThemeManager {
         #endif
         defaults.set(seedHue, forKey: Keys.seedHue)
         mirrorSeedHue()
+        // The widget's palette is baked into its snapshot as resolved RGB, so a
+        // hue change must re-publish for the Home Screen to follow (no-op
+        // without the App Group). Only ever user-triggered, so `.shared` is
+        // safe here — unlike inside `refreshState()` (see the writer).
+        WidgetSnapshotWriter.publish(from: MedicationManager.shared)
     }
 
     func resetToDefault() {

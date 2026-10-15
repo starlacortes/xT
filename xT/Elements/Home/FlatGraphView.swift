@@ -226,12 +226,14 @@ struct FlatGraphView: View {
 
     // MARK: - Day grid (stationary time rules)
 
-    /// Vertical hairlines at day boundaries across the window, drawn WITHOUT
-    /// weekday labels — the phase strip under the curve is the calendar element
-    /// (H9), and two calendar rows read as noise. The tiering (day → week →
-    /// month) still comes from `CurveLayout.timeMarkers`, so the rules thin out
-    /// on the trend windows. Unlike the scrub line, they hold still — a fixed
-    /// time axis under the moving readout.
+    /// Vertical hairlines at day boundaries across the window, each with its day
+    /// label directly beneath it — the labels share the curve's x mapping, so the
+    /// row under the plot band lines up with the actual days on the graph. The
+    /// phase strip below the axis is the event row (Dose / Peak / Today /
+    /// Trough), not the calendar. The tiering (day → week → month) still comes
+    /// from `CurveLayout.timeMarkers`, so the axis thins out on the trend
+    /// windows. Unlike the scrub line, it holds still — a fixed time axis under
+    /// the moving readout.
     ///
     /// X is time-proportional here (and on the curve) because `recentLevels`
     /// samples the window at a uniform step.
@@ -248,6 +250,15 @@ struct FlatGraphView: View {
                     p.addLine(to: CGPoint(x: x, y: plotBottom))
                 }
                 .stroke(Theme.Colors.Graph.gridLine, lineWidth: Theme.Colors.hairlineWidth)
+
+                // Centered under its hairline, in the axis room HomeView
+                // reserves below the plot band. Clamped so an edge label
+                // never clips.
+                Text(verbatim: dayMarkers[i].label)
+                    .statLabel()
+                    .foregroundStyle(Theme.Colors.textTertiary)
+                    .position(x: min(max(x, 12), w - 12),
+                              y: plotBottom + HomeLayout.dayAxisHeight / 2)
             }
         }
     }
@@ -275,16 +286,31 @@ struct FlatGraphView: View {
                 .frame(width: w, height: height)
                 .position(x: w / 2, y: top + height / 2)
 
+            // The trough sub-band (troughMin…troughMax) — the same treatment at
+            // twice the opacity, so the "Trough upper edge" the user set in
+            // Settings is visible on the curve, not only the full-range band.
+            let yTroughHigh = clamp(CurveLayout.yPos(value: band.troughHigh, min: minV, range: range,
+                                                     plotTop: plotTop, plotBottom: plotBottom),
+                                    plotTop, plotBottom)
+            let troughTop = min(yTroughHigh, yLow)
+            let troughHeight = max(abs(yLow - yTroughHigh), 1)
+
+            Rectangle()
+                .fill(Theme.Colors.accent.opacity(Theme.Curve.RangeBand.opacity * 2))
+                .frame(width: w, height: troughHeight)
+                .position(x: w / 2, y: troughTop + troughHeight / 2)
+
+            // Leading-anchored off the parent ZStack's `.topLeading` alignment, so the
+            // label never bleeds past the chart's left edge regardless of string length
+            // or Dynamic Type size (it previously centered on x: 0 and nudged back with
+            // a fixed offset sized for one specific label width).
             Text(rangeLabel(band))
                 .statLabel()
                 .foregroundStyle(Theme.Colors.textSecondary)
-                .position(x: 0, y: top)
-                .offset(x: rangeLabelInset, y: Theme.Spacing.sm)
-                .fixedSize()
+                .padding(.leading, Theme.Spacing.sm)
+                .offset(y: top + Theme.Spacing.sm)
         }
     }
-
-    private var rangeLabelInset: CGFloat { 54 }   // clears the label's own centering
 
     private func rangeLabel(_ band: MedicationManager.RangeBand) -> String {
         let low = AppNumberFormatters.hormoneLevel.string(band.low)

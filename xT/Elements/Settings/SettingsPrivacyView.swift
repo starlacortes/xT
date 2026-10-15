@@ -52,7 +52,7 @@ struct SettingsPrivacyView: View {
         .alert("Restart Required", isPresented: $showingRestartAlert) {
             Button("OK") { }
         } message: {
-            Text("This change will take effect the next time you open xT.")
+            Text("This change will take effect the next time you open Isocline.")
         }
         .alert("Data Restored", isPresented: $showRestoreCompleteAlert) {
             Button("OK", role: .cancel) {
@@ -73,7 +73,7 @@ struct SettingsPrivacyView: View {
         .alert("Sync Complete", isPresented: $showSyncCompleteAlert) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text("xT saved your changes. iCloud will finish syncing automatically.")
+            Text("Isocline saved your changes. iCloud will finish syncing automatically.")
         }
         .alert("Sync Unavailable", isPresented: $showSyncFailedAlert) {
             Button("OK", role: .cancel) {}
@@ -85,7 +85,7 @@ struct SettingsPrivacyView: View {
             Button("This Device Only") { resetAppData(includingCloud: false) }
             Button("This Device and iCloud", role: .destructive) { resetAppData(includingCloud: true) }
         } message: {
-            Text("\"This Device Only\" keeps your iCloud data — turning iCloud Sync back on later restores it. \"This Device and iCloud\" deletes your data everywhere.\n\nThis will close xT.")
+            Text("\"This Device Only\" keeps your iCloud data — turning iCloud Sync back on later restores it. \"This Device and iCloud\" deletes your data everywhere.\n\nThis will close Isocline.")
         }
     }
 

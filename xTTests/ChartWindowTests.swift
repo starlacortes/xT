@@ -491,49 +491,20 @@ struct ChartTrendWindowTests {
         PKChartWindow.compute(tmaxDays: 2.10, intervalDays: 5, now: now)
     }
 
-    @Test("The 90-day window is now-centred with the point-budget step")
-    func days90WindowIsCentered() {
+    @Test("The fortnight window trails two weeks back to now")
+    func fortnightWindowTrailsToNow() {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         let cycle = evCycle(now: now)
-        let w = PKChartWindow.window(mode: .days90, now: now, cycle: cycle, firstDataDate: nil)
+        let w = PKChartWindow.window(mode: .fortnight, now: now, cycle: cycle)
 
-        #expect(abs(w.start.timeIntervalSince(now) / Self.day + 45) < 0.001)
-        #expect(abs(w.end.timeIntervalSince(now) / Self.day - 45) < 0.001)
-        // step = max(cycle 0.07875, 90/160 = 0.5625) — the budget binds on EV.
-        #expect(abs(w.stepDays - 90 / PKConstants.chartWindowTrendMaxPoints) < 0.0001)
+        #expect(abs(w.start.timeIntervalSince(now) / Self.day
+                    + PKConstants.chartWindowFortnightDays) < 0.001)
+        #expect(abs(w.end.timeIntervalSince(now)) < 0.001,
+                "the fortnight view is history, not projection")
+        // step = max(cycle 0.07875, 14/160 = 0.0875) — the budget binds on EV.
+        #expect(abs(w.stepDays
+                    - PKConstants.chartWindowFortnightDays / PKConstants.chartWindowTrendMaxPoints) < 0.0001)
         #expect(w.stepDays >= cycle.stepDays, "the cycle step is the resolution floor")
-    }
-
-    @Test("'All' spans the earliest data and trails one cycle-forward")
-    func allWindowSpansEarliestData() {
-        let now = Date(timeIntervalSince1970: 1_800_000_000)
-        let cycle = evCycle(now: now)
-        let first = now.addingTimeInterval(-300 * Self.day)
-        let w = PKChartWindow.window(mode: .all, now: now, cycle: cycle, firstDataDate: first)
-
-        #expect(w.start == min(first, cycle.start), "'all' is a superset of the cycle window")
-        let forward = cycle.end.timeIntervalSince(now)
-        #expect(abs(w.end.timeIntervalSince(now) - forward) < 0.001)
-        #expect(abs(w.stepDays - w.totalDays / PKConstants.chartWindowTrendMaxPoints) < 0.0001)
-    }
-
-    @Test("'All' with nothing logged collapses to the cycle window")
-    func allFallsBackToCycle() {
-        let now = Date(timeIntervalSince1970: 1_800_000_000)
-        let cycle = evCycle(now: now)
-        let w = PKChartWindow.window(mode: .all, now: now, cycle: cycle, firstDataDate: nil)
-        #expect(w == cycle, "with nothing logged, 'everything' is the cycle window")
-    }
-
-    @Test("A short 'all' keeps the cycle step — the floor binds, not the budget")
-    func shortAllKeepsCycleStep() {
-        let now = Date(timeIntervalSince1970: 1_800_000_000)
-        let cycle = evCycle(now: now)
-        // First dose yesterday: inside the cycle window's own past, so 'all' is
-        // the cycle window exactly — span too short for the budget to bind.
-        let first = now.addingTimeInterval(-Self.day)
-        let w = PKChartWindow.window(mode: .all, now: now, cycle: cycle, firstDataDate: first)
-        #expect(w == cycle)
     }
 }
 
@@ -578,11 +549,11 @@ struct ChartWindowModeTests {
         let a = MedicationManager(defaults: defaults)
         #expect(a.chartWindowMode == .cycle, "a fresh install starts on the cycle view")
 
-        a.chartWindowMode = .days90
+        a.chartWindowMode = .fortnight
         // A second manager on the same suite reads the persisted mode — a
         // relaunch keeps the window the person chose.
         let b = MedicationManager(defaults: defaults)
-        #expect(b.chartWindowMode == .days90)
+        #expect(b.chartWindowMode == .fortnight)
     }
 
     @MainActor
@@ -597,14 +568,14 @@ struct ChartWindowModeTests {
         }
         #expect(cycleSpan < 5, "EV's cycle window is ~3 d, got \(cycleSpan) d")
 
-        mgr.chartWindowMode = .days90
+        mgr.chartWindowMode = .fortnight
         guard let trendSpan = sampledSpanDays(mgr) else {
             Issue.record("expected a resampled series after the mode change")
             return
         }
         // The samples span slightly under the window (one step shy at the end).
-        #expect(trendSpan > 88 && trendSpan < 90.01,
-                "the resampled series should span the 90-day window, got \(trendSpan) d")
+        #expect(trendSpan > 13 && trendSpan < 14.01,
+                "the resampled series should span the two-week window, got \(trendSpan) d")
 
         mgr.chartWindowMode = .cycle
         guard let back = sampledSpanDays(mgr) else {
@@ -615,21 +586,16 @@ struct ChartWindowModeTests {
     }
 
     @MainActor
-    @Test("earliestTrendDate is the first dose or lab draw, whichever is older")
-    func earliestTrendDateIsTheOldestDatum() {
+    @Test("The fortnight mode opens its window two weeks back, whatever the history")
+    func fortnightModeWindow() {
         let (mgr, now) = estrogenManager()
-        #expect(mgr.earliestTrendDate == mgr.doseHistory.first?.doseDate)
-
-        let olderLab = BloodTestRecord(
-            drawDate: now.addingTimeInterval(-400 * 86400.0),
-            measuredLevel: 300, hormoneType: "Estrogen", hoursSinceLastDose: 72
-        )
-        mgr.bloodTestHistory = [olderLab]
-        #expect(mgr.earliestTrendDate == olderLab.drawDate)
-
-        mgr.chartWindowMode = .all
+        mgr.chartWindowMode = .fortnight
         let w = mgr.chartWindow(now: now)
-        #expect(w.start == olderLab.drawDate,
-                "'all' must open at the lab draw, the oldest thing that would draw")
+
+        // A dose history reaching beyond two weeks must not stretch the window.
+        #expect(abs(w.start.timeIntervalSince(now) / 86_400.0 + 14) < 0.001,
+                "the fortnight window opens fourteen days back")
+        #expect(abs(w.end.timeIntervalSince(now)) < 0.001,
+                "the fortnight window trails to now, not beyond it")
     }
 }

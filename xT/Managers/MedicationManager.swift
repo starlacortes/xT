@@ -159,9 +159,9 @@ class MedicationManager {
     /// Provides the historical data points used to drive the 7-day and long-term charts.
     var recentLevels: [EstimatedPoint] = []
 
-    /// Which span the Home curve samples (X12c): the ester-tuned cycle, a
-    /// 90-day trend, or everything logged. A device-local view preference —
-    /// never synced, never exported, like the notification layout.
+    /// Which span the Home curve samples (X12c): the ester-tuned cycle or the
+    /// past two weeks. A device-local view preference — never synced, never
+    /// exported, like the notification layout.
     var chartWindowMode: PKChartWindow.WindowMode = .cycle {
         didSet {
             guard chartWindowMode != oldValue else { return }

@@ -6,7 +6,20 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		48AAD74C307FF8BD00A4D764 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 48AAD74B307FF8BD00A4D764 /* WidgetKit.framework */; };
+		48AAD74E307FF8BD00A4D764 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 48AAD74D307FF8BD00A4D764 /* SwiftUI.framework */; };
+		48AAD759307FF8BE00A4D764 /* IsoclineChartExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 48AAD749307FF8BD00A4D764 /* IsoclineChartExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
+		48AAD757307FF8BE00A4D764 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D2467CE22DD7A2CA00C98381 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 48AAD748307FF8BD00A4D764;
+			remoteInfo = IsoclineChartExtension;
+		};
 		D2467CFB2DD7A2CB00C98381 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = D2467CE22DD7A2CA00C98381 /* Project object */;
@@ -23,13 +36,38 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		48AAD75E307FF8BE00A4D764 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				48AAD759307FF8BE00A4D764 /* IsoclineChartExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		48AAD749307FF8BD00A4D764 /* IsoclineChartExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = IsoclineChartExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		48AAD74B307FF8BD00A4D764 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		48AAD74D307FF8BD00A4D764 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		48AAD761307FF9FE00A4D764 /* IsoclineChartExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = IsoclineChartExtension.entitlements; sourceTree = "<group>"; };
 		D2467CEA2DD7A2CA00C98381 /* xT.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = xT.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D2467CFA2DD7A2CB00C98381 /* xTTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = xTTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		D2467D042DD7A2CB00C98381 /* xTUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = xTUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		48AAD75D307FF8BE00A4D764 /* Exceptions for "IsoclineChart" folder in "IsoclineChartExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 48AAD748307FF8BD00A4D764 /* IsoclineChartExtension */;
+		};
 		8FF4767A2E427589002F8D71 /* Exceptions for "xT" folder in "xT" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -40,6 +78,14 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		48AAD74F307FF8BD00A4D764 /* IsoclineChart */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				48AAD75D307FF8BE00A4D764 /* Exceptions for "IsoclineChart" folder in "IsoclineChartExtension" target */,
+			);
+			path = IsoclineChart;
+			sourceTree = "<group>";
+		};
 		D2467CEC2DD7A2CA00C98381 /* xT */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -61,6 +107,15 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		48AAD746307FF8BD00A4D764 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				48AAD74E307FF8BD00A4D764 /* SwiftUI.framework in Frameworks */,
+				48AAD74C307FF8BD00A4D764 /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		D2467CE72DD7A2CA00C98381 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -85,12 +140,24 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		48AAD74A307FF8BD00A4D764 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				48AAD74B307FF8BD00A4D764 /* WidgetKit.framework */,
+				48AAD74D307FF8BD00A4D764 /* SwiftUI.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		D2467CE12DD7A2CA00C98381 = {
 			isa = PBXGroup;
 			children = (
+				48AAD761307FF9FE00A4D764 /* IsoclineChartExtension.entitlements */,
 				D2467CEC2DD7A2CA00C98381 /* xT */,
 				D2467CFD2DD7A2CB00C98381 /* xTTests */,
 				D2467D072DD7A2CB00C98381 /* xTUITests */,
+				48AAD74F307FF8BD00A4D764 /* IsoclineChart */,
+				48AAD74A307FF8BD00A4D764 /* Frameworks */,
 				D2467CEB2DD7A2CA00C98381 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -101,6 +168,7 @@
 				D2467CEA2DD7A2CA00C98381 /* xT.app */,
 				D2467CFA2DD7A2CB00C98381 /* xTTests.xctest */,
 				D2467D042DD7A2CB00C98381 /* xTUITests.xctest */,
+				48AAD749307FF8BD00A4D764 /* IsoclineChartExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -108,6 +176,28 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		48AAD748307FF8BD00A4D764 /* IsoclineChartExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 48AAD75A307FF8BE00A4D764 /* Build configuration list for PBXNativeTarget "IsoclineChartExtension" */;
+			buildPhases = (
+				48AAD745307FF8BD00A4D764 /* Sources */,
+				48AAD746307FF8BD00A4D764 /* Frameworks */,
+				48AAD747307FF8BD00A4D764 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				48AAD74F307FF8BD00A4D764 /* IsoclineChart */,
+			);
+			name = IsoclineChartExtension;
+			packageProductDependencies = (
+			);
+			productName = IsoclineChartExtension;
+			productReference = 48AAD749307FF8BD00A4D764 /* IsoclineChartExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		D2467CE92DD7A2CA00C98381 /* xT */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = D2467D0E2DD7A2CB00C98381 /* Build configuration list for PBXNativeTarget "xT" */;
@@ -115,10 +205,12 @@
 				D2467CE62DD7A2CA00C98381 /* Sources */,
 				D2467CE72DD7A2CA00C98381 /* Frameworks */,
 				D2467CE82DD7A2CA00C98381 /* Resources */,
+				48AAD75E307FF8BE00A4D764 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				48AAD758307FF8BE00A4D764 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				D2467CEC2DD7A2CA00C98381 /* xT */,
@@ -183,9 +275,12 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 1630;
+				LastSwiftUpdateCheck = 2700;
 				LastUpgradeCheck = 2700;
 				TargetAttributes = {
+					48AAD748307FF8BD00A4D764 = {
+						CreatedOnToolsVersion = 27.0;
+					};
 					D2467CE92DD7A2CA00C98381 = {
 						CreatedOnToolsVersion = 16.4;
 					};
@@ -216,11 +311,19 @@
 				D2467CE92DD7A2CA00C98381 /* xT */,
 				D2467CF92DD7A2CB00C98381 /* xTTests */,
 				D2467D032DD7A2CB00C98381 /* xTUITests */,
+				48AAD748307FF8BD00A4D764 /* IsoclineChartExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		48AAD747307FF8BD00A4D764 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		D2467CE82DD7A2CA00C98381 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -245,6 +348,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		48AAD745307FF8BD00A4D764 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		D2467CE62DD7A2CA00C98381 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -269,6 +379,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		48AAD758307FF8BE00A4D764 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 48AAD748307FF8BD00A4D764 /* IsoclineChartExtension */;
+			targetProxy = 48AAD757307FF8BE00A4D764 /* PBXContainerItemProxy */;
+		};
 		D2467CFC2DD7A2CB00C98381 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = D2467CE92DD7A2CA00C98381 /* xT */;
@@ -282,6 +397,79 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		48AAD75B307FF8BE00A4D764 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				"ASSETCATALOG_COMPILER_APPICON_NAME[sdk=*]" = "";
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = IsoclineChartExtension.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 68M5FXET7D;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = IsoclineChart/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Isocline;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = starlacortes.xT.IsoclineChart;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		48AAD75C307FF8BE00A4D764 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				"ASSETCATALOG_COMPILER_APPICON_NAME[sdk=*]" = "";
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = IsoclineChartExtension.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 68M5FXET7D;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = IsoclineChart/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Isocline;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = starlacortes.xT.IsoclineChart;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 		D2467D0C2DD7A2CB00C98381 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -446,10 +634,10 @@
 				ENABLE_USER_SELECTED_FILES = readwrite;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = xT/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = xT;
+				INFOPLIST_KEY_CFBundleDisplayName = Isocline;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
-				INFOPLIST_KEY_NSCameraUsageDescription = "xT uses the camera to capture timeline progress photos.";
-				INFOPLIST_KEY_NSFaceIDUsageDescription = "Use Face ID to unlock xT and protect your health data.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Isocline uses the camera to capture timeline progress photos.";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "Use Face ID to unlock Isocline and protect your health data.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "xT saves timeline photos to track physical changes during HRT.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -522,10 +710,10 @@
 				ENABLE_USER_SELECTED_FILES = readwrite;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = xT/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = xT;
+				INFOPLIST_KEY_CFBundleDisplayName = Isocline;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
-				INFOPLIST_KEY_NSCameraUsageDescription = "xT uses the camera to capture timeline progress photos.";
-				INFOPLIST_KEY_NSFaceIDUsageDescription = "Use Face ID to unlock xT and protect your health data.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Isocline uses the camera to capture timeline progress photos.";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "Use Face ID to unlock Isocline and protect your health data.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "xT saves timeline photos to track physical changes during HRT.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -681,6 +869,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		48AAD75A307FF8BE00A4D764 /* Build configuration list for PBXNativeTarget "IsoclineChartExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				48AAD75B307FF8BE00A4D764 /* Debug */,
+				48AAD75C307FF8BE00A4D764 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		D2467CE52DD7A2CA00C98381 /* Build configuration list for PBXProject "xT" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

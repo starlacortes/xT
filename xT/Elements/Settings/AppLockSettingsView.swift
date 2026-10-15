@@ -49,7 +49,7 @@ struct AppLockSettingsView: View {
 
             if requireAuth {
                 Section(header: Text("Auto-lock timeout"),
-                       footer: Text("xT will require authentication after being inactive for the selected duration.")) {
+                       footer: Text("Isocline will require authentication after being inactive for the selected duration.")) {
                     ForEach(timeoutOptions, id: \.1) { option in
                         Button(action: {
                             selectedTimeout = option.1
@@ -112,7 +112,7 @@ struct AppLockSettingsView: View {
                     .font(Theme.Fonts.callout)
                     .foregroundStyle(Theme.Colors.textPrimary)
 
-                Text("Use Face ID to quickly unlock xT. You can also set up Face ID in the Settings app if you haven't already.")
+                Text("Use Face ID to quickly unlock Isocline. You can also set up Face ID in the Settings app if you haven't already.")
                     .font(Theme.Fonts.caption)
                     .foregroundStyle(Theme.Colors.textSecondary)
                     .multilineTextAlignment(.center)
@@ -153,7 +153,7 @@ struct AppLockSettingsView: View {
                     .font(Theme.Fonts.callout)
                     .foregroundStyle(Theme.Colors.textPrimary)
 
-                Text("Use \(biometricType.description.lowercased()) to unlock xT. You can also set up \(biometricType.description) in the Settings app if you haven't already.")
+                Text("Use \(biometricType.description.lowercased()) to unlock Isocline. You can also set up \(biometricType.description) in the Settings app if you haven't already.")
                     .font(Theme.Fonts.caption)
                     .foregroundStyle(Theme.Colors.textSecondary)
                     .multilineTextAlignment(.center)
@@ -194,7 +194,7 @@ struct AppLockSettingsView: View {
                     .font(Theme.Fonts.callout)
                     .foregroundStyle(Theme.Colors.textPrimary)
 
-                Text("Your device doesn't have Face ID or Touch ID set up. You can set up Face ID or Touch ID in Settings to unlock xT with biometrics, or use the passcode option below.")
+                Text("Your device doesn't have Face ID or Touch ID set up. You can set up Face ID or Touch ID in Settings to unlock Isocline with biometrics, or use the passcode option below.")
                     .font(Theme.Fonts.caption)
                     .foregroundStyle(Theme.Colors.textSecondary)
                     .multilineTextAlignment(.center)
@@ -221,7 +221,7 @@ struct AppLockSettingsView: View {
                 .font(Theme.Fonts.footnote)
                 .foregroundStyle(Theme.Colors.textPrimary)
 
-            Text("App lock helps protect your sensitive health data by requiring authentication when opening xT or after a period of inactivity. Your biometric data is never stored on our servers or shared with Apple.")
+            Text("App lock helps protect your sensitive health data by requiring authentication when opening Isocline or after a period of inactivity. Your biometric data is never stored on our servers or shared with Apple.")
                 .font(Theme.Fonts.caption)
                 .foregroundStyle(Theme.Colors.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -272,7 +272,7 @@ struct TestBiometricSheet: View {
         }
         .task {
             do {
-                try await authManager.authenticate(reason: "Test your biometric authentication with xT")
+                try await authManager.authenticate(reason: "Test your biometric authentication with Isocline")
                 result = .success
             } catch {
                 result = authResult(error)
@@ -365,7 +365,7 @@ struct TestBiometricSheet: View {
     private func testAgain() async {
         result = nil
         do {
-            try await authManager.authenticate(reason: "Test your biometric authentication with xT")
+            try await authManager.authenticate(reason: "Test your biometric authentication with Isocline")
             result = .success
         } catch {
             result = authResult(error)

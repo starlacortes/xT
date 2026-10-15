@@ -11,7 +11,7 @@
 //    • eyebrow   — ESTRADIOL · DAY 3   (MedicationDisplayFormatter). Only this row
 //      shares its band with the chart-window chips, so only it gets `trailingClearance`.
 //    • number    — the modeled level, mono 500 · 52, with its unit (mono, muted)
-//    • provenance — MODELED · CALIBRATED TO YOUR LAB OF 4 MAR   (LevelProvenance → H2 copy)
+//    • provenance — CALIBRATED, or ESTIMATED when no lab has calibrated the model
 //    • status / safety — AT TROUGH · WITHIN YOUR SET TROUGH, and the X10 safety pill
 //
 //  While scrubbing the number turns accent and the provenance line becomes the scrub time.

@@ -1653,26 +1653,23 @@ struct ContextualRangeTests {
     }
 
     @MainActor
-    @Test("Only bounds the user actually entered are marked user-set")
-    func blendedBoundsAreNotAttributedToTheUser() {
+    @Test("A set target is the reference at every cycle position, never blended")
+    func userTargetQuotesTheUsersNumbersEverywhere() {
         // Settings collects a trough floor, a trough ceiling and a peak ceiling.
-        // Mid-cycle and near-peak bounds are interpolated against model-scaled peak
-        // values, so they are not numbers the user ever entered. Marking them
-        // `.userSet` made the app say "your set range of 195–425" to someone who
-        // had entered 150–250.
+        // The trough pair is the reference at every position of the cycle — the
+        // old rule quoted it only at the trough position, silently ignoring the
+        // user's set trough the rest of the time. The quoted numbers are exactly
+        // what the user typed; no interpolated blend is ever attributed to them.
         let mgr = TestDefaults.manager()
         mgr.userTherapeuticTarget = MedicationManager.TherapeuticTarget(troughMin: 150, troughMax: 250, peakCeiling: 600)
 
-        for phase: MedicationManager.CyclePosition in [.midCycle, .nearPeak, .unknown] {
+        for phase: MedicationManager.CyclePosition in [.midCycle, .nearPeak, .trough, .unknown] {
             let range = mgr.contextualRange(for: .estrogen, at: phase, doseIntensity: 1.0)
-            #expect(range.source == .modelDerived,
-                    "\(phase) bounds are blended with model values and must not be attributed to the user")
+            #expect(range.source == .userSet,
+                    "\(phase) must quote the user's set trough, not stay silent")
+            #expect(range.min == 150 && range.max == 250,
+                    "\(phase) must quote the numbers the user entered, never a blend")
         }
-
-        // The trough pair is exactly what the user typed, so it may be quoted back.
-        let trough = mgr.contextualRange(for: .estrogen, at: .trough, doseIntensity: 1.0)
-        #expect(trough.source == .userSet)
-        #expect(trough.min == 150 && trough.max == 250)
     }
 }
 

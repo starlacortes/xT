@@ -58,21 +58,18 @@ struct YourRangeView: View {
                         SettingsGroup {
                             edgeRow(title: "Lower edge",
                                     value: $lowerEdge,
-                                    range: 0...9999,
                                     description: "The bottom of your reference band")
 
                             SettingsGroupDivider()
 
                             edgeRow(title: "Trough upper edge",
                                     value: $troughUpperEdge,
-                                    range: min(lowerEdge + 1, 9999)...9999,
                                     description: "Where you'd like troughs to sit below")
 
                             SettingsGroupDivider()
 
                             edgeRow(title: "Upper edge",
                                     value: $upperEdge,
-                                    range: min(troughUpperEdge, 9999)...9999,
                                     description: "The top of your reference band")
                         }
                     }
@@ -95,12 +92,17 @@ struct YourRangeView: View {
         .navigationBarTitleDisplayMode(.inline)
         .keyboardDoneToolbar { fieldFocused = false }
         .onAppear { loadFromTarget() }
+        // The one commit point: validate and persist when the keyboard leaves
+        // all three fields — never while a number is still being typed.
+        .onChange(of: fieldFocused) { _, focused in
+            if !focused { commitEdges() }
+        }
     }
 
     // MARK: - Edge rows
 
     private func edgeRow(title: LocalizedStringResource, value: Binding<Double>,
-                         range: ClosedRange<Double>, description: LocalizedStringResource) -> some View {
+                         description: LocalizedStringResource) -> some View {
         HStack(spacing: Theme.Spacing.card) {
             VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
                 Text(title)
@@ -121,11 +123,10 @@ struct YourRangeView: View {
                     .frame(width: 72)
                     .focused($fieldFocused)
                     .submitLabel(.done)
-                    .onChange(of: value.wrappedValue) { _, newVal in
-                        if newVal < range.lowerBound { value.wrappedValue = range.lowerBound }
-                        if newVal > range.upperBound { value.wrappedValue = range.upperBound }
-                        save()
-                    }
+                    // Commit-only: clamping or saving mid-keystroke snapped the
+                    // field to the range floor while the number was still being
+                    // edited. The commit runs in `commitEdges()`, on focus loss.
+                    .onSubmit { fieldFocused = false }
 
                 Text(verbatim: medicationUnit)
                     .font(Theme.Fonts.caption)
@@ -149,6 +150,17 @@ struct YourRangeView: View {
         } else {
             showOnCurve = false
         }
+    }
+
+    /// Clamps the three edges into their ordering (lower < trough upper ≤ upper)
+    /// and persists — the single commit path, run on focus loss so a half-typed
+    /// value never snaps the field out from under the cursor.
+    private func commitEdges() {
+        guard showOnCurve else { return }
+        lowerEdge = min(max(lowerEdge, 0), 9999)
+        troughUpperEdge = min(max(troughUpperEdge, lowerEdge + 1), 9999)
+        upperEdge = min(max(upperEdge, troughUpperEdge), 9999)
+        save()
     }
 
     private func save() {

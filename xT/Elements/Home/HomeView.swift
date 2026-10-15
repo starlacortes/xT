@@ -86,7 +86,8 @@ struct HomeView: View {
     private func configuredHome(hPad: CGFloat) -> some View {
         let insets = EdgeInsets(top: readoutBlockHeight + plotClearance,
                                 leading: 0,
-                                bottom: bottomBlockHeight + plotClearance,
+                                bottom: bottomBlockHeight + plotClearance
+                                    + HomeLayout.dayAxisHeight,
                                 trailing: 0)
         return ZStack(alignment: .top) {
             FlatGraphView(plotInsets: insets,
@@ -101,7 +102,7 @@ struct HomeView: View {
                             trailingClearance: pickerWidth + Theme.Spacing.sm)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, hPad)
-                    .padding(.top, Theme.Spacing.sm)
+                    .padding(.top, Theme.Spacing.md)
                     .background(heightReader(ReadoutBlockHeightKey.self))
                 Spacer(minLength: 0)
             }
@@ -116,7 +117,7 @@ struct HomeView: View {
                         .background(widthReader(PickerWidthKey.self))
                 }
                 .padding(.horizontal, hPad)
-                .padding(.top, Theme.Spacing.sm)
+                .padding(.top, Theme.Spacing.md)
                 Spacer(minLength: 0)
             }
 
