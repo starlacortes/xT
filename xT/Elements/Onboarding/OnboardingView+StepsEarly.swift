@@ -26,6 +26,7 @@ extension OnboardingView {
                     .multilineTextAlignment(.center)
                 Spacer()
                 VStack(spacing: Theme.Spacing.row) {
+                    medicalDisclaimer
                     primaryButton("Begin") { advanceStep() }
                     restoreLink
                 }
@@ -79,6 +80,18 @@ extension OnboardingView {
         } message: {
             Text("Restoring from iCloud requires iCloud Sync. Turn it on now and your data will restore automatically.")
         }
+    }
+
+    /// The not-medical-advice line, shown above Begin so every new user reads
+    /// it before setup. App Review expects health apps to say this up front;
+    /// it mirrors the opening section of the Terms of Use.
+    private var medicalDisclaimer: some View {
+        Text("Isocline estimates hormone levels from a model. It isn't medical advice and doesn't replace bloodwork or your clinician. Don't change your dose based on it.")
+            .font(Theme.Fonts.footnote)
+            .foregroundStyle(Theme.Colors.textSecondary)
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.bottom, Theme.Spacing.sm)
     }
 
     private var restoreLink: some View {
