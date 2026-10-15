@@ -19,6 +19,7 @@ import SwiftUI
 
 struct FlatGraphView: View {
     @Environment(\.medicationManager) private var medicationManager
+    @Environment(\.entitlementManager) private var entitlementManager
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorScheme) private var colorScheme
@@ -111,7 +112,9 @@ struct FlatGraphView: View {
             }
             .clipped()
             .overlay {
-                if !points.isEmpty {
+                // Scrubbing is Isocline Plus (plan §4); lapsed subscribers
+                // keep the curve but not the scrub.
+                if !points.isEmpty && entitlementManager.isPremium {
                     Color.clear
                         .contentShape(Rectangle())
                         .gesture(scrubGesture(in: geo))

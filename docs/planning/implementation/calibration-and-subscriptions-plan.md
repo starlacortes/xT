@@ -14,6 +14,15 @@ Last updated: 2026-08-19
 > test" prompt can still exist as an invitation. The entitlement axis (§3.2 onward) and the
 > safety exemption (§6.3) are unaffected.
 
+> **Update 2026-10-15: Plus v1 shipped in code.** The bundle ID is now `com.starlacortes.isocline`
+> and the products are `com.starlacortes.isocline.plus.monthly` ($1.99) and
+> `com.starlacortes.isocline.plus.yearly` ($14.99, 7-day free trial), declared in
+> `xT/Shared/PlusProduct.swift` and `Isocline.storekit`. The tier is named **Isocline Plus**, not
+> "Pro". `EntitlementManager` reads `Transaction.currentEntitlements` (active) and
+> `Transaction.latest(for:)` (lapsed) rather than `Product.SubscriptionInfo.status`, which needs the
+> numeric group ID App Store Connect assigns. The paywall is StoreKit's `SubscriptionStoreView`
+> (`PlusPaywallView`), reached from Settings → Isocline Plus. Only the curve scrub is gated so far.
+
 ## 1. Background & motivation
 
 Two intertwined problems this plan addresses:

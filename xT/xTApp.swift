@@ -7,8 +7,6 @@
 
 import SwiftUI
 import SwiftData
-import CoreData
-import CloudKit
 
 // MARK: - Environment Extensions
 struct SecurityManagerKey: EnvironmentKey {
@@ -106,26 +104,10 @@ struct xTApp: App {
         // container opens (safe — nothing has the files open in init).
         Self.promoteTurnOnStoreIfPresent()
 
-        // TEMP-DEBUG: resolved sync state at launch.
-        print("[xTApp] launch: icloudSyncEnabled=\(String(describing: UserDefaults.standard.object(forKey: "icloudSyncEnabled"))) hasCompletedOnboarding=\(String(describing: UserDefaults.standard.object(forKey: "hasCompletedOnboarding"))) pendingWipe=\(UserDefaults.standard.bool(forKey: CloudSyncService.pendingLocalStoreWipeKey))")
-
         NotificationManager.shared.registerNotificationHandling()
         Task { await NotificationManager.shared.scheduleAllReminders() }
 
-        // TEMP-DEBUG (iCloud restore diagnosis): stream CoreData+CloudKit
-        // mirroring events (setup/import/export + errors) to stdout.
-        NotificationCenter.default.addObserver(
-            forName: NSPersistentCloudKitContainer.eventChangedNotification,
-            object: nil,
-            queue: .main
-        ) { note in
-            guard let event = note.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey]
-                    as? NSPersistentCloudKitContainer.Event else { return }
-            print("[CloudKitEvent] type=\(event.type.rawValue) succeeded=\(event.succeeded) error=\(String(describing: event.error))")
-        }
-
-        // Permanent companion to the temp-debug observer above: tracks CloudKit
-        // import activity for the restore poll's adaptive window.
+        // Tracks CloudKit import activity for the restore poll's adaptive window.
         CloudSyncService.installCloudKitEventObserverIfNeeded()
         // Keeps Home + Journal live when a CloudKit import lands outside a restore
         // poll's bounded window (H-D7).
@@ -140,7 +122,6 @@ struct xTApp: App {
             let useCloudKit = defaults.bool(forKey: "icloudSyncEnabled")
             let container = Self.makeContainer(cloudKit: useCloudKit)
             Self.wireManagers(container)
-            Self.printCloudKitDiagnostics(container)
             _appContainer = State(initialValue: container)
         } else if hasCompletedOnboarding {
             // Existing user updating from a build that predates the iCloud choice —
@@ -157,7 +138,6 @@ struct xTApp: App {
             // local-only via the rebuildCloudContainer environment closure.
             let container = Self.makeContainer(cloudKit: true)
             Self.wireManagers(container)
-            Self.printCloudKitDiagnostics(container)
             _appContainer = State(initialValue: container)
         }
 
@@ -190,6 +170,9 @@ struct xTApp: App {
                 ContentView()
                     .onChange(of: scenePhase) { _, newPhase in
                         AuthenticationManager.shared.handleScenePhase(newPhase)
+                        if newPhase == .active {
+                            Task { await EntitlementManager.shared.refresh() }
+                        }
                     }
                     .environment(\.modelContainer, container)
                     .environment(\.rebuildCloudContainer) { rebuild in
@@ -217,41 +200,7 @@ struct xTApp: App {
         .environment(\.securityManager, SecurityManager.shared)
         .environment(\.themeManager, ThemeManager.shared)
         .environment(\.appIconManager, AppIconManager.shared)
-    }
-
-    // MARK: - TEMP-DEBUG (iCloud restore diagnosis)
-
-    /// Prints the iCloud account status and the resolved CloudKit user record
-    /// ID at launch. Temporary diagnostic — remove once the restore issue is
-    /// resolved.
-    @MainActor
-    static func printCloudKitDiagnostics(_ container: ModelContainer) {
-        CKContainer.default().accountStatus { status, error in
-            print("[CloudKitDiag] accountStatus raw=\(status.rawValue) error=\(String(describing: error))")
-        }
-        CKContainer.default().fetchUserRecordID { recordID, error in
-            print("[CloudKitDiag] userRecordID=\(recordID?.recordName ?? "nil") error=\(String(describing: error))")
-        }
-        CKContainer.default().privateCloudDatabase.fetchAllRecordZones { zones, error in
-            print("[CloudKitDiag] zoneCount=\(zones?.count ?? -1) error=\(String(describing: error))")
-            for zone in zones ?? [] {
-                print("[CloudKitDiag] zone name=\(zone.zoneID.zoneName) owner=\(zone.zoneID.ownerName)")
-            }
-        }
-        let db = CKContainer.default().privateCloudDatabase
-        let zoneID = CKRecordZone.ID(zoneName: "com.apple.coredata.cloudkit.zone",
-                                     ownerName: CKCurrentUserDefaultName)
-        let op = CKFetchRecordZoneChangesOperation(
-            recordZoneIDs: [zoneID],
-            configurationsByRecordZoneID: [zoneID: CKFetchRecordZoneChangesOperation.ZoneConfiguration()]
-        )
-        op.fetchAllChanges = true
-        op.recordWasChangedBlock = { _, result in
-            if case .success(let record) = result {
-                print("[CloudKitDiag] record type=\(record.recordType) created=\(String(describing: record.creationDate))")
-            }
-        }
-        db.add(op)
+        .environment(\.entitlementManager, EntitlementManager.shared)
     }
 
     // MARK: - Store file management
@@ -277,15 +226,9 @@ struct xTApp: App {
             if FileManager.default.fileExists(atPath: url.path) {
                 do {
                     try FileManager.default.removeItem(at: url)
-                    // TEMP-DEBUG
-                    print("[xTApp] wipe: removed \(name)")
                 } catch {
-                    // TEMP-DEBUG
-                    print("[xTApp] wipe: FAILED to remove \(name): \(error)")
+                    print("[xTApp] wipe: failed to remove \(name): \(error)")
                 }
-            } else {
-                // TEMP-DEBUG
-                print("[xTApp] wipe: \(name) not present")
             }
         }
     }
@@ -314,11 +257,8 @@ struct xTApp: App {
             guard fm.fileExists(atPath: src.path) else { continue }
             do {
                 try fm.moveItem(at: src, to: dst)
-                // TEMP-DEBUG
-                print("[xTApp] promote: moved \(turnOnStoreBaseName)\(suffix) -> xT.store\(suffix)")
             } catch {
-                // TEMP-DEBUG
-                print("[xTApp] promote: FAILED to move \(suffix): \(error)")
+                print("[xTApp] promote: failed to move \(suffix): \(error)")
             }
         }
     }
@@ -352,10 +292,7 @@ struct xTApp: App {
             )
         }
         do {
-            let container = try ModelContainer(for: schema, configurations: [config])
-            // TEMP-DEBUG: confirm the resolved store backing.
-            print("[xTApp] makeContainer(cloudKit: \(cloudKit)) -> cloudKitDatabase=\(String(describing: container.configurations.first?.cloudKitDatabase))")
-            return container
+            return try ModelContainer(for: schema, configurations: [config])
         } catch {
             // Leave the on-disk store untouched so user data is never actively destroyed.
             // A transient error gets another chance on the next launch; a genuine schema

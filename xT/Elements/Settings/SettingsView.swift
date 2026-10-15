@@ -6,7 +6,8 @@
 //  sketch's composition: an ISOCLINE brand eyebrow over an ink serif title,
 //  the profile centered flush on the paper (avatar, serif name, mono tenure,
 //  a quiet EDIT caption — the block itself stays non-interactive, X26), four
-//  gateway cards with live mono subtitles (ST5) and a flush mono footer (ST10).
+//  gateway cards with live mono subtitles (ST5), the Isocline Plus card, and
+//  a flush mono footer (ST10).
 //  The old 2×2 quick-card grid and the five inline sections are gone — every
 //  row now lives in one of the four gateway sub-screens.
 //
@@ -20,6 +21,7 @@ struct SettingsView: View {
     @Environment(\.authenticationManager) var authManager
     @Environment(\.themeManager) var themeManager
     @Environment(\.appIconManager) var appIconManager
+    @Environment(\.entitlementManager) var entitlementManager
 
     @State var showingProfileEditor = false
     /// Tracked separately from the raw default so the Privacy gateway's "iCloud
@@ -69,6 +71,11 @@ struct SettingsView: View {
                                             title: "Privacy & Data",
                                             subtitle: privacyGatewaySubtitle) {
                             SettingsPrivacyView()
+                        }
+                        SettingsGatewayCard(icon: "seal",
+                                            title: "Isocline Plus",
+                                            subtitle: plusGatewaySubtitle) {
+                            SettingsPlusView()
                         }
                     }
                     .padding(.horizontal, hPad)
@@ -250,6 +257,23 @@ struct SettingsView: View {
             "\(lock) · \(cloud)",
             comment: "Privacy gateway subtitle: lock state plus iCloud sync state"
         )
+    }
+
+    private var plusGatewaySubtitle: LocalizedStringResource? {
+        switch entitlementManager.access {
+        case .active:
+            guard let date = entitlementManager.expirationDate else {
+                return LocalizedStringResource("Active", comment: "Plus gateway subtitle for a subscriber")
+            }
+            return LocalizedStringResource(
+                "Renews \(date.formatted(date: .abbreviated, time: .omitted))",
+                comment: "Plus gateway subtitle: the subscription's renewal date"
+            )
+        case .lapsed:
+            return LocalizedStringResource("Ended", comment: "Plus gateway subtitle after a subscription lapses")
+        case .free:
+            return LocalizedStringResource("Not subscribed", comment: "Plus gateway subtitle before subscribing")
+        }
     }
 
     // MARK: - Footer (ST10)
