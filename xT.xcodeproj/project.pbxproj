@@ -636,9 +636,9 @@
 				INFOPLIST_FILE = xT/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Isocline;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
-				INFOPLIST_KEY_NSCameraUsageDescription = "Isocline uses the camera to capture timeline progress photos.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Isocline uses the camera only when you take a profile photo.";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Use Face ID to unlock Isocline and protect your health data.";
-				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "xT saves timeline photos to track physical changes during HRT.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Isocline uses only the photo you choose for your profile.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -712,9 +712,9 @@
 				INFOPLIST_FILE = xT/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Isocline;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
-				INFOPLIST_KEY_NSCameraUsageDescription = "Isocline uses the camera to capture timeline progress photos.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Isocline uses the camera only when you take a profile photo.";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Use Face ID to unlock Isocline and protect your health data.";
-				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "xT saves timeline photos to track physical changes during HRT.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Isocline uses only the photo you choose for your profile.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
